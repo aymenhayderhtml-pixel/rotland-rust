@@ -55,6 +55,7 @@ More crates (`ui`) are added by the phases in the plan.
 - Esc: Release mouse cursor (click window to capture again)
 
 ## Rules for workers
+- **Do not build or run tests.** Write the code and its tests, commit, report. Claude merges each round and builds and tests everything once (owner's rule: one test run, not one per worker).
 - Read `../AGENTS.md`, then this file, then only the files your task names.
 - Port behaviour from the C# file the task names; keep the same numbers and the same data files (`../data`).
 - Pure logic goes in a crate with `cargo test` tests; compare with golden files from the Godot version where the task gives them.
