@@ -1,0 +1,10 @@
+[package]
+name = "pack"
+version.workspace = true
+edition.workspace = true
+description = "Binary format and data types for Rotland 3D model packs"
+
+[dependencies]
+bytemuck.workspace = true
+postcard.workspace = true
+serde.workspace = true
