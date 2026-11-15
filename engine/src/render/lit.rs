@@ -3,7 +3,7 @@ use glam::{Vec3, Vec4};
 
 use super::camera::Camera;
 use super::frustum::Frustum;
-use super::mesh::{ColorVertex, GpuMesh};
+use super::mesh::{GpuMesh, COLOR_VERTEX_LAYOUT};
 use crate::gpu::{Gpu, DEPTH_FORMAT};
 use crate::target::{FrameTarget, COLOR_FORMAT};
 
@@ -148,7 +148,7 @@ impl LitRenderer {
                 module: &module,
                 entry_point: Some("mesh_vs"),
                 compilation_options: Default::default(),
-                buffers: &[Some(ColorVertex::LAYOUT)],
+                buffers: &[Some(COLOR_VERTEX_LAYOUT)],
             },
             primitive: wgpu::PrimitiveState {
                 // Godot's front faces are clockwise; the meshes keep Godot's triangle order

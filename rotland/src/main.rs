@@ -32,7 +32,7 @@ fn test_chunk(cx: i32, cz: i32) -> Vec<ColorVertex> {
                 let shade = ((i * 7 + j * 13) % 5) as u8 * 3;
                 let color = [0x5d - shade, 0x88 - shade, 0x36, 255];
                 for v in tri {
-                    out.push(ColorVertex { position: v.to_array(), normal: normal.to_array(), color });
+                    out.push(ColorVertex { position: v.to_array(), normal: normal.to_array(), color, bone: 0, _pad: [0; 3] });
                 }
             }
         }
@@ -69,8 +69,26 @@ impl Game for R0 {
                 self.chunks.push((mesh, Vec3::new(cx as f32 * CHUNK, 0.0, cz as f32 * CHUNK)));
             }
         }
-        self.camera.position = Vec3::new(10.0, height(10.0, 10.0) + 8.0, 10.0);
-        self.camera.look_at(Vec3::new(-60.0, 0.0, -80.0));
+        // Real baked models on the test ground, to check the pack's colours
+        let pack_path = concat!(env!("CARGO_MANIFEST_DIR"), "/../assets/models.pack");
+        match pack::ModelPack::load(pack_path) {
+            Ok(models) => {
+                let row = ["tree_pine_01", "tree_oak_01", "tree_birch_01", "tree_autumn_01", "rock_01", "barrel_rusty", "zombie_01", "human_player", "car_hatchback_red", "cabin"];
+                for (k, name) in row.iter().enumerate() {
+                    if let Some(m) = models.find(name) {
+                        let x = -40.0 + k as f32 * 9.0;
+                        let z = -25.0;
+                        let mesh = GpuMesh::new(&gpu.device, name, &m.vertices);
+                        self.chunks.push((mesh, Vec3::new(x, height(x, z), z)));
+                    } else {
+                        log::warn!("model {name} not in the pack");
+                    }
+                }
+            }
+            Err(e) => log::warn!("no model pack ({e}); run `cargo run --release -p baker`"),
+        }
+        self.camera.position = Vec3::new(0.0, height(0.0, 0.0) + 4.0, 0.0);
+        self.camera.look_at(Vec3::new(0.0, height(0.0, -25.0) + 2.0, -25.0));
     }
 
     fn update(&mut self, input: &Input, dt: f32) {

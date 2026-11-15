@@ -10,3 +10,4 @@ log.workspace = true
 wgpu.workspace = true
 env_logger.workspace = true
 winit.workspace = true
+pack = { path = "../pack" }

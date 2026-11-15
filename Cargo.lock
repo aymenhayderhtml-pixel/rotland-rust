@@ -525,6 +525,7 @@ dependencies = [
  "glam",
  "image",
  "log",
+ "pack",
  "pollster",
  "serde",
  "serde_json",
@@ -1854,6 +1855,7 @@ dependencies = [
  "env_logger",
  "glam",
  "log",
+ "pack",
  "wgpu",
  "winit",
 ]
