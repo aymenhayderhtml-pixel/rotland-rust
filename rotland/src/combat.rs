@@ -83,6 +83,17 @@ impl Combat {
         ev
     }
 
+    /// Kills the player now (test option --die-at). Returns true if they were alive.
+    pub fn kill(&mut self) -> bool {
+        if self.is_dead() {
+            return false;
+        }
+        self.health.kill();
+        self.dead_for = Some(0.0);
+        self.swing.cancel();
+        true
+    }
+
     /// Bites from this frame's zombies. Returns events (bitten / died).
     pub fn take_bites(&mut self, damage: &[f32]) -> CombatEvents {
         let mut ev = CombatEvents::default();

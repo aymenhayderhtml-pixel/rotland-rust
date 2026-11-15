@@ -60,6 +60,8 @@ struct R0 {
     autowalk: bool,
     /// Scripted test: swing whenever possible (for screenshots and stats without a person at the mouse).
     autoattack: bool,
+    /// Scripted test: the player dies at this time (seconds), to check respawning.
+    die_at: Option<f32>,
     free_cam: bool,
 }
 
@@ -108,6 +110,7 @@ impl Game for R0 {
         self.free_cam = args.flag("--free");
         self.autowalk = args.flag("--autowalk");
         self.autoattack = args.flag("--autoattack");
+        self.die_at = args.value("--die-at").and_then(|v| v.parse().ok());
         self.walk = self.scene == "forest" && !self.free_cam;
         self.cursor_captured = self.scene == "play" && !self.free_cam;
         self.renderer = Some(LitRenderer::new(gpu));
@@ -131,8 +134,12 @@ impl Game for R0 {
         };
 
         if self.scene == "play" {
-            self.player_ctrl = Some(Player::new(self.player));
-            self.camera_rig = Some(CameraRig::new());
+            let rig = CameraRig::new();
+            let mut player = Player::new(self.player);
+            // Start facing where the camera looks (away from it), not toward it
+            player.yaw = rig.yaw;
+            self.player_ctrl = Some(player);
+            self.camera_rig = Some(rig);
         }
 
         match pack::ModelPack::load(paths::repo_path("rust/assets/models.pack")) {
@@ -233,6 +240,10 @@ impl Game for R0 {
                         pv.animator.play_action(&clip, 1.0);
                     }
                     if ev.respawn {
+                        // Clear the death pose, or it stays mixed into the legs after waking up
+                        if let Some(pv) = self.player_visual.as_mut() {
+                            pv.animator.reset_alive();
+                        }
                         // Wake up at the camp (Godot respawns at the last settlement visited)
                         if let Some(w) = self.world_gen.as_ref() {
                             let spawn = w.settlements()[0].respawn_point(w.config());
@@ -269,6 +280,16 @@ impl Game for R0 {
                 }
             }
             self.player = self.camera.position;
+        }
+        if let (Some(t), Some(c)) = (self.die_at, self.combat.as_mut())
+            && self.time >= t
+        {
+            self.die_at = None;
+            if c.kill()
+                && let Some(pv) = self.player_visual.as_mut()
+            {
+                pv.animator.play_die();
+            }
         }
         // Zombies chase the living player; while dead they lose the target
         let alive = !self.combat.as_ref().is_some_and(|c| c.is_dead());

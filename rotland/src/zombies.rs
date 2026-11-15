@@ -225,8 +225,9 @@ impl Zombies {
             let base = bones.len();
             bones.resize(base + look.rig.joint_count(), Mat4::IDENTITY);
             look.rig.sample(clip, t, &mut bones[base..]);
-            // The brain's yaw is Godot's Rotation.Y; the models face +Z, so turn them half way round
-            let model = Mat4::from_translation(z.position) * Mat4::from_rotation_y(z.yaw + std::f32::consts::PI);
+            // The brain's yaw is Godot's Rotation.Y and the models already face that way (no half turn:
+            // with one they walked backwards, seen in the owner's screenshot)
+            let model = Mat4::from_translation(z.position) * Mat4::from_rotation_y(z.yaw);
             per_look[z.look].push(SkinInstance::new(model, base as u32));
         }
         per_look
