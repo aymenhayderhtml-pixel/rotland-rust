@@ -2,6 +2,7 @@
 //! Kept small on purpose: the game crates own all game rules; the engine draws, reads input and measures.
 //! See rust/README.md for the commands AI workers use (screenshots, stats, fixed-length runs).
 
+pub mod anim;
 pub mod app;
 pub mod capture;
 pub mod cli;

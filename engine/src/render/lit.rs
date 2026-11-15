@@ -4,6 +4,7 @@ use glam::{Vec3, Vec4};
 use super::camera::Camera;
 use super::frustum::Frustum;
 use super::mesh::{GpuMesh, COLOR_VERTEX_LAYOUT};
+use super::skinned::{self, GrowBuffer, SkinnedBatch};
 use crate::gpu::{Gpu, DEPTH_FORMAT};
 use crate::target::{FrameTarget, COLOR_FORMAT};
 
@@ -58,6 +59,11 @@ pub struct LitRenderer {
     draw_bind: wgpu::BindGroup,
     sky: wgpu::RenderPipeline,
     mesh: wgpu::RenderPipeline,
+    skinned: wgpu::RenderPipeline,
+    bones: GrowBuffer,
+    bones_layout: wgpu::BindGroupLayout,
+    bones_bind: wgpu::BindGroup,
+    instances: GrowBuffer,
     /// Draws and triangles of the last frame, for the stats JSON.
     pub last_draws: u32,
     pub last_triangles: u64,
@@ -124,6 +130,24 @@ impl LitRenderer {
             bind_group_layouts: &[Some(&scene_layout), Some(&draw_layout)],
             immediate_size: 0,
         });
+        let bones_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("bones"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Storage { read_only: true }, has_dynamic_offset: false, min_binding_size: None },
+                count: None,
+            }],
+        });
+        let skinned_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("skinned"),
+            bind_group_layouts: &[Some(&scene_layout), None, Some(&bones_layout)],
+            immediate_size: 0,
+        });
+        let skinned = skinned::pipeline(device, &module, &skinned_layout);
+        let bones = GrowBuffer::new(device, "bones", wgpu::BufferUsages::STORAGE, 64 * 64 * 64);
+        let bones_bind = Self::bones_bind(device, &bones_layout, &bones.buffer);
+        let instances = GrowBuffer::new(device, "skin instances", wgpu::BufferUsages::VERTEX, 64 * 1024);
         let sky = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("sky"),
             layout: Some(&sky_layout),
@@ -167,11 +191,45 @@ impl LitRenderer {
             multiview_mask: None,
             cache: None,
         });
-        Self { scene_buf, scene_bind, draw_buf, draw_bind, sky, mesh, last_draws: 0, last_triangles: 0 }
+        Self {
+            scene_buf,
+            scene_bind,
+            draw_buf,
+            draw_bind,
+            sky,
+            mesh,
+            skinned,
+            bones,
+            bones_layout,
+            bones_bind,
+            instances,
+            last_draws: 0,
+            last_triangles: 0,
+        }
     }
 
-    /// Draws the sky, then every item whose bounds are inside the camera's view.
-    pub fn draw(&mut self, gpu: &Gpu, target: &FrameTarget, encoder: &mut wgpu::CommandEncoder, camera: &Camera, light: &Lighting, items: &[DrawItem]) {
+    fn bones_bind(device: &wgpu::Device, layout: &wgpu::BindGroupLayout, buffer: &wgpu::Buffer) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("bones"),
+            layout,
+            entries: &[wgpu::BindGroupEntry { binding: 0, resource: buffer.as_entire_binding() }],
+        })
+    }
+
+    /// Draws the world: static items (culled against the view), skinned batches (one instanced draw
+    /// per model; `bones` holds every instance's skin matrices), then the sky behind everything.
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw(
+        &mut self,
+        gpu: &Gpu,
+        target: &FrameTarget,
+        encoder: &mut wgpu::CommandEncoder,
+        camera: &Camera,
+        light: &Lighting,
+        items: &[DrawItem],
+        skinned: &[SkinnedBatch],
+        bones: &[glam::Mat4],
+    ) {
         let view_proj = camera.view_proj(target.aspect());
         let lin = srgb_to_linear;
         let v4 = |v: Vec3, w: f32| Vec4::from((v, w)).to_array();
@@ -205,6 +263,12 @@ impl LitRenderer {
             gpu.queue.write_buffer(&self.draw_buf, 0, &offsets);
         }
 
+        if self.bones.write(&gpu.device, &gpu.queue, bytemuck::cast_slice(bones)) {
+            self.bones_bind = Self::bones_bind(&gpu.device, &self.bones_layout, &self.bones.buffer);
+        }
+        let all_instances: Vec<skinned::SkinInstance> = skinned.iter().flat_map(|b| b.instances.iter().copied()).collect();
+        self.instances.write(&gpu.device, &gpu.queue, bytemuck::cast_slice(&all_instances));
+
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("world"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -233,10 +297,28 @@ impl LitRenderer {
             pass.draw(0..d.mesh.vertex_count, 0..1);
             triangles += d.mesh.vertex_count as u64 / 3;
         }
+        let mut draws = visible.len() as u32;
+        if !all_instances.is_empty() {
+            pass.set_pipeline(&self.skinned);
+            pass.set_bind_group(0, &self.scene_bind, &[]);
+            pass.set_bind_group(2, &self.bones_bind, &[]);
+            pass.set_vertex_buffer(1, self.instances.buffer.slice(..));
+            let mut first = 0u32;
+            for b in skinned {
+                let count = b.instances.len() as u32;
+                if count > 0 {
+                    pass.set_vertex_buffer(0, b.mesh.vertices.slice(..));
+                    pass.draw(0..b.mesh.vertex_count, first..first + count);
+                    triangles += (b.mesh.vertex_count / 3) as u64 * count as u64;
+                    draws += 1;
+                }
+                first += count;
+            }
+        }
         pass.set_pipeline(&self.sky);
         pass.set_bind_group(0, &self.scene_bind, &[]);
         pass.draw(0..3, 0..1);
-        self.last_draws = visible.len() as u32 + 1;
+        self.last_draws = draws + 1;
         self.last_triangles = triangles;
     }
 }
@@ -254,7 +336,7 @@ fn uniform_entry(dynamic: bool) -> wgpu::BindGroupLayoutEntry {
     }
 }
 
-fn depth_state(write: bool) -> wgpu::DepthStencilState {
+pub(crate) fn depth_state(write: bool) -> wgpu::DepthStencilState {
     wgpu::DepthStencilState {
         format: DEPTH_FORMAT,
         depth_write_enabled: Some(write),

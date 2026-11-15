@@ -103,3 +103,32 @@ fn mesh_fs(i: VsOut) -> @location(0) vec4<f32> {
     color = mix(color, scene.fog_color.rgb, fog);
     return vec4(filmic(color), 1.0);
 }
+
+// ---- skinned meshes (characters): rigid skinning, many instances per draw.
+// Each instance carries its world matrix and where its joints start in the shared bone list.
+@group(2) @binding(0) var<storage, read> bones: array<mat4x4<f32>>;
+
+struct SkinIn {
+    @location(0) position: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) color: vec4<f32>,
+    @location(3) bone: vec4<u32>,
+    @location(4) m0: vec4<f32>,
+    @location(5) m1: vec4<f32>,
+    @location(6) m2: vec4<f32>,
+    @location(7) m3: vec4<f32>,
+    @location(8) bone_base: u32,
+};
+
+@vertex
+fn skinned_vs(v: SkinIn) -> VsOut {
+    let model = mat4x4<f32>(v.m0, v.m1, v.m2, v.m3);
+    let skin = model * bones[v.bone_base + v.bone.x];
+    let world = (skin * vec4(v.position, 1.0)).xyz;
+    var o: VsOut;
+    o.pos = scene.view_proj * vec4(world, 1.0);
+    o.world = world;
+    o.normal = (skin * vec4(v.normal, 0.0)).xyz;
+    o.albedo = srgb_to_linear(v.color.rgb);
+    return o;
+}

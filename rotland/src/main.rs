@@ -1,6 +1,8 @@
 //! Rotland (Rust). R0: the engine draws a lit test landscape (temporary until the `world` crate lands).
 
-use engine::render::{Camera, ColorVertex, DrawItem, GpuMesh, Lighting, LitRenderer};
+use engine::anim::Rig;
+use engine::render::{Camera, ColorVertex, DrawItem, GpuMesh, Lighting, LitRenderer, SkinInstance, SkinnedBatch};
+use glam::Mat4;
 use engine::{EngineArgs, FrameTarget, Game, GameStats, Gpu, Input};
 use glam::Vec3;
 
@@ -12,6 +14,16 @@ struct R0 {
     chunks: Vec<(GpuMesh, Vec3)>,
     camera: Camera,
     time: f32,
+    /// Zombie looks: mesh, rig, the shamble clip, and where each zombie of that look stands.
+    zombies: Vec<ZombieKind>,
+    bones: Vec<Mat4>,
+}
+
+struct ZombieKind {
+    mesh: GpuMesh,
+    rig: Rig,
+    clip: pack::Clip,
+    spots: Vec<(Vec3, f32, f32)>,
 }
 
 fn height(x: f32, z: f32) -> f32 {
@@ -87,8 +99,21 @@ impl Game for R0 {
             }
             Err(e) => log::warn!("no model pack ({e}); run `cargo run --release -p baker`"),
         }
-        self.camera.position = Vec3::new(0.0, height(0.0, 0.0) + 4.0, 0.0);
-        self.camera.look_at(Vec3::new(0.0, height(0.0, -25.0) + 2.0, -25.0));
+        // 25 zombies in a loose crowd ahead of the camera, each at its own point in the walk cycle
+        if let Ok(models) = pack::ModelPack::load(pack_path) {
+            for (k, name) in ["zombie_01", "zombie_02", "zombie_03"].iter().enumerate() {
+                let Some(m) = models.find(name) else { continue };
+                let (Some(skel), Some(clip)) = (&m.skeleton, m.clips.iter().find(|c| c.name == "zombie_shamble")) else { continue };
+                let mut spots = Vec::new();
+                for i in (k..25).step_by(3) {
+                    let (x, z) = (-12.0 + (i % 5) as f32 * 6.0 + (i as f32 * 1.7).sin(), -12.0 - (i / 5) as f32 * 5.0);
+                    spots.push((Vec3::new(x, height(x, z), z), (i as f32 * 0.7).sin() * 0.6, i as f32 * 0.37));
+                }
+                self.zombies.push(ZombieKind { mesh: GpuMesh::new(&gpu.device, name, &m.vertices), rig: Rig::new(skel), clip: clip.clone(), spots });
+            }
+        }
+        self.camera.position = Vec3::new(0.0, height(0.0, 0.0) + 2.5, 2.0);
+        self.camera.look_at(Vec3::new(0.0, height(0.0, -20.0) + 1.0, -20.0));
     }
 
     fn update(&mut self, input: &Input, dt: f32) {
@@ -109,8 +134,23 @@ impl Game for R0 {
 
     fn render(&mut self, gpu: &Gpu, target: &FrameTarget, encoder: &mut wgpu::CommandEncoder) {
         let items: Vec<DrawItem> = self.chunks.iter().map(|(mesh, offset)| DrawItem { mesh, offset: *offset }).collect();
+        self.bones.clear();
+        let mut batches = Vec::new();
+        for kind in &self.zombies {
+            let joints = kind.rig.joint_count();
+            let mut instances = Vec::new();
+            for &(pos, yaw, phase) in &kind.spots {
+                let base = self.bones.len();
+                self.bones.resize(base + joints, Mat4::IDENTITY);
+                kind.rig.sample(&kind.clip, self.time + phase, &mut self.bones[base..]);
+                // Models face +Z in Blender's export; turn them toward the camera (which looks down -Z)
+                let model = Mat4::from_translation(pos) * Mat4::from_rotation_y(yaw);
+                instances.push(SkinInstance::new(model, base as u32));
+            }
+            batches.push(SkinnedBatch { mesh: &kind.mesh, instances });
+        }
         if let Some(r) = self.renderer.as_mut() {
-            r.draw(gpu, target, encoder, &self.camera, &noon(), &items);
+            r.draw(gpu, target, encoder, &self.camera, &noon(), &items, &batches, &self.bones);
         }
     }
 
@@ -126,6 +166,6 @@ impl Game for R0 {
 
 fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info,wgpu_core=warn,wgpu_hal=warn")).init();
-    let game = R0 { renderer: None, chunks: Vec::new(), camera: Camera::default(), time: 0.0 };
+    let game = R0 { renderer: None, chunks: Vec::new(), camera: Camera::default(), time: 0.0, zombies: Vec::new(), bones: Vec::new() };
     engine::run(game, "Rotland (Rust)", EngineArgs::from_env());
 }
