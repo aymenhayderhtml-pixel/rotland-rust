@@ -190,16 +190,13 @@ fn not_enough_stamina_blocks_the_swing() {
     let w = weapon(BAT); // stamina cost 12
     let mut swing = MeleeSwing::new();
 
-    let mut short = Stamina::default();
-    short.current = 5.0;
+    let mut short = Stamina { current: 5.0, ..Default::default() };
     assert!(!swing.try_start(&w, &mut short));
     assert_eq!(short.current, 5.0, "a refused swing spends nothing");
     assert_eq!(swing.state(), SwingState::Idle, "a refused swing starts no cooldown");
 
     // Exactly the cost is enough, and it resets the regen timer as the C# TryUse does.
-    let mut exact = Stamina::default();
-    exact.current = 12.0;
-    exact.time_since_use = 0.5;
+    let mut exact = Stamina { current: 12.0, time_since_use: 0.5, ..Default::default() };
     assert!(swing.try_start(&w, &mut exact));
     assert_eq!(exact.current, 0.0);
     assert_eq!(exact.time_since_use, 0.0);

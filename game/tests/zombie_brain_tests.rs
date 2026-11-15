@@ -219,13 +219,17 @@ fn a_zombie_that_loses_the_player_goes_to_the_last_seen_spot_then_gives_up() {
     }
     assert_eq!(brain.state(), ZombieState::Chase);
 
-    // Then the player runs far beyond sight (18 m)
-    let gone = Vec3::new(10.0, 0.0, -200.0);
+    // Then the player sprints away (7 m/s, faster than the zombie) until far out of sight. A real
+    // player cannot teleport: sight is re-checked every 0.2 s (as in the C#), so a jump would be "seen".
+    let mut runner = player;
     let mut t = 0.0_f32;
     let mut seen: Vec<ZombieState> = Vec::new();
     let mut investigate_at = None;
     while t < 60.0 {
-        let out = tick(&mut brain, &mut body, &r.world, Some(gone));
+        if runner.z > -200.0 {
+            runner.z -= 7.0 * DT;
+        }
+        let out = tick(&mut brain, &mut body, &r.world, Some(runner));
         t += DT;
         assert_ne!(
             out.state,
@@ -251,11 +255,12 @@ fn a_zombie_that_loses_the_player_goes_to_the_last_seen_spot_then_gives_up() {
         ]
     );
 
-    // It keeps chasing for the memory time (6 s) and not much longer
+    // It keeps chasing for the memory time (6 s) after losing sight. The runner stays in view for about
+    // 3 s first (from 6 m apart to past the 18 m sight range at 7 vs 2.6 m/s), so allow up to 4.5 s more.
     let lose = r.def.lose_target_time;
     let at = investigate_at.expect("should give up the chase");
     assert!(
-        (lose - 0.5..=lose + 1.0).contains(&at),
+        (lose..=lose + 4.5).contains(&at),
         "gave up at {at} s, memory is {lose} s"
     );
 }
@@ -398,3 +403,4 @@ fn the_same_seed_gives_the_same_wander_path() {
         "the zombie should have wandered off"
     );
 }
+

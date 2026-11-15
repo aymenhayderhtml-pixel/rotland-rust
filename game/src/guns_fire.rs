@@ -149,10 +149,11 @@ fn resolve_one(
     // Nearest target within range, with whether the head was the part hit.
     let mut nearest: Option<(f32, u64, bool)> = None;
     for target in targets {
-        if let Some((distance, head)) = hit_target(ray.origin, dir, target) {
-            if distance <= max_range && nearest.is_none_or(|(d, _, _)| distance < d) {
-                nearest = Some((distance, target.id, head));
-            }
+        if let Some((distance, head)) = hit_target(ray.origin, dir, target)
+            && distance <= max_range
+            && nearest.is_none_or(|(d, _, _)| distance < d)
+        {
+            nearest = Some((distance, target.id, head));
         }
     }
 
