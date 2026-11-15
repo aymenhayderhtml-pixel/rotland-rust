@@ -41,8 +41,8 @@ fn terrain_matches_godot() {
 
     let worlds = golden["worlds"].as_array().expect("worlds");
     assert!(!worlds.is_empty(), "no worlds in the golden file");
-    let (mut points, mut heights, mut triangles, mut pois_compared, mut props_compared, mut bad) =
-        (0usize, 0usize, 0usize, 0usize, 0usize, Vec::new());
+    let (mut points, mut heights, mut triangles, mut pois_compared, mut props_compared, mut crates_compared, mut bad) =
+        (0usize, 0usize, 0usize, 0usize, 0usize, 0usize, Vec::new());
 
     for w in worlds {
         let seed = w["seed"].as_i64().expect("seed") as i32;
@@ -146,6 +146,30 @@ fn terrain_matches_godot() {
                 }
                 props_compared += 1;
             }
+
+            let ours_crates = world_gen.chunk_crates(coord);
+            let crates = c["crates"].as_array().expect("crates");
+            assert_eq!(crates.len(), ours_crates.len(), "seed {seed} chunk {coord}: crate count");
+            for (k, (g, r)) in crates.iter().zip(&ours_crates).enumerate() {
+                let g_id = g["crateId"].as_str().unwrap();
+                if r.crate_id != g_id && bad.len() < 20 {
+                    bad.push(format!("seed {seed} chunk {coord} crate {k} id: rust {} godot {g_id}", r.crate_id));
+                }
+                let p = &g["position"];
+                let (gx, gy, gz) = (f(&p["x"]), f(&p["y"]), f(&p["z"]));
+                if !(close(r.position.x, gx, TOL) && close(r.position.y, gy, TOL) && close(r.position.z, gz, TOL)) && bad.len() < 20 {
+                    bad.push(format!("seed {seed} chunk {coord} crate {k} pos: rust {} godot ({gx}, {gy}, {gz})", r.position));
+                }
+                let gyaw = f(&g["yaw"]);
+                if !close(r.yaw, gyaw, TOL) && bad.len() < 20 {
+                    bad.push(format!("seed {seed} chunk {coord} crate {k} yaw: rust {} godot {gyaw}", r.yaw));
+                }
+                let gbiome = g["biome"].as_i64().unwrap() as i32;
+                if r.biome as i32 != gbiome && bad.len() < 20 {
+                    bad.push(format!("seed {seed} chunk {coord} crate {k} biome: rust {:?} godot {gbiome}", r.biome));
+                }
+                crates_compared += 1;
+            }
         }
     }
 
@@ -172,11 +196,11 @@ fn terrain_matches_godot() {
     let benchmark_compared = 1usize;
 
     println!(
-        "compared {points} points, {heights} chunk heights, {triangles} triangles, {pois_compared} pois, {props_compared} props, {benchmark_compared} benchmark chunk, {} paint samples",
+        "compared {points} points, {heights} chunk heights, {triangles} triangles, {pois_compared} pois, {props_compared} props, {crates_compared} crates, {benchmark_compared} benchmark chunk, {} paint samples",
         samples.len()
     );
     assert!(
-        points > 0 && heights > 0 && triangles > 0 && pois_compared > 0 && props_compared > 0 && benchmark_compared > 0 && !samples.is_empty(),
+        points > 0 && heights > 0 && triangles > 0 && pois_compared > 0 && props_compared > 0 && crates_compared > 0 && benchmark_compared > 0 && !samples.is_empty(),
         "a section compared nothing"
     );
     assert!(bad.is_empty(), "{} mismatches (first 20):\n{}", bad.len(), bad.join("\n"));
