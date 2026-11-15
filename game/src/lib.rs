@@ -14,6 +14,8 @@ pub mod input;
 pub mod items;
 pub mod melee;
 pub mod player;
+pub mod spawner;
+pub mod spawner_config;
 pub mod weapons;
 pub mod zombie;
 
@@ -24,4 +26,8 @@ pub use flowfield::FlowField;
 pub use input::{Actions, InputBindings};
 pub use items::*;
 pub use player::*;
+pub use spawner::{
+    ActiveZombie, CampDensityRule, SpawnConfig, SpawnConfigData, SpawnContext, SpawnOrder,
+    SpawnOrders, SpawnTypeEntry, SpawnTypeTable, Spawner, SpawnerRng,
+};
 pub use weapons::{WeaponAnim, WeaponDef, WeaponHold, WeaponKind, WeaponLoadError, WeaponRegistry, WeaponScope};
