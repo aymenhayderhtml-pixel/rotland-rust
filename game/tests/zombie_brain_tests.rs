@@ -51,7 +51,12 @@ fn start() -> Body {
 }
 
 fn make_brain(r: &Rig, seed: u64) -> ZombieBrain {
-    ZombieBrain::new(&r.def, &r.tuning, start().pos, seed)
+    // Screams and eating are random in the game; tests switch them off unless a test turns them on
+    // (as Godot's tests did with ScreamChanceForTest = 0)
+    let mut brain = ZombieBrain::new(&r.def, &r.tuning, start().pos, seed);
+    brain.set_scream_chance(0.0);
+    brain.set_eat_chance_override(Some(0.0));
+    brain
 }
 
 /// This frame's input for `body`: no sounds, no hit, not dead.

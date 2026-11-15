@@ -278,5 +278,9 @@ fn clip_name(z: &Zombie) -> &str {
         AnimClip::Attack => "zombie_attack",
         AnimClip::Hit => "zombie_stagger",
         AnimClip::Die => "die",
+        AnimClip::Scream => "zombie_scream",
+        AnimClip::Eat => "zombie_eat",
+        AnimClip::Bang => "zombie_bang",
+        AnimClip::Crawl => "zombie_crawl",
     }
 }

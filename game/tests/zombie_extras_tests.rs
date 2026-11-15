@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use game::DamageInfo;
 use game::zombie::{
-    find_chasing_near, AnimClip, BrainInput, BrainOutput, HerdZombie, Noise,
+    AnimClip, BrainInput, BrainOutput, HerdZombie, Noise,
     ZombieBehaviourDef, ZombieBrain, ZombieCorpses, ZombieDef, ZombieDefs,
     ZombieHorde, ZombieState,
 };
@@ -51,7 +51,12 @@ fn start() -> Body {
 }
 
 fn make_brain(r: &Rig, pos: Vec3, seed: u64) -> ZombieBrain {
-    ZombieBrain::new(&r.def, &r.tuning, pos, seed)
+    // Screams and eating are random in the game; tests switch them off unless a test turns them on
+    // (as Godot's tests did with ScreamChanceForTest = 0)
+    let mut brain = ZombieBrain::new(&r.def, &r.tuning, pos, seed);
+    brain.set_scream_chance(0.0);
+    brain.set_eat_chance_override(Some(0.0));
+    brain
 }
 
 fn sense<'a>(body: Body, world: &'a PhysicsWorld, target: Option<Vec3>) -> BrainInput<'a> {
@@ -374,7 +379,7 @@ fn a_zombie_walking_into_a_wall_steers_around_it_not_through_it() {
 
     // Goal behind the wall: zombie chases/investigates toward goal
     brain.force_state_for_test(ZombieState::Investigate);
-    brain.goal = goal;
+    brain.set_goal_for_test(goal);
 
     let mut steered_sideways = false;
     let mut passed_wall = false;
@@ -429,7 +434,7 @@ fn a_stuck_zombie_escapes() {
 
     // Zombie wants to walk toward goal
     brain.force_state_for_test(ZombieState::Investigate);
-    brain.goal = goal;
+    brain.set_goal_for_test(goal);
 
     assert!(!brain.is_escaping()); // assert 1: not escaping initially
 
@@ -476,7 +481,7 @@ fn a_stuck_zombie_escapes() {
     assert!(shared.is_some()); // assert 6: first member picked shared spot
 
     horde_zombie_2.force_state_for_test(ZombieState::Wander);
-    let target_2 = horde_zombie_2.goal;
+    let target_2 = horde_zombie_2.goal();
     let shared_pt = shared.unwrap();
     let diff = Vec3::new(target_2.x - shared_pt.x, 0.0, target_2.z - shared_pt.z).length();
     assert!(diff <= 2.5, "second zombie wanders near shared spot, diff is {diff}"); // assert 7

@@ -52,6 +52,16 @@ impl ZombieBrain {
         self.senses.forget_for_test(last_seen);
     }
 
+    /// Test hook: where the zombie is walking to.
+    pub fn goal(&self) -> Vec3 {
+        self.goal
+    }
+
+    /// Test hook: sets where the zombie is walking to.
+    pub fn set_goal_for_test(&mut self, goal: Vec3) {
+        self.goal = goal;
+    }
+
     /// Test hook: forces the zombie straight into a state.
     pub fn force_state_for_test(&mut self, state: ZombieState) {
         match state {
