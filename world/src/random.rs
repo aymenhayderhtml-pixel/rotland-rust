@@ -78,6 +78,11 @@ impl DotnetRandom {
         assert!(max_value >= 0);
         (self.next_double() * (max_value as f64)) as i32
     }
+
+    pub fn next_range(&mut self, min: i32, max: i32) -> i32 {
+        assert!(min <= max);
+        min + self.next(max - min)
+    }
 }
 
 #[cfg(test)]

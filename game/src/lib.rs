@@ -12,6 +12,7 @@ pub mod guns;
 pub mod guns_fire;
 pub mod input;
 pub mod items;
+pub mod loot;
 pub mod melee;
 pub mod player;
 pub mod spawner;
@@ -25,6 +26,7 @@ pub use health::{DamageResult, Health, HealthEvent, IgnoredReason};
 pub use flowfield::FlowField;
 pub use input::{Actions, InputBindings};
 pub use items::*;
+pub use loot::*;
 pub use player::*;
 pub use spawner::{
     ActiveZombie, CampDensityRule, SpawnConfig, SpawnConfigData, SpawnContext, SpawnOrder,
