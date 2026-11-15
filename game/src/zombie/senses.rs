@@ -85,6 +85,13 @@ impl Senses {
         self.time_since_seen = 0.0;
     }
 
+    /// Test hook: the zombie has lost sight of the player long ago, last seen at `last_seen`.
+    pub fn forget_for_test(&mut self, last_seen: Vec3) {
+        self.can_see = false;
+        self.last_seen = last_seen;
+        self.time_since_seen = f32::MAX * 0.5;
+    }
+
     /// `feet` is the zombie's position on the ground, `facing` the way it faces (height is ignored),
     /// `target` the target's feet position, or None when there is no living target.
     pub fn update(

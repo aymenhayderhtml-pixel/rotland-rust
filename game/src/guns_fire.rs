@@ -177,6 +177,7 @@ fn resolve_one(
                     direction: dir,
                     damage_type: "bullet".to_string(),
                     headshot: head,
+                    leg_hit: false,
                 }),
             })
         }

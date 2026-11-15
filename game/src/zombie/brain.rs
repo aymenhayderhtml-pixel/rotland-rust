@@ -1,32 +1,25 @@
-//! The zombie's brain (port of ZombieAI.cs, the movement in ZombieMotion.cs and the hit rules in Zombie.cs).
+//! The zombie's brain (port of ZombieAI.cs, ZombieMotion.cs, ZombieWounds.cs, ZombieCrawl.cs).
 //! Pure: it decides where to walk, when to bite and how a hit changes things. It never moves the body.
 //! The caller moves the body by `BrainOutput::velocity`, turns it to `yaw` and applies the damage of
-//! `attack_hit`. Scream, eat, bang, herd and horde are TODO(R3-07): their states exist but are never entered.
+//! `attack_hit`.
 
-use std::f32::consts::{PI, TAU};
+use std::f32::consts::PI;
+use std::sync::{Arc, Mutex};
 
 use glam::Vec3;
 use physics::PhysicsWorld;
 
 use super::attack::{AttackHit, ZombieAttack};
 use super::defs::{ZombieBehaviourDef, ZombieDef};
+use super::herd::{HerdZombie, ZombieHorde};
 use super::rng::Rng;
 use super::senses::{Noise, Senses};
 use super::state::ZombieState;
+use super::steering::ZombieSteering;
 use crate::damage::DamageInfo;
 
-/// An idle pause lasts a random time in this range, in seconds.
-const IDLE_MIN: f32 = 1.0;
-const IDLE_MAX: f32 = 3.0;
-/// A wander spot is this far from where the wander starts (ZombieNavigation: 2 to 8 m).
-const WANDER_MIN: f32 = 2.0;
-const WANDER_MAX: f32 = 8.0;
-/// How fast the walk eases toward its wish, per second (ZombieMotion.SpeedBlendRate). The easing is
-/// why a zombie does not change speed in one frame.
 const SPEED_BLEND_RATE: f32 = 8.0;
-/// How fast the body turns toward where it looks, per second (ZombieMotion.TurnSpeed).
 const TURN_SPEED: f32 = 8.0;
-/// Walk speeds below this count as standing still for the animation.
 const MOVING_SPEED: f32 = 0.1;
 
 /// What the caller knows this frame. The brain reads it and returns a `BrainOutput`.
@@ -47,8 +40,36 @@ pub struct BrainInput<'a> {
     pub took_damage: Option<DamageInfo>,
     /// Health is zero. Death is final for this brain.
     pub is_dead: bool,
-    /// Walls block sight through this world.
+    /// Walls block sight and feeler rays through this world.
     pub world: &'a PhysicsWorld,
+    /// Other active zombies nearby, so an idle or wandering zombie can join a chase.
+    pub nearby_zombies: &'a [HerdZombie],
+    /// Recent corpse positions nearby that an idle zombie might stop to eat.
+    pub corpses: &'a [Vec3],
+    /// Whether the target is on a roof, ladder or high box out of reach.
+    pub target_unreachable: bool,
+    /// Explicit leg hit flag (or inferred from hit_point / damage info).
+    pub leg_hit: bool,
+}
+
+impl<'a> BrainInput<'a> {
+    pub fn new(position: Vec3, yaw: f32, world: &'a PhysicsWorld) -> Self {
+        Self {
+            position,
+            yaw,
+            on_floor: true,
+            target: None,
+            heard: &[],
+            flow_dir: None,
+            took_damage: None,
+            is_dead: false,
+            world,
+            nearby_zombies: &[],
+            corpses: &[],
+            target_unreachable: false,
+            leg_hit: false,
+        }
+    }
 }
 
 /// Which body clip should play. The caller maps it to the animation name.
@@ -61,6 +82,14 @@ pub enum AnimClip {
     /// Played on a flinch and during a stagger (the stagger clip in Godot).
     Hit,
     Die,
+    /// Spotted the player and screaming to alert others.
+    Scream,
+    /// Kneeling or leaning at a corpse eating.
+    Eat,
+    /// Banging at the foot of a ladder or wall.
+    Bang,
+    /// Crawling on hands and dragging legs.
+    Crawl,
 }
 
 /// What the body should do this frame.
@@ -76,10 +105,12 @@ pub struct BrainOutput {
     pub anim: AnimClip,
     /// True while a strong hit has stopped the zombie.
     pub staggered: bool,
+    /// True on the single frame a scream starts, alerting others and playing sound.
+    pub scream: bool,
+    /// Last resort displacement when completely stuck.
+    pub teleport: Option<Vec3>,
 }
 
-/// The numbers the brain reads from the zombie type and the shared behaviour block. Copied once so the
-/// brain holds no references to the data.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Numbers {
     pub(super) wander_speed: f32,
@@ -89,12 +120,22 @@ pub(super) struct Numbers {
     pub(super) strong_hit_damage: f32,
     pub(super) stagger_seconds: f32,
     pub(super) look_around_seconds: f32,
+    pub(super) crawler_speed: f32,
+    pub(super) leg_hit_height: f32,
+    pub(super) leg_hits_to_crawl: u32,
+    pub(super) scream_seconds: f32,
+    pub(super) eat_min_seconds: f32,
+    pub(super) eat_max_seconds: f32,
+    pub(super) eat_random_chance: f32,
+    pub(super) eat_near_corpse_chance: f32,
+    pub(super) corpse_spot_radius: f32,
+    pub(super) herd_radius: f32,
+    pub(super) herd_check_seconds: f32,
+    pub(super) bang_seconds: f32,
 }
 
-/// What one frame of thinking asks for before the easing.
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct Step {
-    /// Walk velocity the zombie wants (flat), before easing.
     pub(super) wish: Vec3,
     pub(super) hit: Option<AttackHit>,
 }
@@ -104,29 +145,30 @@ pub(super) struct Step {
 pub struct ZombieBrain {
     pub(super) state: ZombieState,
     pub(super) numbers: Numbers,
-    home: Vec3,
+    pub(super) home: Vec3,
     pub(super) senses: Senses,
     pub(super) attack: ZombieAttack,
-    rng: Rng,
-    /// Seconds spent in the current state.
+    pub(super) steering: ZombieSteering,
+    pub(super) rng: Rng,
     pub(super) time_in_state: f32,
-    /// Countdown of the current state: an idle pause, or the look-around.
     pub(super) timer: f32,
-    /// Investigate: true once at the spot, looking about.
     pub(super) looking_around: bool,
-    /// Where a wander or an investigate walk is heading.
     pub(super) goal: Vec3,
-    /// Where the body turns to face this frame, if not simply its walk.
     pub(super) look_point: Option<Vec3>,
-    /// The eased walk velocity.
-    walk_velocity: Vec3,
-    /// Seconds of stagger left after a strong hit.
+    pub(super) walk_velocity: Vec3,
     pub(super) stagger_timer: f32,
+    pub(super) crawler: bool,
+    pub(super) leg_hits: u32,
+    pub(super) scream_chance: f32,
+    pub(super) hideout_override: Option<bool>,
+    pub(super) bang_on_arrive: bool,
+    pub(super) herd_timer: f32,
+    pub(super) horde: Option<Arc<Mutex<ZombieHorde>>>,
+    pub(super) just_screamed: bool,
+    pub(super) eat_chance_override: Option<f32>,
 }
 
 impl ZombieBrain {
-    /// A fresh zombie of type `def`, idle at `home`. `tuning` is the shared `behaviour` block of
-    /// data/zombies.json. The same `seed` always gives the same wander path.
     pub fn new(def: &ZombieDef, tuning: &ZombieBehaviourDef, home: Vec3, seed: u64) -> Self {
         let numbers = Numbers {
             wander_speed: def.wander_speed,
@@ -136,13 +178,36 @@ impl ZombieBrain {
             strong_hit_damage: tuning.strong_hit_damage,
             stagger_seconds: tuning.stagger_fallback_seconds,
             look_around_seconds: tuning.look_around_seconds,
+            crawler_speed: tuning.crawler_speed,
+            leg_hit_height: tuning.leg_hit_height,
+            leg_hits_to_crawl: tuning.leg_hits_to_crawl,
+            scream_seconds: tuning.scream_seconds,
+            eat_min_seconds: tuning.eat_min_seconds,
+            eat_max_seconds: tuning.eat_max_seconds,
+            eat_random_chance: tuning.eat_random_chance,
+            eat_near_corpse_chance: tuning.eat_near_corpse_chance,
+            corpse_spot_radius: tuning.corpse_spot_radius,
+            herd_radius: tuning.herd_radius,
+            herd_check_seconds: tuning.herd_check_seconds,
+            bang_seconds: tuning.bang_seconds,
         };
+        let steering = ZombieSteering::new(
+            seed.wrapping_add(1),
+            tuning.stuck_seconds,
+            tuning.stuck_distance,
+            tuning.escape_seconds,
+            tuning.escape_tries_before_teleport,
+            tuning.teleport_metres,
+            tuning.blocked_memory as usize,
+            tuning.blocked_radius,
+        );
         let mut brain = Self {
             state: ZombieState::Idle,
             numbers,
             home,
             senses: Senses::new(def),
             attack: ZombieAttack::new(def),
+            steering,
             rng: Rng::new(seed),
             time_in_state: 0.0,
             timer: 0.0,
@@ -151,6 +216,15 @@ impl ZombieBrain {
             look_point: None,
             walk_velocity: Vec3::ZERO,
             stagger_timer: 0.0,
+            crawler: false,
+            leg_hits: 0,
+            scream_chance: tuning.scream_chance,
+            hideout_override: None,
+            bang_on_arrive: false,
+            herd_timer: 0.0,
+            horde: None,
+            just_screamed: false,
+            eat_chance_override: None,
         };
         brain.enter_idle();
         brain
@@ -160,14 +234,12 @@ impl ZombieBrain {
         self.state
     }
 
-    /// Where the zombie was placed. Kept for the guard and horde rules (R3-07).
     pub fn home(&self) -> Vec3 {
         self.home
     }
 
-    /// Advances the brain by `dt` seconds and returns what the body should do this frame.
     pub fn update(&mut self, ctx: &BrainInput<'_>, dt: f32) -> BrainOutput {
-        // Death is final. A dead zombie stops at once (C# Kill zeroes the wish).
+        self.just_screamed = false;
         if ctx.is_dead || self.state == ZombieState::Dead {
             self.enter_dead();
             return BrainOutput {
@@ -177,12 +249,14 @@ impl ZombieBrain {
                 attack_hit: None,
                 anim: AnimClip::Die,
                 staggered: false,
+                scream: false,
+                teleport: None,
             };
         }
 
         self.stagger_timer = (self.stagger_timer - dt).max(0.0);
         let flinched = match &ctx.took_damage {
-            Some(info) => self.on_hit(info, ctx.target),
+            Some(info) => self.on_hit(info, ctx.target, ctx.position.y, ctx.leg_hit),
             None => false,
         };
         if let Some(spot) = self.last_audible(ctx) {
@@ -191,7 +265,6 @@ impl ZombieBrain {
         self.senses
             .update(dt, ctx.position, forward(ctx.yaw), ctx.target, ctx.world);
 
-        // A staggered zombie does not think (C# skips Think), but its walk still eases to a stop
         let step = if self.is_staggered() {
             Step::default()
         } else {
@@ -201,6 +274,7 @@ impl ZombieBrain {
         let blend = 1.0 - (-SPEED_BLEND_RATE * dt).exp();
         self.walk_velocity = self.walk_velocity.lerp(step.wish, blend);
         let yaw = self.turn(ctx, dt);
+        let teleport = self.steering.take_teleport();
         BrainOutput {
             velocity: self.walk_velocity,
             yaw,
@@ -208,6 +282,8 @@ impl ZombieBrain {
             attack_hit: step.hit,
             anim: self.anim_clip(flinched),
             staggered: self.is_staggered(),
+            scream: self.just_screamed,
+            teleport,
         }
     }
 
@@ -215,35 +291,31 @@ impl ZombieBrain {
         self.stagger_timer > 0.0
     }
 
-    /// One frame of the state machine (ZombieAI.Think).
     fn think(&mut self, ctx: &BrainInput<'_>, dt: f32) -> Step {
         self.time_in_state += dt;
-        // A chase or attack with no target gives up and wanders (C# Think)
         if ctx.target.is_none() && matches!(self.state, ZombieState::Chase | ZombieState::Attack) {
             self.enter_wander(ctx.position);
             return Step::default();
         }
         match self.state {
             ZombieState::Idle => self.think_idle(ctx, dt),
-            ZombieState::Wander => self.think_wander(ctx),
+            ZombieState::Wander => self.think_wander(ctx, dt),
             ZombieState::Investigate => self.think_investigate(ctx, dt),
-            ZombieState::Chase => self.think_chase(ctx),
+            ZombieState::Chase => self.think_chase(ctx, dt),
             ZombieState::Attack => self.think_attack(ctx, dt),
-            // TODO(R3-07): Scream, Eat and Bang (ZombieAI.Actions.cs). Never entered yet.
-            ZombieState::Scream | ZombieState::Eat | ZombieState::Bang | ZombieState::Dead => {
-                Step::default()
-            }
+            ZombieState::Scream => self.think_scream(ctx, dt),
+            ZombieState::Eat => self.think_eat(ctx, dt),
+            ZombieState::Bang => self.think_bang(ctx, dt),
+            ZombieState::Dead => Step::default(),
         }
     }
 
-    /// Turns the body toward its look point, else toward its walk (ZombieMotion.TurnBody). Returns the new yaw.
     fn turn(&self, ctx: &BrainInput<'_>, dt: f32) -> f32 {
         let look = match self.look_point {
             Some(p) => p - ctx.position,
             None => self.walk_velocity,
         };
         let flat = Vec3::new(look.x, 0.0, look.z);
-        // Standing still with nothing to look at: keep the yaw
         if flat.length_squared() < 1e-4 {
             return ctx.yaw;
         }
@@ -253,65 +325,36 @@ impl ZombieBrain {
     }
 
     fn anim_clip(&self, flinched: bool) -> AnimClip {
+        if self.state == ZombieState::Dead {
+            return AnimClip::Die;
+        }
         if self.is_staggered() || flinched {
             return AnimClip::Hit;
+        }
+        if self.state == ZombieState::Attack {
+            return AnimClip::Attack;
+        }
+        if self.crawler {
+            return AnimClip::Crawl;
         }
         let moving = self.walk_velocity.length() > MOVING_SPEED;
         match self.state {
             ZombieState::Dead => AnimClip::Die,
             ZombieState::Attack => AnimClip::Attack,
+            ZombieState::Scream => AnimClip::Scream,
+            ZombieState::Eat => AnimClip::Eat,
+            ZombieState::Bang => AnimClip::Bang,
             ZombieState::Chase if moving => AnimClip::Run,
             ZombieState::Wander | ZombieState::Investigate if moving => AnimClip::Walk,
             _ => AnimClip::Idle,
         }
     }
-
-    fn enter(&mut self, state: ZombieState) {
-        self.state = state;
-        self.time_in_state = 0.0;
-        self.looking_around = false;
-        self.look_point = None;
-    }
-
-    pub(super) fn enter_idle(&mut self) {
-        self.enter(ZombieState::Idle);
-        self.timer = self.rng.range(IDLE_MIN, IDLE_MAX);
-    }
-
-    /// Picks a random spot 2 to 8 m from `from` and walks there.
-    pub(super) fn enter_wander(&mut self, from: Vec3) {
-        self.enter(ZombieState::Wander);
-        let angle = self.rng.range(0.0, TAU);
-        let dist = self.rng.range(WANDER_MIN, WANDER_MAX);
-        self.goal = from + Vec3::new(angle.cos(), 0.0, angle.sin()) * dist;
-    }
-
-    pub(super) fn enter_investigate(&mut self, spot: Vec3) {
-        self.enter(ZombieState::Investigate);
-        self.goal = spot;
-    }
-
-    pub(super) fn enter_chase(&mut self) {
-        self.enter(ZombieState::Chase);
-    }
-
-    pub(super) fn enter_attack(&mut self) {
-        self.enter(ZombieState::Attack);
-        self.attack.start();
-    }
-
-    fn enter_dead(&mut self) {
-        self.enter(ZombieState::Dead);
-        self.walk_velocity = Vec3::ZERO;
-    }
 }
 
-/// The way a zombie with this yaw faces (flat, unit). Yaw 0 faces -Z, as in Godot.
 fn forward(yaw: f32) -> Vec3 {
     Vec3::new(-yaw.sin(), 0.0, -yaw.cos())
 }
 
-/// Wraps an angle into (-PI, PI], so a turn always takes the short way round.
 fn wrap_angle(a: f32) -> f32 {
-    (a + PI).rem_euclid(TAU) - PI
+    (a + PI).rem_euclid(2.0 * PI) - PI
 }
