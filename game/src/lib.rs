@@ -8,6 +8,8 @@ pub mod damage;
 pub mod health;
 pub mod flowfield;
 mod flowfield_scan;
+pub mod guns;
+pub mod guns_fire;
 pub mod input;
 pub mod melee;
 pub mod player;
