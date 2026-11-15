@@ -4,7 +4,9 @@
 
 mod bench;
 mod combat;
+mod hud;
 mod light;
+mod play;
 mod player_visual;
 mod props;
 mod streaming;
@@ -63,9 +65,30 @@ struct R0 {
     /// Scripted test: the player dies at this time (seconds), to check respawning.
     die_at: Option<f32>,
     free_cam: bool,
+    /// Backpack, hotbar and spawner (play scene only).
+    play: Option<play::PlayState>,
+    /// A weapon model to put in the player's hand; applied in render, where the GPU is.
+    pending_weapon_model: Option<Option<String>>,
+    /// Smoothed frames per second for the HUD.
+    fps: f32,
+}
+
+/// The pack model name of a weapon ("res://assets/models/weapons/bat.glb" -> "bat").
+fn weapon_model_name(def: &game::WeaponDef) -> Option<String> {
+    let file = def.model.rsplit('/').next()?;
+    Some(file.trim_end_matches(".glb").to_string()).filter(|s| !s.is_empty())
 }
 
 impl R0 {
+    /// Puts a weapon in hand (or empties it): the swing uses its numbers, the model shows in the hand.
+    fn apply_hand(&mut self, change: play::HandChange) {
+        let play::HandChange::Weapon(def) = change;
+        self.pending_weapon_model = Some(def.as_ref().and_then(weapon_model_name));
+        if let Some(c) = self.combat.as_mut() {
+            c.set_weapon(def);
+        }
+    }
+
     fn height(&self, x: f32, z: f32) -> f32 {
         self.world_gen.as_ref().map_or(0.0, |w| w.height(x, z))
     }
@@ -150,6 +173,10 @@ impl Game for R0 {
                 }
                 if self.scene == "play" {
                     self.combat = Some(combat::Combat::new("bat"));
+                    match play::PlayState::new(self.seed as u64) {
+                        Ok(state) => self.play = Some(state),
+                        Err(e) => log::warn!("play systems not loaded: {e}"),
+                    }
                     // Godot's starter weapon is the bat (data/start_inventory.json)
                     self.player_visual = Some(player_visual::PlayerVisual::load(&gpu.device, &pack, "human_player", Some("bat")));
                 }
@@ -174,9 +201,15 @@ impl Game for R0 {
         }
         // Zombies need the ground's collision, so they spawn after the first ring has loaded. Like the
         // forest25 benchmark: 25 walkers 15-40 m around the player (the real spawner comes in R3-07).
-        if let Some(z) = self.zombies.as_mut() {
-            let count = args.value("--zombies").and_then(|s| s.parse().ok()).unwrap_or(25);
+        // In play mode the spawner fills the world over time instead (--zombies=N still forces a ring)
+        let forced = args.value("--zombies").and_then(|s| s.parse::<usize>().ok());
+        let ring = if self.scene == "play" { forced.unwrap_or(0) } else { forced.unwrap_or(25) };
+        if let (Some(z), true) = (self.zombies.as_mut(), ring > 0) {
+            let count = ring;
             z.spawn_ring("walker", self.player, count, 15.0, 40.0, &self.physics);
+        }
+        if let Some(change) = self.play.as_mut().and_then(|p| p.equip_first()) {
+            self.apply_hand(change);
         }
         log::info!(
             "scene {} at {:?}: {} chunks, {} placed models, {} zombies, ready in {:.0} ms",
@@ -228,6 +261,9 @@ impl Game for R0 {
             let dead = self.combat.as_ref().is_some_and(|c| c.is_dead());
             if dead {
                 actions = Actions::default();
+            }
+            if let Some(change) = self.play.as_mut().and_then(|p| p.hotbar_keys(input)) {
+                self.apply_hand(change);
             }
             let attack = !dead && (self.autoattack || (self.cursor_captured && input.mouse_pressed(winit::event::MouseButton::Left)));
             if let (Some(p), Some(rig)) = (self.player_ctrl.as_mut(), self.camera_rig.as_mut()) {
@@ -294,6 +330,14 @@ impl Game for R0 {
         // Zombies chase the living player; while dead they lose the target
         let alive = !self.combat.as_ref().is_some_and(|c| c.is_dead());
         let noises = self.combat.as_ref().map(|c| c.noises.clone()).unwrap_or_default();
+        if let (Some(play), Some(z), Some(w), Some(p)) = (self.play.as_mut(), self.zombies.as_mut(), self.world_gen.as_ref(), self.player_ctrl.as_ref()) {
+            let forward = Vec3::new(-p.yaw.sin(), 0.0, -p.yaw.cos());
+            let night = !(6.0..20.0).contains(&self.hour);
+            play.spawn_tick(dt, self.player, forward, night, z, &self.physics, w);
+        }
+        if dt > 0.0 {
+            self.fps += (1.0 / dt - self.fps) * (dt * 2.0).min(1.0);
+        }
         if let Some(z) = self.zombies.as_mut() {
             let frame = z.update(dt, alive.then_some(self.player), &noises, &self.physics);
             if let Some(c) = self.combat.as_mut() {
@@ -315,6 +359,9 @@ impl Game for R0 {
 
     fn render(&mut self, gpu: &Gpu, target: &FrameTarget, encoder: &mut wgpu::CommandEncoder) {
         let player_pose = self.player_pose();
+        if let (Some(model), Some(pv), Some(pack)) = (self.pending_weapon_model.take(), self.player_visual.as_mut(), self.pack.as_ref()) {
+            pv.set_weapon(&gpu.device, pack, model.as_deref());
+        }
         // Chunk uploads need the GPU, so streaming runs here rather than in update
         if let (Some(streamer), Some(pack)) = (self.streamer.as_mut(), self.pack.as_ref()) {
             streamer.update(
@@ -378,6 +425,12 @@ impl Game for R0 {
             &shadow,
             &self.bones,
         );
+    }
+
+    fn ui(&mut self, ctx: &engine::egui::Context) {
+        let (Some(play), Some(p), Some(c)) = (self.play.as_ref(), self.player_ctrl.as_ref(), self.combat.as_ref()) else { return };
+        let state = play.hud(c.health.current(), c.health.max(), p.stamina.current, p.stamina.max, self.hour, p.yaw, self.fps, c.is_dead());
+        hud::draw(ctx, &state);
     }
 
     fn cursor_grab(&self) -> Option<bool> {

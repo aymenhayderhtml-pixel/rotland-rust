@@ -101,6 +101,23 @@ impl PlayerVisual {
         (body_batch, weapon_batch)
     }
 
+    /// Swaps the model held in the right hand (None: empty hand).
+    pub fn set_weapon(&mut self, device: &wgpu::Device, pack: &ModelPack, weapon_model: Option<&str>) {
+        if weapon_model == self.weapon_name.as_deref() {
+            return;
+        }
+        match weapon_model.and_then(|w| pack.find(w).map(|m| (w, m))) {
+            Some((name, model)) => {
+                self.weapon_mesh = Some(GpuMesh::new(device, name, &model.vertices));
+                self.weapon_name = Some(name.to_string());
+            }
+            None => {
+                self.weapon_mesh = None;
+                self.weapon_name = None;
+            }
+        }
+    }
+
     #[allow(dead_code)]
     pub fn rig(&self) -> &Rig {
         &self.rig

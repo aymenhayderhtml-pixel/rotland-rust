@@ -45,6 +45,12 @@ impl Combat {
         Self { health: Health::new(PLAYER_HEALTH), swing: MeleeSwing::new(), weapon, dead_for: None, kills: 0, noises: Vec::new() }
     }
 
+    /// The weapon in hand changes (hotbar). None: nothing to swing.
+    pub fn set_weapon(&mut self, weapon: Option<WeaponDef>) {
+        self.swing.cancel();
+        self.weapon = weapon;
+    }
+
     pub fn is_dead(&self) -> bool {
         self.dead_for.is_some()
     }

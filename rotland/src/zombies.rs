@@ -141,6 +141,32 @@ impl Zombies {
         });
     }
 
+    /// One zombie of type `kind` (e.g. "walker", "runner") at `at`, for the spawner.
+    pub fn spawn_kind(&mut self, kind: &str, at: Vec3) {
+        if let Some(def) = self.defs.get(kind).cloned() {
+            self.spawn(&def, at);
+        }
+    }
+
+    /// Removes zombies the spawner says are too far away.
+    pub fn despawn(&mut self, ids: &[u64]) {
+        self.list.retain(|z| !ids.contains(&z.id));
+    }
+
+    /// Living zombies as the spawner sees them (a chasing zombie is kept farther away).
+    pub fn active(&self) -> Vec<game::spawner_config::ActiveZombie> {
+        use game::zombie::ZombieState;
+        self.list
+            .iter()
+            .filter(|z| !z.health.is_dead())
+            .map(|z| {
+                let mut a = game::spawner_config::ActiveZombie::new(z.id, z.position);
+                a.is_chasing = matches!(z.brain.state(), ZombieState::Chase | ZombieState::Attack);
+                a
+            })
+            .collect()
+    }
+
     /// Applies a hit from the player. Returns true if it killed the zombie.
     pub fn hit(&mut self, id: u64, damage: DamageInfo, knockback: Vec3) -> bool {
         let Some(z) = self.list.iter_mut().find(|z| z.id == id) else { return false };

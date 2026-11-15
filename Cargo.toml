@@ -22,7 +22,7 @@ gltf = { version = "1.4", features = ["import", "names", "utils"] }
 pack = { path = "pack" }
 fastnoise-lite = "1.1"
 rayon = "1.12"
-egui = "0.37"
+egui = { version = "0.37", features = ["default_fonts"] }  # 0.37 ships no font unless asked
 egui-wgpu = "0.37"
 egui-winit = "0.37"
 
