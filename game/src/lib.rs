@@ -9,6 +9,7 @@ pub mod health;
 pub mod flowfield;
 mod flowfield_scan;
 pub mod input;
+pub mod melee;
 pub mod player;
 pub mod weapons;
 pub mod zombie;
