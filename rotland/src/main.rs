@@ -305,6 +305,7 @@ impl Game for R0 {
         }
         s.insert("colliders".into(), self.physics.collider_count().into());
         let (x, z) = (self.player.x, self.player.z);
+        s.insert("playerPosition".into(), format!("{:.2} {:.2} {:.2}", self.player.x, self.player.y, self.player.z).into());
         if let Some(h) = self.physics.ground_height(x, z) {
             // Must equal the generator's height (same triangles): a quick health check of the collision world
             s.insert(
