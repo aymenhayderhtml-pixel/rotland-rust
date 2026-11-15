@@ -51,6 +51,18 @@ impl WorldGenerator {
     const BRIGHTNESS_JITTER: f32 = 0.06;
     const HUE_SHIFT: f32 = 0.08;
 
+    /// The normal way to make a world: reads settlements.json, scatter.json and poi.json from `data_dir`
+    /// (the repo's data/ folder). `new` alone has NO props or buildings (empty scatter and POI data).
+    pub fn from_data_dir(seed: i32, data_dir: impl AsRef<std::path::Path>) -> Result<Self, String> {
+        let dir = data_dir.as_ref();
+        let read = |name: &str| dir.join(name);
+        let settlements = crate::settlement::SettlementConfig::load_from_file(read("settlements.json")).map_err(|e| format!("settlements.json: {e}"))?;
+        let scatter = crate::scatter::ScatterConfig::load_from_file(read("scatter.json")).map_err(|e| format!("scatter.json: {e}"))?;
+        let poi = crate::poi::PoiConfig::load_from_file(read("poi.json")).map_err(|e| format!("poi.json: {e}"))?;
+        Ok(Self::with_configs(seed, settlements, scatter, poi))
+    }
+
+    /// Terrain only (empty scatter and POI data). Use `from_data_dir` for the real world.
     pub fn new(seed: i32, config: SettlementConfigData) -> Self {
         Self::with_configs(seed, config, ScatterConfigData::default(), PoiConfigData::default())
     }

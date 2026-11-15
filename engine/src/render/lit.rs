@@ -154,8 +154,10 @@ impl LitRenderer {
         })
     }
 
-    /// Draws one frame of the world. `items` are static meshes (culled here), `skinned` are instanced
-    /// batches whose skin matrices are in `bones`.
+    /// Draws one frame of the world. `items` are static meshes (culled here). `instanced` are the batches
+    /// for the camera and `shadow_instanced` the batches for the sun's shadow (they differ: things behind
+    /// the camera still cast shadows into view). Skin matrices for all of them are in `bones`; index 0
+    /// must be the identity, used by static instanced models (trees, rocks).
     #[allow(clippy::too_many_arguments)]
     pub fn draw(
         &mut self,
@@ -165,7 +167,8 @@ impl LitRenderer {
         camera: &Camera,
         light: &Lighting,
         items: &[DrawItem],
-        skinned: &[SkinnedBatch],
+        instanced: &[SkinnedBatch],
+        shadow_instanced: &[SkinnedBatch],
         bones: &[Mat4],
     ) {
         let items = &items[..items.len().min(MAX_DRAWS)];
@@ -186,7 +189,9 @@ impl LitRenderer {
         if self.bones.write(&gpu.device, &gpu.queue, bytemuck::cast_slice(bones)) {
             self.bones_bind = Self::bones_bind(&gpu.device, &self.layouts.bones, &self.bones.buffer);
         }
-        let all_instances: Vec<SkinInstance> = skinned.iter().flat_map(|b| b.instances.iter().copied()).collect();
+        let main_count: u32 = instanced.iter().map(|b| b.instances.len() as u32).sum();
+        let all_instances: Vec<SkinInstance> =
+            instanced.iter().chain(shadow_instanced.iter()).flat_map(|b| b.instances.iter().copied()).collect();
         self.instances.write(&gpu.device, &gpu.queue, bytemuck::cast_slice(&all_instances));
 
         let mut counts = FrameCounts::default();
@@ -205,7 +210,8 @@ impl LitRenderer {
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
-            let (d, t) = self.record(&mut pass, items, &visible, skinned, &self.pipes.shadow_mesh, &self.pipes.shadow_skinned, &self.scene_shadow_bind);
+            let (d, t) =
+                self.record(&mut pass, items, &visible, shadow_instanced, main_count, &self.pipes.shadow_mesh, &self.pipes.shadow_skinned, &self.scene_shadow_bind);
             counts.shadow_draws = d;
             counts.shadow_triangles = t;
         }
@@ -230,7 +236,7 @@ impl LitRenderer {
             occlusion_query_set: None,
             multiview_mask: None,
         });
-        let (d, t) = self.record(&mut pass, items, &visible, skinned, &self.pipes.mesh, &self.pipes.skinned, &self.scene_bind);
+        let (d, t) = self.record(&mut pass, items, &visible, instanced, 0, &self.pipes.mesh, &self.pipes.skinned, &self.scene_bind);
         // Sky last: it only fills pixels nothing else covered
         pass.set_pipeline(&self.pipes.sky);
         pass.set_bind_group(0, &self.scene_bind, &[]);
@@ -248,6 +254,7 @@ impl LitRenderer {
         items: &[DrawItem],
         visible: &[usize],
         skinned: &[SkinnedBatch],
+        first_instance: u32,
         mesh_pipe: &wgpu::RenderPipeline,
         skin_pipe: &wgpu::RenderPipeline,
         scene: &wgpu::BindGroup,
@@ -268,7 +275,7 @@ impl LitRenderer {
             pass.set_bind_group(0, scene, &[]);
             pass.set_bind_group(2, &self.bones_bind, &[]);
             pass.set_vertex_buffer(1, self.instances.buffer.slice(..));
-            let mut first = 0u32;
+            let mut first = first_instance;
             for b in skinned {
                 let count = b.instances.len() as u32;
                 if count > 0 {
