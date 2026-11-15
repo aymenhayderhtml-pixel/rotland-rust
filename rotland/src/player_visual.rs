@@ -102,6 +102,7 @@ impl PlayerVisual {
     }
 
     /// Swaps the model held in the right hand (None: empty hand).
+    #[allow(dead_code)] // unused by the humanoid_view example, which includes this file
     pub fn set_weapon(&mut self, device: &wgpu::Device, pack: &ModelPack, weapon_model: Option<&str>) {
         if weapon_model == self.weapon_name.as_deref() {
             return;

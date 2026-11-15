@@ -64,6 +64,7 @@ impl PlayState {
     }
 
     /// Zombies appear and leave around the player by Godot's spawner rules.
+    #[allow(clippy::too_many_arguments)]
     pub fn spawn_tick(&mut self, dt: f32, player: Vec3, forward: Vec3, night: bool, zombies: &mut Zombies, physics: &PhysicsWorld, world_gen: &WorldGenerator) {
         let alive = zombies.active();
         let ctx = SpawnContext {
