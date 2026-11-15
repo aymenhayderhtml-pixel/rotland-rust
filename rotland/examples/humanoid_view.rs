@@ -120,7 +120,7 @@ impl Game for HumanoidView {
             offset: Vec3::ZERO,
         }];
 
-        let lighting = light::at_hour(12.0); // noon
+        let lighting = light::at_hour(12.0, None); // noon
         renderer.draw(
             gpu,
             target,

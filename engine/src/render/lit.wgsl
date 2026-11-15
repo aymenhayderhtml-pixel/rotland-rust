@@ -15,8 +15,37 @@ struct Scene {
     ground_bottom: vec4<f32>,
     fog: vec4<f32>,            // begin, end, density, ambient energy
     fog_color: vec4<f32>,
+    moon_dir: vec4<f32>,       // xyz: toward the moon, w: energy
+    moon_color: vec4<f32>,
+    spot_pos: vec4<f32>,       // xyz: position, w: range (0 = no spot light)
+    spot_dir: vec4<f32>,       // xyz: direction it points, w: cos of the cone half angle
+    spot_color: vec4<f32>,     // rgb: linear colour, w: energy
 };
 @group(0) @binding(0) var<uniform> scene: Scene;
+
+// Godot 4's spot light: range window times 1/d (attenuation 1), and a soft cone edge (spot attenuation 1)
+fn spot_light(world: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
+    let range = scene.spot_pos.w;
+    if (range <= 0.0) {
+        return vec3(0.0);
+    }
+    let to_light = scene.spot_pos.xyz - world;
+    let d = length(to_light);
+    if (d >= range) {
+        return vec3(0.0);
+    }
+    let l = to_light / max(d, 0.0001);
+    var nd = d / range;
+    nd = nd * nd;
+    nd = nd * nd;
+    nd = max(1.0 - nd, 0.0);
+    let dist_att = nd * nd / max(d, 0.0001);
+    let cos_cut = scene.spot_dir.w;
+    let scos = max(dot(-l, normalize(scene.spot_dir.xyz)), cos_cut);
+    let rim = max(0.0001, (1.0 - scos) / (1.0 - cos_cut));
+    let cone = 1.0 - rim;
+    return scene.spot_color.rgb * scene.spot_color.w * dist_att * cone * max(dot(n, l), 0.0);
+}
 @group(0) @binding(1) var shadow_map: texture_depth_2d;
 @group(0) @binding(2) var shadow_sampler: sampler_comparison;
 
@@ -129,7 +158,9 @@ fn mesh_fs(i: VsOut) -> @location(0) vec4<f32> {
     // Sky ambient: lerp ground to sky by how much the surface faces up
     let up = n.y * 0.5 + 0.5;
     let ambient = mix(scene.ground_horizon.rgb, scene.sky_top.rgb * 0.5 + scene.sky_horizon.rgb * 0.5, up) * scene.fog.w;
-    var color = i.albedo * (sun + ambient);
+    // The moon lights the night without shadows (like Godot's moon light), the flashlight is the spot light
+    let moon = scene.moon_color.rgb * scene.moon_dir.w * max(dot(n, scene.moon_dir.xyz), 0.0);
+    var color = i.albedo * (sun + moon + ambient + spot_light(i.world, n));
     let fog = smoothstep(scene.fog.x, scene.fog.y, dist) * scene.fog.z;
     color = mix(color, scene.fog_color.rgb, fog);
     return vec4(filmic(color), 1.0);

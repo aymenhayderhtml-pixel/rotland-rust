@@ -8,7 +8,7 @@ pub mod shadow;
 pub mod skinned;
 
 pub use camera::Camera;
-pub use lit::{DrawItem, FrameCounts, Lighting, LitRenderer};
+pub use lit::{DrawItem, FrameCounts, Lighting, LitRenderer, SpotLight};
 pub use mesh::{ColorVertex, GpuMesh};
 pub use shadow::ShadowSettings;
 pub use skinned::{SkinInstance, SkinnedBatch};

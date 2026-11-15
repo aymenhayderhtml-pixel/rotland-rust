@@ -26,6 +26,23 @@ pub struct Lighting {
     pub fog_end: f32,
     pub fog_density: f32,
     pub fog_color: Vec3,
+    pub moon_toward: Vec3,
+    pub moon_energy: f32,
+    pub moon_color: Vec3,
+    /// One spot light (the flashlight), or None.
+    pub spot: Option<SpotLight>,
+}
+
+/// A cone of light from a point, like Godot's SpotLight3D. Colour is sRGB.
+#[derive(Clone, Copy, Debug)]
+pub struct SpotLight {
+    pub position: Vec3,
+    pub direction: Vec3,
+    pub range: f32,
+    /// The cone's half angle in degrees (Godot's SpotAngle).
+    pub angle_deg: f32,
+    pub color: Vec3,
+    pub energy: f32,
 }
 
 #[repr(C)]
@@ -44,6 +61,11 @@ struct SceneUniforms {
     ground_bottom: [f32; 4],
     fog: [f32; 4],
     fog_color: [f32; 4],
+    moon_dir: [f32; 4],
+    moon_color: [f32; 4],
+    spot_pos: [f32; 4],
+    spot_dir: [f32; 4],
+    spot_color: [f32; 4],
 }
 
 /// Dynamic uniform offsets must be 256-byte aligned.
@@ -308,6 +330,11 @@ impl LitRenderer {
             ground_bottom: v4(lin(light.ground_bottom), 1.0),
             fog: [light.fog_begin, light.fog_end, light.fog_density, light.ambient_energy],
             fog_color: v4(lin(light.fog_color), 1.0),
+            moon_dir: v4(light.moon_toward.normalize_or_zero(), light.moon_energy),
+            moon_color: v4(lin(light.moon_color), 1.0),
+            spot_pos: light.spot.map_or([0.0; 4], |sp| v4(sp.position, sp.range)),
+            spot_dir: light.spot.map_or([0.0, -1.0, 0.0, 1.0], |sp| v4(sp.direction.normalize_or_zero(), sp.angle_deg.to_radians().cos())),
+            spot_color: light.spot.map_or([0.0; 4], |sp| v4(lin(sp.color), sp.energy)),
         };
         gpu.queue.write_buffer(&self.scene_buf, 0, bytemuck::bytes_of(&scene));
     }

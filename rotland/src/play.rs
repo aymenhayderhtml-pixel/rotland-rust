@@ -30,6 +30,8 @@ pub struct PlayState {
 pub enum HandChange {
     /// A weapon was taken out (its definition) or put away (None).
     Weapon(Option<WeaponDef>),
+    /// The flashlight was switched on or off.
+    ToggleFlashlight,
 }
 
 impl PlayState {
@@ -58,6 +60,8 @@ impl PlayState {
         match self.hotbar.press(key, &self.inventory, &self.items) {
             HotbarAction::EquipWeapon { weapon_id, .. } => Some(HandChange::Weapon(self.weapons.get(&weapon_id).cloned())),
             HotbarAction::UnequipWeapon { .. } => Some(HandChange::Weapon(None)),
+            // Godot's ItemUse: using the flashlight item switches it on and off
+            HotbarAction::UseItem { item_id } if item_id == "flashlight" => Some(HandChange::ToggleFlashlight),
             // Eating, drinking and bandages come with the survival needs (R5)
             _ => None,
         }

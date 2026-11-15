@@ -71,6 +71,11 @@ struct R0 {
     pending_weapon_model: Option<Option<String>>,
     /// Smoothed frames per second for the HUD.
     fps: f32,
+    /// Play mode's running clock (Godot TimeOfDay: 1 game hour per real minute, starting 08:00).
+    clock: world::time::Clock,
+    /// The clock stands still (benchmarks, --hour screenshots).
+    clock_frozen: bool,
+    flashlight_on: bool,
 }
 
 /// The pack model name of a weapon ("res://assets/models/weapons/bat.glb" -> "bat").
@@ -82,7 +87,13 @@ fn weapon_model_name(def: &game::WeaponDef) -> Option<String> {
 impl R0 {
     /// Puts a weapon in hand (or empties it): the swing uses its numbers, the model shows in the hand.
     fn apply_hand(&mut self, change: play::HandChange) {
-        let play::HandChange::Weapon(def) = change;
+        let def = match change {
+            play::HandChange::Weapon(def) => def,
+            play::HandChange::ToggleFlashlight => {
+                self.flashlight_on = !self.flashlight_on;
+                return;
+            }
+        };
         self.pending_weapon_model = Some(def.as_ref().and_then(weapon_model_name));
         if let Some(c) = self.combat.as_mut() {
             c.set_weapon(def);
@@ -125,11 +136,15 @@ impl Game for R0 {
             .value("--seed")
             .and_then(|s| s.parse().ok())
             .unwrap_or(42);
-        self.hour = args
-            .value("--hour")
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(12.0);
         self.scene = args.value("--scene").unwrap_or("play").to_string();
+        // --hour=H fixes the time (screenshots, benchmarks); play mode otherwise starts at 08:00 and runs
+        let forced_hour: Option<f32> = args.value("--hour").and_then(|s| s.parse().ok());
+        let start = forced_hour.unwrap_or(if self.scene == "play" { world::time::Clock::new().hour } else { 12.0 });
+        self.clock = world::time::Clock::new();
+        self.clock.set_time(start);
+        self.hour = start;
+        self.clock_frozen = self.scene != "play" || forced_hour.is_some();
+        self.flashlight_on = args.flag("--flashlight");
         self.free_cam = args.flag("--free");
         self.autowalk = args.flag("--autowalk");
         self.autoattack = args.flag("--autoattack");
@@ -335,6 +350,10 @@ impl Game for R0 {
             let night = !(6.0..20.0).contains(&self.hour);
             play.spawn_tick(dt, self.player, forward, night, z, &self.physics, w);
         }
+        if !self.clock_frozen {
+            self.clock.advance(dt);
+            self.hour = self.clock.hour;
+        }
         if dt > 0.0 {
             self.fps += (1.0 / dt - self.fps) * (dt * 2.0).min(1.0);
         }
@@ -419,7 +438,10 @@ impl Game for R0 {
             target,
             encoder,
             &self.camera,
-            &light::at_hour(self.hour),
+            &light::at_hour(self.hour, self.flashlight_on.then(|| {
+                // Held at the camera, pointing where it looks (Godot hangs it on the camera)
+                light::flashlight(self.camera.position, self.camera.forward())
+            })),
             &items,
             &main,
             &shadow,
