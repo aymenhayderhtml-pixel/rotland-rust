@@ -1,5 +1,6 @@
 use crate::items::def::ItemCategory;
-use crate::items::inventory::{Inventory, ItemStack};
+use crate::items::inventory::Inventory;
+use crate::items::stack::ItemStack;
 use crate::items::registry::ItemRegistry;
 use crate::weapons::{WeaponDef, WeaponRegistry};
 
@@ -79,7 +80,7 @@ impl Hotbar {
         inventory: &Inventory,
         registry: &ItemRegistry,
     ) -> HotbarAction {
-        if key < 1 || key > self.slot_count || key - 1 >= inventory.slots().len() {
+        if key < 1 || key > self.slot_count || key > inventory.slots().len() {
             return HotbarAction::InvalidKey;
         }
         let Some(stack) = &inventory.slots()[key - 1] else {
@@ -171,11 +172,10 @@ impl Hotbar {
 
     /// A weapon whose item was used up or removed can no longer stay in hand.
     pub fn on_inventory_changed(&mut self, inventory: &Inventory) {
-        if let Some(id) = &self.equipped_item_id {
-            if !inventory.has(id, 1) {
+        if let Some(id) = &self.equipped_item_id
+            && !inventory.has(id, 1) {
                 self.holster();
             }
-        }
     }
 
     /// Resolves the equipped weapon in hand through WeaponRegistry.

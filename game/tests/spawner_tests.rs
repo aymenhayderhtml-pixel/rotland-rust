@@ -1,5 +1,5 @@
 use game::spawner::{
-    ActiveZombie, SettlementConfigData, SettlementSite, SpawnConfig, SpawnContext, Spawner,
+    ActiveZombie, SettlementSite, SpawnConfig, SpawnContext, Spawner,
 };
 use glam::{IVec2, Vec3};
 use physics::{PhysicsWorld, CHUNK_SAMPLES};
@@ -135,7 +135,7 @@ fn every_spawn_is_between_min_and_max_distance_and_out_of_view() {
     let mut spawner = Spawner::new(config.clone(), 303);
     let player = Vec3::new(10.0, 0.0, 10.0);
     let settlements: Vec<SettlementSite> = Vec::new();
-    let mut alive: Vec<ActiveZombie> = Vec::new();
+    let alive: Vec<ActiveZombie> = Vec::new();
 
     let mut checked_spawns = 0;
     for _ in 0..50 {
@@ -183,7 +183,7 @@ fn no_spawn_lands_inside_camp_safe_zone_even_when_player_stands_in_camp() {
     let settlements = vec![camp];
     let mut spawner = Spawner::new(config, 404);
     let player = Vec3::ZERO; // Player stands directly at the camp center
-    let mut alive: Vec<ActiveZombie> = Vec::new();
+    let alive: Vec<ActiveZombie> = Vec::new();
 
     // Camp safe zone is 17.5 m half + 40 m padding = 57.5 m box
     let limit = 17.5 + 40.0;

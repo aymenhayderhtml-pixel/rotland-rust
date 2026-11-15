@@ -68,11 +68,10 @@ impl Inventory {
     pub fn total_weight_with(&self, registry: &ItemRegistry) -> f32 {
         let mut total = 0.0;
         for slot in &self.slots {
-            if let Some(stack) = slot {
-                if let Some(def) = registry.get(&stack.item_id) {
+            if let Some(stack) = slot
+                && let Some(def) = registry.get(&stack.item_id) {
                     total += def.weight * (stack.count as f32);
                 }
-            }
         }
         total
     }
@@ -81,11 +80,10 @@ impl Inventory {
     pub fn count(&self, id: &str) -> u32 {
         let mut total = 0;
         for slot in &self.slots {
-            if let Some(stack) = slot {
-                if stack.item_id == id {
+            if let Some(stack) = slot
+                && stack.item_id == id {
                     total += stack.count;
                 }
-            }
         }
         total
     }
@@ -157,13 +155,12 @@ impl Inventory {
         // Fill existing stacks first
         for slot in &mut self.slots {
             if left == 0 { break; }
-            if let Some(stack) = slot {
-                if stack.item_id == id && stack.count < def.max_stack {
+            if let Some(stack) = slot
+                && stack.item_id == id && stack.count < def.max_stack {
                     let take = left.min(def.max_stack - stack.count);
                     stack.count += take;
                     left -= take;
                 }
-            }
         }
         // Fill empty slots
         for slot in &mut self.slots {
@@ -187,8 +184,8 @@ impl Inventory {
         let mut left = count;
         for i in (0..self.slots.len()).rev() {
             if left == 0 { break; }
-            if let Some(stack) = &mut self.slots[i] {
-                if stack.item_id == id {
+            if let Some(stack) = &mut self.slots[i]
+                && stack.item_id == id {
                     let take = left.min(stack.count);
                     left -= take;
                     if stack.count > take {
@@ -197,7 +194,6 @@ impl Inventory {
                         self.slots[i] = None;
                     }
                 }
-            }
         }
         self.raise_changed();
         true
@@ -238,9 +234,9 @@ impl Inventory {
             return;
         }
 
-        if let (Some(first), Some(second)) = (&self.slots[a], &self.slots[b]) {
-            if first.item_id == second.item_id {
-                if let Some(def) = self.registry.get(&first.item_id) {
+        if let (Some(first), Some(second)) = (&self.slots[a], &self.slots[b])
+            && first.item_id == second.item_id
+                && let Some(def) = self.registry.get(&first.item_id) {
                     let room = def.max_stack.saturating_sub(first.count);
                     let move_count = room.min(second.count);
                     if move_count > 0 {
@@ -257,8 +253,6 @@ impl Inventory {
                         return;
                     }
                 }
-            }
-        }
 
         self.slots.swap(a, b);
         self.raise_changed();
@@ -266,9 +260,7 @@ impl Inventory {
 
     /// Empties every slot.
     pub fn clear(&mut self) {
-        for slot in &mut self.slots {
-            *slot = None;
-        }
+        self.slots.fill(None);
         self.raise_changed();
     }
 

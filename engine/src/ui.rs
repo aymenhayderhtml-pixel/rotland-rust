@@ -56,10 +56,11 @@ impl UiLayer {
         window: &Window,
         encoder: &mut wgpu::CommandEncoder,
         cursor_grabbed: bool,
-        build_ui: impl FnOnce(&egui::Context),
+        mut build_ui: impl FnMut(&egui::Context),
     ) -> Vec<wgpu::CommandBuffer> {
         let raw_input = self.state.take_egui_input(window);
-        let output = self.ctx.run(raw_input, build_ui);
+        // egui 0.37: run_pass (it may call the UI code more than once in a frame for layout passes)
+        let output = self.ctx.run_pass(raw_input, |ctx| build_ui(ctx));
 
         // When the game holds the mouse cursor, don't let egui modify cursor visibility or icon
         if !cursor_grabbed {

@@ -30,13 +30,13 @@ pub struct HudState {
 
 /// Draws the HUD overlay using egui painter.
 pub fn draw(ctx: &egui::Context, s: &HudState) {
-    egui::Area::new(egui::Id::new("rotland_hud"))
+    egui::Area::new(egui::Id::unique("rotland_hud"))
         .fixed_pos(pos2(0.0, 0.0))
         .interactable(false)
         .order(egui::Order::Foreground)
         .show(ctx, |ui| {
             let painter = ui.painter();
-            let screen = ctx.screen_rect();
+            let screen = ctx.content_rect();
 
             // 1. FPS top left
             let fps_text = format!("{:.0} FPS", s.fps);
@@ -94,8 +94,8 @@ pub fn draw(ctx: &egui::Context, s: &HudState) {
             }
 
             // 8. Centered prompt/message if active
-            if let Some(msg) = &s.message {
-                if !s.dead {
+            if let Some(msg) = &s.message
+                && !s.dead {
                     draw_outline_text(
                         painter,
                         pos2(screen.center().x, screen.center().y + 50.0),
@@ -105,7 +105,6 @@ pub fn draw(ctx: &egui::Context, s: &HudState) {
                         Color32::WHITE,
                     );
                 }
-            }
 
             // 9. Death overlay when dead (HUD.cs, HUD.tscn)
             if s.dead {

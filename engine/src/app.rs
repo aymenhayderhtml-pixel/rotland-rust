@@ -320,12 +320,11 @@ impl<G: Game> ApplicationHandler for App<G> {
             self.game.cursor_grab() == Some(true) || self.last_cursor_grab == Some(true);
 
         let mut consumed_by_ui = false;
-        if let (Some(ui), Some(window)) = (self.ui.as_mut(), self.window.as_ref()) {
-            if !(cursor_grabbed && is_mouse) {
+        if let (Some(ui), Some(window)) = (self.ui.as_mut(), self.window.as_ref())
+            && !(cursor_grabbed && is_mouse) {
                 let res = ui.on_window_event(window, &event);
                 consumed_by_ui = res.consumed;
             }
-        }
 
         match event {
             WindowEvent::CloseRequested => self.quit(event_loop),
@@ -336,25 +335,23 @@ impl<G: Game> ApplicationHandler for App<G> {
                 self.rebuild_target();
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                if !consumed_by_ui {
-                    if let PhysicalKey::Code(code) = event.physical_key {
+                if !consumed_by_ui
+                    && let PhysicalKey::Code(code) = event.physical_key {
                         self.input.key(code, event.state == ElementState::Pressed);
                     }
-                }
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 if !consumed_by_ui {
                     self.input.button(button, state == ElementState::Pressed);
                 }
             }
-            WindowEvent::MouseWheel { delta, .. } => {
-                if !consumed_by_ui {
+            WindowEvent::MouseWheel { delta, .. }
+                if !consumed_by_ui => {
                     self.input.wheel += match delta {
                         MouseScrollDelta::LineDelta(_, y) => y,
                         MouseScrollDelta::PixelDelta(p) => p.y as f32 / 40.0,
                     };
                 }
-            }
             _ => {}
         }
     }

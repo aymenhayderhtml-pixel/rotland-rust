@@ -247,15 +247,17 @@ fn slot_swapping_and_merging() {
     assert_eq!(inv.slot(0).unwrap().item_id, "water_bottle");
     assert_eq!(inv.slot(1).unwrap().item_id, "canned_beans");
 
-    // Add 8 beans to slot 2
-    inv.add("canned_beans", 8); // slot 2 has 8 beans
-    assert_eq!(inv.slot(2).unwrap().count, 8);
-
-    // Swap slots 1 (6 beans) and 2 (8 beans): merges up to max_stack 10!
-    // Slot 1 gets 6 + 4 = 10, slot 2 retains 8 - 4 = 4
-    inv.swap_slots(1, 2);
+    // Adding 8 more beans tops up the existing stack first (6 -> 10, as in Inventory.cs),
+    // and only the other 4 go to the next empty slot
+    inv.add("canned_beans", 8);
     assert_eq!(inv.slot(1).unwrap().count, 10);
     assert_eq!(inv.slot(2).unwrap().count, 4);
+
+    // Dropping the full stack (slot 1) onto the small one (slot 2) merges into slot 2 up to max_stack 10:
+    // slot 2 gets 4 + 6 = 10, slot 1 keeps 10 - 6 = 4
+    inv.swap_slots(2, 1);
+    assert_eq!(inv.slot(2).unwrap().count, 10);
+    assert_eq!(inv.slot(1).unwrap().count, 4);
 }
 
 #[test]
