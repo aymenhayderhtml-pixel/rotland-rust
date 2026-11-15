@@ -6,6 +6,7 @@
 pub mod camera_rig;
 pub mod input;
 pub mod player;
+pub mod zombie;
 
 pub use camera_rig::*;
 pub use input::{Actions, InputBindings};
