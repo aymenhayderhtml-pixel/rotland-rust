@@ -720,7 +720,10 @@ version = "0.1.0"
 dependencies = [
  "engine",
  "glam 0.34.3",
+ "paths",
  "physics",
+ "serde",
+ "serde_json",
  "winit",
 ]
 
