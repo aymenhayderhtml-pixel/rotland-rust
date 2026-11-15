@@ -21,6 +21,7 @@ postcard = { version = "1.1", features = ["alloc", "use-std"] }
 gltf = { version = "1.4", features = ["import", "names", "utils"] }
 pack = { path = "pack" }
 fastnoise-lite = "1.1"
+rayon = "1.12"
 
 # Fast builds while working: our code lightly optimised, libraries fully optimised
 [profile.dev]

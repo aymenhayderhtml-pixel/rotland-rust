@@ -1,119 +1,47 @@
-//! Rotland (Rust). R0: the engine draws a lit test landscape (temporary until the `world` crate lands).
+//! Rotland (Rust). R0: the real world (seed 42) with 25 animated zombies, for the go/no-go speed test.
+//! Options: --seed=N (42), --hour=H (12), plus the engine's --shot / --stats / --seconds (see rust/README.md).
 
-use engine::anim::Rig;
-use engine::render::{Camera, ColorVertex, DrawItem, GpuMesh, Lighting, LitRenderer, SkinInstance, SkinnedBatch};
-use glam::Mat4;
+mod crowd;
+mod light;
+mod terrain;
+
+use engine::render::{Camera, DrawItem, LitRenderer};
 use engine::{EngineArgs, FrameTarget, Game, GameStats, Gpu, Input};
 use glam::Vec3;
+use world::{SettlementConfig, WorldGenerator};
 
-const CHUNK: f32 = 64.0;
-const CELL: f32 = 2.0;
+const REPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 
 struct R0 {
     renderer: Option<LitRenderer>,
-    chunks: Vec<(GpuMesh, Vec3)>,
+    ground: Vec<terrain::GroundChunk>,
+    crowd: crowd::Crowd,
     camera: Camera,
+    hour: f32,
     time: f32,
-    /// Zombie looks: mesh, rig, the shamble clip, and where each zombie of that look stands.
-    zombies: Vec<ZombieKind>,
-    bones: Vec<Mat4>,
-}
-
-struct ZombieKind {
-    mesh: GpuMesh,
-    rig: Rig,
-    clip: pack::Clip,
-    spots: Vec<(Vec3, f32, f32)>,
-}
-
-fn height(x: f32, z: f32) -> f32 {
-    (x * 0.02).sin() * 6.0 + (z * 0.03).cos() * 4.0 + (x * 0.11 + z * 0.07).sin() * 0.8
-}
-
-/// Flat-shaded test chunk: two triangles per 2 m cell, clockwise from above like the Godot terrain.
-fn test_chunk(cx: i32, cz: i32) -> Vec<ColorVertex> {
-    let (ox, oz) = (cx as f32 * CHUNK, cz as f32 * CHUNK);
-    let n = (CHUNK / CELL) as i32;
-    let mut out = Vec::with_capacity((n * n * 6) as usize);
-    let p = |i: i32, j: i32| Vec3::new(i as f32 * CELL, height(ox + i as f32 * CELL, oz + j as f32 * CELL), j as f32 * CELL);
-    for j in 0..n {
-        for i in 0..n {
-            let (a, b, c, d) = (p(i, j), p(i + 1, j), p(i, j + 1), p(i + 1, j + 1));
-            for tri in [[a, b, c], [b, d, c]] {
-                let normal = (tri[2] - tri[0]).cross(tri[1] - tri[0]).normalize();
-                let shade = ((i * 7 + j * 13) % 5) as u8 * 3;
-                let color = [0x5d - shade, 0x88 - shade, 0x36, 255];
-                for v in tri {
-                    out.push(ColorVertex { position: v.to_array(), normal: normal.to_array(), color, bone: 0, _pad: [0; 3] });
-                }
-            }
-        }
-    }
-    out
-}
-
-fn noon() -> Lighting {
-    let hex = |h: u32| Vec3::new(((h >> 16) & 255) as f32, ((h >> 8) & 255) as f32, (h & 255) as f32) / 255.0;
-    // DayNightPalette at 12:00: sun angle = pi * 6 / 13
-    let angle = std::f32::consts::PI * 6.0 / 13.0;
-    Lighting {
-        sun_toward: Vec3::new(-angle.cos(), angle.sin(), 0.4).normalize(),
-        sun_energy: 0.9,
-        sun_color: Vec3::new(1.0, 0.98, 0.93),
-        sky_top: hex(0x5b86c4),
-        sky_horizon: hex(0xc9d6e0),
-        ground_horizon: hex(0xc9d6e0),
-        ground_bottom: hex(0xc9d6e0),
-        ambient_energy: 0.6,
-        fog_begin: 120.0,
-        fog_end: 190.0,
-        fog_density: 1.0,
-        fog_color: hex(0xc9d6e0),
-    }
+    seed: i32,
 }
 
 impl Game for R0 {
-    fn init(&mut self, gpu: &Gpu, _args: &EngineArgs) {
+    fn init(&mut self, gpu: &Gpu, args: &EngineArgs) {
+        self.seed = args.value("--seed").and_then(|s| s.parse().ok()).unwrap_or(42);
+        self.hour = args.value("--hour").and_then(|s| s.parse().ok()).unwrap_or(12.0);
         self.renderer = Some(LitRenderer::new(gpu));
-        for cz in -3..=3 {
-            for cx in -3..=3 {
-                let mesh = GpuMesh::new(&gpu.device, "test chunk", &test_chunk(cx, cz));
-                self.chunks.push((mesh, Vec3::new(cx as f32 * CHUNK, 0.0, cz as f32 * CHUNK)));
-            }
-        }
-        // Real baked models on the test ground, to check the pack's colours
-        let pack_path = concat!(env!("CARGO_MANIFEST_DIR"), "/../assets/models.pack");
-        match pack::ModelPack::load(pack_path) {
-            Ok(models) => {
-                let row = ["tree_pine_01", "tree_oak_01", "tree_birch_01", "tree_autumn_01", "rock_01", "barrel_rusty", "zombie_01", "human_player", "car_hatchback_red", "cabin"];
-                for (k, name) in row.iter().enumerate() {
-                    if let Some(m) = models.find(name) {
-                        let x = -40.0 + k as f32 * 9.0;
-                        let z = -25.0;
-                        let mesh = GpuMesh::new(&gpu.device, name, &m.vertices);
-                        self.chunks.push((mesh, Vec3::new(x, height(x, z), z)));
-                    } else {
-                        log::warn!("model {name} not in the pack");
-                    }
-                }
-            }
-            Err(e) => log::warn!("no model pack ({e}); run `cargo run --release -p baker`"),
-        }
-        // 25 zombies in a loose crowd ahead of the camera, each at its own point in the walk cycle
-        if let Ok(models) = pack::ModelPack::load(pack_path) {
-            for (k, name) in ["zombie_01", "zombie_02", "zombie_03"].iter().enumerate() {
-                let Some(m) = models.find(name) else { continue };
-                let (Some(skel), Some(clip)) = (&m.skeleton, m.clips.iter().find(|c| c.name == "zombie_shamble")) else { continue };
-                let mut spots = Vec::new();
-                for i in (k..25).step_by(3) {
-                    let (x, z) = (-12.0 + (i % 5) as f32 * 6.0 + (i as f32 * 1.7).sin(), -12.0 - (i / 5) as f32 * 5.0);
-                    spots.push((Vec3::new(x, height(x, z), z), (i as f32 * 0.7).sin() * 0.6, i as f32 * 0.37));
-                }
-                self.zombies.push(ZombieKind { mesh: GpuMesh::new(&gpu.device, name, &m.vertices), rig: Rig::new(skel), clip: clip.clone(), spots });
-            }
-        }
-        self.camera.position = Vec3::new(0.0, height(0.0, 0.0) + 2.5, 2.0);
-        self.camera.look_at(Vec3::new(0.0, height(0.0, -20.0) + 1.0, -20.0));
+
+        let config = SettlementConfig::load_from_file(format!("{REPO}/data/settlements.json")).expect("data/settlements.json");
+        let started = std::time::Instant::now();
+        let world_gen = WorldGenerator::new(self.seed, config.clone());
+        let camp = world_gen.settlements()[0].clone();
+        let eye = camp.respawn_point(&config);
+        // Same ring as Godot's medium preset: 3 chunks each way around the player
+        self.ground = terrain::build_ring(&gpu.device, &world_gen, terrain::chunk_of(eye), 3);
+        log::info!("built {} ground chunks in {:.0} ms", self.ground.len(), started.elapsed().as_secs_f64() * 1000.0);
+
+        self.camera.position = eye + Vec3::new(0.0, 1.6, 0.0);
+        self.camera.look_at(camp.center + Vec3::new(0.0, 1.2, 0.0));
+        let ahead = self.camera.position + self.camera.forward() * 14.0;
+        let pack_path = format!("{REPO}/rust/assets/models.pack");
+        self.crowd = crowd::Crowd::load(&gpu.device, &pack_path, ahead, 25, |x, z| world_gen.height(x, z));
     }
 
     fn update(&mut self, input: &Input, dt: f32) {
@@ -125,32 +53,19 @@ impl Game for R0 {
         let right = f.cross(Vec3::Y).normalize_or_zero();
         let mut mv = Vec3::ZERO;
         use winit::keyboard::KeyCode;
-        if input.held(KeyCode::KeyW) { mv += f; }
-        if input.held(KeyCode::KeyS) { mv -= f; }
-        if input.held(KeyCode::KeyD) { mv += right; }
-        if input.held(KeyCode::KeyA) { mv -= right; }
+        for (key, dir) in [(KeyCode::KeyW, f), (KeyCode::KeyS, -f), (KeyCode::KeyD, right), (KeyCode::KeyA, -right)] {
+            if input.held(key) {
+                mv += dir;
+            }
+        }
         self.camera.position += mv * 20.0 * dt;
     }
 
     fn render(&mut self, gpu: &Gpu, target: &FrameTarget, encoder: &mut wgpu::CommandEncoder) {
-        let items: Vec<DrawItem> = self.chunks.iter().map(|(mesh, offset)| DrawItem { mesh, offset: *offset }).collect();
-        self.bones.clear();
-        let mut batches = Vec::new();
-        for kind in &self.zombies {
-            let joints = kind.rig.joint_count();
-            let mut instances = Vec::new();
-            for &(pos, yaw, phase) in &kind.spots {
-                let base = self.bones.len();
-                self.bones.resize(base + joints, Mat4::IDENTITY);
-                kind.rig.sample(&kind.clip, self.time + phase, &mut self.bones[base..]);
-                // Models face +Z in Blender's export; turn them toward the camera (which looks down -Z)
-                let model = Mat4::from_translation(pos) * Mat4::from_rotation_y(yaw);
-                instances.push(SkinInstance::new(model, base as u32));
-            }
-            batches.push(SkinnedBatch { mesh: &kind.mesh, instances });
-        }
+        let items: Vec<DrawItem> = self.ground.iter().map(|c| DrawItem { mesh: &c.mesh, offset: c.origin }).collect();
+        let (batches, bones) = self.crowd.pose(self.time);
         if let Some(r) = self.renderer.as_mut() {
-            r.draw(gpu, target, encoder, &self.camera, &noon(), &items, &batches, &self.bones);
+            r.draw(gpu, target, encoder, &self.camera, &light::at_hour(self.hour), &items, &batches, bones);
         }
     }
 
@@ -160,12 +75,15 @@ impl Game for R0 {
             s.insert("drawCalls".into(), r.last_draws.into());
             s.insert("triangles".into(), r.last_triangles.into());
         }
+        s.insert("seed".into(), self.seed.into());
+        s.insert("groundChunks".into(), self.ground.len().into());
+        s.insert("zombies".into(), self.crowd.count().into());
         s
     }
 }
 
 fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info,wgpu_core=warn,wgpu_hal=warn")).init();
-    let game = R0 { renderer: None, chunks: Vec::new(), camera: Camera::default(), time: 0.0, zombies: Vec::new(), bones: Vec::new() };
+    let game = R0 { renderer: None, ground: Vec::new(), crowd: crowd::Crowd::default(), camera: Camera::default(), hour: 12.0, time: 0.0, seed: 42 };
     engine::run(game, "Rotland (Rust)", EngineArgs::from_env());
 }
