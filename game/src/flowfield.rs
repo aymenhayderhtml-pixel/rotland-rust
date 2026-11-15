@@ -39,6 +39,8 @@ pub struct FlowField {
     heap: BinaryHeap<Reverse<(u32, u32)>>,
     target: Vec3,
     target_idx: usize,
+    /// Remembered blocked/free answer per world cell (static obstacles), see scan_blocked.
+    cache: std::collections::HashMap<(i32, i32), bool>,
 }
 
 impl Default for FlowField {
@@ -63,6 +65,7 @@ impl FlowField {
             heap: BinaryHeap::with_capacity(count),
             target: Vec3::ZERO,
             target_idx: 0,
+            cache: std::collections::HashMap::new(),
         }
     }
 
@@ -76,8 +79,14 @@ impl FlowField {
         self.target = target;
         // The target's cell is always the grid's centre cell.
         self.target_idx = self.half_size * self.side + self.half_size;
-        scan_blocked(physics, self.min, self.cell, self.side, &mut self.blocked);
+        scan_blocked(physics, self.min, self.cell, self.side, &mut self.blocked, &mut self.cache);
         self.search();
+    }
+
+    /// Forgets the remembered obstacle answers. Call when something solid appears or disappears in a
+    /// place already scanned (doors, barricades); loading and unloading chunks does not need it.
+    pub fn forget(&mut self) {
+        self.cache.clear();
     }
 
     /// Walking direction (flat, unit length) for a walker at `from`. None outside the grid, on a cell
