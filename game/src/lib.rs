@@ -11,6 +11,7 @@ mod flowfield_scan;
 pub mod input;
 pub mod player;
 pub mod weapons;
+pub mod zombie;
 
 pub use camera_rig::*;
 pub use damage::DamageInfo;
