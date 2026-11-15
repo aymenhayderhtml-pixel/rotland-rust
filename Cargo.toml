@@ -22,6 +22,9 @@ gltf = { version = "1.4", features = ["import", "names", "utils"] }
 pack = { path = "pack" }
 fastnoise-lite = "1.1"
 rayon = "1.12"
+egui = "0.37"
+egui-wgpu = "0.37"
+egui-winit = "0.37"
 
 # Fast builds while working: our code lightly optimised, libraries fully optimised
 [profile.dev]

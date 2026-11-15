@@ -12,9 +12,12 @@ pub mod render;
 pub mod stats;
 pub mod target;
 pub mod timing;
+pub mod ui;
 
 pub use app::{run, Game, GameStats};
 pub use cli::EngineArgs;
+pub use egui;
 pub use gpu::Gpu;
 pub use input::Input;
 pub use target::FrameTarget;
+pub use ui::UiLayer;

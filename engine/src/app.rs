@@ -44,6 +44,8 @@ pub trait Game: 'static {
     fn cursor_grab(&self) -> Option<bool> {
         None
     }
+    /// Build UI for one frame using egui.
+    fn ui(&mut self, _ctx: &egui::Context) {}
 }
 
 /// Opens the window and runs the game until it quits, the window is closed, or a command-line limit is hit.
@@ -65,6 +67,7 @@ pub fn run<G: Game>(game: G, title: &str, args: EngineArgs) {
         started: Instant::now(),
         f12_count: 0,
         last_cursor_grab: None,
+        ui: None,
     };
     event_loop.run_app(&mut app).expect("event loop failed");
 }
@@ -84,6 +87,7 @@ struct App<G: Game> {
     started: Instant,
     f12_count: u32,
     last_cursor_grab: Option<bool>,
+    ui: Option<crate::ui::UiLayer>,
 }
 
 impl<G: Game> App<G> {
@@ -134,8 +138,22 @@ impl<G: Game> App<G> {
                 label: Some("frame"),
             });
         self.game.render(gpu, target, &mut encoder);
+        let cursor_grabbed = self.last_cursor_grab == Some(true);
+        let mut user_cmd_bufs = Vec::new();
+        if let Some(ui) = self.ui.as_mut() {
+            let cmd_bufs = ui.draw(
+                gpu,
+                target,
+                window,
+                &mut encoder,
+                cursor_grabbed,
+                |ctx| self.game.ui(ctx),
+            );
+            user_cmd_bufs.extend(cmd_bufs);
+        }
         blit.draw(&mut encoder, &view);
-        gpu.queue.submit([encoder.finish()]);
+        gpu.queue
+            .submit(user_cmd_bufs.into_iter().chain(std::iter::once(encoder.finish())));
         window.pre_present_notify();
         gpu.queue.present(texture);
 
@@ -278,6 +296,11 @@ impl<G: Game> ApplicationHandler for App<G> {
             gpu.adapter_info.driver_info
         );
         self.game.init(&gpu, &self.args);
+        self.ui = Some(crate::ui::UiLayer::new(
+            &gpu.device,
+            crate::target::COLOR_FORMAT,
+            &window,
+        ));
         self.gpu = Some(gpu);
         self.window = Some(window);
         self.rebuild_target();
@@ -285,6 +308,25 @@ impl<G: Game> ApplicationHandler for App<G> {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
+        let is_mouse = matches!(
+            event,
+            WindowEvent::CursorMoved { .. }
+                | WindowEvent::MouseInput { .. }
+                | WindowEvent::MouseWheel { .. }
+                | WindowEvent::CursorEntered { .. }
+                | WindowEvent::CursorLeft { .. }
+        );
+        let cursor_grabbed =
+            self.game.cursor_grab() == Some(true) || self.last_cursor_grab == Some(true);
+
+        let mut consumed_by_ui = false;
+        if let (Some(ui), Some(window)) = (self.ui.as_mut(), self.window.as_ref()) {
+            if !(cursor_grabbed && is_mouse) {
+                let res = ui.on_window_event(window, &event);
+                consumed_by_ui = res.consumed;
+            }
+        }
+
         match event {
             WindowEvent::CloseRequested => self.quit(event_loop),
             WindowEvent::Resized(size) => {
@@ -294,18 +336,24 @@ impl<G: Game> ApplicationHandler for App<G> {
                 self.rebuild_target();
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                if let PhysicalKey::Code(code) = event.physical_key {
-                    self.input.key(code, event.state == ElementState::Pressed);
+                if !consumed_by_ui {
+                    if let PhysicalKey::Code(code) = event.physical_key {
+                        self.input.key(code, event.state == ElementState::Pressed);
+                    }
                 }
             }
             WindowEvent::MouseInput { state, button, .. } => {
-                self.input.button(button, state == ElementState::Pressed)
+                if !consumed_by_ui {
+                    self.input.button(button, state == ElementState::Pressed);
+                }
             }
             WindowEvent::MouseWheel { delta, .. } => {
-                self.input.wheel += match delta {
-                    MouseScrollDelta::LineDelta(_, y) => y,
-                    MouseScrollDelta::PixelDelta(p) => p.y as f32 / 40.0,
-                };
+                if !consumed_by_ui {
+                    self.input.wheel += match delta {
+                        MouseScrollDelta::LineDelta(_, y) => y,
+                        MouseScrollDelta::PixelDelta(p) => p.y as f32 / 40.0,
+                    };
+                }
             }
             _ => {}
         }
