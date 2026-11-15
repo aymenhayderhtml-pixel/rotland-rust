@@ -27,6 +27,7 @@ pub struct PlayState {
 }
 
 /// What changed in hand this frame.
+#[allow(clippy::large_enum_variant)] // made a few times a minute at most; boxing would only add noise
 pub enum HandChange {
     /// A weapon was taken out (its definition) or put away (None).
     Weapon(Option<WeaponDef>),
