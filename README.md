@@ -37,7 +37,9 @@ Example: `flock /tmp/rotland-heavy.lock target/debug/rotland --shot=/tmp/x/fores
 | `rotland` | the game program |
 | `pack` | model pack binary format, data types and serialization (postcard) |
 | `baker` | tool: .glb models -> compact GPU-ready binary pack (rust/assets/models.pack) |
-More crates (`world`, `game`, `ui`) are added by the phases in the plan.
+| `world` | generator, ground paint, chunks, scatter, POIs, settlements (pure, testable) |
+| `physics` | rapier3d collision (terrain, static props/buildings) and kinematic character mover |
+More crates (`game`, `ui`) are added by the phases in the plan.
 
 ## Rules for workers
 - Read `../AGENTS.md`, then this file, then only the files your task names.
