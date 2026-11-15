@@ -24,6 +24,7 @@ struct R0 {
     streamer: Option<streaming::Streamer>,
     library: props::PropLibrary,
     pack: Option<pack::ModelPack>,
+    physics: physics::PhysicsWorld,
     crowd: crowd::Crowd,
     camera: Camera,
     player: Vec3,
@@ -86,7 +87,7 @@ impl Game for R0 {
         // Load the first ring before the first frame (Godot holds the player still until the ground is ready)
         if let Some(pack) = &self.pack {
             while !streamer.is_ready_around(self.player) {
-                streamer.update(&gpu.device, pack, &mut self.library, self.player);
+                streamer.update(&gpu.device, pack, &mut self.library, &mut self.physics, self.player);
                 std::thread::yield_now();
             }
         }
@@ -140,7 +141,7 @@ impl Game for R0 {
     fn render(&mut self, gpu: &Gpu, target: &FrameTarget, encoder: &mut wgpu::CommandEncoder) {
         // Chunk uploads need the GPU, so streaming runs here rather than in update
         if let (Some(streamer), Some(pack)) = (self.streamer.as_mut(), self.pack.as_ref()) {
-            streamer.update(&gpu.device, pack, &mut self.library, self.player);
+            streamer.update(&gpu.device, pack, &mut self.library, &mut self.physics, self.player);
         }
         let (Some(renderer), Some(streamer)) = (self.renderer.as_mut(), self.streamer.as_ref()) else { return };
         let items: Vec<DrawItem> = streamer.chunks.values().map(|c| DrawItem { mesh: &c.ground, offset: c.origin }).collect();
@@ -162,6 +163,12 @@ impl Game for R0 {
             s.insert("triangles".into(), r.last.triangles.into());
             s.insert("shadowDrawCalls".into(), r.last.shadow_draws.into());
             s.insert("shadowTriangles".into(), r.last.shadow_triangles.into());
+        }
+        s.insert("colliders".into(), self.physics.collider_count().into());
+        let (x, z) = (self.player.x, self.player.z);
+        if let Some(h) = self.physics.ground_height(x, z) {
+            // Must equal the generator's height (same triangles): a quick health check of the collision world
+            s.insert("groundCheck".into(), format!("physics {h:.3} vs terrain {:.3}", self.height(x, z)).into());
         }
         s.insert("scene".into(), self.scene.clone().into());
         s.insert("seed".into(), self.seed.into());

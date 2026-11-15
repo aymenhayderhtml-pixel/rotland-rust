@@ -9,7 +9,8 @@ fn srgb_byte(c: f32) -> u8 {
     (c.clamp(0.0, 1.0) * 255.0).round() as u8
 }
 
-pub fn chunk_vertices(world_gen: &WorldGenerator, coord: IVec2) -> Vec<ColorVertex> {
+/// The chunk's drawable vertices and its 33x33 heights (for collision).
+pub fn chunk_vertices(world_gen: &WorldGenerator, coord: IVec2) -> (Vec<ColorVertex>, Vec<f32>) {
     let ground = world_gen.build_chunk_ground(coord);
     let mut out = Vec::with_capacity(ground.triangles.len() * 3);
     for t in &ground.triangles {
@@ -19,7 +20,7 @@ pub fn chunk_vertices(world_gen: &WorldGenerator, coord: IVec2) -> Vec<ColorVert
             out.push(ColorVertex { position: p.to_array(), normal: t.normal.to_array(), color, bone: 0, _pad: [0; 3] });
         }
     }
-    out
+    (out, ground.heights)
 }
 
 pub fn chunk_of(p: Vec3) -> IVec2 {

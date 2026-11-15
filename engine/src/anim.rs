@@ -10,6 +10,7 @@ pub struct Rig {
     parents: Vec<Option<usize>>,
     inverse_bind: Vec<Mat4>,
     rest: Vec<(Vec3, Quat, Vec3)>,
+    names: Vec<String>,
 }
 
 impl Rig {
@@ -38,6 +39,7 @@ impl Rig {
                 .iter()
                 .map(|j| (Vec3::from(j.rest_translation), Quat::from_array(j.rest_rotation).normalize(), Vec3::from(j.rest_scale)))
                 .collect(),
+            names: skeleton.joints.iter().map(|j| j.name.clone()).collect(),
         }
     }
 
@@ -47,6 +49,31 @@ impl Rig {
 
     /// Writes the skin matrices of `clip` at `time` (looped) into `out` (one per joint).
     pub fn sample(&self, clip: &Clip, time: f32, out: &mut [Mat4]) {
+        let local = self.local_pose(clip, time);
+        self.skin(&local, out);
+    }
+
+    /// Like `sample`, but mixes two clips: `weight` 0 = all `a`, 1 = all `b` (walk to run by speed, and so on).
+    pub fn sample_blend(&self, a: &Clip, time_a: f32, b: &Clip, time_b: f32, weight: f32, out: &mut [Mat4]) {
+        let w = weight.clamp(0.0, 1.0);
+        if w <= 0.0 {
+            return self.sample(a, time_a, out);
+        }
+        if w >= 1.0 {
+            return self.sample(b, time_b, out);
+        }
+        let mut pa = self.local_pose(a, time_a);
+        let pb = self.local_pose(b, time_b);
+        for (x, y) in pa.iter_mut().zip(pb) {
+            x.0 = x.0.lerp(y.0, w);
+            x.1 = x.1.slerp(y.1, w);
+            x.2 = x.2.lerp(y.2, w);
+        }
+        self.skin(&pa, out);
+    }
+
+    /// Each joint's own translation, rotation and scale for `clip` at `time` (looped).
+    pub fn local_pose(&self, clip: &Clip, time: f32) -> Vec<(Vec3, Quat, Vec3)> {
         let n = self.joint_count();
         let t = if clip.duration > 0.0 { time.rem_euclid(clip.duration) } else { 0.0 };
         let mut local = self.rest.clone();
@@ -62,6 +89,12 @@ impl Rig {
                 ChannelKind::Scale => local[j].2 = Vec3::new(v[0], v[1], v[2]),
             }
         }
+        local
+    }
+
+    /// Turns a local pose into skin matrices (parents first, then the inverse bind).
+    pub fn skin(&self, local: &[(Vec3, Quat, Vec3)], out: &mut [Mat4]) {
+        let n = self.joint_count();
         let mut global = [Mat4::IDENTITY; 256];
         for &j in &self.order {
             let (tr, rot, sc) = local[j];
@@ -74,6 +107,16 @@ impl Rig {
         for j in 0..n.min(out.len()) {
             out[j] = global[j] * self.inverse_bind[j];
         }
+    }
+
+    /// World-space matrix of joint `name` in the pose (for things held in a hand: weapons, the flashlight).
+    pub fn joint_index(&self, name: &str) -> Option<usize> {
+        self.names.iter().position(|n| n == name)
+    }
+
+    /// Model-space transform of joint `j` given skin matrices from `sample`: skin * bind.
+    pub fn joint_model_matrix(&self, skin: &[Mat4], j: usize) -> Mat4 {
+        skin[j] * self.inverse_bind[j].inverse()
     }
 }
 
@@ -124,6 +167,27 @@ mod tests {
         for m in out {
             assert!(m.abs_diff_eq(Mat4::IDENTITY, 1e-5));
         }
+    }
+
+    #[test]
+    fn blending_half_way_lands_in_the_middle() {
+        let rig = Rig::new(&two_joint_skeleton());
+        let lift = |y: f32| Clip {
+            name: "lift".into(),
+            duration: 1.0,
+            channels: vec![Channel {
+                joint: 1,
+                kind: ChannelKind::Translation,
+                interpolation: Interpolation::Step,
+                times: vec![0.0],
+                values: vec![[0.0, y, 0.0, 0.0]],
+            }],
+        };
+        let mut out = [Mat4::ZERO; 2];
+        rig.sample_blend(&lift(0.0), 0.0, &lift(2.0), 0.0, 0.5, &mut out);
+        let p = out[0].transform_point3(Vec3::new(0.0, 1.0, 0.0));
+        assert!((p.y - 2.0).abs() < 1e-5, "half of a 2 m lift is 1 m, got {}", p.y - 1.0);
+        assert_eq!(rig.joint_index("child"), Some(0));
     }
 
     #[test]

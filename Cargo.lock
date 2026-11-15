@@ -2173,6 +2173,7 @@ dependencies = [
  "glam 0.34.3",
  "log",
  "pack",
+ "physics",
  "rayon",
  "wgpu",
  "winit",

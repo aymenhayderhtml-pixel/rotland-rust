@@ -13,3 +13,4 @@ winit.workspace = true
 pack = { path = "../pack" }
 world = { path = "../world" }
 rayon.workspace = true
+physics = { path = "../physics" }
