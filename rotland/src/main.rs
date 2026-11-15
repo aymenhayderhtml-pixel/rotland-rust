@@ -3,12 +3,13 @@
 //! --free (fly with mouse + WASD instead of the scripted walk), plus the engine's --shot / --stats / --seconds.
 
 mod bench;
-mod crowd;
+mod combat;
 mod light;
 mod player_visual;
 mod props;
 mod streaming;
 mod terrain;
+mod zombies;
 
 use std::sync::Arc;
 
@@ -39,7 +40,8 @@ struct R0 {
     library: props::PropLibrary,
     pack: Option<pack::ModelPack>,
     physics: physics::PhysicsWorld,
-    crowd: crowd::Crowd,
+    zombies: Option<zombies::Zombies>,
+    combat: Option<combat::Combat>,
     camera: Camera,
     player: Vec3,
     walk: bool,
@@ -56,6 +58,8 @@ struct R0 {
     mover: physics::CharacterMover,
     cursor_captured: bool,
     autowalk: bool,
+    /// Scripted test: swing whenever possible (for screenshots and stats without a person at the mouse).
+    autoattack: bool,
     free_cam: bool,
 }
 
@@ -103,6 +107,7 @@ impl Game for R0 {
         self.scene = args.value("--scene").unwrap_or("play").to_string();
         self.free_cam = args.flag("--free");
         self.autowalk = args.flag("--autowalk");
+        self.autoattack = args.flag("--autoattack");
         self.walk = self.scene == "forest" && !self.free_cam;
         self.cursor_captured = self.scene == "play" && !self.free_cam;
         self.renderer = Some(LitRenderer::new(gpu));
@@ -132,10 +137,12 @@ impl Game for R0 {
 
         match pack::ModelPack::load(paths::repo_path("rust/assets/models.pack")) {
             Ok(pack) => {
-                let h = |x: f32, z: f32| world_gen.height(x, z);
-                self.crowd =
-                    crowd::Crowd::spawn(&gpu.device, &pack, self.player, 25, 15.0, 40.0, &h);
+                match game::zombie::ZombieDefs::load_default() {
+                    Ok(defs) => self.zombies = Some(zombies::Zombies::new(&gpu.device, &pack, defs)),
+                    Err(e) => log::warn!("data/zombies.json: {e}"),
+                }
                 if self.scene == "play" {
+                    self.combat = Some(combat::Combat::new("bat"));
                     // Godot's starter weapon is the bat (data/start_inventory.json)
                     self.player_visual = Some(player_visual::PlayerVisual::load(&gpu.device, &pack, "human_player", Some("bat")));
                 }
@@ -158,6 +165,12 @@ impl Game for R0 {
                 std::thread::yield_now();
             }
         }
+        // Zombies need the ground's collision, so they spawn after the first ring has loaded. Like the
+        // forest25 benchmark: 25 walkers 15-40 m around the player (the real spawner comes in R3-07).
+        if let Some(z) = self.zombies.as_mut() {
+            let count = args.value("--zombies").and_then(|s| s.parse().ok()).unwrap_or(25);
+            z.spawn_ring("walker", self.player, count, 15.0, 40.0, &self.physics);
+        }
         log::info!(
             "scene {} at {:?}: {} chunks, {} placed models, {} zombies, ready in {:.0} ms",
             self.scene,
@@ -168,7 +181,7 @@ impl Game for R0 {
                 .values()
                 .map(|c| c.placed.len())
                 .sum::<usize>(),
-            self.crowd.count(),
+            self.zombies.as_ref().map_or(0, |z| z.list.len()),
             started.elapsed().as_secs_f64() * 1000.0
         );
         self.streamer = Some(streamer);
@@ -205,10 +218,30 @@ impl Game for R0 {
                 actions.move_vec.y = -1.0;
             }
 
+            let dead = self.combat.as_ref().is_some_and(|c| c.is_dead());
+            if dead {
+                actions = Actions::default();
+            }
+            let attack = !dead && (self.autoattack || (self.cursor_captured && input.mouse_pressed(winit::event::MouseButton::Left)));
             if let (Some(p), Some(rig)) = (self.player_ctrl.as_mut(), self.camera_rig.as_mut()) {
                 rig.update(&actions, p.crouching, dt);
                 p.first_person = rig.is_first_person;
                 p.update(&actions, rig.yaw, &self.physics, &self.mover, dt);
+                if let (Some(c), Some(z)) = (self.combat.as_mut(), self.zombies.as_mut()) {
+                    let ev = c.update(dt, attack, p, z, &self.physics);
+                    if let (Some(clip), Some(pv)) = (ev.swing_started, self.player_visual.as_mut()) {
+                        pv.animator.play_action(&clip, 1.0);
+                    }
+                    if ev.respawn {
+                        // Wake up at the camp (Godot respawns at the last settlement visited)
+                        if let Some(w) = self.world_gen.as_ref() {
+                            let spawn = w.settlements()[0].respawn_point(w.config());
+                            *p = Player::new(spawn);
+                            // Face where the camera looks, not the default direction
+                            p.yaw = rig.yaw;
+                        }
+                    }
+                }
                 self.player = p.position;
                 self.camera = rig.camera(&self.player, &self.physics);
             }
@@ -237,8 +270,25 @@ impl Game for R0 {
             }
             self.player = self.camera.position;
         }
-        if let Some(w) = self.world_gen.as_ref() {
-            self.crowd.update(dt, self.player, &|x, z| w.height(x, z));
+        // Zombies chase the living player; while dead they lose the target
+        let alive = !self.combat.as_ref().is_some_and(|c| c.is_dead());
+        let noises = self.combat.as_ref().map(|c| c.noises.clone()).unwrap_or_default();
+        if let Some(z) = self.zombies.as_mut() {
+            let frame = z.update(dt, alive.then_some(self.player), &noises, &self.physics);
+            if let Some(c) = self.combat.as_mut() {
+                let bites: Vec<f32> = frame.bites.iter().map(|b| b.damage).collect();
+                let ev = c.take_bites(&bites);
+                if ev.died {
+                    if let Some(pv) = self.player_visual.as_mut() {
+                        pv.animator.play_die();
+                    }
+                    log::info!("the player died (kills so far: {})", c.kills);
+                } else if ev.bitten
+                    && let Some(pv) = self.player_visual.as_mut()
+                {
+                    pv.animator.play_hit();
+                }
+            }
         }
     }
 
@@ -290,7 +340,7 @@ impl Game for R0 {
             shadow.push(body);
             shadow.extend(weapon);
         }
-        let zombies = self.crowd.pose(self.time, &mut self.bones);
+        let zombies = self.zombies.as_ref().map(|z| z.pose(&mut self.bones)).unwrap_or_default();
         shadow.extend(zombies.iter().map(|b| engine::render::SkinnedBatch {
             mesh: b.mesh,
             instances: b.instances.clone(),
@@ -348,7 +398,15 @@ impl Game for R0 {
                     .into(),
             );
         }
-        s.insert("zombies".into(), self.crowd.count().into());
+        if let Some(z) = &self.zombies {
+            s.insert("zombies".into(), z.list.len().into());
+            s.insert("zombiesAlive".into(), z.alive().into());
+        }
+        if let Some(c) = &self.combat {
+            s.insert("playerHealth".into(), format!("{:.0}", c.health.current()).into());
+            s.insert("kills".into(), c.kills.into());
+            s.insert("playerDead".into(), c.is_dead().into());
+        }
         if let Some(p) = &self.player_ctrl {
             s.insert(
                 "playerSpeed".into(),
