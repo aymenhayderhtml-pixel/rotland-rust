@@ -33,16 +33,7 @@ impl Camera {
 
     /// Right-handed view matrix (camera looks down its -Z), written out so it never depends on library naming.
     pub fn view(&self) -> Mat4 {
-        let f = self.forward();
-        let s = f.cross(Vec3::Y).normalize_or(Vec3::X);
-        let u = s.cross(f);
-        let e = self.position;
-        Mat4::from_cols(
-            Vec4::new(s.x, u.x, -f.x, 0.0),
-            Vec4::new(s.y, u.y, -f.y, 0.0),
-            Vec4::new(s.z, u.z, -f.z, 0.0),
-            Vec4::new(-s.dot(e), -u.dot(e), f.dot(e), 1.0),
-        )
+        view_matrix(self.position, self.forward())
     }
 
     /// Reverse-Z infinite projection: depth 1 at the near plane, 0 at infinity. Far more depth precision
@@ -60,6 +51,29 @@ impl Camera {
     pub fn view_proj(&self, aspect: f32) -> Mat4 {
         self.projection(aspect) * self.view()
     }
+}
+
+/// Right-handed view matrix looking from `eye` along `forward` (the shadow camera uses it too).
+pub fn view_matrix(eye: Vec3, forward: Vec3) -> Mat4 {
+    let f = forward.normalize_or(Vec3::NEG_Z);
+    let s = f.cross(Vec3::Y).normalize_or(Vec3::X);
+    let u = s.cross(f);
+    Mat4::from_cols(
+        Vec4::new(s.x, u.x, -f.x, 0.0),
+        Vec4::new(s.y, u.y, -f.y, 0.0),
+        Vec4::new(s.z, u.z, -f.z, 0.0),
+        Vec4::new(-s.dot(eye), -u.dot(eye), f.dot(eye), 1.0),
+    )
+}
+
+/// Orthographic projection with wgpu's 0..1 depth (0 at `near`, 1 at `far`).
+pub fn ortho(half_width: f32, half_height: f32, near: f32, far: f32) -> Mat4 {
+    Mat4::from_cols(
+        Vec4::new(1.0 / half_width, 0.0, 0.0, 0.0),
+        Vec4::new(0.0, 1.0 / half_height, 0.0, 0.0),
+        Vec4::new(0.0, 0.0, -1.0 / (far - near), 0.0),
+        Vec4::new(0.0, 0.0, -near / (far - near), 1.0),
+    )
 }
 
 #[cfg(test)]

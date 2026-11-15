@@ -72,8 +72,10 @@ impl Game for R0 {
     fn stats(&self) -> GameStats {
         let mut s = GameStats::new();
         if let Some(r) = &self.renderer {
-            s.insert("drawCalls".into(), r.last_draws.into());
-            s.insert("triangles".into(), r.last_triangles.into());
+            s.insert("drawCalls".into(), r.last.draws.into());
+            s.insert("triangles".into(), r.last.triangles.into());
+            s.insert("shadowDrawCalls".into(), r.last.shadow_draws.into());
+            s.insert("shadowTriangles".into(), r.last.shadow_triangles.into());
         }
         s.insert("seed".into(), self.seed.into());
         s.insert("groundChunks".into(), self.ground.len().into());

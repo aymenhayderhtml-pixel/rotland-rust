@@ -1,12 +1,14 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{Vec3, Vec4};
+use glam::{Mat4, Vec3, Vec4};
 
 use super::camera::Camera;
 use super::frustum::Frustum;
-use super::mesh::{GpuMesh, COLOR_VERTEX_LAYOUT};
-use super::skinned::{self, GrowBuffer, SkinnedBatch};
-use crate::gpu::{Gpu, DEPTH_FORMAT};
-use crate::target::{FrameTarget, COLOR_FORMAT};
+use super::mesh::GpuMesh;
+use super::pipelines::{Layouts, Pipelines};
+use super::shadow::{light_view_proj, ShadowMap, ShadowSettings};
+use super::skinned::{GrowBuffer, SkinInstance, SkinnedBatch};
+use crate::gpu::Gpu;
+use crate::target::FrameTarget;
 
 /// The light and fog of one moment of the day. Colours are sRGB like in the Godot scene files;
 /// they are turned into linear values once, on the CPU.
@@ -31,6 +33,8 @@ pub struct Lighting {
 struct SceneUniforms {
     view_proj: [[f32; 4]; 4],
     inv_view_proj: [[f32; 4]; 4],
+    light_view_proj: [[f32; 4]; 4],
+    shadow: [f32; 4],
     camera_pos: [f32; 4],
     sun_dir: [f32; 4],
     sun_color: [f32; 4],
@@ -44,29 +48,11 @@ struct SceneUniforms {
 
 /// Dynamic uniform offsets must be 256-byte aligned.
 const DRAW_STRIDE: u64 = 256;
-const MAX_DRAWS: u64 = 4096;
+const MAX_DRAWS: usize = 4096;
 
 pub fn srgb_to_linear(c: Vec3) -> Vec3 {
     let f = |x: f32| if x <= 0.04045 { x / 12.92 } else { ((x + 0.055) / 1.055).powf(2.4) };
     Vec3::new(f(c.x), f(c.y), f(c.z))
-}
-
-/// Draws the sky and lit coloured meshes (terrain now, baked models later) into the frame target.
-pub struct LitRenderer {
-    scene_buf: wgpu::Buffer,
-    scene_bind: wgpu::BindGroup,
-    draw_buf: wgpu::Buffer,
-    draw_bind: wgpu::BindGroup,
-    sky: wgpu::RenderPipeline,
-    mesh: wgpu::RenderPipeline,
-    skinned: wgpu::RenderPipeline,
-    bones: GrowBuffer,
-    bones_layout: wgpu::BindGroupLayout,
-    bones_bind: wgpu::BindGroup,
-    instances: GrowBuffer,
-    /// Draws and triangles of the last frame, for the stats JSON.
-    pub last_draws: u32,
-    pub last_triangles: u64,
 }
 
 /// One mesh to draw this frame, placed at `offset` (for chunks: the chunk origin).
@@ -75,136 +61,88 @@ pub struct DrawItem<'a> {
     pub offset: Vec3,
 }
 
+/// Counts of the last frame, for the stats JSON.
+#[derive(Default, Clone, Copy, Debug)]
+pub struct FrameCounts {
+    pub draws: u32,
+    pub triangles: u64,
+    pub shadow_draws: u32,
+    pub shadow_triangles: u64,
+}
+
+/// Draws the world into the frame target: sun shadow map, lit meshes, skinned instances, sky.
+pub struct LitRenderer {
+    layouts: Layouts,
+    pipes: Pipelines,
+    scene_buf: wgpu::Buffer,
+    scene_bind: wgpu::BindGroup,
+    scene_shadow_bind: wgpu::BindGroup,
+    draw_buf: wgpu::Buffer,
+    draw_bind: wgpu::BindGroup,
+    bones: GrowBuffer,
+    bones_bind: wgpu::BindGroup,
+    instances: GrowBuffer,
+    shadow: ShadowMap,
+    pub shadows: ShadowSettings,
+    pub last: FrameCounts,
+}
+
 impl LitRenderer {
     pub fn new(gpu: &Gpu) -> Self {
+        Self::with_shadows(gpu, ShadowSettings::default())
+    }
+
+    pub fn with_shadows(gpu: &Gpu, shadows: ShadowSettings) -> Self {
         let device = &gpu.device;
         let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("lit"),
             source: wgpu::ShaderSource::Wgsl(include_str!("lit.wgsl").into()),
         });
-        let scene_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("scene"),
-            entries: &[uniform_entry(false)],
-        });
-        let draw_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("draw"),
-            entries: &[uniform_entry(true)],
-        });
-        let scene_buf = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("scene"),
-            size: std::mem::size_of::<SceneUniforms>() as u64,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-        let draw_buf = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("draws"),
-            size: DRAW_STRIDE * MAX_DRAWS,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
+        let layouts = Layouts::new(device);
+        let pipes = Pipelines::new(device, &module, &layouts);
+        let buffer = |label, size, usage| device.create_buffer(&wgpu::BufferDescriptor { label: Some(label), size, usage, mapped_at_creation: false });
+        let scene_buf = buffer("scene", std::mem::size_of::<SceneUniforms>() as u64, wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST);
+        let draw_buf = buffer("draws", DRAW_STRIDE * MAX_DRAWS as u64, wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST);
+        let shadow = ShadowMap::new(device, shadows.size);
         let scene_bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("scene"),
-            layout: &scene_layout,
+            layout: &layouts.scene,
+            entries: &[
+                wgpu::BindGroupEntry { binding: 0, resource: scene_buf.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(&shadow.view) },
+                wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::Sampler(&shadow.sampler) },
+            ],
+        });
+        let scene_shadow_bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("scene (shadow pass)"),
+            layout: &layouts.scene_uniform,
             entries: &[wgpu::BindGroupEntry { binding: 0, resource: scene_buf.as_entire_binding() }],
         });
         let draw_bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("draws"),
-            layout: &draw_layout,
+            layout: &layouts.draw,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                    buffer: &draw_buf,
-                    offset: 0,
-                    size: wgpu::BufferSize::new(16),
-                }),
+                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding { buffer: &draw_buf, offset: 0, size: wgpu::BufferSize::new(16) }),
             }],
         });
-
-        let sky_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("sky"),
-            bind_group_layouts: &[Some(&scene_layout)],
-            immediate_size: 0,
-        });
-        let mesh_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("lit mesh"),
-            bind_group_layouts: &[Some(&scene_layout), Some(&draw_layout)],
-            immediate_size: 0,
-        });
-        let bones_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("bones"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Storage { read_only: true }, has_dynamic_offset: false, min_binding_size: None },
-                count: None,
-            }],
-        });
-        let skinned_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("skinned"),
-            bind_group_layouts: &[Some(&scene_layout), None, Some(&bones_layout)],
-            immediate_size: 0,
-        });
-        let skinned = skinned::pipeline(device, &module, &skinned_layout);
         let bones = GrowBuffer::new(device, "bones", wgpu::BufferUsages::STORAGE, 64 * 64 * 64);
-        let bones_bind = Self::bones_bind(device, &bones_layout, &bones.buffer);
-        let instances = GrowBuffer::new(device, "skin instances", wgpu::BufferUsages::VERTEX, 64 * 1024);
-        let sky = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("sky"),
-            layout: Some(&sky_layout),
-            vertex: wgpu::VertexState { module: &module, entry_point: Some("sky_vs"), compilation_options: Default::default(), buffers: &[] },
-            primitive: Default::default(),
-            // The sky never writes depth, so the world drawn after it always wins
-            depth_stencil: Some(depth_state(false)),
-            multisample: Default::default(),
-            fragment: Some(wgpu::FragmentState {
-                module: &module,
-                entry_point: Some("sky_fs"),
-                compilation_options: Default::default(),
-                targets: &[Some(COLOR_FORMAT.into())],
-            }),
-            multiview_mask: None,
-            cache: None,
-        });
-        let mesh = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("lit mesh"),
-            layout: Some(&mesh_layout),
-            vertex: wgpu::VertexState {
-                module: &module,
-                entry_point: Some("mesh_vs"),
-                compilation_options: Default::default(),
-                buffers: &[Some(COLOR_VERTEX_LAYOUT)],
-            },
-            primitive: wgpu::PrimitiveState {
-                // Godot's front faces are clockwise; the meshes keep Godot's triangle order
-                front_face: wgpu::FrontFace::Cw,
-                cull_mode: Some(wgpu::Face::Back),
-                ..Default::default()
-            },
-            depth_stencil: Some(depth_state(true)),
-            multisample: Default::default(),
-            fragment: Some(wgpu::FragmentState {
-                module: &module,
-                entry_point: Some("mesh_fs"),
-                compilation_options: Default::default(),
-                targets: &[Some(COLOR_FORMAT.into())],
-            }),
-            multiview_mask: None,
-            cache: None,
-        });
+        let bones_bind = Self::bones_bind(device, &layouts.bones, &bones.buffer);
+        let instances = GrowBuffer::new(device, "instances", wgpu::BufferUsages::VERTEX, 64 * 1024);
         Self {
+            layouts,
+            pipes,
             scene_buf,
             scene_bind,
+            scene_shadow_bind,
             draw_buf,
             draw_bind,
-            sky,
-            mesh,
-            skinned,
             bones,
-            bones_layout,
             bones_bind,
             instances,
-            last_draws: 0,
-            last_triangles: 0,
+            shadow,
+            shadows,
+            last: FrameCounts::default(),
         }
     }
 
@@ -216,8 +154,8 @@ impl LitRenderer {
         })
     }
 
-    /// Draws the world: static items (culled against the view), skinned batches (one instanced draw
-    /// per model; `bones` holds every instance's skin matrices), then the sky behind everything.
+    /// Draws one frame of the world. `items` are static meshes (culled here), `skinned` are instanced
+    /// batches whose skin matrices are in `bones`.
     #[allow(clippy::too_many_arguments)]
     pub fn draw(
         &mut self,
@@ -228,47 +166,52 @@ impl LitRenderer {
         light: &Lighting,
         items: &[DrawItem],
         skinned: &[SkinnedBatch],
-        bones: &[glam::Mat4],
+        bones: &[Mat4],
     ) {
+        let items = &items[..items.len().min(MAX_DRAWS)];
         let view_proj = camera.view_proj(target.aspect());
-        let lin = srgb_to_linear;
-        let v4 = |v: Vec3, w: f32| Vec4::from((v, w)).to_array();
-        let scene = SceneUniforms {
-            view_proj: view_proj.to_cols_array_2d(),
-            inv_view_proj: view_proj.inverse().to_cols_array_2d(),
-            camera_pos: v4(camera.position, 1.0),
-            sun_dir: v4(light.sun_toward.normalize_or_zero(), light.sun_energy),
-            sun_color: v4(lin(light.sun_color), 1.0),
-            sky_top: v4(lin(light.sky_top), 1.0),
-            sky_horizon: v4(lin(light.sky_horizon), 1.0),
-            ground_horizon: v4(lin(light.ground_horizon), 1.0),
-            ground_bottom: v4(lin(light.ground_bottom), 1.0),
-            fog: [light.fog_begin, light.fog_end, light.fog_density, light.ambient_energy],
-            fog_color: v4(lin(light.fog_color), 1.0),
-        };
-        gpu.queue.write_buffer(&self.scene_buf, 0, bytemuck::bytes_of(&scene));
+        let shadows_on = self.shadows.enabled && light.sun_energy > 0.01;
+        let light_vp = light_view_proj(camera, light.sun_toward, &self.shadows);
+        self.write_scene(gpu, camera, light, view_proj, light_vp, shadows_on);
 
-        let frustum = Frustum::from_view_proj(&view_proj);
-        let visible: Vec<&DrawItem> = items
-            .iter()
-            .filter(|d| frustum.intersects_aabb(d.mesh.min + d.offset, d.mesh.max + d.offset))
-            .take(MAX_DRAWS as usize)
-            .collect();
-        let mut offsets = vec![0u8; visible.len() * DRAW_STRIDE as usize];
-        for (i, d) in visible.iter().enumerate() {
+        // Every item's offset at its own slot, shared by the shadow and main passes
+        let mut offsets = vec![0u8; items.len() * DRAW_STRIDE as usize];
+        for (i, d) in items.iter().enumerate() {
             let at = i * DRAW_STRIDE as usize;
             offsets[at..at + 16].copy_from_slice(bytemuck::bytes_of(&[d.offset.x, d.offset.y, d.offset.z, 0.0f32]));
         }
         if !offsets.is_empty() {
             gpu.queue.write_buffer(&self.draw_buf, 0, &offsets);
         }
-
         if self.bones.write(&gpu.device, &gpu.queue, bytemuck::cast_slice(bones)) {
-            self.bones_bind = Self::bones_bind(&gpu.device, &self.bones_layout, &self.bones.buffer);
+            self.bones_bind = Self::bones_bind(&gpu.device, &self.layouts.bones, &self.bones.buffer);
         }
-        let all_instances: Vec<skinned::SkinInstance> = skinned.iter().flat_map(|b| b.instances.iter().copied()).collect();
+        let all_instances: Vec<SkinInstance> = skinned.iter().flat_map(|b| b.instances.iter().copied()).collect();
         self.instances.write(&gpu.device, &gpu.queue, bytemuck::cast_slice(&all_instances));
 
+        let mut counts = FrameCounts::default();
+        if shadows_on {
+            let sun_frustum = Frustum::from_view_proj(&light_vp);
+            let visible: Vec<usize> = (0..items.len()).filter(|&i| in_view(&sun_frustum, &items[i])).collect();
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("sun shadow"),
+                color_attachments: &[],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.shadow.view,
+                    depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Store }),
+                    stencil_ops: None,
+                }),
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+            let (d, t) = self.record(&mut pass, items, &visible, skinned, &self.pipes.shadow_mesh, &self.pipes.shadow_skinned, &self.scene_shadow_bind);
+            counts.shadow_draws = d;
+            counts.shadow_triangles = t;
+        }
+
+        let frustum = Frustum::from_view_proj(&view_proj);
+        let visible: Vec<usize> = (0..items.len()).filter(|&i| in_view(&frustum, &items[i])).collect();
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("world"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -287,20 +230,42 @@ impl LitRenderer {
             occlusion_query_set: None,
             multiview_mask: None,
         });
-        // World first (front to back helps the GPU skip hidden pixels), sky last where nothing was drawn
-        pass.set_pipeline(&self.mesh);
+        let (d, t) = self.record(&mut pass, items, &visible, skinned, &self.pipes.mesh, &self.pipes.skinned, &self.scene_bind);
+        // Sky last: it only fills pixels nothing else covered
+        pass.set_pipeline(&self.pipes.sky);
         pass.set_bind_group(0, &self.scene_bind, &[]);
-        let mut triangles = 0u64;
-        for (i, d) in visible.iter().enumerate() {
+        pass.draw(0..3, 0..1);
+        counts.draws = d + 1;
+        counts.triangles = t;
+        self.last = counts;
+    }
+
+    /// Records static items then instanced batches into a pass. Returns (draw calls, triangles).
+    #[allow(clippy::too_many_arguments)]
+    fn record(
+        &self,
+        pass: &mut wgpu::RenderPass,
+        items: &[DrawItem],
+        visible: &[usize],
+        skinned: &[SkinnedBatch],
+        mesh_pipe: &wgpu::RenderPipeline,
+        skin_pipe: &wgpu::RenderPipeline,
+        scene: &wgpu::BindGroup,
+    ) -> (u32, u64) {
+        let (mut draws, mut triangles) = (0u32, 0u64);
+        pass.set_pipeline(mesh_pipe);
+        pass.set_bind_group(0, scene, &[]);
+        for &i in visible {
+            let d = &items[i];
             pass.set_bind_group(1, &self.draw_bind, &[(i as u64 * DRAW_STRIDE) as u32]);
             pass.set_vertex_buffer(0, d.mesh.vertices.slice(..));
             pass.draw(0..d.mesh.vertex_count, 0..1);
+            draws += 1;
             triangles += d.mesh.vertex_count as u64 / 3;
         }
-        let mut draws = visible.len() as u32;
-        if !all_instances.is_empty() {
-            pass.set_pipeline(&self.skinned);
-            pass.set_bind_group(0, &self.scene_bind, &[]);
+        if skinned.iter().any(|b| !b.instances.is_empty()) {
+            pass.set_pipeline(skin_pipe);
+            pass.set_bind_group(0, scene, &[]);
             pass.set_bind_group(2, &self.bones_bind, &[]);
             pass.set_vertex_buffer(1, self.instances.buffer.slice(..));
             let mut first = 0u32;
@@ -309,39 +274,38 @@ impl LitRenderer {
                 if count > 0 {
                     pass.set_vertex_buffer(0, b.mesh.vertices.slice(..));
                     pass.draw(0..b.mesh.vertex_count, first..first + count);
-                    triangles += (b.mesh.vertex_count / 3) as u64 * count as u64;
                     draws += 1;
+                    triangles += (b.mesh.vertex_count / 3) as u64 * count as u64;
                 }
                 first += count;
             }
         }
-        pass.set_pipeline(&self.sky);
-        pass.set_bind_group(0, &self.scene_bind, &[]);
-        pass.draw(0..3, 0..1);
-        self.last_draws = draws + 1;
-        self.last_triangles = triangles;
+        (draws, triangles)
+    }
+
+    fn write_scene(&self, gpu: &Gpu, camera: &Camera, light: &Lighting, view_proj: Mat4, light_vp: Mat4, shadows_on: bool) {
+        let lin = srgb_to_linear;
+        let v4 = |v: Vec3, w: f32| Vec4::from((v, w)).to_array();
+        let s = &self.shadows;
+        let scene = SceneUniforms {
+            view_proj: view_proj.to_cols_array_2d(),
+            inv_view_proj: view_proj.inverse().to_cols_array_2d(),
+            light_view_proj: light_vp.to_cols_array_2d(),
+            shadow: [if shadows_on { 1.0 } else { 0.0 }, 1.0 / s.size as f32, s.distance * 0.8, s.distance],
+            camera_pos: v4(camera.position, 1.0),
+            sun_dir: v4(light.sun_toward.normalize_or_zero(), light.sun_energy),
+            sun_color: v4(lin(light.sun_color), 1.0),
+            sky_top: v4(lin(light.sky_top), 1.0),
+            sky_horizon: v4(lin(light.sky_horizon), 1.0),
+            ground_horizon: v4(lin(light.ground_horizon), 1.0),
+            ground_bottom: v4(lin(light.ground_bottom), 1.0),
+            fog: [light.fog_begin, light.fog_end, light.fog_density, light.ambient_energy],
+            fog_color: v4(lin(light.fog_color), 1.0),
+        };
+        gpu.queue.write_buffer(&self.scene_buf, 0, bytemuck::bytes_of(&scene));
     }
 }
 
-fn uniform_entry(dynamic: bool) -> wgpu::BindGroupLayoutEntry {
-    wgpu::BindGroupLayoutEntry {
-        binding: 0,
-        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-        ty: wgpu::BindingType::Buffer {
-            ty: wgpu::BufferBindingType::Uniform,
-            has_dynamic_offset: dynamic,
-            min_binding_size: None,
-        },
-        count: None,
-    }
-}
-
-pub(crate) fn depth_state(write: bool) -> wgpu::DepthStencilState {
-    wgpu::DepthStencilState {
-        format: DEPTH_FORMAT,
-        depth_write_enabled: Some(write),
-        depth_compare: Some(wgpu::CompareFunction::GreaterEqual),
-        stencil: Default::default(),
-        bias: Default::default(),
-    }
+fn in_view(frustum: &Frustum, d: &DrawItem) -> bool {
+    frustum.intersects_aabb(d.mesh.min + d.offset, d.mesh.max + d.offset)
 }

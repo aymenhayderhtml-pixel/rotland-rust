@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 use glam::Mat4;
 
-use super::mesh::{GpuMesh, COLOR_VERTEX_LAYOUT};
+use super::mesh::GpuMesh;
 
 /// Per-instance data of a skinned draw: world matrix and the index of this instance's first joint.
 #[repr(C)]
@@ -31,30 +31,6 @@ impl SkinInstance {
 pub struct SkinnedBatch<'a> {
     pub mesh: &'a GpuMesh,
     pub instances: Vec<SkinInstance>,
-}
-
-pub(crate) fn pipeline(device: &wgpu::Device, module: &wgpu::ShaderModule, layout: &wgpu::PipelineLayout) -> wgpu::RenderPipeline {
-    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("skinned"),
-        layout: Some(layout),
-        vertex: wgpu::VertexState {
-            module,
-            entry_point: Some("skinned_vs"),
-            compilation_options: Default::default(),
-            buffers: &[Some(COLOR_VERTEX_LAYOUT), Some(SkinInstance::LAYOUT)],
-        },
-        primitive: wgpu::PrimitiveState { front_face: wgpu::FrontFace::Cw, cull_mode: Some(wgpu::Face::Back), ..Default::default() },
-        depth_stencil: Some(super::lit::depth_state(true)),
-        multisample: Default::default(),
-        fragment: Some(wgpu::FragmentState {
-            module,
-            entry_point: Some("mesh_fs"),
-            compilation_options: Default::default(),
-            targets: &[Some(crate::target::COLOR_FORMAT.into())],
-        }),
-        multiview_mask: None,
-        cache: None,
-    })
 }
 
 /// A GPU buffer that grows (doubling) when a frame needs more room than it has.

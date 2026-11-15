@@ -4,6 +4,8 @@
 struct Scene {
     view_proj: mat4x4<f32>,
     inv_view_proj: mat4x4<f32>,
+    light_view_proj: mat4x4<f32>,
+    shadow: vec4<f32>,         // x: 1 when sun shadows are on, y: shadow-map texel size, z: fade start, w: fade end
     camera_pos: vec4<f32>,
     sun_dir: vec4<f32>,        // xyz: toward the sun, w: energy
     sun_color: vec4<f32>,
@@ -15,6 +17,31 @@ struct Scene {
     fog_color: vec4<f32>,
 };
 @group(0) @binding(0) var<uniform> scene: Scene;
+@group(0) @binding(1) var shadow_map: texture_depth_2d;
+@group(0) @binding(2) var shadow_sampler: sampler_comparison;
+
+// Sun shadow: 1 = lit, 0 = shadowed. 4 hardware-filtered taps (each tap already blends 2x2 texels),
+// so edges are soft for the price of 4 samples. Fades out toward the shadow distance like Godot.
+fn sun_shadow(world: vec3<f32>, n: vec3<f32>, dist: f32) -> f32 {
+    if (scene.shadow.x < 0.5) {
+        return 1.0;
+    }
+    // Normal offset: push the lookup off the surface a little, which removes most shadow acne
+    let p = scene.light_view_proj * vec4(world + n * 0.06, 1.0);
+    let ndc = p.xyz / p.w;
+    let uv = vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+    if (any(uv < vec2(0.0)) || any(uv > vec2(1.0)) || ndc.z > 1.0) {
+        return 1.0;
+    }
+    let t = scene.shadow.y;
+    var lit = 0.0;
+    lit += textureSampleCompareLevel(shadow_map, shadow_sampler, uv + vec2(-0.5, -0.5) * t, ndc.z);
+    lit += textureSampleCompareLevel(shadow_map, shadow_sampler, uv + vec2(0.5, -0.5) * t, ndc.z);
+    lit += textureSampleCompareLevel(shadow_map, shadow_sampler, uv + vec2(-0.5, 0.5) * t, ndc.z);
+    lit += textureSampleCompareLevel(shadow_map, shadow_sampler, uv + vec2(0.5, 0.5) * t, ndc.z);
+    let fade = smoothstep(scene.shadow.z, scene.shadow.w, dist);
+    return mix(lit * 0.25, 1.0, fade);
+}
 
 fn srgb_to_linear(c: vec3<f32>) -> vec3<f32> {
     let lo = c / 12.92;
@@ -92,13 +119,17 @@ fn mesh_vs(v: VsIn) -> VsOut {
 @fragment
 fn mesh_fs(i: VsOut) -> @location(0) vec4<f32> {
     let n = normalize(i.normal);
+    let dist = distance(i.world, scene.camera_pos.xyz);
     let ndl = max(dot(n, scene.sun_dir.xyz), 0.0);
-    let sun = scene.sun_color.rgb * scene.sun_dir.w * ndl;
+    var shade = 1.0;
+    if (ndl > 0.0) {
+        shade = sun_shadow(i.world, n, dist);
+    }
+    let sun = scene.sun_color.rgb * scene.sun_dir.w * ndl * shade;
     // Sky ambient: lerp ground to sky by how much the surface faces up
     let up = n.y * 0.5 + 0.5;
     let ambient = mix(scene.ground_horizon.rgb, scene.sky_top.rgb * 0.5 + scene.sky_horizon.rgb * 0.5, up) * scene.fog.w;
     var color = i.albedo * (sun + ambient);
-    let dist = distance(i.world, scene.camera_pos.xyz);
     let fog = smoothstep(scene.fog.x, scene.fog.y, dist) * scene.fog.z;
     color = mix(color, scene.fog_color.rgb, fog);
     return vec4(filmic(color), 1.0);
@@ -131,4 +162,16 @@ fn skinned_vs(v: SkinIn) -> VsOut {
     o.normal = (skin * vec4(v.normal, 0.0)).xyz;
     o.albedo = srgb_to_linear(v.color.rgb);
     return o;
+}
+
+// ---- shadow pass: depth only, from the sun
+@vertex
+fn shadow_mesh_vs(v: VsIn) -> @builtin(position) vec4<f32> {
+    return scene.light_view_proj * vec4(v.position + draw.offset.xyz, 1.0);
+}
+
+@vertex
+fn shadow_skinned_vs(v: SkinIn) -> @builtin(position) vec4<f32> {
+    let model = mat4x4<f32>(v.m0, v.m1, v.m2, v.m3);
+    return scene.light_view_proj * (model * bones[v.bone_base + v.bone.x] * vec4(v.position, 1.0));
 }
