@@ -14,3 +14,5 @@ pack = { path = "../pack" }
 world = { path = "../world" }
 rayon.workspace = true
 physics = { path = "../physics" }
+humanoid = { path = "../humanoid" }
+pollster.workspace = true

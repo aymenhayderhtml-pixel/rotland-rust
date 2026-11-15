@@ -39,6 +39,7 @@ Example: `flock /tmp/rotland-heavy.lock target/debug/rotland --shot=/tmp/x/fores
 | `baker` | tool: .glb models -> compact GPU-ready binary pack (rust/assets/models.pack) |
 | `world` | generator, ground paint, chunks, scatter, POIs, settlements (pure, testable) |
 | `physics` | rapier3d collision (terrain, static props/buildings) and kinematic character mover |
+| `humanoid` | humanoid animation state machine, locomotion blend, one-shot action layering, weapon attachment |
 More crates (`game`, `ui`) are added by the phases in the plan.
 
 ## Rules for workers

@@ -1,0 +1,10 @@
+[package]
+name = "humanoid"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+engine = { path = "../engine" }
+pack = { path = "../pack" }
+glam.workspace = true
+log.workspace = true
