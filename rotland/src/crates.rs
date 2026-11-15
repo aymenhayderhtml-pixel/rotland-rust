@@ -10,7 +10,6 @@ use game::{
     WorldItems,
 };
 
-use crate::props::{Placed, PropLibrary};
 
 /// The model name for loot crates in the asset pack.
 pub const CRATE_MODEL: &str = "crate_loot";
@@ -21,8 +20,6 @@ pub const INTERACT_RANGE: f32 = 2.5;
 /// Half-cone angle in degrees for interaction targeting (scripts/Player/PlayerInteractor.cs:18).
 pub const HALF_CONE_DEGREES: f32 = 35.0;
 
-/// Cosine of 35 degrees: precalculated for cone check.
-pub const COS_HALF_CONE: f32 = 0.819_152_04;
 
 /// Distance beside the crate where non-fitting items drop (scripts/World/LootCrate.cs:21).
 pub const DROP_DISTANCE: f32 = 0.9;
@@ -30,7 +27,6 @@ pub const DROP_DISTANCE: f32 = 0.9;
 /// Half a world item box height, so the dropped box sits on the ground (scripts/World/LootCrate.cs:23).
 pub const DROP_LIFT: f32 = 0.125;
 
-pub const OPEN_CRATE_PROMPT: &str = "[E] Open crate";
 pub const SEARCH_CRATE_PROMPT: &str = "[E] Search crate";
 pub const EMPTY_CRATE_PROMPT: &str = "Empty crate";
 
@@ -60,26 +56,7 @@ pub enum InteractTarget<'a> {
     WorldItem(usize, &'a WorldItem),
 }
 
-/// Produces model placements for a chunk's crate spots using the pack's "crate_loot" model.
-pub fn crate_placements(
-    library: &mut PropLibrary,
-    device: &wgpu::Device,
-    pack: &pack::ModelPack,
-    spots: &[LootSpot],
-) -> Vec<Placed> {
-    let Some(slot) = library.get(device, pack, CRATE_MODEL, false) else {
-        return Vec::new();
-    };
-    place_crates(library, slot, spots)
-}
 
-/// Produces placements when the crate model slot is already known.
-pub fn place_crates(library: &PropLibrary, slot: usize, spots: &[LootSpot]) -> Vec<Placed> {
-    spots
-        .iter()
-        .map(|spot| library.place(slot, spot.position, spot.yaw, 1.0))
-        .collect()
-}
 
 /// Prompt text for a crate HUD interaction.
 pub fn crate_prompt(looted: bool) -> &'static str {
@@ -90,14 +67,6 @@ pub fn crate_prompt(looted: bool) -> &'static str {
     }
 }
 
-/// Alternative prompt text for a crate using "Open crate" wording.
-pub fn open_crate_prompt(looted: bool) -> &'static str {
-    if looted {
-        EMPTY_CRATE_PROMPT
-    } else {
-        OPEN_CRATE_PROMPT
-    }
-}
 
 /// Prompt text for picking up a world item.
 pub fn world_item_prompt(item_name: &str, count: u32) -> String {
@@ -207,12 +176,19 @@ pub fn interact(
     items: &ItemRegistry,
     loot_multiplier: f32,
 ) -> InteractResult {
-    let Some(target) = find_target(player_pos, facing, crates, world_items) else {
-        return InteractResult::None;
+    // Copy what is needed out of the target first, so the world item list can be changed below
+    enum Picked {
+        Crate(LootSpot),
+        Item(usize, String, u32),
+    }
+    let picked = match find_target(player_pos, facing, crates, world_items) {
+        None => return InteractResult::None,
+        Some(InteractTarget::Crate(spot)) => Picked::Crate(spot.clone()),
+        Some(InteractTarget::WorldItem(index, item)) => Picked::Item(index, item.item_id.clone(), item.count),
     };
 
-    match target {
-        InteractTarget::Crate(spot) => {
+    match picked {
+        Picked::Crate(spot) => {
             if loot_state.is_looted(&spot.crate_id) {
                 return InteractResult::None;
             }
@@ -265,9 +241,7 @@ pub fn interact(
                 toast,
             }
         }
-        InteractTarget::WorldItem(index, item) => {
-            let item_id = item.item_id.clone();
-            let count = item.count;
+        Picked::Item(index, item_id, count) => {
             let not_fitting = inventory.add_with_registry(&item_id, count, items);
             let picked = count - not_fitting;
 

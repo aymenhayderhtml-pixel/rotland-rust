@@ -21,6 +21,8 @@ pub struct Combat {
     weapon: Option<WeaponDef>,
     pub dead_for: Option<f32>,
     pub kills: u32,
+    /// Gun shots fired (stats only).
+    pub shots: u32,
     /// Sounds made this frame (swings), heard by zombies next frame.
     pub noises: Vec<Noise>,
 }
@@ -42,7 +44,7 @@ impl Combat {
         if weapon.is_none() {
             log::warn!("weapon {weapon_id} not found in data/weapons.json");
         }
-        Self { health: Health::new(PLAYER_HEALTH), swing: MeleeSwing::new(), weapon, dead_for: None, kills: 0, noises: Vec::new() }
+        Self { health: Health::new(PLAYER_HEALTH), swing: MeleeSwing::new(), weapon, dead_for: None, kills: 0, shots: 0, noises: Vec::new() }
     }
 
     /// The weapon in hand changes (hotbar). None: nothing to swing.

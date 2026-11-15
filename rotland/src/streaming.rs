@@ -9,7 +9,7 @@ use std::sync::Arc;
 use engine::render::{ColorVertex, GpuMesh};
 use physics::{ColliderHandle, PhysicsWorld};
 use glam::{IVec2, Vec3};
-use world::{PoiInstance, PropInstance, WorldGenerator};
+use world::{LootSpot, PoiInstance, PropInstance, WorldGenerator};
 
 use crate::props::{Placed, PropLibrary};
 use crate::terrain;
@@ -26,12 +26,15 @@ struct Built {
     heights: Vec<f32>,
     props: Vec<PropInstance>,
     pois: Vec<PoiInstance>,
+    crates: Vec<LootSpot>,
 }
 
 pub struct LoadedChunk {
     pub ground: GpuMesh,
     pub origin: Vec3,
     pub placed: Vec<Placed>,
+    /// Loot crate spots of this chunk (opened with E; see crates.rs).
+    pub crates: Vec<LootSpot>,
     colliders: Vec<ColliderHandle>,
 }
 
@@ -81,7 +84,8 @@ impl Streamer {
             rayon::spawn(move || {
                 let (ground, heights) = terrain::chunk_vertices(&world_gen, coord);
                 let (pois, props) = world_gen.chunk_contents(coord);
-                let _ = tx.send(Built { coord, ground, heights, props, pois });
+                let crates = world_gen.chunk_crates(coord);
+                let _ = tx.send(Built { coord, ground, heights, props, pois, crates });
             });
         }
 
@@ -115,6 +119,7 @@ impl Streamer {
         let mut models: Vec<(&str, Vec3, f32, f32, bool)> = b.props.iter().map(|p| (p.model.as_str(), p.position, p.yaw, p.scale, false)).collect();
         models.extend(b.pois.iter().map(|p| (p.building_id.as_str(), p.position, p.yaw, 1.0, true)));
         let site = self.world_gen.settlements().first().cloned();
+        models.extend(b.crates.iter().map(|c| (crate::crates::CRATE_MODEL, c.position, c.yaw, 1.0, false)));
         if let (true, Some(site)) = (b.coord == self.camp_chunk, site.as_ref()) {
             models.push(("settlement", site.center, site.yaw, 1.0, true));
         }
@@ -128,7 +133,7 @@ impl Streamer {
             }
         }
         let origin = Vec3::new(b.coord.x as f32, 0.0, b.coord.y as f32) * WorldGenerator::CHUNK_SIZE;
-        LoadedChunk { ground: GpuMesh::new(device, "ground", &b.ground), origin, placed, colliders }
+        LoadedChunk { ground: GpuMesh::new(device, "ground", &b.ground), origin, placed, crates: b.crates, colliders }
     }
 }
 

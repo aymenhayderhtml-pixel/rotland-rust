@@ -4,11 +4,13 @@
 
 mod bench;
 mod combat;
+mod crates;
 mod hud;
 mod light;
 mod play;
 mod player_visual;
 mod props;
+mod shooting;
 mod streaming;
 mod terrain;
 mod zombies;
@@ -95,8 +97,13 @@ impl R0 {
             }
         };
         self.pending_weapon_model = Some(def.as_ref().and_then(weapon_model_name));
+        // Guns go to the shooting system, everything else to the melee swing
+        let is_gun = def.as_ref().is_some_and(|d| d.is_gun());
+        if let Some(play) = self.play.as_mut() {
+            play.gun = if is_gun { def.clone() } else { None };
+        }
         if let Some(c) = self.combat.as_mut() {
-            c.set_weapon(def);
+            c.set_weapon(if is_gun { None } else { def });
         }
     }
 
@@ -226,6 +233,12 @@ impl Game for R0 {
         if let Some(change) = self.play.as_mut().and_then(|p| p.equip_first()) {
             self.apply_hand(change);
         }
+        // Test option: take out hotbar slot N at the start (e.g. --slot=2 for the pistol)
+        if let Some(n) = args.value("--slot").and_then(|v| v.parse::<usize>().ok())
+            && let Some(change) = self.play.as_mut().and_then(|p| p.press(n))
+        {
+            self.apply_hand(change);
+        }
         log::info!(
             "scene {} at {:?}: {} chunks, {} placed models, {} zombies, ready in {:.0} ms",
             self.scene,
@@ -306,6 +319,13 @@ impl Game for R0 {
                 }
                 self.player = p.position;
                 self.camera = rig.camera(&self.player, &self.physics);
+                // A gun's aim zoom (the rifle scope zooms much further, CameraRig/GunHandler)
+                let aiming = self.cursor_captured && input.mouse_held(winit::event::MouseButton::Right);
+                if let (true, Some(gun)) = (aiming, self.play.as_ref().and_then(|pl| pl.gun.as_ref()))
+                    && let Some(fov) = shooting::aim_fov(gun, rig.is_first_person)
+                {
+                    self.camera.fov_y_deg = fov;
+                }
             }
         } else if self.walk {
             self.walk_time += dt;
@@ -341,6 +361,46 @@ impl Game for R0 {
             {
                 pv.animator.play_die();
             }
+        }
+        // Guns, crates and pickups (play mode)
+        let alive_now = !self.combat.as_ref().is_some_and(|c| c.is_dead());
+        if let (Some(play), Some(p)) = (self.play.as_mut(), self.player_ctrl.as_ref())
+            && alive_now
+            && self.scene == "play"
+        {
+            use winit::event::MouseButton;
+            use winit::keyboard::KeyCode;
+            let captured = self.cursor_captured;
+            let shoot = shooting::ShootInput {
+                // --autoattack clicks every other frame, so semi-automatic guns see a fresh press each time
+                fire_pressed: (self.autoattack && (self.time * 10.0) as u32 % 2 == 0) || (captured && input.mouse_pressed(MouseButton::Left)),
+                fire_held: captured && input.mouse_held(MouseButton::Left),
+                reload_pressed: input.pressed(KeyCode::KeyR),
+                aiming: captured && input.mouse_held(MouseButton::Right),
+            };
+            if let Some(z) = self.zombies.as_mut()
+                && let Some(ev) = play.shoot_tick(dt, shoot, self.camera.position, self.camera.forward(), z, &self.physics)
+                && let Some(c) = self.combat.as_mut()
+            {
+                c.kills += ev.kills;
+                c.shots += ev.shots_fired;
+                c.noises.extend(ev.noise);
+            }
+            // Crates within reach: only the nearby chunks' spots are looked at
+            let facing = Vec3::new(-p.yaw.sin(), 0.0, -p.yaw.cos());
+            let near: Vec<world::LootSpot> = self
+                .streamer
+                .as_ref()
+                .map(|st| {
+                    st.chunks
+                        .values()
+                        .flat_map(|c| c.crates.iter())
+                        .filter(|c| c.position.distance_squared(p.position) < 25.0)
+                        .cloned()
+                        .collect()
+                })
+                .unwrap_or_default();
+            play.interact_tick(dt, input.pressed(KeyCode::KeyE), p.position, facing, &near);
         }
         // Zombies chase the living player; while dead they lose the target
         let alive = !self.combat.as_ref().is_some_and(|c| c.is_dead());
@@ -501,6 +561,11 @@ impl Game for R0 {
         if let Some(c) = &self.combat {
             s.insert("playerHealth".into(), format!("{:.0}", c.health.current()).into());
             s.insert("kills".into(), c.kills.into());
+            s.insert("shots".into(), c.shots.into());
+            if let Some(play) = &self.play {
+                s.insert("ammoBag".into(), play.inventory.count("pistol_ammo").into());
+                s.insert("ammoMag".into(), play.last_shot.ammo.0.into());
+            }
             s.insert("playerDead".into(), c.is_dead().into());
         }
         if let Some(p) = &self.player_ctrl {

@@ -9,9 +9,8 @@ use std::collections::HashMap;
 use game::guns::Gun;
 use game::guns_fire::{fire_rays, resolve_hits, shot_noise, GunRng, GunTarget};
 use game::items::Inventory;
-pub use game::melee::gun_bash;
 use game::zombie::Noise;
-use game::{DamageInfo, Health, WeaponDef, WeaponRegistry};
+use game::{DamageInfo, WeaponDef};
 use glam::Vec3;
 use physics::PhysicsWorld;
 
@@ -25,8 +24,6 @@ pub const HEAD_RADIUS: f32 = 0.14;
 /// Camera aim FOVs from scripts/Player/CameraRig.cs.
 pub const THIRD_PERSON_AIM_FOV: f32 = 55.0;
 pub const FIRST_PERSON_AIM_FOV: f32 = 50.0;
-pub const RIFLE_SCOPE_FOV: f32 = 25.0;
-pub const RIFLE_SCOPE_SENSITIVITY: f32 = 0.4;
 
 /// Player shooting input for the current frame.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -100,16 +97,14 @@ impl Shooting {
     }
 
     /// Read-only access to a gun's state.
+    #[cfg(test)]
     pub fn gun(&self, weapon_id: &str) -> Option<&Gun> {
         self.guns.get(weapon_id)
     }
 
-    /// Mutable access to a gun's state.
-    pub fn gun_mut(&mut self, weapon_id: &str) -> Option<&mut Gun> {
-        self.guns.get_mut(weapon_id)
-    }
 
     /// Sets the rounds in a gun's magazine (test hook and save loading).
+    #[cfg(test)]
     pub fn set_magazine(&mut self, weapon_id: &str, rounds: u32) {
         if let Some(gun) = self.guns.get_mut(weapon_id) {
             *gun = Gun::new(rounds);
@@ -118,12 +113,6 @@ impl Shooting {
         }
     }
 
-    /// Empties every gun's magazine (death rule in GunHandler.ClearAllMagazines).
-    pub fn clear_all_magazines(&mut self) {
-        for gun in self.guns.values_mut() {
-            *gun = Gun::new(0);
-        }
-    }
 
     /// One frame of shooting logic with the live `Zombies` system.
     #[allow(clippy::too_many_arguments)]
@@ -258,6 +247,7 @@ pub fn aim_fov(weapon: &WeaponDef, first_person: bool) -> Option<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use game::{Health, WeaponRegistry};
     use glam::IVec2;
     use physics::CHUNK_SAMPLES;
 
@@ -698,9 +688,9 @@ mod tests {
         // Scoped gun (rifle): scope fov 25.0 in both modes
         assert_eq!(rifle.scope.as_ref().map(|s| s.fov), Some(25.0));
         asserts += 1;
-        assert_eq!(aim_fov(rifle, false), Some(RIFLE_SCOPE_FOV));
+        assert_eq!(aim_fov(rifle, false), rifle.scope.as_ref().map(|s| s.fov));
         asserts += 1;
-        assert_eq!(aim_fov(rifle, true), Some(RIFLE_SCOPE_FOV));
+        assert_eq!(aim_fov(rifle, true), rifle.scope.as_ref().map(|s| s.fov));
         asserts += 1;
         assert!(asserts >= 7);
     }
