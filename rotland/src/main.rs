@@ -6,7 +6,10 @@ mod bench;
 mod crowd;
 mod light;
 mod props;
+mod streaming;
 mod terrain;
+
+use std::sync::Arc;
 
 use engine::render::{Camera, DrawItem, LitRenderer};
 use engine::{EngineArgs, FrameTarget, Game, GameStats, Gpu, Input};
@@ -14,15 +17,13 @@ use glam::{Mat4, Vec3};
 use world::WorldGenerator;
 
 const REPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
-/// Medium preset in Godot: 3 chunks each way around the player.
-const RING: i32 = 3;
-
 #[derive(Default)]
 struct R0 {
     renderer: Option<LitRenderer>,
-    world_gen: Option<WorldGenerator>,
-    ground: Vec<terrain::GroundChunk>,
-    props: Option<props::Props>,
+    world_gen: Option<Arc<WorldGenerator>>,
+    streamer: Option<streaming::Streamer>,
+    library: props::PropLibrary,
+    pack: Option<pack::ModelPack>,
     crowd: crowd::Crowd,
     camera: Camera,
     player: Vec3,
@@ -72,26 +73,33 @@ impl Game for R0 {
         } else {
             spawn
         };
-        let center = terrain::chunk_of(self.player);
-        self.ground = terrain::build_ring(&gpu.device, &world_gen, center, RING);
-        let coords: Vec<_> = self.ground.iter().map(|g| g.coord).collect();
         match pack::ModelPack::load(format!("{REPO}/rust/assets/models.pack")) {
             Ok(pack) => {
-                self.props = Some(props::Props::build(&gpu.device, &pack, &world_gen, &coords));
                 let h = |x: f32, z: f32| world_gen.height(x, z);
                 self.crowd = crowd::Crowd::spawn(&gpu.device, &pack, self.player, 25, 15.0, 40.0, &h);
+                self.pack = Some(pack);
             }
             Err(e) => log::warn!("no model pack ({e}); run `cargo run --release -p baker`"),
         }
+        let world_gen = Arc::new(world_gen);
+        let mut streamer = streaming::Streamer::new(world_gen.clone());
+        // Load the first ring before the first frame (Godot holds the player still until the ground is ready)
+        if let Some(pack) = &self.pack {
+            while !streamer.is_ready_around(self.player) {
+                streamer.update(&gpu.device, pack, &mut self.library, self.player);
+                std::thread::yield_now();
+            }
+        }
         log::info!(
-            "scene {} at {:?}: {} chunks, {} props, {} zombies, ready in {:.0} ms",
+            "scene {} at {:?}: {} chunks, {} placed models, {} zombies, ready in {:.0} ms",
             self.scene,
             self.player,
-            self.ground.len(),
-            self.props.as_ref().map_or(0, |p| p.count()),
+            streamer.chunks.len(),
+            streamer.chunks.values().map(|c| c.placed.len()).sum::<usize>(),
             self.crowd.count(),
             started.elapsed().as_secs_f64() * 1000.0
         );
+        self.streamer = Some(streamer);
         self.world_gen = Some(world_gen);
         if self.walk {
             self.follow(0.0);
@@ -128,16 +136,19 @@ impl Game for R0 {
         }
     }
 
+
     fn render(&mut self, gpu: &Gpu, target: &FrameTarget, encoder: &mut wgpu::CommandEncoder) {
-        let Some(renderer) = self.renderer.as_mut() else { return };
-        let items: Vec<DrawItem> = self.ground.iter().map(|c| DrawItem { mesh: &c.mesh, offset: c.origin }).collect();
+        // Chunk uploads need the GPU, so streaming runs here rather than in update
+        if let (Some(streamer), Some(pack)) = (self.streamer.as_mut(), self.pack.as_ref()) {
+            streamer.update(&gpu.device, pack, &mut self.library, self.player);
+        }
+        let (Some(renderer), Some(streamer)) = (self.renderer.as_mut(), self.streamer.as_ref()) else { return };
+        let items: Vec<DrawItem> = streamer.chunks.values().map(|c| DrawItem { mesh: &c.ground, offset: c.origin }).collect();
         // Joint 0 is the identity: static instanced props use it
         self.bones.clear();
         self.bones.push(Mat4::IDENTITY);
-        let (mut main, mut shadow) = match &self.props {
-            Some(p) => p.batches(&self.camera, target.aspect(), renderer.shadows.distance),
-            None => (Vec::new(), Vec::new()),
-        };
+        let placed = streamer.chunks.values().flat_map(|c| c.placed.iter());
+        let (mut main, mut shadow) = self.library.batches(placed, &self.camera, target.aspect(), renderer.shadows.distance);
         let zombies = self.crowd.pose(self.time, &mut self.bones);
         shadow.extend(zombies.iter().map(|b| engine::render::SkinnedBatch { mesh: b.mesh, instances: b.instances.clone() }));
         main.extend(zombies);
@@ -154,8 +165,10 @@ impl Game for R0 {
         }
         s.insert("scene".into(), self.scene.clone().into());
         s.insert("seed".into(), self.seed.into());
-        s.insert("groundChunks".into(), self.ground.len().into());
-        s.insert("props".into(), self.props.as_ref().map_or(0, |p| p.count()).into());
+        if let Some(st) = &self.streamer {
+            s.insert("groundChunks".into(), st.chunks.len().into());
+            s.insert("placedModels".into(), st.chunks.values().map(|c| c.placed.len()).sum::<usize>().into());
+        }
         s.insert("zombies".into(), self.crowd.count().into());
         s
     }
