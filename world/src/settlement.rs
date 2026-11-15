@@ -171,6 +171,58 @@ impl SettlementGround {
     pub fn box_distance(site: &SettlementSite, x: f32, z: f32) -> f32 {
         (x - site.center.x).abs().max((z - site.center.z).abs())
     }
+
+    /// True when a point falls inside any site's clear zone, grown by margin.
+    pub fn in_clear_zone(sites: &[SettlementSite], x: f32, z: f32, margin: f32, clear_radius: f32) -> bool {
+        let radius = clear_radius + margin;
+        for site in sites {
+            if Self::box_distance(site, x, z) <= radius {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn remove_props(
+        sites: &[SettlementSite],
+        props: Vec<crate::scatter::PropInstance>,
+        clear_radius: f32,
+    ) -> Vec<crate::scatter::PropInstance> {
+        if sites.is_empty() {
+            return props;
+        }
+        props
+            .into_iter()
+            .filter(|p| !Self::in_clear_zone(sites, p.position.x, p.position.z, 0.0, clear_radius))
+            .collect()
+    }
+
+    pub fn remove_pois(
+        sites: &[SettlementSite],
+        pois: Vec<crate::poi::PoiInstance>,
+        poi_cfg: &crate::poi::PoiConfigData,
+        clear_radius: f32,
+    ) -> Vec<crate::poi::PoiInstance> {
+        if sites.is_empty() {
+            return pois;
+        }
+        pois
+            .into_iter()
+            .filter(|p| {
+                let reach = poi_cfg
+                    .get(&p.building_id)
+                    .map(|b| b.reach())
+                    .unwrap_or(0.0);
+                !Self::in_clear_zone(
+                    sites,
+                    p.position.x,
+                    p.position.z,
+                    poi_cfg.lot_margin + reach,
+                    clear_radius,
+                )
+            })
+            .collect()
+    }
 }
 
 /// Finds the settlement site from the seed.
