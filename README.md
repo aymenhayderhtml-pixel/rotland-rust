@@ -6,6 +6,7 @@ Plan: `../docs/RUST_PLAN.md`. The Godot game in the parent folder stays the refe
 ```bash
 cargo build                         # fast dev build (target/debug/rotland)
 cargo build --release               # the build the owner plays and benchmarks use
+cargo run --release -p baker        # bake all models into rust/assets/models.pack
 cargo test                          # all unit and golden tests (no window)
 cargo clippy --all-targets          # must have no warnings in new code
 ```
@@ -34,7 +35,9 @@ Example: `flock /tmp/rotland-heavy.lock target/debug/rotland --shot=/tmp/x/fores
 |---|---|
 | `engine` | window, input, GPU, frame image + blit (render scale), screenshots, stats, command line |
 | `rotland` | the game program |
-More crates (`world`, `baker`, `game`, `ui`) are added by the phases in the plan.
+| `pack` | model pack binary format, data types and serialization (postcard) |
+| `baker` | tool: .glb models -> compact GPU-ready binary pack (rust/assets/models.pack) |
+More crates (`world`, `game`, `ui`) are added by the phases in the plan.
 
 ## Rules for workers
 - Read `../AGENTS.md`, then this file, then only the files your task names.
