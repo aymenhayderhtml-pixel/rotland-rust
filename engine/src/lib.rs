@@ -7,6 +7,7 @@ pub mod capture;
 pub mod cli;
 pub mod gpu;
 pub mod input;
+pub mod render;
 pub mod stats;
 pub mod target;
 pub mod timing;

@@ -1697,6 +1697,7 @@ dependencies = [
  "glam",
  "log",
  "wgpu",
+ "winit",
 ]
 
 [[package]]
