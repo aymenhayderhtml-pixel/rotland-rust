@@ -12,6 +12,8 @@ pub struct DamageInfo {
     pub damage_type: String,
     /// True for a gun hit to a zombie's head, so XP rewards can read it on the killing blow.
     pub headshot: bool,
+    /// True for a hit to a zombie's legs (below leg_hit_height).
+    pub leg_hit: bool,
 }
 
 impl DamageInfo {
@@ -24,6 +26,7 @@ impl DamageInfo {
             direction: Vec3::ZERO,
             damage_type: "generic".to_string(),
             headshot: false,
+            leg_hit: false,
         }
     }
 }

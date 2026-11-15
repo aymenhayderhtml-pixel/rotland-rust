@@ -66,6 +66,10 @@ fn sense<'a>(body: Body, world: &'a PhysicsWorld, target: Option<Vec3>) -> Brain
         took_damage: None,
         is_dead: false,
         world,
+        nearby_zombies: &[],
+        corpses: &[],
+        target_unreachable: false,
+        leg_hit: false,
     }
 }
 

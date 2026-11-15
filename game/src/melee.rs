@@ -237,6 +237,7 @@ fn resolve(
                 direction: dir,
                 damage_type: "melee".to_string(),
                 headshot: false,
+                leg_hit: false,
             },
             knockback: away * weapon.knockback,
             stagger: weapon.stagger,

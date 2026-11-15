@@ -198,6 +198,10 @@ impl Zombies {
                 took_damage: z.pending_hit.take(),
                 is_dead: dead,
                 world: physics,
+                nearby_zombies: &[],
+                corpses: &[],
+                target_unreachable: false,
+                leg_hit: false,
             };
             let out = z.brain.update(&input, dt);
             if let Some(bite) = out.attack_hit {
