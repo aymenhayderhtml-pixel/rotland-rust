@@ -4,6 +4,7 @@ edition.workspace = true
 version.workspace = true
 
 [dependencies]
+paths = { path = "../paths" }
 engine = { path = "../engine" }
 glam.workspace = true
 log.workspace = true
@@ -15,3 +16,5 @@ world = { path = "../world" }
 rayon.workspace = true
 physics = { path = "../physics" }
 game = { path = "../game" }
+humanoid = { path = "../humanoid" }
+pollster.workspace = true

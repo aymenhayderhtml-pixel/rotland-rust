@@ -8,3 +8,6 @@ glam = { workspace = true }
 rapier3d = { version = "0.36.1", features = ["parallel"] }
 world = { path = "../world" }
 pack = { path = "../pack" }
+
+[dev-dependencies]
+paths = { path = "../paths" }

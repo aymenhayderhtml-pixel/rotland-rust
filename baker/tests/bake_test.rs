@@ -5,12 +5,7 @@ use baker::bake_glb;
 use pack::ModelPack;
 
 fn repo_root() -> PathBuf {
-    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    manifest_dir
-        .ancestors()
-        .find(|p| p.join("assets/models").is_dir())
-        .expect("could not locate repository root with assets/models/")
-        .to_path_buf()
+    paths::repo_root()
 }
 
 fn find_glb_files(dir: &Path, out: &mut Vec<PathBuf>) {

@@ -11,7 +11,7 @@ use world::{Color, GroundPaint, PoiConfig, ScatterConfig, SettlementConfig, Worl
 const TOL: f32 = 1e-4;
 
 fn repo() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    paths::repo_root()
 }
 
 fn f(v: &Value) -> f32 {

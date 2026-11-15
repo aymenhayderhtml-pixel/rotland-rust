@@ -5,6 +5,7 @@ edition.workspace = true
 description = "Asset baker turning Blender .glb models into compact binary model packs"
 
 [dependencies]
+paths = { path = "../paths" }
 pack.workspace = true
 gltf.workspace = true
 glam.workspace = true

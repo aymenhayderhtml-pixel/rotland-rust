@@ -6,11 +6,7 @@ use pack::ModelPack;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
-    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let repo_root = manifest_dir
-        .ancestors()
-        .find(|p| p.join("assets/models").is_dir())
-        .ok_or("could not locate repository root with assets/models/")?;
+    let repo_root = paths::repo_root();
 
     let models_dir = repo_root.join("assets/models");
     let out_pack = repo_root.join("rust/assets/models.pack");

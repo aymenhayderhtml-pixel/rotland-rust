@@ -5,6 +5,7 @@
 mod bench;
 mod crowd;
 mod light;
+mod player_visual;
 mod props;
 mod streaming;
 mod terrain;
@@ -17,7 +18,6 @@ use game::{Actions, CameraRig, Player};
 use glam::{Mat4, Vec3};
 use world::WorldGenerator;
 
-const REPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 
 /// Visual hook for the player body (to be rendered by another worker).
 #[allow(dead_code)]
@@ -50,6 +50,8 @@ struct R0 {
     scene: String,
     bones: Vec<Mat4>,
     player_ctrl: Option<Player>,
+    player_visual: Option<player_visual::PlayerVisual>,
+    last_dt: f32,
     camera_rig: Option<CameraRig>,
     mover: physics::CharacterMover,
     cursor_captured: bool,
@@ -107,7 +109,7 @@ impl Game for R0 {
 
         let started = std::time::Instant::now();
         let world_gen =
-            WorldGenerator::from_data_dir(self.seed, format!("{REPO}/data")).expect("data files");
+            WorldGenerator::from_data_dir(self.seed, paths::repo_path("data")).expect("data files");
         let config = world_gen.config().clone();
         let camp = world_gen.settlements()[0].clone();
         let spawn = camp.respawn_point(&config);
@@ -128,11 +130,15 @@ impl Game for R0 {
             self.camera_rig = Some(CameraRig::new());
         }
 
-        match pack::ModelPack::load(format!("{REPO}/rust/assets/models.pack")) {
+        match pack::ModelPack::load(paths::repo_path("rust/assets/models.pack")) {
             Ok(pack) => {
                 let h = |x: f32, z: f32| world_gen.height(x, z);
                 self.crowd =
                     crowd::Crowd::spawn(&gpu.device, &pack, self.player, 25, 15.0, 40.0, &h);
+                if self.scene == "play" {
+                    // Godot's starter weapon is the bat (data/start_inventory.json)
+                    self.player_visual = Some(player_visual::PlayerVisual::load(&gpu.device, &pack, "human_player", Some("bat")));
+                }
                 self.pack = Some(pack);
             }
             Err(e) => log::warn!("no model pack ({e}); run `cargo run --release -p baker`"),
@@ -180,6 +186,7 @@ impl Game for R0 {
     }
 
     fn update(&mut self, input: &Input, dt: f32) {
+        self.last_dt = dt;
         self.time += dt;
         if self.scene == "play" && !self.free_cam {
             // Esc releases the mouse cursor, left click recaptures it
@@ -236,6 +243,7 @@ impl Game for R0 {
     }
 
     fn render(&mut self, gpu: &Gpu, target: &FrameTarget, encoder: &mut wgpu::CommandEncoder) {
+        let player_pose = self.player_pose();
         // Chunk uploads need the GPU, so streaming runs here rather than in update
         if let (Some(streamer), Some(pack)) = (self.streamer.as_mut(), self.pack.as_ref()) {
             streamer.update(
@@ -268,6 +276,20 @@ impl Game for R0 {
             target.aspect(),
             renderer.shadows.distance,
         );
+        if let (Some(pv), Some(pose)) = (self.player_visual.as_mut(), player_pose) {
+            let loco = humanoid::Locomotion { speed: pose.horizontal_speed, on_floor: pose.on_floor, crouching: pose.crouching };
+            // The player's yaw already uses the model's facing (checked in a screenshot: no extra turn)
+            let (body, weapon) = pv.pose(self.last_dt, pose.position, pose.yaw, loco, &mut self.bones);
+            // First person: the body only casts its shadow (like Godot's shadows-only body)
+            if !pose.first_person {
+                main.push(engine::render::SkinnedBatch { mesh: body.mesh, instances: body.instances.clone() });
+                if let Some(w) = &weapon {
+                    main.push(engine::render::SkinnedBatch { mesh: w.mesh, instances: w.instances.clone() });
+                }
+            }
+            shadow.push(body);
+            shadow.extend(weapon);
+        }
         let zombies = self.crowd.pose(self.time, &mut self.bones);
         shadow.extend(zombies.iter().map(|b| engine::render::SkinnedBatch {
             mesh: b.mesh,

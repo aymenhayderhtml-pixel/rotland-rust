@@ -1,0 +1,6 @@
+[package]
+name = "paths"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]

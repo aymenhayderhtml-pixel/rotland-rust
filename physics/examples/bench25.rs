@@ -8,9 +8,8 @@ use world::generator::WorldGenerator;
 fn main() {
     println!("=== Rotland Physics Benchmark: 25 Characters in Forest (600 frames) ===");
 
-    let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let repo_data = format!("{manifest_dir}/../../data");
-    let pack_path = format!("{manifest_dir}/../assets/models.pack");
+    let repo_data = paths::repo_path("data");
+    let pack_path = paths::repo_path("rust/assets/models.pack");
 
     let world_gen = WorldGenerator::from_data_dir(42, &repo_data)
         .expect("should load world generator from data dir");

@@ -155,7 +155,7 @@ fn test_walking_up_30_degree_ramp_works_60_degree_does_not() {
 
 #[test]
 fn test_ground_height_matches_world_generator() {
-    let repo_data = concat!(env!("CARGO_MANIFEST_DIR"), "/../../data");
+    let repo_data = paths::repo_path("data");
     let world_gen = WorldGenerator::from_data_dir(42, repo_data)
         .expect("should load world generator from data dir");
 

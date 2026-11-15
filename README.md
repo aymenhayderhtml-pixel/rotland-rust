@@ -40,6 +40,7 @@ Example: `flock /tmp/rotland-heavy.lock target/debug/rotland --shot=/tmp/x/fores
 | `world` | generator, ground paint, chunks, scatter, POIs, settlements (pure, testable) |
 | `physics` | rapier3d collision (terrain, static props/buildings) and kinematic character mover |
 | `game` | player controller, camera rig, input actions, gameplay logic (pure, testable) |
+| `humanoid` | humanoid animation state machine, locomotion blend, one-shot action layering, weapon attachment |
 More crates (`ui`) are added by the phases in the plan.
 
 ## Controls (play scene)
@@ -59,3 +60,5 @@ More crates (`ui`) are added by the phases in the plan.
 - Pure logic goes in a crate with `cargo test` tests; compare with golden files from the Godot version where the task gives them.
 - After any visual change: take a `--shot` and look at it. After any speed change: a `--stats` run before and after, same options.
 - Small files (aim under 300 lines), comments say *why*. `cargo build`, `cargo test` and `cargo clippy` must pass.
+- Each checkout uses its **own** `target/` build folder (do not set CARGO_TARGET_DIR to another checkout's): a shared build folder reused programs built in deleted checkouts.
+- Find project files at run time with `paths::repo_path("data/...")`, never with `env!("CARGO_MANIFEST_DIR")` (that bakes in the folder the program was built in).
