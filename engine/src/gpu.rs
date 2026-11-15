@@ -8,6 +8,7 @@ pub struct Gpu {
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub adapter_info: wgpu::AdapterInfo,
+    pub window: Arc<Window>,
 }
 
 pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -21,7 +22,9 @@ impl Gpu {
         }
         .with_env();
         let instance = wgpu::Instance::new(desc);
-        let surface = instance.create_surface(window.clone()).expect("could not create the window surface");
+        let surface = instance
+            .create_surface(window.clone())
+            .expect("could not create the window surface");
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
             compatible_surface: Some(&surface),
@@ -56,7 +59,14 @@ impl Gpu {
         };
         config.desired_maximum_frame_latency = 2;
         surface.configure(&device, &config);
-        Self { surface, device, queue, config, adapter_info }
+        Self {
+            surface,
+            device,
+            queue,
+            config,
+            adapter_info,
+            window,
+        }
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -67,5 +77,4 @@ impl Gpu {
         self.config.height = height;
         self.surface.configure(&self.device, &self.config);
     }
-
 }

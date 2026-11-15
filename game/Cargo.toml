@@ -1,0 +1,10 @@
+[package]
+name = "game"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+engine = { path = "../engine" }
+physics = { path = "../physics" }
+glam.workspace = true
+winit.workspace = true

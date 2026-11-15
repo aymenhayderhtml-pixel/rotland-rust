@@ -40,6 +40,10 @@ pub trait Game: 'static {
     fn should_quit(&self) -> bool {
         false
     }
+    /// Desired mouse cursor capture: Some(true) = capture and hide, Some(false) = release and show, None = no management.
+    fn cursor_grab(&self) -> Option<bool> {
+        None
+    }
 }
 
 /// Opens the window and runs the game until it quits, the window is closed, or a command-line limit is hit.
@@ -60,6 +64,7 @@ pub fn run<G: Game>(game: G, title: &str, args: EngineArgs) {
         frame: 0,
         started: Instant::now(),
         f12_count: 0,
+        last_cursor_grab: None,
     };
     event_loop.run_app(&mut app).expect("event loop failed");
 }
@@ -78,11 +83,14 @@ struct App<G: Game> {
     frame: u64,
     started: Instant,
     f12_count: u32,
+    last_cursor_grab: Option<bool>,
 }
 
 impl<G: Game> App<G> {
     fn frame(&mut self, event_loop: &ActiveEventLoop) {
-        let (Some(gpu), Some(window)) = (self.gpu.as_mut(), self.window.as_ref()) else { return };
+        let (Some(gpu), Some(window)) = (self.gpu.as_mut(), self.window.as_ref()) else {
+            return;
+        };
         let (dt, fps_ready) = self.timer.tick();
         self.frame += 1;
         let elapsed = self.started.elapsed().as_secs_f32();
@@ -97,8 +105,16 @@ impl<G: Game> App<G> {
         self.game.update(&self.input, dt);
         self.input.end_frame();
 
+        if let Some(grab) = self.game.cursor_grab()
+            && self.last_cursor_grab != Some(grab)
+        {
+            self.last_cursor_grab = Some(grab);
+            Self::apply_cursor_grab(window, grab);
+        }
+
         let texture = match gpu.surface.get_current_texture() {
-            wgpu::CurrentSurfaceTexture::Success(t) | wgpu::CurrentSurfaceTexture::Suboptimal(t) => t,
+            wgpu::CurrentSurfaceTexture::Success(t)
+            | wgpu::CurrentSurfaceTexture::Suboptimal(t) => t,
             wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
                 let (w, h) = (gpu.config.width, gpu.config.height);
                 gpu.resize(w, h);
@@ -106,9 +122,17 @@ impl<G: Game> App<G> {
             }
             _ => return,
         };
-        let (Some(target), Some(blit)) = (self.target.as_ref(), self.blit.as_ref()) else { return };
-        let view = texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = gpu.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("frame") });
+        let (Some(target), Some(blit)) = (self.target.as_ref(), self.blit.as_ref()) else {
+            return;
+        };
+        let view = texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = gpu
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("frame"),
+            });
         self.game.render(gpu, target, &mut encoder);
         blit.draw(&mut encoder, &view);
         gpu.queue.submit([encoder.finish()]);
@@ -122,8 +146,14 @@ impl<G: Game> App<G> {
         }
         if f12 {
             self.f12_count += 1;
-            let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-            shot = Some((PathBuf::from(format!("shots/shot_{stamp}_{}.png", self.f12_count)), false));
+            let stamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            shot = Some((
+                PathBuf::from(format!("shots/shot_{stamp}_{}.png", self.f12_count)),
+                false,
+            ));
         }
         if let Some((path, quit_after)) = shot {
             match capture::save_png(&gpu.device, &gpu.queue, target, &path) {
@@ -162,20 +192,39 @@ impl<G: Game> App<G> {
     /// One JSON with everything an AI needs to judge a run: frame times, the setup, and the game's own numbers.
     fn write_json(&self, path: &Path) {
         let mut json = serde_json::to_value(self.stats.summary()).unwrap_or_default();
-        if let (Some(obj), Some(gpu), Some(target)) = (json.as_object_mut(), self.gpu.as_ref(), self.target.as_ref()) {
+        if let (Some(obj), Some(gpu), Some(target)) = (
+            json.as_object_mut(),
+            self.gpu.as_ref(),
+            self.target.as_ref(),
+        ) {
             obj.insert("gpu".into(), gpu.adapter_info.name.clone().into());
-            obj.insert("window".into(), format!("{}x{}", gpu.config.width, gpu.config.height).into());
-            obj.insert("render".into(), format!("{}x{}", target.width, target.height).into());
-            obj.insert("presentMode".into(), format!("{:?}", gpu.config.present_mode).into());
+            obj.insert(
+                "window".into(),
+                format!("{}x{}", gpu.config.width, gpu.config.height).into(),
+            );
+            obj.insert(
+                "render".into(),
+                format!("{}x{}", target.width, target.height).into(),
+            );
+            obj.insert(
+                "presentMode".into(),
+                format!("{:?}", gpu.config.present_mode).into(),
+            );
             obj.insert("frame".into(), self.frame.into());
-            obj.insert("seconds".into(), self.started.elapsed().as_secs_f64().into());
+            obj.insert(
+                "seconds".into(),
+                self.started.elapsed().as_secs_f64().into(),
+            );
             obj.insert("args".into(), self.args.all.clone().into());
             obj.insert("game".into(), serde_json::Value::Object(self.game.stats()));
         }
         if let Some(dir) = path.parent() {
             let _ = std::fs::create_dir_all(dir);
         }
-        if let Err(e) = std::fs::write(path, serde_json::to_string_pretty(&json).unwrap_or_default()) {
+        if let Err(e) = std::fs::write(
+            path,
+            serde_json::to_string_pretty(&json).unwrap_or_default(),
+        ) {
             eprintln!("could not write {}: {e}", path.display());
         }
     }
@@ -191,6 +240,18 @@ impl<G: Game> App<G> {
         }
         self.target = Some(target);
     }
+
+    fn apply_cursor_grab(window: &Window, grab: bool) {
+        if grab {
+            let _ = window
+                .set_cursor_grab(winit::window::CursorGrabMode::Locked)
+                .or_else(|_| window.set_cursor_grab(winit::window::CursorGrabMode::Confined));
+            window.set_cursor_visible(false);
+        } else {
+            let _ = window.set_cursor_grab(winit::window::CursorGrabMode::None);
+            window.set_cursor_visible(true);
+        }
+    }
 }
 
 impl<G: Game> ApplicationHandler for App<G> {
@@ -200,10 +261,22 @@ impl<G: Game> ApplicationHandler for App<G> {
         }
         let attrs = Window::default_attributes()
             .with_title(self.title.clone())
-            .with_inner_size(winit::dpi::PhysicalSize::new(self.args.width, self.args.height));
-        let window = Arc::new(event_loop.create_window(attrs).expect("could not open the window"));
+            .with_inner_size(winit::dpi::PhysicalSize::new(
+                self.args.width,
+                self.args.height,
+            ));
+        let window = Arc::new(
+            event_loop
+                .create_window(attrs)
+                .expect("could not open the window"),
+        );
         let gpu = Gpu::new(window.clone(), self.args.vsync);
-        log::info!("GPU: {} ({:?}, {})", gpu.adapter_info.name, gpu.adapter_info.backend, gpu.adapter_info.driver_info);
+        log::info!(
+            "GPU: {} ({:?}, {})",
+            gpu.adapter_info.name,
+            gpu.adapter_info.backend,
+            gpu.adapter_info.driver_info
+        );
         self.game.init(&gpu, &self.args);
         self.gpu = Some(gpu);
         self.window = Some(window);
@@ -225,7 +298,9 @@ impl<G: Game> ApplicationHandler for App<G> {
                     self.input.key(code, event.state == ElementState::Pressed);
                 }
             }
-            WindowEvent::MouseInput { state, button, .. } => self.input.button(button, state == ElementState::Pressed),
+            WindowEvent::MouseInput { state, button, .. } => {
+                self.input.button(button, state == ElementState::Pressed)
+            }
             WindowEvent::MouseWheel { delta, .. } => {
                 self.input.wheel += match delta {
                     MouseScrollDelta::LineDelta(_, y) => y,

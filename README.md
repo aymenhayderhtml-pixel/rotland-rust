@@ -39,7 +39,19 @@ Example: `flock /tmp/rotland-heavy.lock target/debug/rotland --shot=/tmp/x/fores
 | `baker` | tool: .glb models -> compact GPU-ready binary pack (rust/assets/models.pack) |
 | `world` | generator, ground paint, chunks, scatter, POIs, settlements (pure, testable) |
 | `physics` | rapier3d collision (terrain, static props/buildings) and kinematic character mover |
-More crates (`game`, `ui`) are added by the phases in the plan.
+| `game` | player controller, camera rig, input actions, gameplay logic (pure, testable) |
+More crates (`ui`) are added by the phases in the plan.
+
+## Controls (play scene)
+- WASD: Move (camera-relative)
+- Shift: Sprint (forward only, drains stamina)
+- Space: Jump (drains stamina)
+- C: Crouch
+- V: Toggle 1st / 3rd person camera
+- Mouse: Look (yaw / pitch)
+- Mouse wheel: Zoom camera (3rd person)
+- Right click: Aim (zoom in, narrower FOV)
+- Esc: Release mouse cursor (click window to capture again)
 
 ## Rules for workers
 - Read `../AGENTS.md`, then this file, then only the files your task names.
