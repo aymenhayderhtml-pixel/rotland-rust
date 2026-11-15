@@ -1,0 +1,3 @@
+# mold links much faster than the default linker; target-cpu=native because the owner's laptop is the only target
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=mold", "-C", "target-cpu=native"]

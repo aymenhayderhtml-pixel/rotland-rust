@@ -1,0 +1,33 @@
+[workspace]
+resolver = "3"
+members = ["engine", "rotland"]
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+
+[workspace.dependencies]
+wgpu = "30"
+winit = "0.30"
+glam = { version = "0.34", features = ["bytemuck"] }
+bytemuck = { version = "1", features = ["derive"] }
+pollster = "1"
+log = "0.4"
+env_logger = "0.11"
+image = { version = "0.25", default-features = false, features = ["png"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Fast builds while working: our code lightly optimised, libraries fully optimised
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+# The build the owner plays and the benchmarks use
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+debug = "line-tables-only"
