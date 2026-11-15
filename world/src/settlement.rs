@@ -10,42 +10,24 @@ use crate::math::{lerp, smooth_step};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SettlementConfigData {
-    #[serde(alias = "SearchRadiusChunks")]
-    pub search_radius_chunks: i32,
-    #[serde(alias = "LotSize")]
-    pub lot_size: f32,
-    #[serde(alias = "FlatRadius")]
-    pub flat_radius: f32,
-    #[serde(alias = "BlendRadius")]
-    pub blend_radius: f32,
-    #[serde(alias = "ReliefLimit")]
-    pub relief_limit: f32,
-    #[serde(alias = "CliffCheckRadius")]
-    pub cliff_check_radius: f32,
-    #[serde(alias = "MaxSlopeDeg")]
-    pub max_slope_deg: f32,
-    #[serde(alias = "ClearRadius")]
-    pub clear_radius: f32,
-    #[serde(alias = "SafeZoneHalf")]
-    pub safe_zone_half: f32,
-    #[serde(alias = "SafeZonePadding")]
-    pub safe_zone_padding: f32,
-    #[serde(alias = "RespawnOffset")]
-    pub respawn_offset: [f32; 2],
-    #[serde(default, alias = "GuardRange")]
-    pub guard_range: f32,
-    #[serde(default, alias = "GuardSightInterval")]
-    pub guard_sight_interval: f32,
-    #[serde(default, alias = "GuardFireInterval")]
-    pub guard_fire_interval: f32,
-    #[serde(default, alias = "GuardDamage")]
-    pub guard_damage: f32,
-    #[serde(default, alias = "GuardMissChance")]
-    pub guard_miss_chance: f32,
-    #[serde(default, alias = "GuardEyeHeight")]
-    pub guard_eye_height: f32,
-    #[serde(default, alias = "NpcModels")]
-    pub npc_models: HashMap<String, String>,
+    #[serde(alias = "SearchRadiusChunks")] pub search_radius_chunks: i32,
+    #[serde(alias = "LotSize")] pub lot_size: f32,
+    #[serde(alias = "FlatRadius")] pub flat_radius: f32,
+    #[serde(alias = "BlendRadius")] pub blend_radius: f32,
+    #[serde(alias = "ReliefLimit")] pub relief_limit: f32,
+    #[serde(alias = "CliffCheckRadius")] pub cliff_check_radius: f32,
+    #[serde(alias = "MaxSlopeDeg")] pub max_slope_deg: f32,
+    #[serde(alias = "ClearRadius")] pub clear_radius: f32,
+    #[serde(alias = "SafeZoneHalf")] pub safe_zone_half: f32,
+    #[serde(alias = "SafeZonePadding")] pub safe_zone_padding: f32,
+    #[serde(alias = "RespawnOffset")] pub respawn_offset: [f32; 2],
+    #[serde(default, alias = "GuardRange")] pub guard_range: f32,
+    #[serde(default, alias = "GuardSightInterval")] pub guard_sight_interval: f32,
+    #[serde(default, alias = "GuardFireInterval")] pub guard_fire_interval: f32,
+    #[serde(default, alias = "GuardDamage")] pub guard_damage: f32,
+    #[serde(default, alias = "GuardMissChance")] pub guard_miss_chance: f32,
+    #[serde(default, alias = "GuardEyeHeight")] pub guard_eye_height: f32,
+    #[serde(default, alias = "NpcModels")] pub npc_models: HashMap<String, String>,
 }
 
 impl SettlementConfigData {
@@ -194,6 +176,20 @@ impl SettlementGround {
         props
             .into_iter()
             .filter(|p| !Self::in_clear_zone(sites, p.position.x, p.position.z, 0.0, clear_radius))
+            .collect()
+    }
+
+    pub fn remove_crates(
+        sites: &[SettlementSite],
+        crates: Vec<crate::loot::LootSpot>,
+        clear_radius: f32,
+    ) -> Vec<crate::loot::LootSpot> {
+        if sites.is_empty() {
+            return crates;
+        }
+        crates
+            .into_iter()
+            .filter(|c| !Self::in_clear_zone(sites, c.position.x, c.position.z, 0.0, clear_radius))
             .collect()
     }
 

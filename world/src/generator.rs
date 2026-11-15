@@ -113,6 +113,20 @@ impl WorldGenerator {
         (pois, props)
     }
 
+    /// Loot crate spots for one chunk, following BuildChunk rules.
+    pub fn chunk_crates(&self, coord: IVec2) -> Vec<crate::loot::LootSpot> {
+        let (pois, props) = self.chunk_contents(coord);
+        let placed = crate::loot::LootPlacer::place(
+            self,
+            &self.scatter_config,
+            &self.poi_config,
+            coord,
+            &props,
+            &pois,
+        );
+        SettlementGround::remove_crates(&self.settlements, placed, self.config.clear_radius)
+    }
+
     /// Densest forest chunk within 300m of spawn, matching BenchmarkPlacement.
     pub fn densest_forest_near(&self, spawn: Vec3) -> IVec2 {
         let sc = IVec2::new((spawn.x / Self::CHUNK_SIZE).floor() as i32, (spawn.z / Self::CHUNK_SIZE).floor() as i32);
