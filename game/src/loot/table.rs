@@ -127,12 +127,12 @@ impl LootTableRegistry {
                 )));
             }
         }
-        if let Some(cash) = &table.cash {
-            if cash.chance < 0.0 || cash.chance > 1.0 || cash.min < 0 || cash.min > cash.max {
-                return Err(LootLoadError::Validation(format!(
-                    "Loot table '{name}' needs cash chance 0..1 and 0 <= min <= max"
-                )));
-            }
+        if let Some(cash) = &table.cash
+            && (cash.chance < 0.0 || cash.chance > 1.0 || cash.min < 0 || cash.min > cash.max)
+        {
+            return Err(LootLoadError::Validation(format!(
+                "Loot table '{name}' needs cash chance 0..1 and 0 <= min <= max"
+            )));
         }
         Ok(())
     }

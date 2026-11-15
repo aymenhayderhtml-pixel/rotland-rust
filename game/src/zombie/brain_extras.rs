@@ -93,15 +93,15 @@ impl ZombieBrain {
         let dist = self.rng.range(WANDER_MIN, WANDER_MAX);
         let random_spot = from + Vec3::new(angle.cos(), 0.0, angle.sin()) * dist;
 
-        if let Some(horde_arc) = &self.horde {
-            if let Ok(mut horde) = horde_arc.lock() {
-                let shared = horde.wander_target.unwrap_or(random_spot);
-                horde.wander_target = Some(shared);
-                let spread_x = self.rng.range(-1.5, 1.5);
-                let spread_z = self.rng.range(-1.5, 1.5);
-                self.goal = shared + Vec3::new(spread_x, 0.0, spread_z);
-                return;
-            }
+        if let Some(horde_arc) = &self.horde
+            && let Ok(mut horde) = horde_arc.lock()
+        {
+            let shared = horde.wander_target.unwrap_or(random_spot);
+            horde.wander_target = Some(shared);
+            let spread_x = self.rng.range(-1.5, 1.5);
+            let spread_z = self.rng.range(-1.5, 1.5);
+            self.goal = shared + Vec3::new(spread_x, 0.0, spread_z);
+            return;
         }
         self.goal = random_spot;
     }
@@ -136,6 +136,7 @@ impl ZombieBrain {
     pub(super) fn enter_bang(&mut self) {
         self.enter(ZombieState::Bang);
         self.timer = self.numbers.bang_seconds;
+        self.walk_velocity = Vec3::ZERO;
     }
 
     pub(super) fn enter_dead(&mut self) {

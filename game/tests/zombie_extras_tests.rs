@@ -152,8 +152,8 @@ fn a_first_sighting_can_trigger_a_scream_and_the_scream_alerts_a_nearby_idle_zom
         assert_eq!(out.state, ZombieState::Scream); // assert 8: holds scream
     }
 
-    // Once the scream ends, it enters chase
-    for _ in 0..5 {
+    // Once the scream ends, it enters chase (eases up over SpeedBlendRate = 8)
+    for _ in 0..10 {
         out = tick(&mut screamer_brain, &mut screamer_body, &r.world, Some(player));
     }
     assert_eq!(out.state, ZombieState::Chase); // assert 9: chases after scream
@@ -313,7 +313,7 @@ fn a_leg_hit_with_enough_damage_makes_a_crawler_that_moves_slower() {
     let r = rig();
     let mut brain = make_brain(&r, start().pos, 1);
     let mut body = start();
-    let player = Vec3::new(10.0, 0.0, -20.0);
+    let player = Vec3::new(10.0, 0.0, 4.0); // 6m ahead, within sight range (18m)
 
     // Running normally first
     let mut out = tick(&mut brain, &mut body, &r.world, Some(player));
@@ -449,9 +449,21 @@ fn a_stuck_zombie_escapes() {
         let out = run_frame(&mut brain, &mut body, ctx);
         if brain.is_escaping() {
             saw_escape = true;
+            // Velocity blends toward escape wish over SpeedBlendRate = 8 (ZombieMotion.cs:14)
+            let mut escape_out = out;
+            for _ in 0..10 {
+                if escape_out.velocity.z > 0.0 {
+                    break;
+                }
+                let esc_ctx = BrainInput {
+                    target: Some(goal),
+                    ..sense(body, &r.world, Some(goal))
+                };
+                escape_out = run_frame(&mut brain, &mut body, esc_ctx);
+            }
             // The only open side is backward (+Z)
-            assert!(out.velocity.length() > 0.1); // assert 2: moving during escape
-            assert!(out.velocity.z > 0.0, "escape direction should head backward (+Z), got {:?}", out.velocity); // assert 3
+            assert!(escape_out.velocity.length() > 0.1); // assert 2: moving during escape
+            assert!(escape_out.velocity.z > 0.0, "escape direction should head backward (+Z), got {:?}", escape_out.velocity); // assert 3
             escaped_pos = body.pos;
             break;
         }
@@ -467,7 +479,7 @@ fn a_stuck_zombie_escapes() {
         run_frame(&mut brain, &mut body, ctx);
     }
     // The zombie backed out of the trap (+Z)
-    assert!(body.pos.z > 10.1, "zombie moved out of trap, pos is {:?}", body.pos); // assert 5
+    assert!(body.pos.z > escaped_pos.z && body.pos.z > 10.1, "zombie moved out of trap, pos is {:?}", body.pos); // assert 5
 
     // Also test ZombieHorde shared wandering
     let horde = Arc::new(Mutex::new(ZombieHorde::new()));

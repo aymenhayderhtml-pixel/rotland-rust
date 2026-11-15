@@ -280,7 +280,7 @@ impl ZombieBrain {
             yaw,
             state: self.state,
             attack_hit: step.hit,
-            anim: self.anim_clip(flinched),
+            anim: self.anim_clip(flinched, step.wish),
             staggered: self.is_staggered(),
             scream: self.just_screamed,
             teleport,
@@ -324,7 +324,7 @@ impl ZombieBrain {
         ctx.yaw + wrap_angle(target - ctx.yaw) * blend
     }
 
-    fn anim_clip(&self, flinched: bool) -> AnimClip {
+    fn anim_clip(&self, flinched: bool, wish: Vec3) -> AnimClip {
         if self.state == ZombieState::Dead {
             return AnimClip::Die;
         }
@@ -337,7 +337,7 @@ impl ZombieBrain {
         if self.crawler {
             return AnimClip::Crawl;
         }
-        let moving = self.walk_velocity.length() > MOVING_SPEED;
+        let moving = self.walk_velocity.length() > MOVING_SPEED || wish.length() > MOVING_SPEED;
         match self.state {
             ZombieState::Dead => AnimClip::Die,
             ZombieState::Attack => AnimClip::Attack,

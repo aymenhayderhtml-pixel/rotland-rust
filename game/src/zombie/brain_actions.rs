@@ -49,10 +49,10 @@ impl ZombieBrain {
         };
         let (wish, arrived) = self.walk_to(ctx.position, self.goal, speed, ctx.world, dt);
         if arrived || self.time_in_state > MAX_WANDER_TIME {
-            if let Some(horde_arc) = &self.horde {
-                if let Ok(mut horde) = horde_arc.lock() {
-                    horde.wander_target = None;
-                }
+            if let Some(horde_arc) = &self.horde
+                && let Ok(mut horde) = horde_arc.lock()
+            {
+                horde.wander_target = None;
             }
             self.enter_idle();
         }
@@ -60,7 +60,7 @@ impl ZombieBrain {
     }
 
     pub(super) fn think_investigate(&mut self, ctx: &BrainInput<'_>, dt: f32) -> Step {
-        if self.senses.can_see() {
+        if self.senses.can_see() && !self.bang_on_arrive && !ctx.target_unreachable {
             self.spot_player(ctx.target);
             return Step::default();
         }
@@ -70,7 +70,10 @@ impl ZombieBrain {
             } else {
                 self.numbers.chase_speed * INVESTIGATE_SPEED_FACTOR
             };
-            let (wish, arrived) = self.walk_to(ctx.position, self.goal, speed, ctx.world, dt);
+            let (wish, mut arrived) = self.walk_to(ctx.position, self.goal, speed, ctx.world, dt);
+            if self.bang_on_arrive && horizontal_distance(ctx.position, self.goal) <= 1.5 {
+                arrived = true;
+            }
             if arrived {
                 if self.bang_on_arrive {
                     self.enter_bang();
@@ -94,7 +97,7 @@ impl ZombieBrain {
         let Some(target) = ctx.target else {
             return Step::default();
         };
-        let tracking = self.senses.can_see();
+        let tracking = self.senses.can_see() && !ctx.target_unreachable;
         if !tracking && self.senses.memory_expired() {
             let hidden = self.hideout_override.unwrap_or_else(|| {
                 ctx.target_unreachable || is_under_roof(target, ctx.world)
@@ -163,13 +166,14 @@ impl ZombieBrain {
     }
 
     pub(super) fn think_bang(&mut self, ctx: &BrainInput<'_>, dt: f32) -> Step {
-        if self.senses.can_see() {
+        if self.senses.can_see() && !ctx.target_unreachable {
             self.spot_player(ctx.target);
             return Step::default();
         }
         self.timer -= dt;
         if self.timer <= 0.0 {
             self.enter_wander(ctx.position);
+            return self.think_wander(ctx, dt);
         }
         Step::default()
     }

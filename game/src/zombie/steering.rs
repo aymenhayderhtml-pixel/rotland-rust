@@ -60,6 +60,7 @@ pub struct ZombieSteering {
 }
 
 impl ZombieSteering {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         seed: u64,
         stuck_seconds: f32,
@@ -207,10 +208,10 @@ impl ZombieSteering {
     ) -> f32 {
         let wall_normal_y = (45.0_f32).to_radians().cos();
         let origin = pos + Vec3::Y * height;
-        if let Some(hit) = world.raycast(origin, dir, length) {
-            if hit.normal.y < wall_normal_y {
-                return hit.distance;
-            }
+        if let Some(hit) = world.raycast(origin, dir, length)
+            && hit.normal.y < wall_normal_y
+        {
+            return hit.distance;
         }
         if self.step_ahead(pos, dir, world) {
             return 0.0;
@@ -227,7 +228,7 @@ impl ZombieSteering {
         let from = Vec3::new(ahead.x, pos.y + STEP_RAY_TOP, ahead.z);
         let max_dist = STEP_RAY_TOP + STEP_RAY_BELOW;
         let Some(hit) = world.raycast(from, Vec3::NEG_Y, max_dist) else {
-            return true;
+            return false;
         };
         hit.point.y - pos.y > STEP_RISE
     }
@@ -238,7 +239,7 @@ impl ZombieSteering {
         let from = Vec3::new(point.x, top, point.z);
         let max_dist = GROUND_PROBE_ABOVE + GROUND_PROBE_BELOW;
         let Some(hit) = world.raycast(from, Vec3::NEG_Y, max_dist) else {
-            return false;
+            return true;
         };
         hit.normal.y >= wall_normal_y
     }
