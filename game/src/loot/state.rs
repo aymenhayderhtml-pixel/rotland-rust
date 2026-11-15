@@ -42,7 +42,7 @@ impl LootState {
     pub fn is_chunk_looted(&self, coord: IVec2, crate_id: &str) -> bool {
         self.by_chunk
             .get(&coord)
-            .map_or(false, |set| set.contains(crate_id))
+            .is_some_and(|set| set.contains(crate_id))
             || self.looted.contains(crate_id)
     }
 
