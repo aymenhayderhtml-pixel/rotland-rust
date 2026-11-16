@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "savedAtUtc": "2026-11-16T12:34:56Z",
+  "systems": {
+    "player": {
+      "position": {
+        "x": 12.5,
+        "y": 1.8,
+        "z": -45.0
+      },
+      "bodyYaw": 1.57,
+      "cameraYaw": 3.14,
+      "cameraPitch": -0.25,
+      "health": 85.0,
+      "spawn": {
+        "x": 0.0,
+        "y": 1.0,
+        "z": 0.0
+      }
+    },
+    "stats": {
+      "kills": {
+        "walker": 12,
+        "runner": 3
+      },
+      "headshots": 7,
+      "deaths": 1,
+      "highestDay": 4,
+      "playTime": 3600.5,
+      "distance": 2450.0
+    },
+    "inventory": {
+      "stacks": [
+        {
+          "slot": 0,
+          "id": "baseball_bat",
+          "count": 1
+        },
+        {
+          "slot": 1,
+          "id": "pistol",
+          "count": 1
+        },
+        {
+          "slot": 2,
+          "id": "canned_beans",
+          "count": 3
+        },
+        {
+          "slot": 5,
+          "id": "flashlight",
+          "count": 1
+        },
+        {
+          "slot": 8,
+          "id": "bandage",
+          "count": 2
+        }
+      ]
+    },
+    "time": {
+      "hour": 14.5,
+      "day": 4
+    },
+    "world": {
+      "seed": 123456789
+    },
+    "worldstate": {
+      "looted": [
+        "crate_0_0_1",
+        "crate_1_0_0"
+      ],
+      "dropped": {
+        "0_0": [
+          {
+            "id": "canned_beans",
+            "count": 1,
+            "x": 10.0,
+            "y": 0.5,
+            "z": 15.0
+          }
+        ]
+      },
+      "fallen_trees": [
+        "0_0_3"
+      ],
+      "campfires": {
+        "0_0": [
+          {
+            "x": 12.0,
+            "y": 0.5,
+            "z": 14.0,
+            "hours": 3.5
+          }
+        ]
+      },
+      "visited_pois": [
+        "cabin_0_0"
+      ]
+    },
+    "difficulty": {
+      "zombies": 1.0,
+      "loot": 1.0,
+      "damage": 1.0,
+      "death": "lose_all"
+    },
+    "wallet": {
+      "dollars": 150
+    },
+    "dogs": {
+      "tamed": [
+        "dog_shepherd_1"
+      ],
+      "level": 2
+    },
+    "farm": {
+      "plots": [
+        {
+          "x": 5,
+          "z": 5,
+          "crop": "potato",
+          "growth": 0.8
+        }
+      ]
+    }
+  }
+}
