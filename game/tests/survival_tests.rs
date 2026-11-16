@@ -182,7 +182,7 @@ fn low_needs_slows_stamina_regeneration() {
 fn need_save_load_roundtrip() {
     let data = SurvivalData::from_repo().expect("survival data loads");
     let mut hunger = NeedStat::from_config("hunger", &data).unwrap();
-    let mut thirst = NeedStat::from_config("thirst", &data).unwrap();
+    let thirst = NeedStat::from_config("thirst", &data).unwrap();
 
     assert_eq!(hunger.save_id(), "need_hunger");
     assert_eq!(thirst.save_id(), "need_thirst");

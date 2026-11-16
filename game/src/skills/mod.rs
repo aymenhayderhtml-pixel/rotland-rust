@@ -1,7 +1,7 @@
-pub mod def;
-pub mod registry;
-pub mod rewards;
-pub mod system;
+mod def;
+mod registry;
+mod rewards;
+mod system;
 
 pub use def::SkillDef;
 pub use registry::SkillRegistry;

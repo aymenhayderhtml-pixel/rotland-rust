@@ -1,6 +1,6 @@
-pub mod config;
-pub mod need;
-pub mod well_fed;
+mod config;
+mod need;
+mod well_fed;
 
 pub use config::{NeedDef, StaminaDef, SurvivalData, WellFedDef};
 pub use need::NeedStat;

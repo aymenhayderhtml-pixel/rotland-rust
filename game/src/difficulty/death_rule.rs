@@ -60,7 +60,7 @@ impl DeathRule {
                 }
             }
             Self::KeepHalf => {
-                let mut non_empty_slots: Vec<usize> = inventory
+                let non_empty_slots: Vec<usize> = inventory
                     .slots()
                     .iter()
                     .enumerate()
@@ -125,12 +125,10 @@ pub fn tally_inventory(inventory: &Inventory) -> (u32, u32) {
     let mut count = 0;
     let mut value = 0;
     let registry = inventory.registry();
-    for slot in inventory.slots() {
-        if let Some(stack) = slot {
-            count += stack.count;
-            let item_value = registry.get(&stack.item_id).map_or(0, |def| def.value);
-            value += item_value * stack.count;
-        }
+    for stack in inventory.slots().iter().flatten() {
+        count += stack.count;
+        let item_value = registry.get(&stack.item_id).map_or(0, |def| def.value);
+        value += item_value * stack.count;
     }
     (count, value)
 }
