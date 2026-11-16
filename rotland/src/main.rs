@@ -3,6 +3,7 @@
 //! --free (fly with mouse + WASD instead of the scripted walk), plus the engine's --shot / --stats / --seconds.
 
 mod bench;
+mod camp;
 mod combat;
 mod crates;
 mod hud;
@@ -675,6 +676,14 @@ impl Game for R0 {
             self.clock.advance(dt);
             self.hour = self.clock.hour;
         }
+        // Kills count for bounties; the trader restocks and the board refreshes with the days
+        let night = !(6.0..20.0).contains(&self.hour);
+        if let (Some(play), Some(z)) = (self.play.as_mut(), self.zombies.as_mut()) {
+            for kind in z.take_kills() {
+                play.camp.on_zombie_killed(&kind, night);
+            }
+            play.camp.tick(self.clock.day, self.hour);
+        }
         if dt > 0.0 {
             self.fps += (1.0 / dt - self.fps) * (dt * 2.0).min(1.0);
         }
@@ -686,6 +695,11 @@ impl Game for R0 {
                 if ev.died {
                     if let Some(pv) = self.player_visual.as_mut() {
                         pv.animator.play_die();
+                    }
+                    if let Some(play) = self.play.as_mut() {
+                        let seed = (self.time * 1000.0) as u64 ^ self.seed as u64;
+                        play.camp.on_death(&mut play.inventory, seed);
+                        play.hotbar.on_inventory_changed(&play.inventory);
                     }
                     log::info!("the player died (kills so far: {})", c.kills);
                 } else if ev.bitten

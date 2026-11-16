@@ -33,6 +33,8 @@ impl Look {
 
 pub struct Zombie {
     pub id: u64,
+    /// The zombies.json type (walker, runner...), for bounties.
+    pub kind: String,
     look: usize,
     def: ZombieDef,
     brain: ZombieBrain,
@@ -59,6 +61,8 @@ pub struct Zombies {
     flow_timer: f32,
     next_id: u64,
     rng: u64,
+    /// Types of the zombies the player killed since the last `take_kills`.
+    kills: Vec<String>,
 }
 
 /// What happened to the player this frame.
@@ -86,6 +90,7 @@ impl Zombies {
             flow_timer: 0.0,
             next_id: FIRST_ID,
             rng: 0x9E37_79B9_7F4A_7C15,
+            kills: Vec::new(),
         }
     }
 
@@ -105,11 +110,11 @@ impl Zombies {
             let dist = min + (max - min) * self.rand();
             let (x, z) = (center.x + angle.cos() * dist, center.z + angle.sin() * dist);
             let y = physics.ground_height(x, z).unwrap_or(center.y);
-            self.spawn(&def, Vec3::new(x, y, z));
+            self.spawn(kind, &def, Vec3::new(x, y, z));
         }
     }
 
-    fn spawn(&mut self, def: &ZombieDef, at: Vec3) {
+    fn spawn(&mut self, kind: &str, def: &ZombieDef, at: Vec3) {
         let look_names: Vec<&str> = def.models.iter().map(String::as_str).collect();
         let pick = (self.rand() * look_names.len() as f32) as usize;
         let look = ["zombie_01", "zombie_02", "zombie_03"].iter().position(|n| Some(n) == look_names.get(pick)).unwrap_or(0);
@@ -124,6 +129,7 @@ impl Zombies {
         let tuning: &ZombieBehaviourDef = &self.defs.behaviour;
         self.list.push(Zombie {
             id,
+            kind: kind.to_string(),
             look: look.min(self.looks.len().saturating_sub(1)),
             def: def.clone(),
             brain: ZombieBrain::new(def, tuning, at, id),
@@ -144,7 +150,7 @@ impl Zombies {
     /// One zombie of type `kind` (e.g. "walker", "runner") at `at`, for the spawner.
     pub fn spawn_kind(&mut self, kind: &str, at: Vec3) {
         if let Some(def) = self.defs.get(kind).cloned() {
-            self.spawn(&def, at);
+            self.spawn(kind, &def, at);
         }
     }
 
@@ -174,6 +180,9 @@ impl Zombies {
         if result.dealt > 0.0 {
             z.knock += Vec3::new(knockback.x, 0.0, knockback.z);
             z.pending_hit = Some(damage);
+        }
+        if result.died_now {
+            self.kills.push(z.kind.clone());
         }
         result.died_now
     }
@@ -228,6 +237,11 @@ impl Zombies {
         }
         self.list.retain(|z| z.dead_for < CORPSE_SECONDS);
         frame
+    }
+
+    /// The types of zombies killed since the last call.
+    pub fn take_kills(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.kills)
     }
 
     /// Living zombies as melee targets.

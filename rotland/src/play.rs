@@ -51,6 +51,8 @@ pub struct PlayState {
     use_cooldown: f32,
     /// Health is full this frame (bandages are refused then, like Godot).
     pub health_full: bool,
+    /// Wallet, bank, trader, skills, bounties and difficulty.
+    pub camp: crate::camp::Camp,
 }
 
 /// What changed in hand this frame.
@@ -76,6 +78,7 @@ impl PlayState {
         let thirst = game::NeedStat::from_config("thirst", &survival).ok_or("survival.json has no thirst")?;
         let mut inventory = start_inventory(&items);
         let items = Arc::new(items);
+        let camp = crate::camp::Camp::new(seed as i32, items.clone())?;
         inventory.set_registry(items.clone());
         Ok(Self {
             items,
@@ -98,6 +101,7 @@ impl PlayState {
             survival,
             use_cooldown: 0.0,
             health_full: true,
+            camp,
         })
     }
 
@@ -222,7 +226,12 @@ impl PlayState {
                 self.loot_multiplier,
             );
             let text = match result {
-                InteractResult::OpenedCrate { toast, .. } => Some(toast),
+                InteractResult::OpenedCrate { toast, cash, .. } => {
+                    // Crate cash goes to the wallet; opening one counts for loot bounties
+                    self.camp.wallet.add(cash);
+                    self.camp.bounties.on_crate_looted();
+                    Some(toast)
+                }
                 InteractResult::PickedUpItem { toast, .. } => toast,
                 InteractResult::None => None,
             };

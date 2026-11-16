@@ -61,6 +61,7 @@ pub fn restore_play(file: &SaveFile, play: &mut PlayState) {
             .unwrap_or_default(),
     };
     let looted = file.systems.worldstate.as_ref().map(|w| w.looted.clone()).unwrap_or_default();
+    play.camp.load_from(&file.systems);
     // Hunger and thirst live in Godot's "need_hunger" / "need_thirst" systems
     if let Some(v) = file.systems.extra.get("need_hunger") {
         play.hunger.from_save(v);
@@ -111,6 +112,7 @@ pub fn capture(base: Option<&SaveFile>, s: &Snapshot) -> SaveFile {
     sys.inventory = Some(save::InventorySaveData {
         stacks: stacks.stacks.into_iter().map(|e| save::SavedSlot { slot: e.slot, id: e.id, count: e.count }).collect(),
     });
+    s.play.camp.save_into(sys);
     sys.extra.insert("need_hunger".into(), s.play.hunger.to_save());
     sys.extra.insert("need_thirst".into(), s.play.thirst.to_save());
     let mut ws = sys.worldstate.clone().unwrap_or_default();
