@@ -30,6 +30,7 @@ pub mod spawner;
 pub mod spawner_config;
 pub mod survival;
 pub mod weapons;
+pub mod vehicles;
 pub mod zombie;
 
 pub use animals::*;
@@ -56,4 +57,5 @@ pub use spawner::{
     SpawnOrders, SpawnTypeEntry, SpawnTypeTable, Spawner, SpawnerRng,
 };
 pub use survival::*;
+pub use vehicles::*;
 pub use weapons::{WeaponAnim, WeaponDef, WeaponHold, WeaponKind, WeaponLoadError, WeaponRegistry, WeaponScope};
