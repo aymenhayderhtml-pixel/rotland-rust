@@ -75,11 +75,10 @@ pub fn is_subpath_or_same(path: &Path, base: &Path) -> bool {
     if norm_path.starts_with(&norm_base) {
         return true;
     }
-    if let (Ok(p_canon), Ok(b_canon)) = (path.canonicalize(), base.canonicalize()) {
-        if p_canon.starts_with(&b_canon) {
+    if let (Ok(p_canon), Ok(b_canon)) = (path.canonicalize(), base.canonicalize())
+        && p_canon.starts_with(&b_canon) {
             return true;
         }
-    }
     let p_str = norm_path.to_string_lossy();
     let b_str = norm_base.to_string_lossy();
     if !b_str.is_empty() && (p_str == b_str || p_str.starts_with(&format!("{b_str}/"))) {
@@ -304,4 +303,17 @@ pub fn import_godot_from(slot: usize, godot_dir: &Path, dest: &Slots) -> Result<
     let save_file = SaveFile::from_json_str(&content)?;
     dest.write(slot, &save_file)?;
     Ok(save_file)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Unit tests must never write the Rust game's real save folder either.
+    #[test]
+    fn guard_refuses_real_rust_folder_in_tests() {
+        let slots = Slots::new(default_base_dir());
+        assert!(matches!(slots.write(1, &SaveFile::default()), Err(SaveError::ProtectedPath(_))));
+        assert!(matches!(slots.delete(1), Err(SaveError::ProtectedPath(_))));
+    }
 }

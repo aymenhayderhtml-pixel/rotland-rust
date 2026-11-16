@@ -1,10 +1,11 @@
+#![allow(clippy::field_reassign_with_default)]
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use save::{
-    default_base_dir, godot_save_dir, import_godot_from, CampfireData, DeathRule,
+    godot_save_dir, import_godot_from, CampfireData, DeathRule,
     DifficultySaveData, DroppedItemData, InventorySaveData, PlayerSaveData, SaveError, SaveFile,
-    SavedSlot, SlotInfo, SlotState, Slots, StatsSaveData, TimeSaveData, Vec3Data, WalletSaveData,
+    SavedSlot, SlotState, Slots, StatsSaveData, TimeSaveData, Vec3Data, WalletSaveData,
     WorldSaveData, WorldStateSaveData, FORMAT_VERSION,
 };
 
@@ -179,7 +180,7 @@ fn round_trip_save_file() {
     compared += 1;
 
     assert!(compared > 0, "comparison test compared 0 items");
-    assert_eq!(compared, 27);
+    assert_eq!(compared, 29);
 }
 
 #[test]
@@ -302,7 +303,7 @@ fn fixture_parses_and_preserves_unknown_systems() {
     compared += 1;
     assert_eq!(p.body_yaw, 1.57);
     compared += 1;
-    assert_eq!(p.camera_yaw, 3.14);
+    assert_eq!(p.camera_yaw, 2.5);
     compared += 1;
     assert_eq!(p.camera_pitch, -0.25);
     compared += 1;
@@ -407,7 +408,7 @@ fn fixture_parses_and_preserves_unknown_systems() {
     compared += 1;
 
     assert!(compared > 0, "comparison test compared 0 items");
-    assert_eq!(compared, 42);
+    assert_eq!(compared, 43);
 }
 
 #[test]
@@ -424,18 +425,10 @@ fn guard_refuses_godot_and_default_folders() {
     assert!(matches!(delete_err, Err(SaveError::ProtectedPath(_))));
     compared += 1;
 
-    // In cfg(test), also refuses default_base_dir
-    let rust_default_slots = Slots::new(default_base_dir());
-    let write_def_err = rust_default_slots.write(1, &SaveFile::default());
-    assert!(matches!(write_def_err, Err(SaveError::ProtectedPath(_))));
-    compared += 1;
-
-    let delete_def_err = rust_default_slots.delete(1);
-    assert!(matches!(delete_def_err, Err(SaveError::ProtectedPath(_))));
-    compared += 1;
+    // The real Rust folder guard is a unit test in src/slots.rs (cfg(test) does not reach integration tests)
 
     assert!(compared > 0, "comparison test compared 0 items");
-    assert_eq!(compared, 4);
+    assert_eq!(compared, 2);
 }
 
 #[test]

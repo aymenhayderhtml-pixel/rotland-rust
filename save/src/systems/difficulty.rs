@@ -4,17 +4,14 @@ use serde::{Deserialize, Serialize};
 /// Matches `scripts/Difficulty/DeathRule.cs`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum DeathRule {
+    #[default]
     LoseAll,
     KeepHalf,
     KeepAll,
 }
 
-impl Default for DeathRule {
-    fn default() -> Self {
-        Self::LoseAll
-    }
-}
 
 fn default_multiplier() -> f32 {
     1.0
