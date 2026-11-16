@@ -53,6 +53,7 @@ pub struct CampResident {
 impl CampResident {
     pub const ARRIVE_DISTANCE: f32 = 0.15;
 
+    #[allow(clippy::too_many_arguments)] // one value per CampResident field, as in Godot
     pub fn new(
         index: usize,
         id: impl Into<String>,

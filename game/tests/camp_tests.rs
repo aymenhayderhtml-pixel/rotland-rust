@@ -95,15 +95,17 @@ fn settlement_guard_scans_targets_and_fires() {
     let mut rng = world::DotnetRandom::new(42);
     let zombie_in_range = Vec3::new(-7.3, 0.0, -10.0);
 
-    // Sight interval is 0.5s; advance by 0.6s to acquire target
+    // Sight interval is 0.5s; advance by 0.6s to acquire the target. The fire timer starts at 0, so the
+    // guard shoots at once (Godot SettlementGuard.cs: _fireTimer = 0 until a target is seen)
     let _ = guard.update(0.6, &[zombie_in_range], &mut rng);
     assert!(guard.alert, "guard must become alert when zombie is in range");
     assert!(guard.target_pos.is_some());
-    compared += 2;
-
-    // Fire interval is 1.2s; advance by 1.3s to fire
-    let hit = guard.update(1.3, &[zombie_in_range], &mut rng);
     assert_eq!(guard.shots_fired, 1);
+    compared += 3;
+
+    // Fire interval is 1.2s; 1.3s later the second shot
+    let hit = guard.update(1.3, &[zombie_in_range], &mut rng);
+    assert_eq!(guard.shots_fired, 2);
     compared += 1;
 
     if let Some(dmg) = hit {
@@ -399,8 +401,9 @@ fn resident_greeting_and_per_frame_output() {
     let r_pos = camp.residents()[0].position;
     let player_near = r_pos + Vec3::new(2.0, 0.0, 0.0);
 
-    // Initial output
-    let outputs: Vec<ResidentOutput> = camp.update(0.1, 12.0, Some(player_near));
+    // manual_only: update() does not tick (like Godot's ManualOnly), so the test ticks by hand
+    camp.tick(0.1, 12.0, Some(player_near));
+    let outputs: Vec<ResidentOutput> = camp.update(0.0, 12.0, Some(player_near));
     assert_eq!(outputs.len(), 6);
     compared += 1;
 

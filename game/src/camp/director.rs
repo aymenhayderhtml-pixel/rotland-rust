@@ -33,7 +33,7 @@ impl CampLifeDirector {
 
     pub fn new(site: SettlementSite, data: CampLifeData, cfg: &SettlementConfigData) -> Self {
         let rng_seed = CampMath::hash(&site.id, 7) as i32;
-        let mut rng = DotnetRandom::new(rng_seed);
+        let rng = DotnetRandom::new(rng_seed);
         let planner = CampPlanner::new(&site, &data);
         let fixed_npcs = SettlementNpc::default_settlement_npcs(&site, cfg);
 
@@ -247,6 +247,7 @@ impl CampLifeDirector {
     }
 }
 
+#[allow(clippy::too_many_arguments)] // mirrors Godot's helper; a struct would only rename the list
 fn check_interactable(
     pos: Vec3,
     id: &str,
