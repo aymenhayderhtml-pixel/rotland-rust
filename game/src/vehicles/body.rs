@@ -136,7 +136,13 @@ impl CarBody {
         for (i, rest) in HUB_REST.iter().enumerate() {
             let hub = self.position + self.rotation * *rest;
             let max_dist = cfg.suspension_rest + cfg.suspension_travel + 0.1;
-            let hit = physics.raycast(hub, -up, max_dist);
+            // Cast from 1 m above the hub: a hub pushed under the ground on a hard landing or a slope
+            // change must still find the ground (a ray starting inside it misses, and the car fell through)
+            const LIFT: f32 = 1.0;
+            let hit = physics.raycast(hub + up * LIFT, -up, max_dist + LIFT).map(|mut h| {
+                h.distance -= LIFT;
+                h
+            });
 
             let Some(hit) = hit else {
                 self.compression[i] = 0.0;
@@ -150,8 +156,9 @@ impl CarBody {
             }
 
             self.grounded = true;
-            let compression = (cfg.suspension_rest - dist).clamp(-cfg.suspension_travel, cfg.suspension_travel);
-            self.compression[i] = compression;
+            // Godot CarDrive: the spring uses the full compression; only the reported value is clamped
+            let compression = cfg.suspension_rest - dist;
+            self.compression[i] = compression.clamp(-cfg.suspension_travel, cfg.suspension_travel);
 
             let point = hit.point;
             let offset = point - com_world;
@@ -223,7 +230,8 @@ impl CarBody {
 
     /// Pushes the body out of static obstacles (walls, buildings, trees) with horizontal corner raycasts.
     fn pushout_obstacles(&mut self, physics: &PhysicsWorld) {
-        let center = self.position + self.rotation * Vec3::new(0.0, 0.4, 0.0);
+        // At the body's middle height: low rocks and stumps are the wheels' business (they ride over them)
+        let center = self.position + self.rotation * Vec3::new(0.0, 0.75, 0.0);
         let corners = [
             Vec3::new(0.0, 0.0, -1.9),     // Front
             Vec3::new(0.0, 0.0, 1.9),      // Rear
@@ -243,7 +251,11 @@ impl CarBody {
                 continue;
             }
             let dir = delta / dist;
-            if let Some(hit) = physics.raycast(center, dir, dist) {
+            // Ground and slopes (normal pointing up) are the wheels' job, not walls: driving up a hill
+            // must not count as hitting one
+            if let Some(hit) = physics.raycast(center, dir, dist)
+                && hit.normal.y < 0.6
+            {
                 let penetration = dist - hit.distance;
                 if penetration > 0.001 {
                     self.position += hit.normal * penetration;

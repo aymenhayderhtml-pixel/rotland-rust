@@ -56,6 +56,7 @@ impl Cars {
 
     pub fn config(&self) -> &VehicleConfigData { &self.config }
     pub fn record_count(&self) -> usize { self.records.len() }
+    pub fn has_record(&self, id: &str) -> bool { self.records.contains_key(id) || self.live.contains_key(id) }
     pub fn live_count(&self) -> usize { self.live.len() }
     pub fn live_cars(&self) -> impl Iterator<Item = &Car> { self.live.values() }
     pub fn live_cars_mut(&mut self) -> impl Iterator<Item = &mut Car> { self.live.values_mut() }

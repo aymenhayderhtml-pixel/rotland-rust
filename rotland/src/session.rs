@@ -66,6 +66,12 @@ pub fn restore_play(file: &SaveFile, play: &mut PlayState) {
     if let Some(v) = file.systems.extra.get("need_hunger") {
         play.hunger.from_save(v);
     }
+    if let Some(v) = file.systems.extra.get("map") {
+        play.map.from_save(v);
+    }
+    if let (Some(v), Some(h)) = (file.systems.extra.get("hints"), play.hints.as_mut()) {
+        h.from_save(v);
+    }
     if let Some(v) = file.systems.extra.get("need_thirst") {
         play.thirst.from_save(v);
     }
@@ -115,6 +121,10 @@ pub fn capture(base: Option<&SaveFile>, s: &Snapshot) -> SaveFile {
     s.play.camp.save_into(sys);
     sys.extra.insert("need_hunger".into(), s.play.hunger.to_save());
     sys.extra.insert("need_thirst".into(), s.play.thirst.to_save());
+    sys.extra.insert("map".into(), s.play.map.to_save());
+    if let Some(h) = &s.play.hints {
+        sys.extra.insert("hints".into(), h.to_save());
+    }
     let mut ws = sys.worldstate.clone().unwrap_or_default();
     ws.looted = looted;
     sys.worldstate = Some(ws);

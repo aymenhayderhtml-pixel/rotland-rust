@@ -47,6 +47,8 @@ pub enum HubAction {
     RenameDog { name: String },
     /// Adjust difficulty setting (zombies multiplier or loot multiplier).
     SetDifficulty { zombies: Option<f32>, loot: Option<f32> },
+    /// Something done on the Map tab (set or clear the waypoint).
+    Map(crate::map_ui::MapAction),
     /// Close the hub or open modal screen.
     Close,
 }

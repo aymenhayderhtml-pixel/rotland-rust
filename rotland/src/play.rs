@@ -55,6 +55,10 @@ pub struct PlayState {
     pub camp: crate::camp::Camp,
     /// Something was picked up or a crate opened this frame (pickup sound).
     pub picked_up: bool,
+    /// What the player has explored (Godot WorldMap, saved under "map").
+    pub map: game::MapState,
+    /// The tips for new players (Godot HintSystem, saved under "hints"); None if data/hints.json is broken.
+    pub hints: Option<game::HintSystem>,
 }
 
 /// What changed in hand this frame.
@@ -107,6 +111,8 @@ impl PlayState {
             health_full: true,
             camp,
             picked_up: false,
+            map: game::MapState::new(),
+            hints: game::HintSystem::from_repo().map_err(|e| log::warn!("data/hints.json: {e}")).ok(),
         })
     }
 

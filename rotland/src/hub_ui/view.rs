@@ -68,6 +68,8 @@ pub struct HubView<'a> {
     pub near_lit_campfire: bool,
     pub is_dead: bool,
     pub health: Option<(f32, f32)>,
+    /// What the Map tab shows.
+    pub map: Option<crate::map_ui::MapView<'a>>,
 }
 
 impl<'a> Default for HubView<'a> {
@@ -99,6 +101,7 @@ impl<'a> Default for HubView<'a> {
             near_lit_campfire: false,
             is_dead: false,
             health: None,
+            map: None,
         }
     }
 }

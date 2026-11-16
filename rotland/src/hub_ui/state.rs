@@ -23,7 +23,6 @@ pub struct XpToast {
 }
 
 /// UI state persisting across frames for the hub and modal screens.
-#[derive(Clone, Debug, PartialEq)]
 pub struct HubUiState {
     pub screen: HubScreen,
     pub tab: HubTab,
@@ -34,6 +33,8 @@ pub struct HubUiState {
     pub status: String,
     pub level_up_banner: Option<LevelUpBannerState>,
     pub xp_toasts: Vec<XpToast>,
+    /// The Map tab's pan, zoom and cached picture.
+    pub map_ui: crate::map_ui::MapUiState,
 }
 
 impl Default for HubUiState {
@@ -56,6 +57,7 @@ impl HubUiState {
             status: String::new(),
             level_up_banner: None,
             xp_toasts: Vec::new(),
+            map_ui: crate::map_ui::MapUiState::new(),
         }
     }
 

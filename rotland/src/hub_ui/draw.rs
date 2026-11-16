@@ -128,20 +128,18 @@ pub fn draw(
                         HubTab::Bag => draw_bag(ui, state, view),
                         HubTab::Skills => draw_skills(ui, state, view),
                         HubTab::Bounties => draw_bounties(ui, state, view),
-                        HubTab::Map => {
-                            ui.vertical_centered(|ui| {
-                                ui.add_space(80.0);
-                                ui.label(RichText::new("Map").size(24.0).strong().color(Color32::WHITE));
-                                ui.add_space(10.0);
-                                ui.label(
-                                    RichText::new("World exploration map placeholder.")
-                                        .size(14.0)
-                                        .color(Color32::GRAY),
-                                );
-                                // Claude: call map_ui::draw_map here
-                            });
-                            None
-                        }
+                        HubTab::Map => match &view.map {
+                            // The map fills the hub's content area (not more: inside an Area the space is unbounded)
+                            Some(map) => match ui.allocate_ui(vec2(ui.available_width().min(1100.0), 560.0), |ui| crate::map_ui::draw_map(ui, &mut state.map_ui, map)).inner {
+                                Some(crate::map_ui::MapAction::Close) => Some(HubAction::Close),
+                                Some(a) => Some(HubAction::Map(a)),
+                                None => None,
+                            },
+                            None => {
+                                ui.label(RichText::new("No map yet").color(Color32::GRAY));
+                                None
+                            }
+                        },
                         HubTab::Settings => {
                             ui.vertical_centered(|ui| {
                                 ui.add_space(80.0);

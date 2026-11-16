@@ -10,7 +10,7 @@ fn main() {
             continue;
         }
         let clips: Vec<String> = m.clips.iter().map(|c| format!("{} ({:.2}s)", c.name, c.duration)).collect();
-        println!("{}: {} verts, skeleton {}, clips: {}", m.name, m.vertices.len(), m.skeleton.is_some(), clips.join(", "));
+        println!("{}: {} verts, {} colliders, skeleton {}, clips: {}", m.name, m.vertices.len(), m.colliders.len(), m.skeleton.is_some(), clips.join(", "));
         if !m.markers.is_empty() {
             let names: Vec<&str> = m.markers.iter().map(|k| k.name.as_str()).collect();
             println!("  markers: {}", names.join(", "));

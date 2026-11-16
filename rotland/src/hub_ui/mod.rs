@@ -21,8 +21,8 @@ mod view;
 #[cfg(test)]
 mod tests;
 
-pub use action::HubAction;
+pub use action::{DogCommand, HubAction};
 pub use draw::{draw, draw_overlays};
 pub use screen::{HubScreen, HubTab};
 pub use state::HubUiState;
-pub use view::HubView;
+pub use view::{DogView, HubView};

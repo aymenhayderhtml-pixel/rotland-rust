@@ -39,7 +39,7 @@ Save and menu options (play scene):
 | `--save-at=S` | save into the active slot after S seconds (tests) |
 | `--yaw=DEG` | start the player and camera facing this way (screenshots) |
 | `--give=hoe,seeds_wheat:5` | put these items in the backpack at the start (tests) |
-| `--animals=deer,boar,rabbit` | put these animals 9 m in front of the player at the start (screenshots); `campfire` in the list lays a burning campfire 4 m ahead. The stats JSON has `animals` and `animalSpecies` |
+| `--animals=deer,boar,rabbit` | put these animals 9 m in front of the player at the start (screenshots); `campfire` in the list lays a burning campfire 4 m ahead, `dog` gives the player a grown dog, `drive` seats the player in the camp's car (with `--autowalk` it drives off). Stats: `dogPosition`, `dogClip`, `campCar`, `mapChunks`, `hint`. The stats JSON has `animals` and `animalSpecies` |
 | `--hub=bag\|skills\|bounties\|profile\|map` | start with the player hub open on that tab (screenshots) |
 | `--climb` | after a second, stand at the nearest ladder and grab it (with `--autowalk` the player climbs up). Stats: `ladders`, `climbing`, `campfires`, `campfiresLit` |
 | `--mute` | no sound. Runs with `--shot`, `--seconds`, `--frames` or `--stats` are always muted; the JSON stats still count `soundsPlayed` / `lastSound` |

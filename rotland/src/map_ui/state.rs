@@ -129,13 +129,7 @@ impl MapUiState {
         let texels_w = chunks_w * game::TEXELS_PER_CHUNK;
         let texels_h = chunks_h * game::TEXELS_PER_CHUNK;
 
-        let mut image_data = vec![
-            game::UNEXPLORED_COLOR[0],
-            game::UNEXPLORED_COLOR[1],
-            game::UNEXPLORED_COLOR[2],
-            game::UNEXPLORED_COLOR[3],
-        ]
-        .repeat(texels_w * texels_h);
+        let mut image_data = game::UNEXPLORED_COLOR.repeat(texels_w * texels_h);
 
         for chunk in explore.chunks() {
             if explore.mask_of(chunk) == 0 {
