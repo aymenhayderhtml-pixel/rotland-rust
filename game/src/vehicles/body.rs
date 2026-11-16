@@ -133,8 +133,8 @@ impl CarBody {
         self.grounded = false;
         let wheel_mass = cfg.mass / 4.0;
 
-        for i in 0..4 {
-            let hub = self.position + self.rotation * HUB_REST[i];
+        for (i, rest) in HUB_REST.iter().enumerate() {
+            let hub = self.position + self.rotation * *rest;
             let max_dist = cfg.suspension_rest + cfg.suspension_travel + 0.1;
             let hit = physics.raycast(hub, -up, max_dist);
 

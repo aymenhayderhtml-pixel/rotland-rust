@@ -18,7 +18,7 @@ impl Default for MapUiState {
     fn default() -> Self {
         Self {
             centre: Vec2::ZERO,
-            zoom_index: game::DEFAULT_ZOOM,
+            zoom_index: game::MAP_DEFAULT_ZOOM,
             texture: None,
             texture_bounds: None,
             cached_version: 0,
@@ -89,7 +89,7 @@ impl MapUiState {
         generator: Option<&world::WorldGenerator>,
         explore: &game::MapExplore,
     ) {
-        let Some(gen) = generator else {
+        let Some(world_gen) = generator else {
             return;
         };
         let fingerprint = Self::explored_fingerprint(explore);
@@ -141,7 +141,7 @@ impl MapUiState {
             if explore.mask_of(chunk) == 0 {
                 continue;
             }
-            let chunk_pixels = game::render_chunk_tiles(gen, explore, chunk);
+            let chunk_pixels = game::render_chunk_tiles(world_gen, explore, chunk);
             let ox = (chunk.x - min_chunk.x) as usize * game::TEXELS_PER_CHUNK;
             let oz = (chunk.y - min_chunk.y) as usize * game::TEXELS_PER_CHUNK;
 

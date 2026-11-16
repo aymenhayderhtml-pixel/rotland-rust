@@ -4,7 +4,6 @@
 use glam::Vec3;
 use physics::PhysicsWorld;
 
-use super::dog::Dog;
 use super::manager::Dogs;
 use super::mode::DogMode;
 use super::motion::DogMotion;

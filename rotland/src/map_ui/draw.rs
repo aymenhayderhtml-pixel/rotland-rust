@@ -48,7 +48,7 @@ pub fn draw_map(
             if ui.button("Zoom out").clicked() {
                 state.zoom(-1);
             }
-            let zoom_pct = (state.scale() / game::SCALES[game::DEFAULT_ZOOM] * 100.0).round() as i32;
+            let zoom_pct = (state.scale() / game::SCALES[game::MAP_DEFAULT_ZOOM] * 100.0).round() as i32;
             ui.label(format!("{zoom_pct}%"));
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -70,7 +70,7 @@ pub fn draw_map(
         let view_size = Vec2::new(rect.width(), rect.height());
 
         // Mouse wheel zooming
-        let scroll_y = ui.input(|i| i.raw_scroll_delta.y);
+        let scroll_y = ui.input(|i| i.smooth_scroll_delta.y);
         if response.hovered() && scroll_y.abs() > 0.0 {
             if scroll_y > 0.0 {
                 state.zoom(1);

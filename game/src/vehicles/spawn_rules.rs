@@ -24,7 +24,7 @@ pub fn poi_car_id(poi_id: &str) -> String {
 }
 
 /// A deterministic number from 0 to 1 for this seed, id and salt.
-pub fn roll(seed: i32, id: &str, salt: i32) -> f64 {
+pub fn car_roll(seed: i32, id: &str, salt: i32) -> f64 {
     let roll_seed = seed ^ (stable_hash(id) as i32) ^ salt;
     let mut rng = DotnetRandom::new(roll_seed);
     rng.next_double()
@@ -32,21 +32,21 @@ pub fn roll(seed: i32, id: &str, salt: i32) -> f64 {
 
 pub fn wants_car(seed: i32, poi_id: &str, building_id: &str, cfg: &VehicleConfigData) -> bool {
     cfg.spawn_buildings.iter().any(|b| b == building_id)
-        && roll(seed, poi_id, SPAWN_SALT) < cfg.spawn_chance as f64
+        && car_roll(seed, poi_id, SPAWN_SALT) < cfg.spawn_chance as f64
 }
 
 pub fn colour_for(seed: i32, id: &str, cfg: &VehicleConfigData) -> String {
     if cfg.colours.is_empty() {
         return "red".to_string();
     }
-    let r = roll(seed, id, COLOUR_SALT);
+    let r = car_roll(seed, id, COLOUR_SALT);
     let index = (r * (cfg.colours.len() as f64)) as usize;
     cfg.colours[index.min(cfg.colours.len() - 1)].clone()
 }
 
 pub fn fuel_for(seed: i32, id: &str, cfg: &VehicleConfigData) -> f32 {
     let frac = cfg.spawn_fuel_min_frac
-        + (cfg.spawn_fuel_max_frac - cfg.spawn_fuel_min_frac) * (roll(seed, id, FUEL_SALT) as f32);
+        + (cfg.spawn_fuel_max_frac - cfg.spawn_fuel_min_frac) * (car_roll(seed, id, FUEL_SALT) as f32);
     frac * cfg.tank_litres
 }
 
@@ -106,8 +106,8 @@ impl CarSpawnRules {
         poi_car_id(poi_id)
     }
 
-    pub fn roll(seed: i32, id: &str, salt: i32) -> f64 {
-        roll(seed, id, salt)
+    pub fn car_roll(seed: i32, id: &str, salt: i32) -> f64 {
+        car_roll(seed, id, salt)
     }
 
     pub fn wants_car(seed: i32, poi_id: &str, building_id: &str, cfg: &VehicleConfigData) -> bool {

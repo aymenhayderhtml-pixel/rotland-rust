@@ -9,7 +9,7 @@ use glam::Vec2;
 pub const SCALES: [f32; 3] = [0.25, 0.5, 1.0];
 
 // Godot: MapMath.cs DefaultZoom
-pub const DEFAULT_ZOOM: usize = 1;
+pub const MAP_DEFAULT_ZOOM: usize = 1;
 
 /// Converts world coordinates (world +X is screen right, world +Z is screen down)
 /// to screen pixel coordinates.

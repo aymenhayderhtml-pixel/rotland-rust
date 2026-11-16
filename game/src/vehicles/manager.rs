@@ -11,8 +11,6 @@ use crate::vehicles::run_over::CarRunOver;
 use crate::vehicles::save;
 use crate::vehicles::spawn_rules;
 
-pub const CAR_SYSTEM_ID: &str = save::CAR_SYSTEM_ID;
-
 /// Output frame data from Cars::update for driving audio and game events.
 #[derive(Clone, Debug, Default)]
 pub struct CarFrame {
@@ -136,8 +134,7 @@ impl Cars {
 
     /// Advances simulation for all live cars and steps the driven car with player input.
     pub fn update(&mut self, dt: f32, input: &CarInput, physics: &PhysicsWorld) -> CarFrame {
-        let mut frame = CarFrame::default();
-        frame.driven_car_id = self.driven_car_id.clone();
+        let mut frame = CarFrame { driven_car_id: self.driven_car_id.clone(), ..Default::default() };
         self.last_crash_time = (self.last_crash_time - dt).max(0.0);
 
         for (id, car) in &mut self.live {
@@ -184,13 +181,12 @@ impl Cars {
             }
         }
 
-        if let Some((best_id, _)) = best {
-            if let Some(car) = self.live.get_mut(&best_id) {
+        if let Some((best_id, _)) = best
+            && let Some(car) = self.live.get_mut(&best_id) {
                 car.set_driven(true);
                 self.driven_car_id = Some(best_id.clone());
                 return Some(best_id);
             }
-        }
         None
     }
 

@@ -125,6 +125,7 @@ impl Dog {
         vel
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn mode_step(
         &mut self,
         dt: f32,

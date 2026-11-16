@@ -27,7 +27,7 @@ impl DogSteering {
     pub const MEMORY_SECONDS: f32 = 1.0;
     pub const BOXED_CLEARANCE: f32 = 0.3;
     /// Walkable ground is at most 45 degrees steep (cos 45 deg).
-    pub const WALL_NORMAL_Y: f32 = 0.7071;
+    pub const WALL_NORMAL_Y: f32 = std::f32::consts::FRAC_1_SQRT_2;
     pub const GROUND_PROBE_ABOVE: f32 = 2.0;
     pub const GROUND_PROBE_BELOW: f32 = 4.0;
 

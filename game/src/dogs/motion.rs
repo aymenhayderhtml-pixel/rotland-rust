@@ -65,6 +65,7 @@ impl DogMotion {
 
     /// Steps toward target position. Returns (walk_velocity, yaw, moved).
     // Godot: DogMotion.cs Step
+    #[allow(clippy::too_many_arguments)]
     pub fn step(
         &mut self,
         current_pos: Vec3,
@@ -109,6 +110,7 @@ impl DogMotion {
     }
 
     /// Moves the character through physics using CharacterMover.
+    #[allow(clippy::too_many_arguments)]
     pub fn move_and_slide(
         mover: &CharacterMover,
         physics: &PhysicsWorld,

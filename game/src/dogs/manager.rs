@@ -21,11 +21,11 @@ use super::stray::Stray;
 // Godot: DogManager.cs
 #[derive(Debug)]
 pub struct Dogs {
-    pub(super) config: DogConfigData,
+    pub config: DogConfigData,
     pub(super) dog: Option<Dog>,
     pub(super) strays: Vec<Stray>,
-    pub(super) tamed: HashSet<String>,
-    pub(super) dead_count: i32,
+    pub tamed: HashSet<String>,
+    pub dead_count: i32,
     pub(super) next_id: u64,
     pub(super) stray_timer: f32,
     pub(super) spawner_enabled: bool,
@@ -153,7 +153,8 @@ impl Dogs {
             Vec3::ZERO
         };
         self.tamed.insert(lot_id.to_string());
-        let id = self.spawn_dog(at, self.config.max_health, DogMode::Follow, &self.config.default_name, day, DogGrowth::NO_START);
+        let name = self.config.default_name.clone();
+        let id = self.spawn_dog(at, self.config.max_health, DogMode::Follow, &name, day, DogGrowth::NO_START);
         Ok(id)
     }
 
@@ -176,7 +177,8 @@ impl Dogs {
         if !wallet.try_spend(price) {
             return Err("Not enough dollars.".to_string());
         }
-        let id = self.spawn_dog(spawn_at, self.config.max_health, DogMode::Follow, &self.config.default_name, day, now_hours);
+        let name = self.config.default_name.clone();
+        let id = self.spawn_dog(spawn_at, self.config.max_health, DogMode::Follow, &name, day, now_hours);
         Ok(id)
     }
 

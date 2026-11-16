@@ -1,7 +1,6 @@
-use game::damage::DamageInfo;
 use game::items::Inventory;
 use game::vehicles::{
-    describe_gauge, roll, spawn_rules, CarInput, CarSpawnRules, Cars, VehicleConfigData,
+    describe_gauge, car_roll, spawn_rules, CarInput, CarSpawnRules, Cars, VehicleConfigData,
     CAR_SYSTEM_ID,
 };
 use glam::{IVec2, Vec3};
@@ -224,9 +223,9 @@ fn test_brake_stops_moving_car() {
     let world = flat_world();
     let mut cars = Cars::new(config);
 
+    cars.driven_car_id = Some("brake_test".to_string());
     let car = cars.spawn_car("brake_test", "red", Vec3::new(0.0, 0.2, 0.0), 0.0, 40.0, 300.0);
     car.set_driven(true);
-    cars.driven_car_id = Some("brake_test".to_string());
 
     // Give car an initial forward speed of 15 m/s (54 km/h)
     car.body.linear_velocity = car.body.rotation * -Vec3::Z * 15.0;
@@ -237,8 +236,8 @@ fn test_brake_stops_moving_car() {
         ..Default::default()
     };
 
-    // Apply brakes for 2.5s (150 frames)
-    for _ in 0..150 {
+    // Brakes at 6000 N on 1100 kg slow by ~5.45 m/s^2, so 15 m/s needs ~2.75 s: brake for 3.5 s (210 frames)
+    for _ in 0..210 {
         cars.update(1.0 / 60.0, &brake_input, &world);
     }
 
@@ -421,8 +420,8 @@ fn test_spawn_rules_deterministic_and_poi_parking() {
     let hash = CarSpawnRules::stable_hash("car_camp");
     assert_eq!(hash, CarSpawnRules::stable_hash("car_camp"));
 
-    let r1 = roll(seed, "poi_gas_station_1", spawn_rules::SPAWN_SALT);
-    let r2 = roll(seed, "poi_gas_station_1", spawn_rules::SPAWN_SALT);
+    let r1 = car_roll(seed, "poi_gas_station_1", spawn_rules::SPAWN_SALT);
+    let r2 = car_roll(seed, "poi_gas_station_1", spawn_rules::SPAWN_SALT);
     assert_eq!(r1, r2);
     assert!((0.0..1.0).contains(&r1));
 

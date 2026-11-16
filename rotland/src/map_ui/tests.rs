@@ -6,7 +6,7 @@ use super::state::MapUiState;
 #[test]
 fn map_ui_state_zoom_clamps() {
     let mut state = MapUiState::new();
-    assert_eq!(state.zoom_index, game::DEFAULT_ZOOM);
+    assert_eq!(state.zoom_index, game::MAP_DEFAULT_ZOOM);
     assert!((state.scale() - 0.5).abs() < 1e-6);
 
     // Zoom in (+1)

@@ -91,6 +91,7 @@ impl DogCombat {
 
     /// Ticks cooldowns and scans for combat targets every scan interval.
     // Godot: DogCombat.cs Step
+    #[allow(clippy::too_many_arguments)]
     pub fn step(
         &mut self,
         dog_id: u64,
@@ -176,8 +177,8 @@ impl DogCombat {
 
         self.target_id = fight_id;
         self.target_pos = fight_pos;
-        if fight_pos.is_some() {
-            let dist = Self::flat(fight_pos.unwrap() - dog_pos).length();
+        if let Some(fight_pos) = fight_pos {
+            let dist = Self::flat(fight_pos - dog_pos).length();
             self.engaged = dist <= cfg.bite_range;
         } else {
             self.engaged = false;

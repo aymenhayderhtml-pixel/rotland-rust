@@ -35,6 +35,7 @@ pub fn render_chunk_tiles(
 
     // Heights are sampled on a grid one texel wider for slope calculations
     let mut heights = [[0.0f32; TEXELS_PER_CHUNK + 2]; TEXELS_PER_CHUNK + 2];
+    #[allow(clippy::needless_range_loop)]
     for k in 0..n + 2 {
         for m in 0..n + 2 {
             let sx = origin_x + (k as f32 - 1.0) * TEXEL_METRES + TEXEL_METRES * 0.5;

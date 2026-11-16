@@ -24,6 +24,7 @@ impl CarRunOver {
     }
 
     /// Checks targets against the car's path, returning hits (entity_id, damage_info, knockback).
+    #[allow(clippy::too_many_arguments)]
     pub fn step(
         &mut self,
         car_pos: Vec3,

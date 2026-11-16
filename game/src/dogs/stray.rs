@@ -107,6 +107,7 @@ impl Stray {
 
     /// Simulation step for a stray dog.
     // Godot: Stray.cs _PhysicsProcess
+    #[allow(clippy::too_many_arguments)]
     pub fn tick(
         &mut self,
         dt: f32,

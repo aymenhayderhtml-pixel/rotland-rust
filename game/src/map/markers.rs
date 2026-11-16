@@ -63,12 +63,12 @@ pub fn collect_markers(
     let mut markers = Vec::new();
 
     for camp in camps {
-        markers.push(MapMarker::new(MapMarkerKind.Camp, camp, "", false));
+        markers.push(MapMarker::new(MapMarkerKind::Camp, camp, "", false));
     }
 
     for building in &state.found {
         markers.push(MapMarker::new(
-            MapMarkerKind.Building,
+            MapMarkerKind::Building,
             building.position,
             building.building_type.clone(),
             building.looted,
@@ -78,7 +78,7 @@ pub fn collect_markers(
     for bounty in bounties {
         if bounty.bounty_type == CLEAR_POI && !bounty.is_done() {
             markers.push(MapMarker::new(
-                MapMarkerKind.Bounty,
+                MapMarkerKind::Bounty,
                 bounty.target_xz(),
                 "",
                 false,
@@ -87,11 +87,11 @@ pub fn collect_markers(
     }
 
     if let Some(death) = state.death_spot {
-        markers.push(MapMarker::new(MapMarkerKind.Death, death, "", false));
+        markers.push(MapMarker::new(MapMarkerKind::Death, death, "", false));
     }
 
     if let Some(waypoint) = state.waypoint {
-        markers.push(MapMarker::new(MapMarkerKind.Waypoint, waypoint, "", false));
+        markers.push(MapMarker::new(MapMarkerKind::Waypoint, waypoint, "", false));
     }
 
     markers

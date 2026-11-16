@@ -40,7 +40,7 @@ pub fn marker_x(angle_deg: f32, width: f32) -> f32 {
 /// Short name for a bearing that is a multiple of 45 degrees: N, NE, E, and so on.
 // Godot: CompassMath.cs Name
 pub fn direction_name(bearing_deg: i32) -> &'static str {
-    let idx = (((bearing_deg % 360 + 360) % 360) / 45) as usize % 8;
+    let idx = (bearing_deg.rem_euclid(360) / 45) as usize % 8;
     DIRECTION_NAMES[idx]
 }
 

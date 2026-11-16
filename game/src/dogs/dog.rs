@@ -20,8 +20,8 @@ use super::steering::DogSteering;
 pub struct Dog {
     pub(super) id: u64,
     pub(super) name: String,
-    pub(super) bought_day: i32,
-    pub(super) growth_start: f64,
+    pub bought_day: i32,
+    pub growth_start: f64,
     pub(super) mode: DogMode,
     pub(super) health: Health,
     pub(super) pack: Inventory,

@@ -5,9 +5,9 @@ use game::bounties::BountyDef;
 use game::map::{
     bearing_to_view_deg, collect_markers, direction_name, letter_for, marker_x,
     relative_angle_deg, screen_to_world, step_zoom, world_to_screen, MapBuilding, MapExplore,
-    MapMarkerKind, MapState, DEFAULT_ZOOM, HALF_VIEW_DEG, SCALES,
+    MapMarkerKind, MapState, MAP_DEFAULT_ZOOM, HALF_VIEW_DEG, SCALES,
 };
-use glam::{IVec2, Vec2, Vec3};
+use glam::{Vec2, Vec3};
 
 #[test]
 fn map_tests_pixel_math_round_trip() {
@@ -46,10 +46,10 @@ fn map_tests_pixel_math_round_trip() {
     assert_eq!(checks, 3 * 2 * 3 * 4); // 72 round trip comparisons
 
     // Verify step_zoom bounds
-    assert_eq!(step_zoom(DEFAULT_ZOOM, 1), 2);
+    assert_eq!(step_zoom(MAP_DEFAULT_ZOOM, 1), 2);
     assert_eq!(step_zoom(2, 1), 2);
     assert_eq!(step_zoom(2, 10), 2);
-    assert_eq!(step_zoom(DEFAULT_ZOOM, -1), 0);
+    assert_eq!(step_zoom(MAP_DEFAULT_ZOOM, -1), 0);
     assert_eq!(step_zoom(0, -1), 0);
     assert_eq!(step_zoom(0, -10), 0);
 }
@@ -98,8 +98,8 @@ fn map_tests_compass_bearing_cardinal_and_ordinal() {
     assert_eq!(direction_name(315), "NW");
     assert_eq!(direction_name(360), "N");
 
-    // 2. Facing East (yaw = PI/2 rad):
-    let yaw_east = std::f32::consts::FRAC_PI_2;
+    // 2. Facing East: forward is (-sin yaw, -cos yaw), so east is yaw = -PI/2 (+PI/2 faces west)
+    let yaw_east = -std::f32::consts::FRAC_PI_2;
     // North is now 90 degrees to the left (-90 deg relative)
     let angle_n_when_facing_e = relative_angle_deg(player, target_n, yaw_east);
     assert!((angle_n_when_facing_e - (-90.0)).abs() < 1e-4);
@@ -142,23 +142,25 @@ fn map_tests_marker_add_remove_save() {
 
     // Collect markers with a camp and bounties
     let camps = [Vec2::new(0.0, 0.0)];
-    let mut bounty_active = BountyDef::default();
-    bounty_active.id = "b1".to_string();
-    bounty_active.bounty_type = "clear_poi".to_string();
-    bounty_active.target = 1;
-    bounty_active.progress = 0;
-    bounty_active.target_x = 200.0;
-    bounty_active.target_z = -100.0;
+    let bounty_active = BountyDef {
+        id: "b1".to_string(),
+        bounty_type: "clear_poi".to_string(),
+        target: 1,
+        progress: 0,
+        target_x: 200.0,
+        target_z: -100.0,
+        ..Default::default()
+    };
 
-    let mut bounty_done = BountyDef::default();
-    bounty_done.id = "b2".to_string();
-    bounty_done.bounty_type = "clear_poi".to_string();
-    bounty_done.target = 1;
-    bounty_done.progress = 1;
+    let bounty_done = BountyDef {
+        id: "b2".to_string(),
+        bounty_type: "clear_poi".to_string(),
+        target: 1,
+        progress: 1,
+        ..Default::default()
+    };
 
-    let mut bounty_other = BountyDef::default();
-    bounty_other.id = "b3".to_string();
-    bounty_other.bounty_type = "kill_zombies".to_string();
+    let bounty_other = BountyDef { id: "b3".to_string(), bounty_type: "kill_zombies".to_string(), ..Default::default() };
 
     let bounties = [bounty_active, bounty_done, bounty_other];
     let markers = collect_markers(&state, camps, &bounties);

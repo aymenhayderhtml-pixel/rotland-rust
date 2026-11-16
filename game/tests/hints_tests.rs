@@ -81,10 +81,10 @@ fn hints_tests_trigger_shows_hint_once() {
     system.tick(GAP_SECONDS, &ctx);
     assert_eq!(system.current_id(), None);
 
-    // Next polling intervals do NOT re-trigger "start"
+    // Next polling intervals do NOT re-trigger "start" (the "trader" tip, trigger after:10, may show now)
     for _ in 0..10 {
-        let h = system.tick(0.25, &ctx);
-        assert!(h.is_none());
+        system.tick(0.25, &ctx);
+        assert_ne!(system.current_id(), Some("start"));
     }
     assert_eq!(system.times_shown("start"), 1);
 
@@ -97,6 +97,8 @@ fn hints_tests_cooldown_and_ordering() {
     let config = HintConfig::load_default().expect("data/hints.json must load");
     let mut system = HintSystem::new(config);
     let mut ctx = HintContext::new();
+    // The "trader" tip (trigger after:10) would fire by itself during this test's 20+ seconds: mark it seen
+    system.from_save(&serde_json::json!({ "shown": ["trader"] }));
 
     // Consume the initial "start" tip
     system.tick(0.0, &ctx);
