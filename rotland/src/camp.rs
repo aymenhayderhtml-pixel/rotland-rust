@@ -3,8 +3,13 @@
 
 use std::sync::Arc;
 
+use glam::Vec3;
+
+/// How far in front of the player a bed can be used.
+const BED_REACH: f32 = 2.5;
+
 use crate::camp_ui::CampAction;
-use game::{Bank, BountyManager, CancelReason, CraftUpdate, CraftingSystem, RecipeRegistry, DeathRule, DifficultyConfigData, DifficultySettings, EconomyConfigData, Inventory, ItemRegistry, SkillSystem, TraderStock, Wallet};
+use game::{FarmManager, FarmRules, Bank, BountyManager, CancelReason, CraftUpdate, CraftingSystem, RecipeRegistry, DeathRule, DifficultyConfigData, DifficultySettings, EconomyConfigData, Inventory, ItemRegistry, SkillSystem, TraderStock, Wallet};
 
 pub struct Camp {
     pub economy: EconomyConfigData,
@@ -17,6 +22,8 @@ pub struct Camp {
     pub difficulty: DifficultySettings,
     pub recipes: RecipeRegistry,
     pub crafting: CraftingSystem,
+    /// Beds in the camp and the player's fields.
+    pub farm: FarmManager,
 }
 
 impl Camp {
@@ -32,6 +39,7 @@ impl Camp {
             difficulty: DifficultySettings::default_preset(&difficulty_config),
             recipes: RecipeRegistry::from_repo().map_err(|e| format!("data/recipes.json: {e:?}"))?,
             crafting: CraftingSystem::new(),
+            farm: FarmManager::from_repo().map_err(|e| format!("data/farming.json: {e:?}"))?,
             difficulty_config,
             economy,
         })
@@ -120,6 +128,66 @@ impl Camp {
         }
     }
 
+    /// The bed in front of the player within reach, if any (Godot aims a ray at the bed's collider).
+    pub fn bed_in_front(&self, player: Vec3, facing: Vec3) -> Option<String> {
+        let flat = Vec3::new(facing.x, 0.0, facing.z).normalize_or_zero();
+        self.farm
+            .plots()
+            .iter()
+            .filter(|p| {
+                let to = p.position - player;
+                let d = Vec3::new(to.x, 0.0, to.z);
+                d.length() < BED_REACH && d.normalize_or_zero().dot(flat) > 0.5
+            })
+            .min_by(|a, b| a.position.distance_squared(player).total_cmp(&b.position.distance_squared(player)))
+            .map(|p| p.id.clone())
+    }
+
+    /// What E does for farming this frame: use the bed in front, or till the ground in front with a hoe
+    /// (Godot FarmManager.Actions). `ground` gives the surface (point, normal) under a spot. Returns the
+    /// prompt and, when pressed, a toast; None when farming has nothing to offer here.
+    pub fn farm_interact(
+        &mut self,
+        player: Vec3,
+        facing: Vec3,
+        bag: &mut Inventory,
+        pressed: bool,
+        ground: impl Fn(Vec3) -> Option<(Vec3, Vec3)>,
+    ) -> Option<(String, Option<String>)> {
+        if let Some(id) = self.bed_in_front(player, facing) {
+            let plot = self.farm.find(&id)?;
+            let prompt = self.farm.prompt_for(plot, bag);
+            if prompt.is_empty() {
+                return None;
+            }
+            let toast = pressed.then(|| match self.farm.act(&id, bag, Some(&mut self.skills)) {
+                Ok(()) => done_line(&prompt),
+                Err(e) => e,
+            });
+            return Some((format!("[E] {prompt}"), toast));
+        }
+        if !bag.has("hoe", 1) {
+            return None;
+        }
+        let flat = Vec3::new(facing.x, 0.0, facing.z).normalize_or_zero();
+        if flat == Vec3::ZERO {
+            return None;
+        }
+        let spot = player + flat * self.farm.config().till_range;
+        let (point, normal) = ground(spot)?;
+        let free = FarmRules::spot_is_free(point, self.farm.plots().iter().map(|p| &p.position), self.farm.config().till_spacing);
+        if !FarmRules::is_flat(normal) || !free {
+            // Godot only offers tilling where it would work; pressing E still says why not
+            let why = if free { "The ground there is too steep" } else { "Too close to another bed" };
+            return pressed.then(|| (String::new(), Some(why.to_string())));
+        }
+        let toast = pressed.then(|| match self.farm.till_with_surface(point, normal, Some(bag), Some(&mut self.skills)) {
+            Ok(_) => "Soil tilled".to_string(),
+            Err(e) => e.to_string(),
+        });
+        Some(("[E] Till soil".into(), toast))
+    }
+
     /// Writes every camp system under its Godot save id.
     pub fn save_into(&self, sys: &mut save::Systems) {
         sys.wallet = Some(save::WalletSaveData { dollars: self.wallet.dollars() });
@@ -127,6 +195,7 @@ impl Camp {
             sys.difficulty = Some(d);
         }
         sys.extra.insert("bank".into(), self.bank.to_save());
+        sys.extra.insert("farm".into(), self.farm.to_save());
         sys.extra.insert("trader".into(), self.trader.to_save());
         sys.extra.insert("skills".into(), self.skills.to_save());
         sys.extra.insert("bounties".into(), self.bounties.to_save());
@@ -141,6 +210,11 @@ impl Camp {
             && let Ok(v) = serde_json::to_value(d)
         {
             self.difficulty = DifficultySettings::from_save(&v, &self.difficulty_config);
+        }
+        if let Some(v) = sys.extra.get("farm")
+            && let Err(e) = self.farm.from_save(v)
+        {
+            log::warn!("farm not loaded: {e}");
         }
         if let Some(v) = sys.extra.get("bank") {
             self.bank.from_save(v);
@@ -159,6 +233,64 @@ impl Camp {
     }
 }
 
+/// "Plant Wheat seeds" -> "Planted Wheat seeds" and so on, for the toast after E.
+fn done_line(prompt: &str) -> String {
+    for (from, to) in [("Plant ", "Planted "), ("Water ", "Watered "), ("Harvest ", "Harvested "), ("Clear ", "Cleared ")] {
+        if let Some(rest) = prompt.strip_prefix(from) {
+            return format!("{to}{rest}");
+        }
+    }
+    prompt.to_string()
+}
+
 fn label(items: &ItemRegistry, id: &str) -> String {
     items.get(id).map_or_else(|| id.to_string(), |d| d.name.clone())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn flat(spot: Vec3) -> Option<(Vec3, Vec3)> {
+        Some((Vec3::new(spot.x, 0.0, spot.z), Vec3::Y))
+    }
+
+    #[test]
+    fn hoe_tills_then_e_plants_waters_and_spacing_holds() {
+        let items = Arc::new(ItemRegistry::from_repo().unwrap());
+        let mut camp = Camp::new(7, items.clone()).unwrap();
+        let mut bag = Inventory::with_registry(items);
+        let me = Vec3::ZERO;
+        let ahead = Vec3::NEG_Z;
+        // No hoe: farming offers nothing on bare ground
+        assert!(camp.farm_interact(me, ahead, &mut bag, true, flat).is_none());
+        bag.add("hoe", 1);
+        let (prompt, toast) = camp.farm_interact(me, ahead, &mut bag, false, flat).unwrap();
+        assert_eq!(prompt, "[E] Till soil");
+        assert!(toast.is_none());
+        let (_, toast) = camp.farm_interact(me, ahead, &mut bag, true, flat).unwrap();
+        assert_eq!(toast.as_deref(), Some("Soil tilled"));
+        assert_eq!(camp.farm.plots().len(), 1);
+        // The new bed is now in front: with seeds, E plants
+        bag.add("seeds_wheat", 2);
+        let (prompt, toast) = camp.farm_interact(me, ahead, &mut bag, true, flat).unwrap();
+        assert_eq!(prompt, "[E] Plant Wheat seeds");
+        assert_eq!(toast.as_deref(), Some("Planted Wheat seeds"));
+        assert_eq!(camp.farm.plots()[0].crop.as_deref(), Some("wheat"));
+        // Walking up to the bed from beyond reach, the spot ahead is too close for a second one
+        let (prompt, toast) = camp.farm_interact(Vec3::new(0.0, 0.0, -4.5), Vec3::Z, &mut bag, true, flat).unwrap();
+        assert!(prompt.is_empty());
+        assert_eq!(toast.as_deref(), Some("Too close to another bed"));
+        // Steep ground is refused
+        let steep = |s: Vec3| Some((s, Vec3::new(0.7, 0.7, 0.0).normalize()));
+        let (_, toast) = camp.farm_interact(Vec3::new(20.0, 0.0, 0.0), ahead, &mut bag, true, steep).unwrap();
+        assert_eq!(toast.as_deref(), Some("The ground there is too steep"));
+        // The farm survives a save
+        let mut sys = save::Systems::default();
+        camp.save_into(&mut sys);
+        let mut again = Camp::new(7, Arc::new(ItemRegistry::from_repo().unwrap())).unwrap();
+        again.load_from(&sys);
+        assert_eq!(again.farm.plots().len(), 1);
+        assert_eq!(again.farm.plots()[0].crop.as_deref(), Some("wheat"));
+    }
 }

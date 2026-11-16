@@ -37,6 +37,8 @@ Save and menu options (play scene):
 | `--load=N` | continue Rust slot N (1-3) |
 | `--import-godot=N` | copy Godot slot N (read only, never changed) into Rust slot N and play it |
 | `--save-at=S` | save into the active slot after S seconds (tests) |
+| `--yaw=DEG` | start the player and camera facing this way (screenshots) |
+| `--give=hoe,seeds_wheat:5` | put these items in the backpack at the start (tests) |
 | `--mute` | no sound. Runs with `--shot`, `--seconds`, `--frames` or `--stats` are always muted; the JSON stats still count `soundsPlayed` / `lastSound` |
 | `cargo run -p save --example check_godot` | reads the owner's Godot slots (read only) and prints what was understood |
 

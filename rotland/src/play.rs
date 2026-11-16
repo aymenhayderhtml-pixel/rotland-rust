@@ -113,6 +113,10 @@ impl PlayState {
         self.prompt = Some(text);
     }
 
+    pub fn has_prompt(&self) -> bool {
+        self.prompt.as_ref().is_some_and(|p| !p.is_empty())
+    }
+
     /// A message in the middle of the screen for a few seconds.
     pub fn show_toast(&mut self, text: String) {
         self.toast = Some((text, TOAST_SECONDS));

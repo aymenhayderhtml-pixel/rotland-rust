@@ -98,6 +98,10 @@ struct R0 {
     pending_world: Option<(i32, Option<save::SaveFile>)>,
     /// --zombies=N: a ring of zombies at the start (tests and benchmarks).
     forced_zombies: Option<usize>,
+    /// --yaw=DEG: start facing this way (screenshots).
+    start_yaw: Option<f32>,
+    /// --give=hoe,seeds_wheat:5: items put in the bag at the start (tests).
+    give: Vec<(String, u32)>,
     /// Seconds played in this save (stats.playTime).
     play_time: f64,
     quit: bool,
@@ -364,6 +368,17 @@ impl R0 {
                 session::restore_play(file, play);
             }
         }
+        // The camp's four beds (a loaded save may already have them)
+        if let Some(play) = self.play.as_mut() {
+            play.camp.farm.ensure_camp_plots(world_gen.settlements());
+            for (id, n) in &self.give {
+                play.inventory.add(id, *n);
+            }
+        }
+        if let (Some(yaw), Some(p), Some(rig)) = (self.start_yaw, self.player_ctrl.as_mut(), self.camera_rig.as_mut()) {
+            p.yaw = yaw;
+            rig.yaw = yaw;
+        }
         self.loaded_save = save_file;
         let world_gen = Arc::new(world_gen);
         let mut streamer = streaming::Streamer::new(world_gen.clone());
@@ -498,6 +513,19 @@ impl Game for R0 {
         self.slot_cards = session::summaries(&slots);
         self.slots = Some(slots);
         self.forced_zombies = args.value("--zombies").and_then(|s| s.parse::<usize>().ok());
+        self.start_yaw = args.value("--yaw").and_then(|s| s.parse::<f32>().ok()).map(f32::to_radians);
+        self.give = args
+            .value("--give")
+            .map(|s| {
+                s.split(',')
+                    .filter(|e| !e.is_empty())
+                    .map(|e| match e.split_once(':') {
+                        Some((id, n)) => (id.to_string(), n.parse().unwrap_or(1)),
+                        None => (e.to_string(), 1),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
 
         match pack::ModelPack::load(paths::repo_path("rust/assets/models.pack")) {
             Ok(pack) => self.pack = Some(pack),
@@ -740,7 +768,22 @@ impl Game for R0 {
             // E talks to the camp person in front (trader, banker, bounty board) before crates and items
             let npc = self.camp_npcs.as_ref().and_then(|c| c.facing(p.position, facing));
             let pressed = input.pressed(KeyCode::KeyE) && self.camp_ui.is_none();
-            play.interact_tick(dt, pressed && npc.is_none(), p.position, facing, &near);
+            // A bed in front comes before crates; tilling with a hoe only when nothing else is offered
+            let bed = npc.is_none() && play.camp.bed_in_front(p.position, facing).is_some();
+            play.interact_tick(dt, pressed && npc.is_none() && !bed, p.position, facing, &near);
+            if npc.is_none() && (bed || !play.has_prompt()) {
+                let physics = &self.physics;
+                let ground = |spot: Vec3| physics.raycast(spot + Vec3::Y * 3.0, Vec3::NEG_Y, 6.0).map(|h| (h.point, h.normal));
+                let farm_press = pressed && !play.picked_up;
+                if let Some((prompt, toast)) = play.camp.farm_interact(p.position, facing, &mut play.inventory, farm_press, ground) {
+                    if !prompt.is_empty() {
+                        play.set_prompt(prompt);
+                    }
+                    if let Some(t) = toast {
+                        play.show_toast(t);
+                    }
+                }
+            }
             if let (true, Some(a)) = (play.picked_up, self.audio.as_mut()) {
                 a.event("pickup", None);
             }
@@ -803,6 +846,12 @@ impl Game for R0 {
                 }
             }
             play.camp.tick(self.clock.day, self.hour);
+            // Crops grow with the clock; zombies walking over field beds can trample them
+            let camp = &mut play.camp;
+            camp.farm.sync_clock(&self.clock, Some(&camp.skills));
+            if camp.farm.has_vulnerable_crops() && !camp.farm.trample_step(z.active().into_iter().map(|a| (a.id, a.position))).is_empty() {
+                play.show_toast("A zombie trampled a crop".into());
+            }
         }
         if dt > 0.0 {
             self.fps += (1.0 / dt - self.fps) * (dt * 2.0).min(1.0);
@@ -854,6 +903,20 @@ impl Game for R0 {
                 self.player,
             );
         }
+        // Farm beds: the soil, and the crop's model for its stage (Godot PlotNode)
+        let mut beds: Vec<props::Placed> = Vec::new();
+        if let (Some(play), Some(pack)) = (self.play.as_ref(), self.pack.as_ref()) {
+            for v in play.camp.farm.plot_views() {
+                if let Some(slot) = self.library.get(&gpu.device, pack, "soil_plot", false) {
+                    beds.push(self.library.place(slot, v.position, 0.0, 1.0));
+                }
+                if let Some(model) = &v.stage_model
+                    && let Some(slot) = self.library.get(&gpu.device, pack, model, false)
+                {
+                    beds.push(self.library.place(slot, v.position, 0.0, 1.0));
+                }
+            }
+        }
         let (Some(renderer), Some(streamer)) = (self.renderer.as_mut(), self.streamer.as_ref())
         else {
             return;
@@ -869,7 +932,7 @@ impl Game for R0 {
         // Joint 0 is the identity: static instanced props use it
         self.bones.clear();
         self.bones.push(Mat4::IDENTITY);
-        let placed = streamer.chunks.values().flat_map(|c| c.placed.iter());
+        let placed = streamer.chunks.values().flat_map(|c| c.placed.iter()).chain(beds.iter());
         let (mut main, mut shadow) = self.library.batches(
             placed,
             &self.camera,
