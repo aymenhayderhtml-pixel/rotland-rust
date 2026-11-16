@@ -5,6 +5,7 @@
 mod bench;
 mod camp;
 mod camp_npcs;
+mod campfire_mesh;
 mod wildlife;
 mod camp_ui;
 mod hub_ui;
@@ -116,6 +117,13 @@ struct R0 {
     camp_ui: Option<camp_ui::CampUiState>,
     /// The player's hub (Tab bag and crafting, L skills, J bounties, P profile, M map).
     hub: Option<hub_ui::HubUiState>,
+    /// On a ladder (Godot LadderClimb).
+    climb: game::LadderClimb,
+    /// E was used this frame (a ladder grabbed): nothing else takes it.
+    e_used: bool,
+    /// --climb: after a second, stand at the nearest ladder and grab it (tests; --autowalk then climbs).
+    test_climb: bool,
+    campfire_meshes: Option<campfire_mesh::CampfireMeshes>,
     /// The level-up banner and "+XP" toasts (always on, also when the hub is shut).
     overlays: Option<hub_ui::HubUiState>,
     /// Each skill's (level, xp) last frame, to spot XP gains.
@@ -137,17 +145,32 @@ fn weapon_model_name(def: &game::WeaponDef) -> Option<String> {
 }
 
 impl R0 {
-    /// Puts a weapon in hand (or empties it): the swing uses its numbers, the model shows in the hand.
     /// A camp screen or the hub is open: the mouse is free and the player's hands are busy.
     fn screen_open(&self) -> bool {
         self.camp_ui.is_some() || self.hub.is_some()
     }
 
+    /// Puts a weapon in hand (or empties it): the swing uses its numbers, the model shows in the hand.
     fn apply_hand(&mut self, change: play::HandChange) {
         let def = match change {
             play::HandChange::Weapon(def) => def,
             play::HandChange::ToggleFlashlight => {
                 self.flashlight_on = !self.flashlight_on;
+                return;
+            }
+            play::HandChange::PlaceCampfire => {
+                // Godot CampfirePlacer: 1.5 m in front on flat ground, away from other fires
+                if let (Some(play), Some(p)) = (self.play.as_mut(), self.player_ctrl.as_ref()) {
+                    let facing = Vec3::new(-p.yaw.sin(), 0.0, -p.yaw.cos());
+                    let physics = &self.physics;
+                    let ground = |spot: Vec3| physics.raycast(spot + Vec3::Y * 3.0, Vec3::NEG_Y, 6.0).map(|h| (h.point, h.normal));
+                    let text = match play.camp.campfires.place(p.position, facing, Some(&mut play.inventory), ground) {
+                        Ok(_) => "Campfire placed".to_string(),
+                        Err(e) => e.message().to_string(),
+                    };
+                    play.hotbar.on_inventory_changed(&play.inventory);
+                    play.show_toast(text);
+                }
                 return;
             }
             play::HandChange::Health(amount) => {
@@ -392,8 +415,18 @@ impl R0 {
                 session::restore_play(file, play);
             }
         }
-        // The camp's four beds (a loaded save may already have them)
+        self.climb = game::LadderClimb::default();
+        if self.campfire_meshes.is_none() {
+            self.campfire_meshes = Some(campfire_mesh::CampfireMeshes::new(&gpu.device));
+        }
+        // The camp's four beds (a loaded save may already have them) and its fire (the model's marker)
         if let Some(play) = self.play.as_mut() {
+            if let (Some(pack), Some(site)) = (self.pack.as_ref(), world_gen.settlements().first())
+                && let Some(m) = pack.find("settlement")
+                && let Some(fire) = game::settlement_campfire_from_markers(&m.markers, Mat4::from_translation(site.center) * Mat4::from_rotation_y(site.yaw))
+            {
+                play.camp.campfires.add(fire);
+            }
             play.camp.farm.ensure_camp_plots(world_gen.settlements());
             for (id, n) in &self.give {
                 play.inventory.add(id, *n);
@@ -403,6 +436,12 @@ impl R0 {
             p.yaw = yaw;
             rig.yaw = yaw;
         }
+        // --animals=...,campfire also lays a burning fire 4 m ahead (screenshots)
+        if let (true, Some(play), Some(p)) = (self.near_animals.iter().any(|a| a == "campfire"), self.play.as_mut(), self.player_ctrl.as_ref()) {
+            let at = self.player + Vec3::new(-p.yaw.sin(), 0.0, -p.yaw.cos()) * 4.0;
+            play.camp.campfires.add(game::Campfire::create(Vec3::new(at.x, world_gen.height(at.x, at.z), at.z)));
+        }
+        self.near_animals.retain(|a| a != "campfire");
         if let (Some(w), Some(p)) = (self.wildlife.as_mut(), self.player_ctrl.as_ref()) {
             let ahead = Vec3::new(-p.yaw.sin(), 0.0, -p.yaw.cos());
             let side = Vec3::new(-ahead.z, 0.0, ahead.x);
@@ -558,6 +597,7 @@ impl Game for R0 {
         self.slot_cards = session::summaries(&slots);
         self.slots = Some(slots);
         self.forced_zombies = args.value("--zombies").and_then(|s| s.parse::<usize>().ok());
+        self.test_climb = args.flag("--climb");
         self.near_animals = args.value("--animals").map(|s| s.split(',').filter(|e| !e.is_empty()).map(str::to_string).collect()).unwrap_or_default();
         self.start_yaw = args.value("--yaw").and_then(|s| s.parse::<f32>().ok()).map(f32::to_radians);
         self.give = args
@@ -656,7 +696,32 @@ impl Game for R0 {
             if let (Some(p), Some(rig)) = (self.player_ctrl.as_mut(), self.camera_rig.as_mut()) {
                 rig.update(&actions, p.crouching, dt);
                 p.first_person = rig.is_first_person;
-                p.update(&actions, rig.yaw, &self.physics, &self.mover, dt);
+                // Ladders first: while climbing, the ladder moves the player instead of walking
+                let mut grab = input.pressed(winit::keyboard::KeyCode::KeyE) && self.camp_ui.is_none() && self.hub.is_none() && !dead;
+                if self.test_climb && self.time > 1.0 {
+                    self.test_climb = false;
+                    let nearest = self.streamer.as_ref().and_then(|s| {
+                        s.chunks.values().flat_map(|c| c.ladders.iter()).min_by(|a, b| a.foot.distance(p.position).total_cmp(&b.foot.distance(p.position))).cloned()
+                    });
+                    if let Some(rail) = nearest {
+                        p.position = rail.foot_interaction_point();
+                        grab = true;
+                    }
+                }
+                let rails: Vec<game::LadderRail> = if grab || self.climb.is_active() {
+                    self.streamer.as_ref().map(|s| s.chunks.values().flat_map(|c| c.ladders.iter().cloned()).collect()).unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
+                let was_climbing = self.climb.is_active();
+                let climb_in = game::ClimbInput::new(-actions.move_vec.y, actions.jump, grab);
+                let climbing = !dead && game::climb_tick(&mut self.climb, p, &climb_in, &rails, dt);
+                self.e_used = grab && (climbing || was_climbing);
+                if climbing {
+                    rig.yaw = p.yaw;
+                } else {
+                    p.update(&actions, rig.yaw, &self.physics, &self.mover, dt);
+                }
                 if let (Some(c), Some(z)) = (self.combat.as_mut(), self.zombies.as_mut()) {
                     let animal_bonus = self.play.as_ref().map_or(0.0, |pl| pl.camp.skills.get_bonus("animalDamage"));
                     let mut prey = wildlife::Prey { zombies: z, animals: self.wildlife.as_mut().map(|w| &mut w.sim), animal_bonus };
@@ -826,7 +891,8 @@ impl Game for R0 {
                 .unwrap_or_default();
             // E talks to the camp person in front (trader, banker, bounty board) before crates and items
             let npc = self.camp_npcs.as_ref().and_then(|c| c.facing(p.position, facing));
-            let pressed = input.pressed(KeyCode::KeyE) && self.camp_ui.is_none() && self.hub.is_none();
+            let pressed = input.pressed(KeyCode::KeyE) && self.camp_ui.is_none() && self.hub.is_none() && !self.e_used;
+            play.camp.player_at = p.position;
             // A corpse in front (or one being butchered) comes next: E starts the butchering timer
             let mut corpse_prompt = None;
             if let (None, Some(w)) = (&npc, self.wildlife.as_mut()) {
@@ -837,6 +903,31 @@ impl Game for R0 {
                 }
                 corpse_prompt = prompt;
             }
+            // A campfire in front: E cooks (opens the bag's crafting) or relights it with wood
+            let mut fire_prompt = None;
+            let mut open_crafting = false;
+            if npc.is_none() && corpse_prompt.is_none() {
+                let fires = play.camp.campfires.campfires_mut();
+                if let Some(fire) = fires.iter_mut().filter(|f| f.distance_flat(p.position) < 2.0).min_by(|a, b| a.distance_flat(p.position).total_cmp(&b.distance_flat(p.position))) {
+                    fire_prompt = Some(fire.prompt(Some(&play.inventory)).to_string());
+                    if pressed {
+                        match fire.interact(&mut play.inventory) {
+                            game::CampfireInteractResult::OpenCrafting => open_crafting = true,
+                            game::CampfireInteractResult::Relit => {
+                                play.show_toast("The fire is burning again".into());
+                                play.hotbar.on_inventory_changed(&play.inventory);
+                            }
+                            game::CampfireInteractResult::NeedsWood => play.show_toast("Needs wood".into()),
+                        }
+                    }
+                }
+            }
+            if open_crafting {
+                let mut hub = hub_ui::HubUiState::new(hub_ui::HubScreen::Tab(hub_ui::HubTab::Bag));
+                hub.set_status("Cooking at the campfire");
+                self.hub = Some(hub);
+            }
+            let corpse_prompt = corpse_prompt.or(fire_prompt);
             let free = npc.is_none() && corpse_prompt.is_none();
             // A bed in front comes before crates; tilling with a hoe only when nothing else is offered
             let bed = free && play.camp.bed_in_front(p.position, facing).is_some();
@@ -883,8 +974,19 @@ impl Game for R0 {
             play.spawn_tick(dt, self.player, forward, night, z, &self.physics, w);
         }
         if !self.clock_frozen {
+            let before = self.clock.day as f32 * 24.0 + self.clock.hour;
             self.clock.advance(dt);
             self.hour = self.clock.hour;
+            // Fires burn in game hours (Godot Campfire: 5 h per load of wood)
+            let hours = self.clock.day as f32 * 24.0 + self.clock.hour - before;
+            if let Some(play) = self.play.as_mut() {
+                play.camp.campfires.advance_hours(hours.max(0.0));
+            }
+        }
+        if let Some(play) = self.play.as_mut() {
+            for f in play.camp.campfires.campfires_mut() {
+                f.visuals.update(dt);
+            }
         }
         if let Some(c) = self.camp_npcs.as_mut() {
             let player = alive.then_some(self.player);
@@ -1107,6 +1209,25 @@ impl Game for R0 {
         main.extend(zombies);
         shadow.extend(animals.iter().map(|b| engine::render::SkinnedBatch { mesh: b.mesh, instances: b.instances.clone() }));
         main.extend(animals);
+        // Campfires: placed ones get stones and logs (the camp's are in its model); lit ones a flame
+        if let (Some(meshes), Some(play)) = (self.campfire_meshes.as_ref(), self.play.as_ref()) {
+            let fires = play.camp.campfires.campfires();
+            // The fire's position is lifted 0.4 m above the ground (Godot ROOT_LIFT)
+            let ground = |f: &game::Campfire| f.position - Vec3::Y * game::ROOT_LIFT;
+            let bases: Vec<_> = fires.iter().filter(|f| !f.permanent).map(|f| engine::render::SkinInstance::new(Mat4::from_translation(ground(f)), 0)).collect();
+            let flames: Vec<_> = fires
+                .iter()
+                .filter(|f| f.is_lit())
+                .map(|f| engine::render::SkinInstance::new(Mat4::from_translation(ground(f)) * Mat4::from_scale(f.visuals.flame_scale.max(Vec3::splat(0.2))), 0))
+                .collect();
+            if !bases.is_empty() {
+                shadow.push(engine::render::SkinnedBatch { mesh: &meshes.base, instances: bases.clone() });
+                main.push(engine::render::SkinnedBatch { mesh: &meshes.base, instances: bases });
+            }
+            if !flames.is_empty() {
+                main.push(engine::render::SkinnedBatch { mesh: &meshes.flame, instances: flames });
+            }
+        }
         renderer.draw(
             gpu,
             target,
@@ -1145,7 +1266,7 @@ impl Game for R0 {
                     bounty_manager: Some(&play.camp.bounties),
                     item_registry: Some(&play.items),
                     economy_config: Some(&play.camp.economy),
-                    near_lit_campfire: false,
+                    near_lit_campfire: play.camp.campfires.near_campfire(self.player),
                     player_pos: self.player,
                     is_dead: dead,
                 };
@@ -1194,6 +1315,7 @@ impl Game for R0 {
                     play_time_seconds: self.play_time,
                     kills,
                     is_dead: dead,
+                    near_lit_campfire: play.camp.campfires.near_campfire(self.player),
                     health: self.combat.as_ref().map(|c| (c.health.current(), c.health.max())),
                     ..Default::default()
                 };
@@ -1286,6 +1408,14 @@ impl Game for R0 {
         if let Some(z) = &self.zombies {
             s.insert("zombies".into(), z.list.len().into());
             s.insert("zombiesAlive".into(), z.alive().into());
+        }
+        if let Some(st) = &self.streamer {
+            s.insert("ladders".into(), st.chunks.values().map(|c| c.ladders.len()).sum::<usize>().into());
+        }
+        s.insert("climbing".into(), self.climb.is_active().into());
+        if let Some(play) = &self.play {
+            s.insert("campfires".into(), play.camp.campfires.campfires().len().into());
+            s.insert("campfiresLit".into(), play.camp.campfires.campfires().iter().filter(|f| f.is_lit()).count().into());
         }
         if let Some(w) = &self.wildlife {
             s.insert("animals".into(), w.sim.live_count().into());

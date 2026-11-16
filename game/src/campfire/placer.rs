@@ -53,7 +53,7 @@ pub fn place_campfire(
         return Err(PlaceCampfireError::NoCampfireKit);
     }
 
-    let mut flat = Vec3::new(facing.x, 0.0, facing.z);
+    let flat = Vec3::new(facing.x, 0.0, facing.z);
     let forward = if flat.length_squared() > 1e-4 {
         flat.normalize()
     } else {

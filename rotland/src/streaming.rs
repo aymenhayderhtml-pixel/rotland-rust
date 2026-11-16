@@ -35,6 +35,8 @@ pub struct LoadedChunk {
     pub placed: Vec<Placed>,
     /// Loot crate spots of this chunk (opened with E; see crates.rs).
     pub crates: Vec<LootSpot>,
+    /// Ladders on this chunk's buildings (watchtowers, the camp's towers), from the models' markers.
+    pub ladders: Vec<game::LadderRail>,
     colliders: Vec<ColliderHandle>,
 }
 
@@ -123,7 +125,12 @@ impl Streamer {
         if let (true, Some(site)) = (b.coord == self.camp_chunk, site.as_ref()) {
             models.push(("settlement", site.center, site.yaw, 1.0, true));
         }
+        let mut ladders = Vec::new();
         for (id, position, yaw, scale, building) in models {
+            if building && let Some(m) = pack.find(id) {
+                let matrix = glam::Mat4::from_translation(position) * glam::Mat4::from_rotation_y(yaw) * glam::Mat4::from_scale(Vec3::splat(scale));
+                ladders.extend(game::ladders_from_markers(&m.markers, matrix));
+            }
             if let Some(slot) = library.get(device, pack, id, building) {
                 placed.push(library.place(slot, position, yaw, scale));
             }
@@ -133,7 +140,7 @@ impl Streamer {
             }
         }
         let origin = Vec3::new(b.coord.x as f32, 0.0, b.coord.y as f32) * WorldGenerator::CHUNK_SIZE;
-        LoadedChunk { ground: GpuMesh::new(device, "ground", &b.ground), origin, placed, crates: b.crates, colliders }
+        LoadedChunk { ground: GpuMesh::new(device, "ground", &b.ground), origin, placed, crates: b.crates, ladders, colliders }
     }
 }
 

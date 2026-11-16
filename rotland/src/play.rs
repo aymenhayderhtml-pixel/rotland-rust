@@ -66,6 +66,8 @@ pub enum HandChange {
     ToggleFlashlight,
     /// Food, drink or a bandage changed health (heal if above 0, sickness if below).
     Health(f32),
+    /// The campfire kit was used: place a fire in front (needs the ground, so main.rs does it).
+    PlaceCampfire,
 }
 
 impl PlayState {
@@ -180,6 +182,8 @@ impl PlayState {
                 let label = name(self, *slot);
                 if id == "flashlight" {
                     (Some(HandChange::ToggleFlashlight), None)
+                } else if id == "campfire_kit" {
+                    (Some(HandChange::PlaceCampfire), None)
                 } else {
                     let before = self.inventory.count(&id);
                     let change = self.use_item(&id);
@@ -258,6 +262,7 @@ impl PlayState {
             HotbarAction::UnequipWeapon { .. } => Some(HandChange::Weapon(None)),
             // Godot's ItemUse: using the flashlight item switches it on and off
             HotbarAction::UseItem { item_id } if item_id == "flashlight" => Some(HandChange::ToggleFlashlight),
+            HotbarAction::UseItem { item_id } if item_id == "campfire_kit" => Some(HandChange::PlaceCampfire),
             HotbarAction::UseItem { item_id } => self.use_item(&item_id),
             _ => None,
         }

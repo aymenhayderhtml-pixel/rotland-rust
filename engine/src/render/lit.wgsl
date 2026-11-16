@@ -128,6 +128,8 @@ struct VsOut {
     @location(0) world: vec3<f32>,
     @location(1) normal: vec3<f32>,
     @location(2) albedo: vec3<f32>,
+    // Self-lit amount (flames): a vertex alpha below 1 glows by (1 - alpha); every baked model has alpha 1
+    @location(3) glow: f32,
 };
 
 // Per-draw offset (chunk origin), so chunk meshes keep small local coordinates
@@ -142,6 +144,7 @@ fn mesh_vs(v: VsIn) -> VsOut {
     o.world = world;
     o.normal = v.normal;
     o.albedo = srgb_to_linear(v.color.rgb);
+    o.glow = 1.0 - v.color.a;
     return o;
 }
 
@@ -160,7 +163,7 @@ fn mesh_fs(i: VsOut) -> @location(0) vec4<f32> {
     let ambient = mix(scene.ground_horizon.rgb, scene.sky_top.rgb * 0.5 + scene.sky_horizon.rgb * 0.5, up) * scene.fog.w;
     // The moon lights the night without shadows (like Godot's moon light), the flashlight is the spot light
     let moon = scene.moon_color.rgb * scene.moon_dir.w * max(dot(n, scene.moon_dir.xyz), 0.0);
-    var color = i.albedo * (sun + moon + ambient + spot_light(i.world, n));
+    var color = i.albedo * (sun + moon + ambient + spot_light(i.world, n)) + i.albedo * i.glow * 3.0;
     let fog = smoothstep(scene.fog.x, scene.fog.y, dist) * scene.fog.z;
     color = mix(color, scene.fog_color.rgb, fog);
     return vec4(filmic(color), 1.0);
@@ -192,6 +195,7 @@ fn skinned_vs(v: SkinIn) -> VsOut {
     o.world = world;
     o.normal = (skin * vec4(v.normal, 0.0)).xyz;
     o.albedo = srgb_to_linear(v.color.rgb);
+    o.glow = 1.0 - v.color.a;
     return o;
 }
 

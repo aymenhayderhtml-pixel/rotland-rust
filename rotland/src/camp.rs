@@ -24,6 +24,10 @@ pub struct Camp {
     pub crafting: CraftingSystem,
     /// Beds in the camp and the player's fields.
     pub farm: FarmManager,
+    /// The camp's fire and the ones the player placed (Godot WorldState "campfires").
+    pub campfires: game::CampfireManager,
+    /// Where the player stands (set each frame): campfire recipes need a lit fire near.
+    pub player_at: Vec3,
 }
 
 impl Camp {
@@ -40,6 +44,8 @@ impl Camp {
             recipes: RecipeRegistry::from_repo().map_err(|e| format!("data/recipes.json: {e:?}"))?,
             crafting: CraftingSystem::new(),
             farm: FarmManager::from_repo().map_err(|e| format!("data/farming.json: {e:?}"))?,
+            campfires: game::CampfireManager::new(),
+            player_at: Vec3::ZERO,
             difficulty_config,
             economy,
         })
@@ -90,8 +96,8 @@ impl Camp {
             CampAction::WithdrawDollars { amount } => Some(format!("Withdrew ${}", self.bank.withdraw(&mut self.wallet, amount))),
             CampAction::Craft { recipe } => {
                 let station = self.recipes.get(&recipe).map(|r| r.station.clone()).unwrap_or_default();
-                // No campfires in the Rust world yet: campfire recipes stay locked
-                let ok = self.crafting.start_craft(&recipe, &station, bag, false, dead, &self.recipes);
+                let near = self.campfires.near_campfire(self.player_at);
+                let ok = self.crafting.start_craft(&recipe, &station, bag, near, dead, &self.recipes);
                 Some(if ok { "Crafting...".into() } else { "Missing materials".into() })
             }
             CampAction::CancelCraft => self.crafting.cancel_craft(bag, CancelReason::Manual).map(|_| "Crafting cancelled".into()),
@@ -116,7 +122,8 @@ impl Camp {
 
     /// A running craft moves on; finished crafts give their items and skill XP. Returns a toast.
     pub fn craft_tick(&mut self, dt: f32, bag: &mut Inventory, dead: bool) -> Option<String> {
-        match self.crafting.update(dt, bag, false, dead) {
+        let near = self.campfires.near_campfire(self.player_at);
+        match self.crafting.update(dt, bag, near, dead) {
             CraftUpdate::Finished(r) => {
                 if let Some(xp) = &r.xp {
                     self.skills.add_xp(&xp.skill, xp.amount);
@@ -196,6 +203,9 @@ impl Camp {
         }
         sys.extra.insert("bank".into(), self.bank.to_save());
         sys.extra.insert("farm".into(), self.farm.to_save());
+        let mut ws = sys.worldstate.clone().unwrap_or_default();
+        ws.campfires = serde_json::from_value(self.campfires.to_save()).unwrap_or_default();
+        sys.worldstate = Some(ws);
         sys.extra.insert("trader".into(), self.trader.to_save());
         sys.extra.insert("skills".into(), self.skills.to_save());
         sys.extra.insert("bounties".into(), self.bounties.to_save());
@@ -210,6 +220,12 @@ impl Camp {
             && let Ok(v) = serde_json::to_value(d)
         {
             self.difficulty = DifficultySettings::from_save(&v, &self.difficulty_config);
+        }
+        if let Some(ws) = &sys.worldstate
+            && let Ok(v) = serde_json::to_value(&ws.campfires)
+            && let Err(e) = self.campfires.from_save(&v)
+        {
+            log::warn!("campfires not loaded: {e}");
         }
         if let Some(v) = sys.extra.get("farm")
             && let Err(e) = self.farm.from_save(v)

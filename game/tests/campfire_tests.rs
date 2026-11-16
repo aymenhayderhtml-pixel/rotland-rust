@@ -6,7 +6,7 @@ use pack::Marker;
 use game::campfire::{
     find_lit_near, is_flat, near_campfire, place_campfire, settlement_campfire_from_markers,
     Campfire, CampfireInteractResult, CampfireManager, PlaceCampfireError, BURN_HOURS,
-    CAMPFIRE_KIT_ID, CAMPFIRE_RANGE, CAMPFIRE_SPACING, PLACE_DISTANCE, ROOT_LIFT,
+    CAMPFIRE_KIT_ID, CAMPFIRE_RANGE, PLACE_DISTANCE, ROOT_LIFT,
     SECONDS_PER_HOUR, WOOD_ID,
 };
 use game::crafting::{CraftingSystem, RecipeRegistry, CAMPFIRE_STATION};
@@ -45,7 +45,7 @@ fn test_placing_campfire_on_flat_ground_refused_on_steep_or_too_close() {
     );
 
     // 3. Refused on steep ground (slope > ~23 degrees, normal.y < 0.92)
-    let steep_normal = Vec3::new(0.7071, 0.7071, 0.0).normalize();
+    let steep_normal = Vec3::new(1.0, 1.0, 0.0).normalize();
     assert!(!is_flat(steep_normal));
     let steep_ground = move |p: Vec3| Some((p, steep_normal));
     let far_player = Vec3::new(20.0, 0.0, 0.0);
