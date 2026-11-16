@@ -11,6 +11,7 @@ mod combat;
 mod crates;
 mod hud;
 mod light;
+mod map_ui;
 mod menus;
 mod play;
 mod player_visual;
