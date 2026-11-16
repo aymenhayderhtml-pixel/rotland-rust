@@ -98,11 +98,6 @@ impl Menus {
         }
     }
 
-    pub fn with_save_path(mut self, path: PathBuf) -> Self {
-        self.save_path = Some(path);
-        self
-    }
-
     pub fn set_save_path(&mut self, path: PathBuf) {
         self.save_path = Some(path);
     }
@@ -214,6 +209,7 @@ impl Menus {
     }
 
     /// True while the delete confirmation dialog is visible.
+    #[cfg(test)]
     pub fn is_confirm_delete_open(&self) -> bool {
         self.pending_delete.is_some()
     }

@@ -28,6 +28,17 @@ Every run can be scripted, photographed and measured. Output lines start with `R
 Every run ends with `ROTLAND DONE frames=… avgFps=… p95FrameMs=… worst1PercentFps=…`.
 Game options (scenes, camera spots) are read by the game from the same command line (`EngineArgs::value("--scene")`).
 
+Save and menu options (play scene):
+
+| Option | What it does |
+|---|---|
+| `--save-dir=PATH` | use this folder for save slots and settings. **Tests and screenshots must always pass it**; without it the game uses the real folder `~/.local/share/rotland-rust/` |
+| `--menu` | start on the main menu |
+| `--load=N` | continue Rust slot N (1-3) |
+| `--import-godot=N` | copy Godot slot N (read only, never changed) into Rust slot N and play it |
+| `--save-at=S` | save into the active slot after S seconds (tests) |
+| `cargo run -p save --example check_godot` | reads the owner's Godot slots (read only) and prints what was understood |
+
 Example: `flock /tmp/rotland-heavy.lock target/debug/rotland --shot=/tmp/x/forest.png` then open the PNG.
 
 ## Layout

@@ -84,6 +84,23 @@ impl PlayState {
     }
 
     /// Takes out the first hotbar item at the start of a game, like Godot's starting bat.
+    /// The backpack's stacks and the looted crates, for a save file.
+    pub fn save_parts(&self) -> (game::items::InventorySaveData, Vec<String>) {
+        let mut looted: Vec<String> = self.loot_state.all_looted().iter().cloned().collect();
+        looted.sort();
+        (game::items::InventorySaveData::write_from_slots(self.inventory.slots()), looted)
+    }
+
+    /// Puts a save file's backpack and looted crates back.
+    pub fn load_parts(&mut self, stacks: &game::items::InventorySaveData, looted: &[String]) {
+        stacks.read_into_inventory(&mut self.inventory);
+        self.hotbar.on_inventory_changed(&self.inventory);
+        self.loot_state.clear();
+        for id in looted {
+            self.loot_state.mark_looted(id.clone());
+        }
+    }
+
     pub fn equip_first(&mut self) -> Option<HandChange> {
         self.press(1)
     }

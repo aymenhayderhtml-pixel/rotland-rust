@@ -104,14 +104,12 @@ impl Settings {
     /// Saves settings as JSON to `path`. Returns true on success or false on failure.
     pub fn save<P: AsRef<Path>>(&self, path: P) -> bool {
         let path = path.as_ref();
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                if let Err(err) = std::fs::create_dir_all(parent) {
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+                && let Err(err) = std::fs::create_dir_all(parent) {
                     log::warn!("Could not create settings directory {}: {err}", parent.display());
                     return false;
                 }
-            }
-        }
         match serde_json::to_string_pretty(self) {
             Ok(json) => {
                 if let Err(err) = std::fs::write(path, json) {

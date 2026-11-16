@@ -7,6 +7,7 @@ use super::{MenuAction, Menus, Screen, SlotSummary};
 mod menus_draw_settings;
 mod menus_draw_slots;
 
+#[cfg(test)]
 pub use menus_draw_slots::{format_play_time, format_saved_at};
 
 /// Main drawing entry point.
@@ -52,11 +53,10 @@ pub fn draw(menus: &mut Menus, ctx: &egui::Context, slots: &[SlotSummary; 3]) ->
         });
 
     // 3. Delete confirmation modal if pending
-    if let Some(slot) = menus.pending_delete {
-        if let Some(act) = menus_draw_slots::draw_delete_confirm(menus, ctx, slot) {
+    if let Some(slot) = menus.pending_delete
+        && let Some(act) = menus_draw_slots::draw_delete_confirm(menus, ctx, slot) {
             action = Some(act);
         }
-    }
 
     action
 }

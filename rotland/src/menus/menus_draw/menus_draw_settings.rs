@@ -2,7 +2,7 @@
 
 use engine::egui::{self, vec2, Color32, CornerRadius, Frame, Margin, RichText, ScrollArea, Stroke};
 
-use super::{MenuAction, Menus};
+use crate::menus::{MenuAction, Menus};
 
 pub fn draw_settings(menus: &mut Menus, ui: &mut egui::Ui) -> Option<MenuAction> {
     let mut changed = false;

@@ -53,6 +53,12 @@ impl Health {
         }
     }
 
+    /// Sets health directly (loading a save). 0 or less counts as full health, like a revive.
+    pub fn set_current(&mut self, value: f32) {
+        self.dead = false;
+        self.current = if value <= 0.0 { self.max } else { value.min(self.max) };
+    }
+
     /// Sets the invulnerability window in seconds (0 = off).
     pub fn with_invulnerability(mut self, seconds: f32) -> Self {
         self.invulnerability_time = seconds;

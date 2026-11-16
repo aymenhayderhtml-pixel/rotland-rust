@@ -2,7 +2,7 @@
 
 use engine::egui::{self, vec2, Align2, Color32, CornerRadius, Frame, Id, Margin, Order, RichText, Stroke};
 
-use super::{MenuAction, Menus, Screen, SlotMode, SlotState, SlotSummary};
+use crate::menus::{MenuAction, Menus, Screen, SlotMode, SlotState, SlotSummary};
 
 /// Formats play time seconds as "h:mm".
 pub fn format_play_time(seconds: f32) -> String {
@@ -43,9 +43,8 @@ pub fn draw_slot_picker(
             });
             ui.add_space(14.0);
 
-            for i in 0..3 {
+            for (i, summary) in slots.iter().enumerate() {
                 let slot_num = (i + 1) as u8;
-                let summary = &slots[i];
 
                 Frame::NONE
                     .fill(Color32::from_rgb(30, 32, 30))

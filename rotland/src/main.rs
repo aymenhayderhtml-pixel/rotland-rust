@@ -11,6 +11,7 @@ mod menus;
 mod play;
 mod player_visual;
 mod props;
+mod session;
 mod settings;
 mod shooting;
 mod streaming;
@@ -80,6 +81,25 @@ struct R0 {
     /// The clock stands still (benchmarks, --hour screenshots).
     clock_frozen: bool,
     flashlight_on: bool,
+    /// Main menu, pause, settings and the slot picker (play scene only).
+    menus: Option<menus::Menus>,
+    /// The three slot cards, re-read when the slots change (not every frame).
+    slot_cards: [menus::SlotSummary; 3],
+    /// The Rust game's save folder (--save-dir for tests, so they never touch the real one).
+    slots: Option<save::Slots>,
+    /// The slot this session saves into (1-3).
+    active_slot: u8,
+    /// The file this session came from: written over on save, so systems not ported yet survive.
+    loaded_save: Option<save::SaveFile>,
+    /// A new world to build at the next frame (seed, save to restore), from New game / Continue.
+    pending_world: Option<(i32, Option<save::SaveFile>)>,
+    /// --zombies=N: a ring of zombies at the start (tests and benchmarks).
+    forced_zombies: Option<usize>,
+    /// Seconds played in this save (stats.playTime).
+    play_time: f64,
+    quit: bool,
+    /// Scripted test: save into the active slot at this time (seconds).
+    save_at: Option<f32>,
 }
 
 /// The pack model name of a weapon ("res://assets/models/weapons/bat.glb" -> "bat").
@@ -106,6 +126,99 @@ impl R0 {
         }
         if let Some(c) = self.combat.as_mut() {
             c.set_weapon(if is_gun { None } else { def });
+        }
+    }
+
+    /// Does what the player picked in a menu.
+    fn menu_action(&mut self, action: menus::MenuAction) {
+        use menus::MenuAction;
+        match action {
+            MenuAction::Resume => {
+                if let Some(m) = self.menus.as_mut() {
+                    m.set_screen(menus::Screen::None);
+                }
+                self.cursor_captured = true;
+            }
+            MenuAction::NewGame { slot } => {
+                self.active_slot = slot;
+                // A fresh world: the seed comes from the clock, like Godot's new game
+                let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(42, |d| d.as_nanos() as i32);
+                self.pending_world = Some((seed, None));
+                self.close_menus();
+            }
+            MenuAction::Continue { slot } => {
+                let read = self.slots.as_ref().map(|s| s.read(slot as usize));
+                match read {
+                    Some(Ok(file)) => {
+                        self.active_slot = slot;
+                        self.pending_world = Some((session::seed_of(&file).unwrap_or(self.seed), Some(file)));
+                        self.close_menus();
+                    }
+                    Some(Err(e)) => log::warn!("slot {slot} not loaded: {e:?}"),
+                    None => {}
+                }
+            }
+            MenuAction::DeleteSlot { slot } => {
+                if let Some(slots) = &self.slots {
+                    if let Err(e) = slots.delete(slot as usize) {
+                        log::warn!("slot {slot} not deleted: {e:?}");
+                    }
+                    self.slot_cards = session::summaries(slots);
+                }
+            }
+            MenuAction::SaveAndQuitToMenu => {
+                self.save_now();
+                if let Some(m) = self.menus.as_mut() {
+                    m.set_screen(menus::Screen::Main);
+                }
+            }
+            MenuAction::Quit => {
+                // Quitting from the pause menu keeps the game; from the main menu there is nothing to save
+                if self.menus.as_ref().is_some_and(|m| *m.screen() == menus::Screen::Paused) {
+                    self.save_now();
+                }
+                self.quit = true;
+            }
+            MenuAction::SettingsChanged(new) => {
+                if let Some(m) = self.menus.as_mut() {
+                    m.settings = new;
+                }
+            }
+        }
+    }
+
+    fn close_menus(&mut self) {
+        if let Some(m) = self.menus.as_mut() {
+            m.set_screen(menus::Screen::None);
+        }
+        self.cursor_captured = true;
+    }
+
+    /// Writes the game into the active slot (over the file it came from).
+    fn save_now(&mut self) {
+        let (Some(slots), Some(p), Some(rig), Some(c), Some(play), Some(w)) =
+            (self.slots.as_ref(), self.player_ctrl.as_ref(), self.camera_rig.as_ref(), self.combat.as_ref(), self.play.as_ref(), self.world_gen.as_ref())
+        else {
+            return;
+        };
+        let snap = session::Snapshot {
+            seed: self.seed,
+            player: p,
+            rig,
+            health: c.health.current(),
+            spawn: w.settlements()[0].respawn_point(w.config()),
+            clock: &self.clock,
+            play,
+            play_time: self.play_time,
+        };
+        let file = session::capture(self.loaded_save.as_ref(), &snap);
+        match slots.write(self.active_slot as usize, &file) {
+            Ok(()) => {
+                log::info!("saved slot {} to {}", self.active_slot, slots.path_for(self.active_slot as usize).display());
+                self.slot_cards = session::summaries(slots);
+                self.loaded_save = Some(file);
+            }
+            Err(e) => log::warn!("save to slot {} failed: {e:?}", self.active_slot),
         }
     }
 
@@ -139,29 +252,23 @@ impl R0 {
     }
 }
 
-impl Game for R0 {
-    fn init(&mut self, gpu: &Gpu, args: &EngineArgs) {
-        self.seed = args
-            .value("--seed")
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(42);
-        self.scene = args.value("--scene").unwrap_or("play").to_string();
-        // --hour=H fixes the time (screenshots, benchmarks); play mode otherwise starts at 08:00 and runs
-        let forced_hour: Option<f32> = args.value("--hour").and_then(|s| s.parse().ok());
-        let start = forced_hour.unwrap_or(if self.scene == "play" { world::time::Clock::new().hour } else { 12.0 });
-        self.clock = world::time::Clock::new();
-        self.clock.set_time(start);
-        self.hour = start;
-        self.clock_frozen = self.scene != "play" || forced_hour.is_some();
-        self.flashlight_on = args.flag("--flashlight");
-        self.free_cam = args.flag("--free");
-        self.autowalk = args.flag("--autowalk");
-        self.autoattack = args.flag("--autoattack");
-        self.die_at = args.value("--die-at").and_then(|v| v.parse().ok());
-        self.walk = self.scene == "forest" && !self.free_cam;
-        self.cursor_captured = self.scene == "play" && !self.free_cam;
-        self.renderer = Some(LitRenderer::new(gpu));
-
+impl R0 {
+    /// Builds the world for `self.seed` (and puts a save back): ground, props, zombies, player, backpack.
+    /// Runs at start-up and again when New game / Continue picks another world.
+    fn start_world(&mut self, gpu: &Gpu, save_file: Option<save::SaveFile>) {
+        self.physics = physics::PhysicsWorld::default();
+        self.streamer = None;
+        self.zombies = None;
+        self.combat = None;
+        self.play = None;
+        self.player_visual = None;
+        self.player_ctrl = None;
+        self.camera_rig = None;
+        self.play_time = 0.0;
+        if self.scene == "play" && !self.clock_frozen {
+            self.clock = world::time::Clock::new();
+            self.hour = self.clock.hour;
+        }
         let started = std::time::Instant::now();
         let world_gen =
             WorldGenerator::from_data_dir(self.seed, paths::repo_path("data")).expect("data files");
@@ -189,25 +296,45 @@ impl Game for R0 {
             self.camera_rig = Some(rig);
         }
 
-        match pack::ModelPack::load(paths::repo_path("rust/assets/models.pack")) {
-            Ok(pack) => {
-                match game::zombie::ZombieDefs::load_default() {
-                    Ok(defs) => self.zombies = Some(zombies::Zombies::new(&gpu.device, &pack, defs)),
-                    Err(e) => log::warn!("data/zombies.json: {e}"),
-                }
-                if self.scene == "play" {
-                    self.combat = Some(combat::Combat::new("bat"));
-                    match play::PlayState::new(self.seed as u64) {
-                        Ok(state) => self.play = Some(state),
-                        Err(e) => log::warn!("play systems not loaded: {e}"),
-                    }
-                    // Godot's starter weapon is the bat (data/start_inventory.json)
-                    self.player_visual = Some(player_visual::PlayerVisual::load(&gpu.device, &pack, "human_player", Some("bat")));
-                }
-                self.pack = Some(pack);
+        if let Some(pack) = &self.pack {
+            match game::zombie::ZombieDefs::load_default() {
+                Ok(defs) => self.zombies = Some(zombies::Zombies::new(&gpu.device, pack, defs)),
+                Err(e) => log::warn!("data/zombies.json: {e}"),
             }
-            Err(e) => log::warn!("no model pack ({e}); run `cargo run --release -p baker`"),
+            if self.scene == "play" {
+                self.combat = Some(combat::Combat::new("bat"));
+                match play::PlayState::new(self.seed as u64) {
+                    Ok(state) => self.play = Some(state),
+                    Err(e) => log::warn!("play systems not loaded: {e}"),
+                }
+                // Godot's starter weapon is the bat (data/start_inventory.json)
+                self.player_visual = Some(player_visual::PlayerVisual::load(&gpu.device, pack, "human_player", Some("bat")));
+            }
         }
+        // A saved game: the player where they were, the clock, the backpack and the emptied crates
+        if let Some(file) = &save_file {
+            if let (Some(r), Some(p), Some(rig)) = (session::restore(file), self.player_ctrl.as_mut(), self.camera_rig.as_mut()) {
+                p.position = r.position;
+                p.yaw = r.body_yaw;
+                rig.yaw = r.camera_yaw;
+                rig.pitch = r.camera_pitch;
+                self.player = r.position;
+                // --hour (screenshots) wins over the saved hour
+                if !self.clock_frozen {
+                    self.clock.set_time(r.hour);
+                    self.hour = self.clock.hour;
+                }
+                self.clock.day = r.day.max(1);
+                self.play_time = r.play_time;
+                if let Some(c) = self.combat.as_mut() {
+                    c.health.set_current(r.health);
+                }
+            }
+            if let Some(play) = self.play.as_mut() {
+                session::restore_play(file, play);
+            }
+        }
+        self.loaded_save = save_file;
         let world_gen = Arc::new(world_gen);
         let mut streamer = streaming::Streamer::new(world_gen.clone());
         // Load the first ring before the first frame (Godot holds the player still until the ground is ready)
@@ -226,19 +353,13 @@ impl Game for R0 {
         // Zombies need the ground's collision, so they spawn after the first ring has loaded. Like the
         // forest25 benchmark: 25 walkers 15-40 m around the player (the real spawner comes in R3-07).
         // In play mode the spawner fills the world over time instead (--zombies=N still forces a ring)
-        let forced = args.value("--zombies").and_then(|s| s.parse::<usize>().ok());
+        let forced = self.forced_zombies;
         let ring = if self.scene == "play" { forced.unwrap_or(0) } else { forced.unwrap_or(25) };
         if let (Some(z), true) = (self.zombies.as_mut(), ring > 0) {
             let count = ring;
             z.spawn_ring("walker", self.player, count, 15.0, 40.0, &self.physics);
         }
         if let Some(change) = self.play.as_mut().and_then(|p| p.equip_first()) {
-            self.apply_hand(change);
-        }
-        // Test option: take out hotbar slot N at the start (e.g. --slot=2 for the pistol)
-        if let Some(n) = args.value("--slot").and_then(|v| v.parse::<usize>().ok())
-            && let Some(change) = self.play.as_mut().and_then(|p| p.press(n))
-        {
             self.apply_hand(change);
         }
         log::info!(
@@ -267,22 +388,125 @@ impl Game for R0 {
             self.camera.look_at(camp.center + Vec3::new(0.0, 1.2, 0.0));
         }
     }
+}
+
+impl Game for R0 {
+    fn init(&mut self, gpu: &Gpu, args: &EngineArgs) {
+        self.seed = args
+            .value("--seed")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(42);
+        self.scene = args.value("--scene").unwrap_or("play").to_string();
+        // --hour=H fixes the time (screenshots, benchmarks); play mode otherwise starts at 08:00 and runs
+        let forced_hour: Option<f32> = args.value("--hour").and_then(|s| s.parse().ok());
+        let start = forced_hour.unwrap_or(if self.scene == "play" { world::time::Clock::new().hour } else { 12.0 });
+        self.clock = world::time::Clock::new();
+        self.clock.set_time(start);
+        self.hour = start;
+        self.clock_frozen = self.scene != "play" || forced_hour.is_some();
+        self.flashlight_on = args.flag("--flashlight");
+        self.free_cam = args.flag("--free");
+        self.autowalk = args.flag("--autowalk");
+        self.autoattack = args.flag("--autoattack");
+        self.die_at = args.value("--die-at").and_then(|v| v.parse().ok());
+        self.save_at = args.value("--save-at").and_then(|v| v.parse().ok());
+        self.walk = self.scene == "forest" && !self.free_cam;
+        self.cursor_captured = self.scene == "play" && !self.free_cam;
+        self.renderer = Some(LitRenderer::new(gpu));
+
+        // Saves: --save-dir keeps tests away from the real folder; --import-godot=N copies a Godot slot
+        // (read only) into Rust slot N; --load=N continues slot N; --menu starts on the main menu
+        let slots = save::Slots::new(args.value("--save-dir").map(std::path::PathBuf::from).unwrap_or_else(save::default_base_dir));
+        let settings_file = match args.value("--save-dir") {
+            Some(dir) => std::path::PathBuf::from(dir).join("settings.json"),
+            None => settings::settings_path(),
+        };
+        let mut save_file = None;
+        if let Some(n) = args.value("--import-godot").and_then(|v| v.parse::<usize>().ok()) {
+            match slots.import_godot(n) {
+                Ok(f) => {
+                    log::info!("imported Godot slot {n} into {}", slots.path_for(n).display());
+                    self.active_slot = n as u8;
+                    save_file = Some(f);
+                }
+                Err(e) => log::warn!("import of Godot slot {n} failed: {e:?}"),
+            }
+        }
+        if let Some(n) = args.value("--load").and_then(|v| v.parse::<usize>().ok()) {
+            match slots.read(n) {
+                Ok(f) => {
+                    self.active_slot = n as u8;
+                    save_file = Some(f);
+                }
+                Err(e) => log::warn!("slot {n} not loaded: {e:?}"),
+            }
+        }
+        if self.active_slot == 0 {
+            self.active_slot = 1;
+        }
+        if let Some(seed) = save_file.as_ref().and_then(session::seed_of) {
+            self.seed = seed;
+        }
+        if self.scene == "play" && !self.free_cam {
+            let mut m = if args.flag("--menu") { menus::Menus::new(settings::Settings::load(&settings_file)) } else { menus::Menus::in_game(settings::Settings::load(&settings_file)) };
+            m.set_save_path(settings_file);
+            self.menus = Some(m);
+        }
+        self.slot_cards = session::summaries(&slots);
+        self.slots = Some(slots);
+        self.forced_zombies = args.value("--zombies").and_then(|s| s.parse::<usize>().ok());
+
+        match pack::ModelPack::load(paths::repo_path("rust/assets/models.pack")) {
+            Ok(pack) => self.pack = Some(pack),
+            Err(e) => log::warn!("no model pack ({e}); run `cargo run --release -p baker`"),
+        }
+        self.start_world(gpu, save_file);
+        // Test option: take out hotbar slot N at the start (e.g. --slot=2 for the pistol)
+        if let Some(n) = args.value("--slot").and_then(|v| v.parse::<usize>().ok())
+            && let Some(change) = self.play.as_mut().and_then(|p| p.press(n))
+        {
+            self.apply_hand(change);
+        }
+    }
 
     fn update(&mut self, input: &Input, dt: f32) {
         self.last_dt = dt;
         self.time += dt;
         if self.scene == "play" && !self.free_cam {
-            // Esc releases the mouse cursor, left click recaptures it
-            if input.pressed(winit::keyboard::KeyCode::Escape) {
-                self.cursor_captured = false;
-            } else if !self.cursor_captured && input.mouse_pressed(winit::event::MouseButton::Left)
+            // Esc opens the pause menu (and steps back inside the menus); the game stands still while a
+            // menu is open
+            if input.pressed(winit::keyboard::KeyCode::Escape)
+                && let Some(m) = self.menus.as_mut()
             {
+                let was_open = m.is_open();
+                m.on_escape();
+                if !was_open && m.is_open() {
+                    if let Some(slots) = &self.slots {
+                        self.slot_cards = session::summaries(slots);
+                    }
+                } else if was_open && !m.is_open() {
+                    self.cursor_captured = true;
+                }
+            }
+            if self.menus.as_ref().is_some_and(|m| m.is_open()) {
+                if dt > 0.0 {
+                    self.fps += (1.0 / dt - self.fps) * (dt * 2.0).min(1.0);
+                }
+                return;
+            }
+            if !self.cursor_captured && input.mouse_pressed(winit::event::MouseButton::Left) {
                 self.cursor_captured = true;
             }
+            self.play_time += dt as f64;
 
             let mut actions = Actions::from_default_input(input);
             if !self.cursor_captured {
                 actions.look_delta = (0.0, 0.0);
+            }
+            if let Some(m) = &self.menus {
+                let sens = m.settings.mouse_sensitivity;
+                actions.look_delta.0 *= sens;
+                actions.look_delta.1 *= if m.settings.invert_y { -sens } else { sens };
             }
             if self.autowalk {
                 actions.move_vec.y = -1.0;
@@ -364,6 +588,12 @@ impl Game for R0 {
                 pv.animator.play_die();
             }
         }
+        if let Some(t) = self.save_at
+            && self.time >= t
+        {
+            self.save_at = None;
+            self.save_now();
+        }
         // Guns, crates and pickups (play mode)
         let alive_now = !self.combat.as_ref().is_some_and(|c| c.is_dead());
         if let (Some(play), Some(p)) = (self.play.as_mut(), self.player_ctrl.as_ref())
@@ -439,6 +669,11 @@ impl Game for R0 {
     }
 
     fn render(&mut self, gpu: &Gpu, target: &FrameTarget, encoder: &mut wgpu::CommandEncoder) {
+        // New game / Continue: build the picked world here, where the GPU is
+        if let Some((seed, file)) = self.pending_world.take() {
+            self.seed = seed;
+            self.start_world(gpu, file);
+        }
         let player_pose = self.player_pose();
         if let (Some(model), Some(pv), Some(pack)) = (self.pending_weapon_model.take(), self.player_visual.as_mut(), self.pack.as_ref()) {
             pv.set_weapon(&gpu.device, pack, model.as_deref());
@@ -512,17 +747,29 @@ impl Game for R0 {
     }
 
     fn ui(&mut self, ctx: &engine::egui::Context) {
-        let (Some(play), Some(p), Some(c)) = (self.play.as_ref(), self.player_ctrl.as_ref(), self.combat.as_ref()) else { return };
-        let state = play.hud(c.health.current(), c.health.max(), p.stamina.current, p.stamina.max, self.hour, p.yaw, self.fps, c.is_dead());
-        hud::draw(ctx, &state);
+        let on_main = self.menus.as_ref().is_some_and(|m| matches!(m.screen(), menus::Screen::Main | menus::Screen::SlotPicker { .. }));
+        if let (Some(play), Some(p), Some(c), false) = (self.play.as_ref(), self.player_ctrl.as_ref(), self.combat.as_ref(), on_main) {
+            let show_fps = self.menus.as_ref().is_none_or(|m| m.settings.show_fps);
+            let fps = if show_fps { self.fps } else { 0.0 };
+            let state = play.hud(c.health.current(), c.health.max(), p.stamina.current, p.stamina.max, self.hour, p.yaw, fps, c.is_dead());
+            hud::draw(ctx, &state);
+        }
+        let Some(m) = self.menus.as_mut() else { return };
+        if let Some(action) = m.ui(ctx, &self.slot_cards) {
+            self.menu_action(action);
+        }
     }
 
     fn cursor_grab(&self) -> Option<bool> {
         if self.scene == "play" && !self.free_cam {
-            Some(self.cursor_captured)
+            Some(self.cursor_captured && !self.menus.as_ref().is_some_and(|m| m.wants_cursor()))
         } else {
             None
         }
+    }
+
+    fn should_quit(&self) -> bool {
+        self.quit
     }
 
     fn stats(&self) -> GameStats {

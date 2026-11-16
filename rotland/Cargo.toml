@@ -16,6 +16,7 @@ world = { path = "../world" }
 rayon.workspace = true
 physics = { path = "../physics" }
 game = { path = "../game" }
+save = { path = "../save" }
 humanoid = { path = "../humanoid" }
 pollster.workspace = true
 serde.workspace = true
