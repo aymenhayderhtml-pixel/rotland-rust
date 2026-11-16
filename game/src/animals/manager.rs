@@ -109,6 +109,11 @@ impl Animals {
         Ok(Self::new(config, 0x9E37_79B9_7F4A_7C15))
     }
 
+    /// Ids are handed out from here on (keeps them apart from zombie ids).
+    pub fn set_first_id(&mut self, id: u64) {
+        self.next_id = id;
+    }
+
     pub fn active_count(&self) -> usize {
         self.list.len()
     }
@@ -206,7 +211,6 @@ impl Animals {
         }
         a.butcher.set_done();
         a.retired = true;
-        self.kills.push(a.species_id.clone());
         added
     }
 

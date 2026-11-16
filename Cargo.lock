@@ -2492,6 +2492,7 @@ name = "pack"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "paths",
  "postcard",
  "serde",
 ]

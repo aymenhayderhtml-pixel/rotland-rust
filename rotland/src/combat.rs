@@ -65,7 +65,7 @@ impl Combat {
     }
 
     /// One frame: start a swing if asked, resolve hits on zombies, take bites, count down a death.
-    pub fn update(&mut self, dt: f32, attack_pressed: bool, player: &mut Player, zombies: &mut Zombies, physics: &PhysicsWorld) -> CombatEvents {
+    pub fn update(&mut self, dt: f32, attack_pressed: bool, player: &mut Player, zombies: &mut impl MeleeWorld, physics: &PhysicsWorld) -> CombatEvents {
         let mut ev = CombatEvents::default();
         self.noises.clear();
         self.hits = 0;
@@ -87,9 +87,9 @@ impl Combat {
             }
             let facing = Vec3::new(-player.yaw.sin(), 0.0, -player.yaw.cos());
             let attacker = Attacker { id: PLAYER_ID, position: player.position, facing, eye: player.position + Vec3::Y * 1.5 };
-            for hit in self.swing.update(dt, attacker, &zombies.targets(), physics) {
+            for hit in self.swing.update(dt, attacker, &zombies.melee_targets(), physics) {
                 self.hits += 1;
-                if zombies.hit(hit.target, hit.damage, hit.knockback) {
+                if zombies.melee_hit(hit.target, hit.damage, hit.knockback) {
                     self.kills += 1;
                 }
             }
@@ -128,5 +128,21 @@ impl Combat {
             }
         }
         ev
+    }
+}
+
+/// What a swing can hit (zombies alone, or zombies and animals: wildlife::Prey).
+pub trait MeleeWorld {
+    fn melee_targets(&self) -> Vec<game::melee::MeleeTarget>;
+    fn melee_hit(&mut self, id: u64, damage: game::DamageInfo, knockback: Vec3) -> bool;
+}
+
+impl MeleeWorld for Zombies {
+    fn melee_targets(&self) -> Vec<game::melee::MeleeTarget> {
+        self.targets()
+    }
+
+    fn melee_hit(&mut self, id: u64, damage: game::DamageInfo, knockback: Vec3) -> bool {
+        self.hit(id, damage, knockback)
     }
 }

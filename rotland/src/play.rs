@@ -266,9 +266,9 @@ impl PlayState {
 
     /// The gun in hand fires, reloads and aims (shooting.rs). Returns this frame's events.
     #[allow(clippy::too_many_arguments)]
-    pub fn shoot_tick(&mut self, dt: f32, input: ShootInput, eye: Vec3, aim: Vec3, zombies: &mut Zombies, physics: &PhysicsWorld) -> Option<ShootEvents> {
+    pub fn shoot_tick(&mut self, dt: f32, input: ShootInput, eye: Vec3, aim: Vec3, targets: &mut impl crate::shooting::TargetWorld, physics: &PhysicsWorld) -> Option<ShootEvents> {
         let gun = self.gun.clone()?;
-        let ev = self.shooting.update(dt, input, &gun, eye, aim, &mut self.inventory, zombies, physics);
+        let ev = self.shooting.update_targets(dt, input, &gun, eye, aim, &mut self.inventory, targets, physics);
         self.last_shot = ev.clone();
         Some(ev)
     }

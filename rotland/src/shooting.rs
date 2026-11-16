@@ -113,23 +113,6 @@ impl Shooting {
         }
     }
 
-
-    /// One frame of shooting logic with the live `Zombies` system.
-    #[allow(clippy::too_many_arguments)]
-    pub fn update(
-        &mut self,
-        dt: f32,
-        input: ShootInput,
-        weapon: &WeaponDef,
-        eye: Vec3,
-        aim_dir: Vec3,
-        inventory: &mut Inventory,
-        zombies: &mut Zombies,
-        physics: &PhysicsWorld,
-    ) -> ShootEvents {
-        self.update_targets(dt, input, weapon, eye, aim_dir, inventory, zombies, physics)
-    }
-
     /// One frame of shooting logic against any `TargetWorld` (enables pure tests without GPU).
     #[allow(clippy::too_many_arguments)]
     pub fn update_targets<T: TargetWorld>(

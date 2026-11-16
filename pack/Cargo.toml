@@ -8,3 +8,6 @@ description = "Binary format and data types for Rotland 3D model packs"
 bytemuck.workspace = true
 postcard.workspace = true
 serde.workspace = true
+
+[dev-dependencies]
+paths = { path = "../paths" }

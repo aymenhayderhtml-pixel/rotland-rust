@@ -39,6 +39,7 @@ Save and menu options (play scene):
 | `--save-at=S` | save into the active slot after S seconds (tests) |
 | `--yaw=DEG` | start the player and camera facing this way (screenshots) |
 | `--give=hoe,seeds_wheat:5` | put these items in the backpack at the start (tests) |
+| `--animals=deer,boar,rabbit` | put these animals 9 m in front of the player at the start (screenshots). The stats JSON has `animals` and `animalSpecies` |
 | `--mute` | no sound. Runs with `--shot`, `--seconds`, `--frames` or `--stats` are always muted; the JSON stats still count `soundsPlayed` / `lastSound` |
 | `cargo run -p save --example check_godot` | reads the owner's Godot slots (read only) and prints what was understood |
 

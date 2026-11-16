@@ -252,3 +252,18 @@ fn test_despawn_far_away() {
     assert_eq!(animals.pool.parked_count(), 1, "Despawned animal returned to pool");
     println!("Verified despawn at distance > 150m returned animal to pool");
 }
+
+#[test]
+fn a_kill_counts_once_and_butchering_gives_meat() {
+    let mut animals = Animals::from_repo().unwrap();
+    animals.set_first_id(1 << 32);
+    let id = animals.spawn_at("rabbit", Vec3::ZERO, None, None).unwrap();
+    assert!(id >= 1 << 32, "animal ids stay apart from zombie ids");
+    assert!(animals.hit(id, DamageInfo::new(1000.0), Vec3::ZERO), "the killing blow says so");
+    assert_eq!(animals.take_kills(), vec!["rabbit".to_string()]);
+    let mut bag = Inventory::new();
+    let got = animals.butcher_with_hunting_level(id, &mut bag, 1);
+    assert!(bag.has("raw_meat", 1), "rabbit gives meat: {got:?}");
+    assert!(animals.take_kills().is_empty(), "butchering is not a second kill");
+    assert!(animals.butcher_with_hunting_level(id, &mut bag, 1).is_empty(), "a corpse is butchered once");
+}

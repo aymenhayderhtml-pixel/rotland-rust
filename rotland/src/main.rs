@@ -5,6 +5,7 @@
 mod bench;
 mod camp;
 mod camp_npcs;
+mod wildlife;
 mod camp_ui;
 mod combat;
 mod crates;
@@ -102,6 +103,8 @@ struct R0 {
     start_yaw: Option<f32>,
     /// --give=hoe,seeds_wheat:5: items put in the bag at the start (tests).
     give: Vec<(String, u32)>,
+    /// --animals=deer,boar,rabbit: put these animals in front of the player at the start (screenshots).
+    near_animals: Vec<String>,
     /// Seconds played in this save (stats.playTime).
     play_time: f64,
     quit: bool,
@@ -111,6 +114,8 @@ struct R0 {
     camp_ui: Option<camp_ui::CampUiState>,
     /// The camp's trader, banker, guards and residents.
     camp_npcs: Option<camp_npcs::CampNpcs>,
+    /// Deer, rabbits and boars (play scene).
+    wildlife: Option<wildlife::Wildlife>,
     /// Sound (silent when muted or without a sound device).
     audio: Option<audio::Audio>,
     /// Seconds to the next footstep.
@@ -291,6 +296,7 @@ impl R0 {
         self.player_ctrl = None;
         self.camera_rig = None;
         self.camp_npcs = None;
+        self.wildlife = None;
         self.play_time = 0.0;
         if self.scene == "play" && !self.clock_frozen {
             self.clock = world::time::Clock::new();
@@ -329,6 +335,10 @@ impl R0 {
                 Err(e) => log::warn!("data/zombies.json: {e}"),
             }
             if self.scene == "play" {
+                match wildlife::Wildlife::new(&gpu.device, pack, self.seed) {
+                    Ok(w) => self.wildlife = Some(w),
+                    Err(e) => log::warn!("data/animals.json: {e}"),
+                }
                 self.combat = Some(combat::Combat::new("bat"));
                 match play::PlayState::new(self.seed as u64) {
                     Ok(state) => self.play = Some(state),
@@ -378,6 +388,15 @@ impl R0 {
         if let (Some(yaw), Some(p), Some(rig)) = (self.start_yaw, self.player_ctrl.as_mut(), self.camera_rig.as_mut()) {
             p.yaw = yaw;
             rig.yaw = yaw;
+        }
+        if let (Some(w), Some(p)) = (self.wildlife.as_mut(), self.player_ctrl.as_ref()) {
+            let ahead = Vec3::new(-p.yaw.sin(), 0.0, -p.yaw.cos());
+            let side = Vec3::new(-ahead.z, 0.0, ahead.x);
+            let n = self.near_animals.len() as f32;
+            for (i, species) in self.near_animals.iter().enumerate() {
+                let at = self.player + ahead * 9.0 + side * (i as f32 - (n - 1.0) / 2.0) * 3.0;
+                w.sim.spawn_at(species, Vec3::new(at.x, world_gen.height(at.x, at.z), at.z), None, None);
+            }
         }
         self.loaded_save = save_file;
         let world_gen = Arc::new(world_gen);
@@ -513,6 +532,7 @@ impl Game for R0 {
         self.slot_cards = session::summaries(&slots);
         self.slots = Some(slots);
         self.forced_zombies = args.value("--zombies").and_then(|s| s.parse::<usize>().ok());
+        self.near_animals = args.value("--animals").map(|s| s.split(',').filter(|e| !e.is_empty()).map(str::to_string).collect()).unwrap_or_default();
         self.start_yaw = args.value("--yaw").and_then(|s| s.parse::<f32>().ok()).map(f32::to_radians);
         self.give = args
             .value("--give")
@@ -609,7 +629,9 @@ impl Game for R0 {
                 p.first_person = rig.is_first_person;
                 p.update(&actions, rig.yaw, &self.physics, &self.mover, dt);
                 if let (Some(c), Some(z)) = (self.combat.as_mut(), self.zombies.as_mut()) {
-                    let ev = c.update(dt, attack, p, z, &self.physics);
+                    let animal_bonus = self.play.as_ref().map_or(0.0, |pl| pl.camp.skills.get_bonus("animalDamage"));
+                    let mut prey = wildlife::Prey { zombies: z, animals: self.wildlife.as_mut().map(|w| &mut w.sim), animal_bonus };
+                    let ev = c.update(dt, attack, p, &mut prey, &self.physics);
                     if let Some(a) = self.audio.as_mut() {
                         if ev.swing_started.is_some()
                             && let Some(sound) = c.weapon_id().and_then(|w| a.data.weapon_sound(w, "swing")).map(str::to_string)
@@ -729,8 +751,16 @@ impl Game for R0 {
                 reload_pressed: input.pressed(KeyCode::KeyR),
                 aiming: captured && input.mouse_held(MouseButton::Right),
             };
+            let animal_bonus = play.camp.skills.get_bonus("animalDamage");
             if let Some(z) = self.zombies.as_mut()
-                && let Some(ev) = play.shoot_tick(dt, shoot, self.camera.position, self.camera.forward(), z, &self.physics)
+                && let Some(ev) = play.shoot_tick(
+                    dt,
+                    shoot,
+                    self.camera.position,
+                    self.camera.forward(),
+                    &mut wildlife::Prey { zombies: z, animals: self.wildlife.as_mut().map(|w| &mut w.sim), animal_bonus },
+                    &self.physics,
+                )
                 && let Some(c) = self.combat.as_mut()
             {
                 c.kills += ev.kills;
@@ -768,10 +798,21 @@ impl Game for R0 {
             // E talks to the camp person in front (trader, banker, bounty board) before crates and items
             let npc = self.camp_npcs.as_ref().and_then(|c| c.facing(p.position, facing));
             let pressed = input.pressed(KeyCode::KeyE) && self.camp_ui.is_none();
+            // A corpse in front (or one being butchered) comes next: E starts the butchering timer
+            let mut corpse_prompt = None;
+            if let (None, Some(w)) = (&npc, self.wildlife.as_mut()) {
+                let (prompt, toast) = w.butcher_tick(dt, pressed, p.position, facing, &mut play.inventory, &mut play.camp.skills);
+                if let Some(t) = toast {
+                    play.show_toast(t);
+                    play.hotbar.on_inventory_changed(&play.inventory);
+                }
+                corpse_prompt = prompt;
+            }
+            let free = npc.is_none() && corpse_prompt.is_none();
             // A bed in front comes before crates; tilling with a hoe only when nothing else is offered
-            let bed = npc.is_none() && play.camp.bed_in_front(p.position, facing).is_some();
-            play.interact_tick(dt, pressed && npc.is_none() && !bed, p.position, facing, &near);
-            if npc.is_none() && (bed || !play.has_prompt()) {
+            let bed = free && play.camp.bed_in_front(p.position, facing).is_some();
+            play.interact_tick(dt, pressed && free && !bed, p.position, facing, &near);
+            if free && (bed || !play.has_prompt()) {
                 let physics = &self.physics;
                 let ground = |spot: Vec3| physics.raycast(spot + Vec3::Y * 3.0, Vec3::NEG_Y, 6.0).map(|h| (h.point, h.normal));
                 let farm_press = pressed && !play.picked_up;
@@ -781,8 +822,12 @@ impl Game for R0 {
                     }
                     if let Some(t) = toast {
                         play.show_toast(t);
+                        play.hotbar.on_inventory_changed(&play.inventory);
                     }
                 }
+            }
+            if let Some(text) = corpse_prompt {
+                play.set_prompt(text);
             }
             if let (true, Some(a)) = (play.picked_up, self.audio.as_mut()) {
                 a.event("pickup", None);
@@ -858,8 +903,60 @@ impl Game for R0 {
         }
         if let Some(z) = self.zombies.as_mut() {
             let frame = z.update(dt, alive.then_some(self.player), &noises, &self.physics);
+            let mut bites: Vec<f32> = frame.bites.iter().map(|b| b.damage).collect();
+            // Wild animals: graze, flee, boars charge the player and fight zombies (Godot Animal/AnimalSpawner)
+            if let (Some(w), Some(p), Some(g)) = (self.wildlife.as_mut(), self.player_ctrl.as_ref(), self.world_gen.as_ref()) {
+                let zl: Vec<(u64, Vec3, bool)> = z.list.iter().map(|q| (q.id, q.position, q.health.is_dead())).collect();
+                let heard: Vec<(Vec3, f32)> = noises.iter().map(|n| (n.position, n.radius)).collect();
+                let biome = match g.biome(self.player.x, self.player.z) {
+                    world::BiomeId::Plains => "plains",
+                    world::BiomeId::Forest => "forest",
+                };
+                let no_spawn = |at: Vec3| g.settlements().iter().any(|s| s.contains(at, g.config().safe_zone_padding, g.config()));
+                let skills = self.play.as_ref().map(|pl| &pl.camp.skills);
+                let ctx = game::AnimalUpdateContext {
+                    player_position: Some(self.player),
+                    player_forward: Vec3::new(-p.yaw.sin(), 0.0, -p.yaw.cos()),
+                    player_is_crouching: p.crouching,
+                    player_is_sprinting: p.is_sprinting,
+                    player_is_dead: !alive,
+                    player_hunting_stealth_bonus: skills.map_or(0.0, |sk| sk.get_bonus("animalStealth")),
+                    player_hunting_level: skills.map_or(1, |sk| sk.get_level("hunting")),
+                    is_night: !(6.0..20.0).contains(&self.hour),
+                    biome_name: Some(biome),
+                    noises: &heard,
+                    zombies: &zl,
+                    in_no_spawn_zone: Some(&no_spawn),
+                };
+                let af = w.update(dt, &ctx, &self.physics);
+                for hit in af.attacks {
+                    if hit.is_player {
+                        if alive {
+                            bites.push(hit.damage);
+                        }
+                    } else if let Some(target) = hit.target_id {
+                        let mut d = game::DamageInfo::new(hit.damage);
+                        d.hit_point = hit.hit_point;
+                        d.damage_type = "animal".into();
+                        z.hit(target, d, hit.knockback);
+                    }
+                }
+                if let Some(a) = self.audio.as_mut() {
+                    for (sound, at) in &af.sounds {
+                        a.play_at(sound, *at);
+                    }
+                }
+                // Kills by the player give hunting XP and count for hunt bounties
+                if let Some(play) = self.play.as_mut() {
+                    for species in w.sim.take_kills() {
+                        if let Some(xp) = w.sim.config.species(&species).map(|s| s.xp).filter(|&x| x > 0) {
+                            play.camp.skills.add_xp("hunting", xp as f32);
+                        }
+                        play.camp.bounties.on_animal_killed(&species);
+                    }
+                }
+            }
             if let Some(c) = self.combat.as_mut() {
-                let bites: Vec<f32> = frame.bites.iter().map(|b| b.damage).collect();
                 let ev = c.take_bites(&bites);
                 if ev.died {
                     if let Some(pv) = self.player_visual.as_mut() {
@@ -957,11 +1054,14 @@ impl Game for R0 {
         shadow.extend(people.iter().map(|b| engine::render::SkinnedBatch { mesh: b.mesh, instances: b.instances.clone() }));
         main.extend(people);
         let zombies = self.zombies.as_ref().map(|z| z.pose(&mut self.bones)).unwrap_or_default();
+        let animals = self.wildlife.as_ref().map(|w| w.pose(&mut self.bones)).unwrap_or_default();
         shadow.extend(zombies.iter().map(|b| engine::render::SkinnedBatch {
             mesh: b.mesh,
             instances: b.instances.clone(),
         }));
         main.extend(zombies);
+        shadow.extend(animals.iter().map(|b| engine::render::SkinnedBatch { mesh: b.mesh, instances: b.instances.clone() }));
+        main.extend(animals);
         renderer.draw(
             gpu,
             target,
@@ -1081,6 +1181,11 @@ impl Game for R0 {
         if let Some(z) = &self.zombies {
             s.insert("zombies".into(), z.list.len().into());
             s.insert("zombiesAlive".into(), z.alive().into());
+        }
+        if let Some(w) = &self.wildlife {
+            s.insert("animals".into(), w.sim.live_count().into());
+            let species: Vec<String> = w.sim.list.iter().filter(|a| !a.is_dead()).map(|a| a.species_id.clone()).collect();
+            s.insert("animalSpecies".into(), species.join(",").into());
         }
         if let Some(c) = &self.combat {
             s.insert("playerHealth".into(), format!("{:.0}", c.health.current()).into());
