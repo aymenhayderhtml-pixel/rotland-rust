@@ -9,7 +9,7 @@ use game::{
 
 /// Read-only snapshot of dog state provided to dog screens.
 /// Plain fields only (R7-01 writes dog logic in parallel).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct DogView<'a> {
     pub name: String,
     pub mode: String,
