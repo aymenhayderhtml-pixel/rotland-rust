@@ -7,6 +7,7 @@ mod camp;
 mod camp_npcs;
 mod wildlife;
 mod camp_ui;
+mod hub_ui;
 mod combat;
 mod crates;
 mod hud;
