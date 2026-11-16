@@ -5,6 +5,7 @@
 
 pub mod bounties;
 pub mod camera_rig;
+pub mod camp;
 pub mod crafting;
 pub mod damage;
 pub mod difficulty;
@@ -28,6 +29,7 @@ pub mod zombie;
 
 pub use bounties::*;
 pub use camera_rig::*;
+pub use camp::*;
 pub use crafting::*;
 pub use damage::DamageInfo;
 pub use difficulty::*;
