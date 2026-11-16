@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use serde::{Deserialize, Serialize};
 
 use crate::economy::wallet::Wallet;
 use crate::items::{Inventory, InventorySaveData, ItemRegistry};
@@ -11,7 +10,7 @@ pub const DEFAULT_BANK_SLOTS: usize = 40;
 
 /// The bank: item slots with no practical weight limit and a dollar balance.
 /// Port of `scripts/Economy/Bank.cs` (SaveId: "bank").
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct Bank {
     items: Inventory,
     dollars: i32,
@@ -136,7 +135,7 @@ impl Bank {
     /// // Godot: Bank.cs Save
     pub fn to_save(&self) -> serde_json::Value {
         serde_json::json!({
-            "items": serde_json::to_value(&self.items.save()).unwrap_or_default(),
+            "items": serde_json::to_value(self.items.save()).unwrap_or_default(),
             "dollars": self.dollars
         })
     }

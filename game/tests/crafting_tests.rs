@@ -169,23 +169,23 @@ fn crafting_respects_inventory_weight_and_stack_limits() {
     let reg_arc = Arc::new(items);
     let recipes = RecipeRegistry::from_repo().expect("RecipeRegistry::from_repo");
 
-    // Bag with 1.0 kg capacity
-    let mut bag = Inventory::with_capacity_and_registry(5, 1.0, reg_arc);
+    // Bag with 1.2 kg capacity (data/items.json: cloth 0.1 kg, wood 1.0 kg, bandage 0.1 kg)
+    let mut bag = Inventory::with_capacity_and_registry(5, 1.2, reg_arc);
 
-    // 2 cloth = 0.2 kg. 1 wood = 0.8 kg. Total = 1.0 kg (bag full by weight).
+    // 2 cloth = 0.2 kg + 1 wood = 1.0 kg: 1.2 kg, the bag is full by weight
     bag.add("cloth", 2);
     bag.add("wood", 1);
-    assert!((bag.total_weight() - 1.0).abs() < 1e-4);
+    assert!((bag.total_weight() - 1.2).abs() < 1e-4);
 
     let mut system = CraftingSystem::new();
-    // Starting craft removes 2 cloth (0.2 kg), so bag weight is now 0.8 kg
+    // Starting the craft removes 2 cloth (0.2 kg): 1.0 kg
     let started = system.start_craft("bandage", HAND_STATION, &mut bag, false, false, &recipes);
     assert!(started);
-    assert!((bag.total_weight() - 0.8).abs() < 1e-4);
-
-    // While craft is running, suppose another item is placed in bag making it completely full
-    bag.add("cloth", 2); // adds 0.2 kg -> bag is at 1.0 kg again
     assert!((bag.total_weight() - 1.0).abs() < 1e-4);
+
+    // While the craft runs, 2 more cloth fill the bag again
+    bag.add("cloth", 2);
+    assert!((bag.total_weight() - 1.2).abs() < 1e-4);
 
     // Craft completes (bandage weighs 0.1 kg, cannot fit in 1.0 kg limit)
     let finished = system.update(3.0, &mut bag, false, false);

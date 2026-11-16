@@ -1,10 +1,10 @@
-pub mod board;
-pub mod config;
-pub mod def;
-pub mod manager;
-pub mod progress;
-pub mod roller;
-pub mod save;
+mod board;
+mod config;
+mod def;
+mod manager;
+mod progress;
+mod roller;
+mod save;
 
 pub use board::BountyBoard;
 pub use config::{

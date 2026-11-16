@@ -1,6 +1,6 @@
-pub mod recipe;
-pub mod registry;
-pub mod system;
+mod recipe;
+mod registry;
+mod system;
 
 pub use recipe::{
     RecipeDef, RecipeItem, RecipeXp, CAMPFIRE_RANGE, CAMPFIRE_STATION, HAND_STATION,

@@ -1,8 +1,8 @@
-pub mod bank;
-pub mod config;
-pub mod rules;
-pub mod trader;
-pub mod wallet;
+mod bank;
+mod config;
+mod rules;
+mod trader;
+mod wallet;
 
 pub use bank::{Bank, BANK_MAX_WEIGHT, BANK_SAVE_ID, DEFAULT_BANK_SLOTS};
 pub use config::{EconomyConfig, EconomyConfigData, EconomyLoadError, StockEntry};

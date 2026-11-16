@@ -292,7 +292,7 @@ fn save_round_trip_for_wallet_bank_trader() {
     let config = EconomyConfigData::from_repo().expect("EconomyConfigData::from_repo");
 
     // 1. Wallet save round trip
-    let mut wallet = Wallet::new(125);
+    let wallet = Wallet::new(125);
     let wallet_json = wallet.to_save();
     assert_eq!(wallet_json["dollars"], 125);
 

@@ -13,7 +13,7 @@ pub struct BountyManager {
     seed: i32,
     config: BountyConfigData,
     offered: Vec<BountyDef>,
-    active: Vec<BountyDef>,
+    pub(crate) active: Vec<BountyDef>,
     claimed: HashSet<String>,
     daily_day: i32,
     week: i32,

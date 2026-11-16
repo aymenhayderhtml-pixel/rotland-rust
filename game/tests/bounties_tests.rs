@@ -54,7 +54,7 @@ fn bounties_rolls_3_fixed_seeds_stable_and_valid() {
         assert!(weekly1.dollars >= 0);
         assert!(weekly1.xp >= 0);
         assert!(!weekly1.text.is_empty());
-        assert_eq!(weekly1.expires_on, (0 + 1) * cfg.weekly_days - 1);
+        assert_eq!(weekly1.expires_on, cfg.weekly_days - 1);
         assert!(weekly1.weekly);
         compared_count += 6;
     }
