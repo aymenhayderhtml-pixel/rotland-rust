@@ -148,13 +148,11 @@ impl Shooting {
         }
 
         // Switching weapons cancels any reload in progress on the previous weapon
-        if let Some(prev_id) = &self.active_weapon {
-            if prev_id != &weapon.id {
-                if let Some(prev_gun) = self.guns.get_mut(prev_id) {
+        if let Some(prev_id) = &self.active_weapon
+            && prev_id != &weapon.id
+                && let Some(prev_gun) = self.guns.get_mut(prev_id) {
                     prev_gun.cancel_reload();
                 }
-            }
-        }
         self.active_weapon = Some(weapon.id.clone());
 
         let gun = self
@@ -163,15 +161,14 @@ impl Shooting {
             .or_insert_with(|| Gun::new(weapon.magazine_size));
 
         // Advance cooldown and reload timer
-        if let Some(done) = gun.update(dt) {
-            if done.rounds_taken > 0 {
+        if let Some(done) = gun.update(dt)
+            && done.rounds_taken > 0 {
                 let available = inventory.count(&weapon.ammo_item);
                 let to_take = done.rounds_taken.min(available);
                 if to_take > 0 {
                     inventory.remove(&weapon.ammo_item, to_take);
                 }
             }
-        }
 
         let mut events = ShootEvents::default();
         let spare_in_bag = inventory.count(&weapon.ammo_item);

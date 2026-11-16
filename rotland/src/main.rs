@@ -373,7 +373,7 @@ impl Game for R0 {
             let captured = self.cursor_captured;
             let shoot = shooting::ShootInput {
                 // --autoattack clicks every other frame, so semi-automatic guns see a fresh press each time
-                fire_pressed: (self.autoattack && (self.time * 10.0) as u32 % 2 == 0) || (captured && input.mouse_pressed(MouseButton::Left)),
+                fire_pressed: (self.autoattack && ((self.time * 10.0) as u32).is_multiple_of(2)) || (captured && input.mouse_pressed(MouseButton::Left)),
                 fire_held: captured && input.mouse_held(MouseButton::Left),
                 reload_pressed: input.pressed(KeyCode::KeyR),
                 aiming: captured && input.mouse_held(MouseButton::Right),
