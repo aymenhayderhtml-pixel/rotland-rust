@@ -105,6 +105,11 @@ impl PlayState {
         })
     }
 
+    /// A message in the middle of the screen for a few seconds.
+    pub fn show_toast(&mut self, text: String) {
+        self.toast = Some((text, TOAST_SECONDS));
+    }
+
     /// Takes out the first hotbar item at the start of a game, like Godot's starting bat.
     /// The backpack's stacks and the looted crates, for a save file.
     pub fn save_parts(&self) -> (game::items::InventorySaveData, Vec<String>) {

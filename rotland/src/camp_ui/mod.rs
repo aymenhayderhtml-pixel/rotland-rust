@@ -1,3 +1,6 @@
+// Helper methods here (count steppers, view getters) are used by the tests and by screens still to come
+#![allow(dead_code)]
+
 //! egui 0.37 UI for camp screens: Trader Shop, Bank, Crafting, and Bounty Board.
 //! Follows Godot layouts, colors, and styles from scripts/UI/.
 
@@ -15,7 +18,7 @@ mod view;
 mod tests;
 
 pub use action::CampAction;
-pub use draw::{draw, parse_hex_color, PANEL_HEIGHT, PANEL_WIDTH};
+pub use draw::draw;
 pub use draw_bounties::draw_bounty_tracker;
 pub use screen::CampScreen;
 pub use state::CampUiState;

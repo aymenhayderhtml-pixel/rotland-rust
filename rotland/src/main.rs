@@ -102,6 +102,8 @@ struct R0 {
     quit: bool,
     /// Scripted test: save into the active slot at this time (seconds).
     save_at: Option<f32>,
+    /// The open camp screen (shop, bank, crafting, bounties), if any.
+    camp_ui: Option<camp_ui::CampUiState>,
 }
 
 /// The pack model name of a weapon ("res://assets/models/weapons/bat.glb" -> "bat").
@@ -423,6 +425,14 @@ impl Game for R0 {
         self.autoattack = args.flag("--autoattack");
         self.die_at = args.value("--die-at").and_then(|v| v.parse().ok());
         self.save_at = args.value("--save-at").and_then(|v| v.parse().ok());
+        // Test option: open a camp screen at the start (shop, bank, crafting, bounties)
+        self.camp_ui = match args.value("--camp-screen") {
+            Some("shop") => Some(camp_ui::CampUiState::new(camp_ui::CampScreen::Shop)),
+            Some("bank") => Some(camp_ui::CampUiState::new(camp_ui::CampScreen::Bank)),
+            Some("crafting") => Some(camp_ui::CampUiState::new(camp_ui::CampScreen::Crafting)),
+            Some("bounties") => Some(camp_ui::CampUiState::new(camp_ui::CampScreen::Bounties)),
+            _ => None,
+        };
         self.walk = self.scene == "forest" && !self.free_cam;
         self.cursor_captured = self.scene == "play" && !self.free_cam;
         self.renderer = Some(LitRenderer::new(gpu));
@@ -488,7 +498,20 @@ impl Game for R0 {
         if self.scene == "play" && !self.free_cam {
             // Esc opens the pause menu (and steps back inside the menus); the game stands still while a
             // menu is open
+            // Tab opens crafting (Godot's inventory screen), J the bounties; again closes them.
+            // Shop and bank open by talking to the camp's trader and banker.
+            use camp_ui::CampScreen;
+            for (key, screen) in [(winit::keyboard::KeyCode::Tab, CampScreen::Crafting), (winit::keyboard::KeyCode::KeyJ, CampScreen::Bounties)] {
+                if input.pressed(key) && !self.menus.as_ref().is_some_and(|m| m.is_open()) {
+                    self.camp_ui = match &self.camp_ui {
+                        Some(s) if s.screen() == screen => None,
+                        _ => Some(camp_ui::CampUiState::new(screen)),
+                    };
+                }
+            }
+            // Esc closes an open camp screen (the screen itself sees the key), otherwise the menus
             if input.pressed(winit::keyboard::KeyCode::Escape)
+                && self.camp_ui.is_none()
                 && let Some(m) = self.menus.as_mut()
             {
                 let was_open = m.is_open();
@@ -513,7 +536,7 @@ impl Game for R0 {
             self.play_time += dt as f64;
 
             let mut actions = Actions::from_default_input(input);
-            if !self.cursor_captured {
+            if !self.cursor_captured || self.camp_ui.is_some() {
                 actions.look_delta = (0.0, 0.0);
             }
             if let Some(m) = &self.menus {
@@ -532,7 +555,7 @@ impl Game for R0 {
             if let Some(change) = self.play.as_mut().and_then(|p| p.hotbar_keys(input)) {
                 self.apply_hand(change);
             }
-            let attack = !dead && (self.autoattack || (self.cursor_captured && input.mouse_pressed(winit::event::MouseButton::Left)));
+            let attack = !dead && self.camp_ui.is_none() && (self.autoattack || (self.cursor_captured && input.mouse_pressed(winit::event::MouseButton::Left)));
             if let (Some(p), Some(rig)) = (self.player_ctrl.as_mut(), self.camera_rig.as_mut()) {
                 rig.update(&actions, p.crouching, dt);
                 p.first_person = rig.is_first_person;
@@ -624,6 +647,10 @@ impl Game for R0 {
                 log::info!("the player died of hunger or thirst");
             }
             play.health_full = c.health.current() >= c.health.max();
+            if let Some(toast) = play.camp.craft_tick(dt, &mut play.inventory, dead) {
+                play.hotbar.on_inventory_changed(&play.inventory);
+                play.show_toast(toast);
+            }
         }
         // Guns, crates and pickups (play mode)
         let alive_now = !self.combat.as_ref().is_some_and(|c| c.is_dead());
@@ -798,6 +825,43 @@ impl Game for R0 {
             let state = play.hud(c.health.current(), c.health.max(), p.stamina.current, p.stamina.max, self.hour, p.yaw, fps, c.is_dead());
             hud::draw(ctx, &state);
         }
+        // Camp screens over the game (not over the main menu)
+        if let (Some(play), false) = (self.play.as_mut(), on_main) {
+            let dead = self.combat.as_ref().is_some_and(|c| c.is_dead());
+            let action = {
+                let view = camp_ui::CampView {
+                    wallet: Some(&play.camp.wallet),
+                    inventory: Some(&play.inventory),
+                    bank: Some(&play.camp.bank),
+                    trader_stock: Some(&play.camp.trader),
+                    crafting: Some(&play.camp.crafting),
+                    recipe_registry: Some(&play.camp.recipes),
+                    bounty_manager: Some(&play.camp.bounties),
+                    item_registry: Some(&play.items),
+                    economy_config: Some(&play.camp.economy),
+                    near_lit_campfire: false,
+                    player_pos: self.player,
+                    is_dead: dead,
+                };
+                camp_ui::draw_bounty_tracker(ctx, &view);
+                match self.camp_ui.as_mut() {
+                    Some(state) => camp_ui::draw(ctx, state.screen(), state, &view),
+                    None => None,
+                }
+            };
+            match action {
+                Some(camp_ui::CampAction::Close) => self.camp_ui = None,
+                Some(a) => {
+                    let items = play.items.clone();
+                    let status = play.camp.apply(a, &mut play.inventory, &items, dead);
+                    play.hotbar.on_inventory_changed(&play.inventory);
+                    if let (Some(s), Some(state)) = (status, self.camp_ui.as_mut()) {
+                        state.set_status(s);
+                    }
+                }
+                None => {}
+            }
+        }
         let Some(m) = self.menus.as_mut() else { return };
         if let Some(action) = m.ui(ctx, &self.slot_cards) {
             self.menu_action(action);
@@ -806,7 +870,7 @@ impl Game for R0 {
 
     fn cursor_grab(&self) -> Option<bool> {
         if self.scene == "play" && !self.free_cam {
-            Some(self.cursor_captured && !self.menus.as_ref().is_some_and(|m| m.wants_cursor()))
+            Some(self.cursor_captured && self.camp_ui.is_none() && !self.menus.as_ref().is_some_and(|m| m.wants_cursor()))
         } else {
             None
         }

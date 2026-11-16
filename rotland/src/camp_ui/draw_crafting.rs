@@ -107,7 +107,7 @@ pub fn draw_crafting(ui: &mut egui::Ui, _state: &mut CampUiState, view: &CampVie
                                     );
                                 }
 
-                                ui.label(RichText::new("→").size(14.0).color(Color32::GRAY));
+                                ui.label(RichText::new("->").size(14.0).color(Color32::GRAY));
 
                                 // Outputs
                                 for output in &recipe.outputs {

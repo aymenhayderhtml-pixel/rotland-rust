@@ -68,11 +68,8 @@ pub fn draw_shop(ui: &mut egui::Ui, state: &mut CampUiState, view: &CampView) ->
                                     let (rect, _) = ui.allocate_exact_size(vec2(24.0, 24.0), egui::Sense::hover());
                                     ui.painter().rect_filled(rect, CornerRadius::same(4), icon_color);
 
-                                    let info_text = if let Some(b) = blocker {
-                                        format!("{name}   ${price}   x{qty}   ({b})")
-                                    } else {
-                                        format!("{name}   ${price}   x{qty}")
-                                    };
+                                    // The reason it can't be bought shows on hover, so it never runs into the buttons
+                                    let info_text = format!("{name}   ${price}   x{qty}");
 
                                     let label = RichText::new(info_text).size(14.0).color(if blocker.is_some() {
                                         Color32::from_rgb(140, 140, 145)
@@ -80,7 +77,12 @@ pub fn draw_shop(ui: &mut egui::Ui, state: &mut CampUiState, view: &CampView) ->
                                         Color32::WHITE
                                     });
 
-                                    if ui.button(label).clicked() {
+                                    let row = ui.button(label);
+                                    let row = match blocker {
+                                        Some(b) => row.on_hover_text(b.to_string()),
+                                        None => row,
+                                    };
+                                    if row.clicked() {
                                         state.select_row(id);
                                     }
 
