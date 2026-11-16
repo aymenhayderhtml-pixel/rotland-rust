@@ -147,11 +147,13 @@ impl FarmManager {
             return Err("Watering can is empty".to_string());
         }
         let synced = self.synced_hours;
+        if self.find(plot_id).is_none() {
+            return Err("Plot not found".to_string());
+        }
+        self.charges -= 1;
         let plot = self
             .find_mut(plot_id)
             .ok_or_else(|| "Plot not found".to_string())?;
-
-        self.charges -= 1;
         plot.watered_at = if synced >= 0.0 { synced } else { 0.0 };
         plot.dry_hours = 0.0;
 
@@ -236,8 +238,11 @@ impl FarmManager {
         inventory: &mut Inventory,
         skills: Option<&mut SkillSystem>,
     ) -> Result<(), String> {
-        let mut rng = || self.rng.next_double();
-        self.act_with_rng(plot_id, inventory, skills, &mut rng)
+        // The RNG is lent out for the call, so `self` stays free to borrow
+        let mut rng = std::mem::replace(&mut self.rng, world::DotnetRandom::new(0));
+        let result = self.act_with_rng(plot_id, inventory, skills, || rng.next_double());
+        self.rng = rng;
+        result
     }
 
     /// Performs the appropriate action on a plot with an explicit RNG closure.

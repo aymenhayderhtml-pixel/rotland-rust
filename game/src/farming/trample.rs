@@ -84,7 +84,10 @@ impl FarmManager {
 
     /// Trample check using manager's internal RNG.
     pub fn trample_step(&mut self, walkers: impl IntoIterator<Item = (u64, Vec3)>) -> Vec<String> {
-        let mut rng = || self.rng.next_double();
-        self.trample_check(walkers, &mut rng)
+        // The RNG is lent out for the call, so `self` stays free to borrow
+        let mut rng = std::mem::replace(&mut self.rng, world::DotnetRandom::new(0));
+        let result = self.trample_check(walkers, || rng.next_double());
+        self.rng = rng;
+        result
     }
 }

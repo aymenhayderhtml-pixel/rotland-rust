@@ -1,6 +1,6 @@
 use glam::Vec3;
 use game::farming::{
-    CropStage, FarmConfig, FarmConfigData, FarmManager, FarmRules, PlotAction,
+    CropStage, FarmConfig, FarmConfigData, FarmManager, FarmRules,
 };
 use game::items::Inventory;
 use game::skills::SkillSystem;

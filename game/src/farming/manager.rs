@@ -118,7 +118,7 @@ impl FarmManager {
             return;
         }
         self.camp_checked = true;
-        let spots = &self.config.camp_plots;
+        let spots = self.config.camp_plots.clone();
         for site in sites {
             for (i, spot) in spots.iter().enumerate() {
                 let id = format!("{}_plot_{}", site.id, i + 1);
