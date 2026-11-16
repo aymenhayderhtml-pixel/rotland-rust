@@ -3,6 +3,7 @@
 //! Rotland gameplay logic: player controller, camera rig, input actions, stamina, health and weapon
 //! data. Pure logic crate with no direct wgpu dependencies.
 
+pub mod bounties;
 pub mod camera_rig;
 pub mod crafting;
 pub mod damage;
@@ -25,6 +26,7 @@ pub mod survival;
 pub mod weapons;
 pub mod zombie;
 
+pub use bounties::*;
 pub use camera_rig::*;
 pub use crafting::*;
 pub use damage::DamageInfo;
