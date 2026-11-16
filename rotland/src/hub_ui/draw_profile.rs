@@ -1,7 +1,7 @@
 //! egui 0.37 rendering for the Profile tab in the player hub.
 
 use engine::egui::{
-    self, pos2, vec2, Align2, Color32, CornerRadius, FontId, Frame, Grid, Margin, RichText,
+    self, pos2, vec2, Align2, Color32, CornerRadius, FontId, Grid, RichText,
     ScrollArea, Stroke,
 };
 

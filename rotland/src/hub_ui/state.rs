@@ -132,12 +132,11 @@ impl HubUiState {
     }
 
     pub fn drop_drag(&mut self, target_slot: usize) -> Option<(usize, usize)> {
-        if let Some(from) = self.dragged_slot.take() {
-            if from != target_slot {
+        if let Some(from) = self.dragged_slot.take()
+            && from != target_slot {
                 self.handle_slot_move(from, target_slot);
                 return Some((from, target_slot));
             }
-        }
         None
     }
 

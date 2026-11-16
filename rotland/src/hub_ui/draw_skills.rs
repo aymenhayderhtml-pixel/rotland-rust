@@ -1,6 +1,6 @@
 //! egui 0.37 rendering for the Skills tab in the player hub.
 
-use engine::egui::{self, vec2, Color32, CornerRadius, Frame, Margin, ProgressBar, RichText, ScrollArea, Stroke};
+use engine::egui::{self, Color32, CornerRadius, Frame, Margin, ProgressBar, RichText, ScrollArea, Stroke};
 
 use super::action::HubAction;
 use super::state::HubUiState;

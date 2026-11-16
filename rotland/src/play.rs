@@ -161,6 +161,71 @@ impl PlayState {
         (health != 0.0).then_some(HandChange::Health(health))
     }
 
+    /// A button on the bag screen (hub_ui). Returns a hand change and a line for the screen's status.
+    /// Dropped items land at `feet` and can be picked up again with E.
+    pub fn bag_action(&mut self, action: &crate::hub_ui::HubAction, split: u32, feet: Vec3) -> (Option<HandChange>, Option<String>) {
+        use crate::hub_ui::HubAction;
+        let name = |s: &Self, slot: usize| s.inventory.slot(slot).map(|st| s.items.get(&st.item_id).map_or(st.item_id.clone(), |d| d.name.clone()));
+        let out = match action {
+            HubAction::MoveSlot { from, to } => {
+                self.inventory.swap_slots(*from, *to);
+                (None, None)
+            }
+            HubAction::AssignHotbar { slot, key } if (1..=self.hotbar.slot_count()).contains(key) => {
+                self.inventory.swap_slots(*slot, key - 1);
+                (None, Some(format!("On key {key}")))
+            }
+            HubAction::UseItem { slot } => {
+                let Some(id) = self.inventory.slot(*slot).map(|s| s.item_id.clone()) else { return (None, None) };
+                let label = name(self, *slot);
+                if id == "flashlight" {
+                    (Some(HandChange::ToggleFlashlight), None)
+                } else {
+                    let before = self.inventory.count(&id);
+                    let change = self.use_item(&id);
+                    let used = self.inventory.count(&id) < before;
+                    (change, Some(if used { format!("Used {}", label.unwrap_or(id)) } else { "Can't use that now".into() }))
+                }
+            }
+            HubAction::EquipItem { slot } => {
+                let Some(id) = self.inventory.slot(*slot).map(|s| s.item_id.clone()) else { return (None, None) };
+                if self.hotbar.toggle_equip_item(&id, &self.inventory, &self.items) {
+                    let weapon = self.hotbar.equipped_item_id().and_then(|w| self.weapons.get(w)).cloned();
+                    (Some(HandChange::Weapon(weapon)), None)
+                } else {
+                    (None, Some("Not a weapon".into()))
+                }
+            }
+            HubAction::DropItem { slot, count } => {
+                let Some(stack) = self.inventory.slot(*slot).cloned() else { return (None, None) };
+                let n = if *count == 0 { stack.count } else { (*count).min(stack.count) };
+                let label = name(self, *slot).unwrap_or_default();
+                let removed = self.inventory.remove_from_slot(*slot, n);
+                if removed > 0 {
+                    self.world_items.add(stack.item_id, removed, feet);
+                }
+                (None, Some(format!("Dropped {removed} {label}")))
+            }
+            HubAction::SplitStack { slot } => {
+                let Some(stack) = self.inventory.slot(*slot).cloned() else { return (None, None) };
+                let n = split.clamp(1, stack.count.saturating_sub(1).max(1));
+                let free = self.inventory.slots().iter().position(Option::is_none);
+                match free {
+                    Some(free) if stack.count > 1 => {
+                        self.inventory.remove_from_slot(*slot, n);
+                        self.inventory.slots_mut()[free] = Some(game::items::ItemStack { item_id: stack.item_id, count: n });
+                        self.inventory.set_changed();
+                        (None, Some(format!("Split off {n}")))
+                    }
+                    _ => (None, Some("No free slot".into())),
+                }
+            }
+            _ => (None, None),
+        };
+        self.hotbar.on_inventory_changed(&self.inventory);
+        out
+    }
+
     /// Hunger and thirst drain; returns (damage from an empty need, healing from being well fed).
     pub fn needs_tick(&mut self, dt: f32, sprinting: bool, dead: bool, health: (f32, f32), stamina: &mut game::Stamina) -> (f32, f32) {
         self.use_cooldown = (self.use_cooldown - dt).max(0.0);

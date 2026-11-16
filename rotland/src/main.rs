@@ -23,6 +23,7 @@ mod streaming;
 mod terrain;
 mod zombies;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use engine::render::{Camera, DrawItem, LitRenderer};
@@ -113,6 +114,12 @@ struct R0 {
     save_at: Option<f32>,
     /// The open camp screen (shop, bank, crafting, bounties), if any.
     camp_ui: Option<camp_ui::CampUiState>,
+    /// The player's hub (Tab bag and crafting, L skills, J bounties, P profile, M map).
+    hub: Option<hub_ui::HubUiState>,
+    /// The level-up banner and "+XP" toasts (always on, also when the hub is shut).
+    overlays: Option<hub_ui::HubUiState>,
+    /// Each skill's (level, xp) last frame, to spot XP gains.
+    skill_seen: HashMap<String, (u32, f32)>,
     /// The camp's trader, banker, guards and residents.
     camp_npcs: Option<camp_npcs::CampNpcs>,
     /// Deer, rabbits and boars (play scene).
@@ -131,6 +138,11 @@ fn weapon_model_name(def: &game::WeaponDef) -> Option<String> {
 
 impl R0 {
     /// Puts a weapon in hand (or empties it): the swing uses its numbers, the model shows in the hand.
+    /// A camp screen or the hub is open: the mouse is free and the player's hands are busy.
+    fn screen_open(&self) -> bool {
+        self.camp_ui.is_some() || self.hub.is_some()
+    }
+
     fn apply_hand(&mut self, change: play::HandChange) {
         let def = match change {
             play::HandChange::Weapon(def) => def,
@@ -298,6 +310,7 @@ impl R0 {
         self.camera_rig = None;
         self.camp_npcs = None;
         self.wildlife = None;
+        self.skill_seen.clear();
         self.play_time = 0.0;
         if self.scene == "play" && !self.clock_frozen {
             self.clock = world::time::Clock::new();
@@ -481,6 +494,18 @@ impl Game for R0 {
             self.audio = Some(audio::Audio::new(muted));
         }
         // Test option: open a camp screen at the start (shop, bank, crafting, bounties)
+        self.hub = args.value("--hub").and_then(|h| {
+            use hub_ui::HubTab as T;
+            let tab = match h {
+                "bag" => T::Bag,
+                "skills" => T::Skills,
+                "bounties" => T::Bounties,
+                "profile" => T::Profile,
+                "map" => T::Map,
+                _ => return None,
+            };
+            Some(hub_ui::HubUiState::new(hub_ui::HubScreen::Tab(tab)))
+        });
         self.camp_ui = match args.value("--camp-screen") {
             Some("shop") => Some(camp_ui::CampUiState::new(camp_ui::CampScreen::Shop)),
             Some("bank") => Some(camp_ui::CampUiState::new(camp_ui::CampScreen::Bank)),
@@ -569,18 +594,21 @@ impl Game for R0 {
             // menu is open
             // Tab opens crafting (Godot's inventory screen), J the bounties; again closes them.
             // Shop and bank open by talking to the camp's trader and banker.
-            use camp_ui::CampScreen;
-            for (key, screen) in [(winit::keyboard::KeyCode::Tab, CampScreen::Crafting), (winit::keyboard::KeyCode::KeyJ, CampScreen::Bounties)] {
-                if input.pressed(key) && !self.menus.as_ref().is_some_and(|m| m.is_open()) {
-                    self.camp_ui = match &self.camp_ui {
-                        Some(s) if s.screen() == screen => None,
-                        _ => Some(camp_ui::CampUiState::new(screen)),
+            // The hub's keys (Godot project.godot): Tab bag, L skills, J bounties, P profile, M map; the
+            // same key again closes it
+            use hub_ui::{HubScreen, HubTab};
+            use winit::keyboard::KeyCode as K;
+            for (key, tab) in [(K::Tab, HubTab::Bag), (K::KeyL, HubTab::Skills), (K::KeyJ, HubTab::Bounties), (K::KeyP, HubTab::Profile), (K::KeyM, HubTab::Map)] {
+                if input.pressed(key) && self.camp_ui.is_none() && !self.menus.as_ref().is_some_and(|m| m.is_open()) {
+                    self.hub = match &self.hub {
+                        Some(h) if h.screen() == HubScreen::Tab(tab) => None,
+                        _ => Some(hub_ui::HubUiState::new(HubScreen::Tab(tab))),
                     };
                 }
             }
-            // Esc closes an open camp screen (the screen itself sees the key), otherwise the menus
+            // Esc closes an open camp or hub screen (the screen itself sees the key), otherwise the menus
             if input.pressed(winit::keyboard::KeyCode::Escape)
-                && self.camp_ui.is_none()
+                && !self.screen_open()
                 && let Some(m) = self.menus.as_mut()
             {
                 let was_open = m.is_open();
@@ -605,7 +633,7 @@ impl Game for R0 {
             self.play_time += dt as f64;
 
             let mut actions = Actions::from_default_input(input);
-            if !self.cursor_captured || self.camp_ui.is_some() {
+            if !self.cursor_captured || self.screen_open() {
                 actions.look_delta = (0.0, 0.0);
             }
             if let Some(m) = &self.menus {
@@ -624,7 +652,7 @@ impl Game for R0 {
             if let Some(change) = self.play.as_mut().and_then(|p| p.hotbar_keys(input)) {
                 self.apply_hand(change);
             }
-            let attack = !dead && self.camp_ui.is_none() && (self.autoattack || (self.cursor_captured && input.mouse_pressed(winit::event::MouseButton::Left)));
+            let attack = !dead && !self.screen_open() && (self.autoattack || (self.cursor_captured && input.mouse_pressed(winit::event::MouseButton::Left)));
             if let (Some(p), Some(rig)) = (self.player_ctrl.as_mut(), self.camera_rig.as_mut()) {
                 rig.update(&actions, p.crouching, dt);
                 p.first_person = rig.is_first_person;
@@ -798,7 +826,7 @@ impl Game for R0 {
                 .unwrap_or_default();
             // E talks to the camp person in front (trader, banker, bounty board) before crates and items
             let npc = self.camp_npcs.as_ref().and_then(|c| c.facing(p.position, facing));
-            let pressed = input.pressed(KeyCode::KeyE) && self.camp_ui.is_none();
+            let pressed = input.pressed(KeyCode::KeyE) && self.camp_ui.is_none() && self.hub.is_none();
             // A corpse in front (or one being butchered) comes next: E starts the butchering timer
             let mut corpse_prompt = None;
             if let (None, Some(w)) = (&npc, self.wildlife.as_mut()) {
@@ -892,6 +920,22 @@ impl Game for R0 {
                 }
             }
             play.camp.tick(self.clock.day, self.hour);
+            // XP gains show as toasts, level-ups as a banner (Godot XpToastStack / LevelUpBanner)
+            let overlays = self.overlays.get_or_insert_with(|| hub_ui::HubUiState::new(hub_ui::HubScreen::Tab(hub_ui::HubTab::Bag)));
+            let first = self.skill_seen.is_empty();
+            for def in play.camp.skills.registry().all() {
+                let now = (play.camp.skills.get_level(&def.id), play.camp.skills.get_xp(&def.id));
+                let before = self.skill_seen.insert(def.id.clone(), now);
+                if let (false, Some((level, xp))) = (first, before) {
+                    if now.0 > level {
+                        overlays.trigger_level_up(&def.name, now.0);
+                        overlays.add_xp_toast(&def.id, &def.name, now.1.max(1.0));
+                    } else if now.1 > xp + 0.01 {
+                        overlays.add_xp_toast(&def.id, &def.name, now.1 - xp);
+                    }
+                }
+            }
+            overlays.update_overlays(dt);
             // Crops grow with the clock; zombies walking over field beds can trample them
             let camp = &mut play.camp;
             camp.farm.sync_clock(&self.clock, Some(&camp.skills));
@@ -1124,6 +1168,66 @@ impl Game for R0 {
                 None => {}
             }
         }
+        if let (Some(o), false) = (&self.overlays, on_main) {
+            hub_ui::draw_overlays(ctx, o);
+        }
+        // The hub (bag, crafting, skills, bounties, profile)
+        let mut hand = None;
+        if let (Some(play), Some(state), false) = (self.play.as_mut(), self.hub.as_mut(), on_main) {
+            let dead = self.combat.as_ref().is_some_and(|c| c.is_dead());
+            let kills = self.combat.as_ref().map_or(0, |c| c.kills);
+            let action = {
+                let view = hub_ui::HubView {
+                    inventory: Some(&play.inventory),
+                    hotbar: Some(&play.hotbar),
+                    item_registry: Some(&play.items),
+                    crafting: Some(&play.camp.crafting),
+                    recipe_registry: Some(&play.camp.recipes),
+                    skills: Some(&play.camp.skills),
+                    skill_registry: Some(play.camp.skills.registry()),
+                    bounty_manager: Some(&play.camp.bounties),
+                    wallet: Some(&play.camp.wallet),
+                    bank: Some(&play.camp.bank),
+                    difficulty_settings: Some(&play.camp.difficulty),
+                    difficulty_config: Some(&play.camp.difficulty_config),
+                    days_survived: self.clock.day,
+                    play_time_seconds: self.play_time,
+                    kills,
+                    is_dead: dead,
+                    health: self.combat.as_ref().map(|c| (c.health.current(), c.health.max())),
+                    ..Default::default()
+                };
+                hub_ui::draw(ctx, state, &view)
+            };
+            match action {
+                Some(hub_ui::HubAction::Close) => self.hub = None,
+                Some(hub_ui::HubAction::Craft { recipe }) => {
+                    let items = play.items.clone();
+                    let status = play.camp.apply(camp_ui::CampAction::Craft { recipe }, &mut play.inventory, &items, dead);
+                    play.hotbar.on_inventory_changed(&play.inventory);
+                    if let Some(s) = status {
+                        state.set_status(s);
+                    }
+                }
+                Some(hub_ui::HubAction::CancelCraft) => {
+                    let items = play.items.clone();
+                    if let Some(s) = play.camp.apply(camp_ui::CampAction::CancelCraft, &mut play.inventory, &items, dead) {
+                        state.set_status(s);
+                    }
+                }
+                Some(a) => {
+                    let (change, status) = play.bag_action(&a, state.split_count(), self.player);
+                    hand = change;
+                    if let Some(s) = status {
+                        state.set_status(s);
+                    }
+                }
+                None => {}
+            }
+        }
+        if let Some(change) = hand {
+            self.apply_hand(change);
+        }
         let Some(m) = self.menus.as_mut() else { return };
         if let Some(action) = m.ui(ctx, &self.slot_cards) {
             self.menu_action(action);
@@ -1132,7 +1236,7 @@ impl Game for R0 {
 
     fn cursor_grab(&self) -> Option<bool> {
         if self.scene == "play" && !self.free_cam {
-            Some(self.cursor_captured && self.camp_ui.is_none() && !self.menus.as_ref().is_some_and(|m| m.wants_cursor()))
+            Some(self.cursor_captured && !self.screen_open() && !self.menus.as_ref().is_some_and(|m| m.wants_cursor()))
         } else {
             None
         }

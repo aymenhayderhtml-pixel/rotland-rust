@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use super::screen::{HubScreen, HubTab};
 use super::state::{
-    HubUiState, LEVEL_UP_BANNER_DURATION, XP_TOAST_LIFETIME, XP_TOAST_MERGE_WINDOW,
+    HubUiState, LEVEL_UP_BANNER_DURATION, XP_TOAST_LIFETIME,
 };
 use super::view::{DogView, HubView};
 
