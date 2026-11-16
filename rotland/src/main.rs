@@ -3,6 +3,7 @@
 //! --free (fly with mouse + WASD instead of the scripted walk), plus the engine's --shot / --stats / --seconds.
 
 mod bench;
+mod camp_ui;
 mod combat;
 mod crates;
 mod hud;
