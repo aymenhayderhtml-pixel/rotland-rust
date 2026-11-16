@@ -4,7 +4,9 @@
 //! data. Pure logic crate with no direct wgpu dependencies.
 
 pub mod camera_rig;
+pub mod crafting;
 pub mod damage;
+pub mod economy;
 pub mod health;
 pub mod flowfield;
 mod flowfield_scan;
@@ -21,7 +23,9 @@ pub mod weapons;
 pub mod zombie;
 
 pub use camera_rig::*;
+pub use crafting::*;
 pub use damage::DamageInfo;
+pub use economy::*;
 pub use health::{DamageResult, Health, HealthEvent, IgnoredReason};
 pub use flowfield::FlowField;
 pub use input::{Actions, InputBindings};
