@@ -67,6 +67,8 @@ fn main() {
         hour: 14.5,
         day: 3,
         heading_yaw: 0.0,
+        food: Some((0.7, false)),
+        water: Some((0.2, true)),
         hotbar: vec![
             HotbarSlot {
                 label: "Axe".into(),

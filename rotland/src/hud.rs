@@ -24,6 +24,9 @@ pub struct HudState {
     pub hotbar: Vec<HotbarSlot>,
     pub ammo: Option<(u32, u32)>,
     pub fps: f32,
+    /// Food and water bars: fill 0..1 and whether it is low (the bar pulses red).
+    pub food: Option<(f32, bool)>,
+    pub water: Option<(f32, bool)>,
     pub message: Option<String>,
     pub dead: bool,
 }
@@ -72,6 +75,7 @@ pub fn draw(ctx: &egui::Context, s: &HudState) {
 
             // 5. Health and stamina bars bottom left (HUD.cs, HUD.tscn)
             draw_vital_bars(painter, &screen, s.health, s.max_health, s.stamina, s.max_stamina);
+            draw_need_bars(painter, &screen, ctx.input(|i| i.time), s.food, s.water);
 
             // 6. Hotbar bottom centre (HotbarBar.cs)
             draw_hotbar(painter, &screen, &s.hotbar);
@@ -277,6 +281,24 @@ fn draw_vital_bars(
             vec2(stam_rect.width() * stam_frac, stam_rect.height()),
         );
         painter.rect_filled(fill_rect, 2.0, stamina_fill);
+    }
+}
+
+/// Food and water bars above health (HUD.tscn FoodBar/WaterBar; low needs pulse, HUD.cs).
+fn draw_need_bars(painter: &egui::Painter, screen: &Rect, time: f64, food: Option<(f32, bool)>, water: Option<(f32, bool)>) {
+    let bar_bg = Color32::from_rgba_unmultiplied(31, 31, 31, 217);
+    let rows = [("Food", food, Color32::from_rgb(242, 140, 38), 68.0), ("Water", water, Color32::from_rgb(64, 140, 242), 54.0)];
+    for (label, value, fill, top) in rows {
+        let Some((frac, low)) = value else { continue };
+        let pulse = if low { 0.5 + 0.5 * (time * 6.0).sin() as f32 } else { 1.0 };
+        let tint = |c: Color32| if low { Color32::from_rgb(c.r(), (c.g() as f32 * pulse) as u8, (c.b() as f32 * pulse) as u8) } else { c };
+        let rect = Rect::from_min_size(pos2(screen.min.x + 72.0, screen.max.y - top), vec2(204.0, 10.0));
+        painter.rect_filled(rect, 2.0, bar_bg);
+        let frac = frac.clamp(0.0, 1.0);
+        if frac > 0.0 {
+            painter.rect_filled(Rect::from_min_size(rect.min, vec2(rect.width() * frac, rect.height())), 2.0, tint(fill));
+        }
+        draw_outline_text(painter, pos2(screen.min.x + 16.0, rect.center().y), Align2::LEFT_CENTER, label, FontId::proportional(12.0), tint(Color32::WHITE));
     }
 }
 

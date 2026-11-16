@@ -22,6 +22,8 @@ use world::LootSpot;
 
 /// How long a pickup message stays on screen (Godot's toast).
 const TOAST_SECONDS: f32 = 3.0;
+/// Seconds between two uses of food, drink or bandages (ItemUse.cs UseCooldown).
+const USE_COOLDOWN: f32 = 0.8;
 
 const HOTBAR_KEYS: [KeyCode; 6] = [KeyCode::Digit1, KeyCode::Digit2, KeyCode::Digit3, KeyCode::Digit4, KeyCode::Digit5, KeyCode::Digit6];
 
@@ -43,6 +45,12 @@ pub struct PlayState {
     pub last_shot: ShootEvents,
     toast: Option<(String, f32)>,
     prompt: Option<String>,
+    pub hunger: game::NeedStat,
+    pub thirst: game::NeedStat,
+    pub survival: game::SurvivalData,
+    use_cooldown: f32,
+    /// Health is full this frame (bandages are refused then, like Godot).
+    pub health_full: bool,
 }
 
 /// What changed in hand this frame.
@@ -52,6 +60,8 @@ pub enum HandChange {
     Weapon(Option<WeaponDef>),
     /// The flashlight was switched on or off.
     ToggleFlashlight,
+    /// Food, drink or a bandage changed health (heal if above 0, sickness if below).
+    Health(f32),
 }
 
 impl PlayState {
@@ -61,6 +71,9 @@ impl PlayState {
         let config = SpawnConfig::load_default().map_err(|e| format!("data/spawning.json: {e}"))?;
         let loot_tables = LootTableRegistry::from_repo().map_err(|e| format!("data/loot_tables.json: {e:?}"))?;
         let loot_multiplier = game::DifficultyConfigData::from_repo().map(|d| d.default_loot_multiplier()).unwrap_or(1.0);
+        let survival = game::SurvivalData::from_repo().map_err(|e| format!("data/survival.json: {e}"))?;
+        let hunger = game::NeedStat::from_config("hunger", &survival).ok_or("survival.json has no hunger")?;
+        let thirst = game::NeedStat::from_config("thirst", &survival).ok_or("survival.json has no thirst")?;
         let mut inventory = start_inventory(&items);
         let items = Arc::new(items);
         inventory.set_registry(items.clone());
@@ -80,6 +93,11 @@ impl PlayState {
             last_shot: ShootEvents::default(),
             toast: None,
             prompt: None,
+            hunger,
+            thirst,
+            survival,
+            use_cooldown: 0.0,
+            health_full: true,
         })
     }
 
@@ -101,6 +119,43 @@ impl PlayState {
         }
     }
 
+    /// Eats, drinks or uses a bandage: one item is used up (Godot ItemUse.TryUse).
+    fn use_item(&mut self, item_id: &str) -> Option<HandChange> {
+        let def = self.items.get(item_id)?.clone();
+        use game::items::ItemCategory;
+        if self.use_cooldown > 0.0 || !matches!(def.category, ItemCategory::Food | ItemCategory::Drink | ItemCategory::Medical) {
+            return None;
+        }
+        if def.category == ItemCategory::Medical && self.health_full {
+            return None;
+        }
+        if self.inventory.count(item_id) == 0 {
+            return None;
+        }
+        // Cooking skill bonus comes with the skills wiring; 1.0 until then
+        let health = game::apply_item_effects(&def.effects, &mut self.hunger, &mut self.thirst, 1.0);
+        self.inventory.remove(item_id, 1);
+        self.hotbar.on_inventory_changed(&self.inventory);
+        self.use_cooldown = USE_COOLDOWN;
+        (health != 0.0).then_some(HandChange::Health(health))
+    }
+
+    /// Hunger and thirst drain; returns (damage from an empty need, healing from being well fed).
+    pub fn needs_tick(&mut self, dt: f32, sprinting: bool, dead: bool, health: (f32, f32), stamina: &mut game::Stamina) -> (f32, f32) {
+        self.use_cooldown = (self.use_cooldown - dt).max(0.0);
+        let damage = self.hunger.update(dt, sprinting, dead) + self.thirst.update(dt, sprinting, dead);
+        let heal = game::WellFedRegen::update(&self.hunger, &self.thirst, health.0, health.1, dead, &self.survival.well_fed, dt);
+        game::update_stamina_regen_multiplier(stamina, &self.hunger, &self.thirst, self.survival.stamina.low_needs_regen_multiplier);
+        (damage, heal)
+    }
+
+    /// After a respawn the needs start at Godot's respawn value.
+    pub fn needs_respawn(&mut self) {
+        let v = self.survival.respawn_needs_value;
+        self.hunger.set(v);
+        self.thirst.set(v);
+    }
+
     pub fn equip_first(&mut self) -> Option<HandChange> {
         self.press(1)
     }
@@ -117,7 +172,7 @@ impl PlayState {
             HotbarAction::UnequipWeapon { .. } => Some(HandChange::Weapon(None)),
             // Godot's ItemUse: using the flashlight item switches it on and off
             HotbarAction::UseItem { item_id } if item_id == "flashlight" => Some(HandChange::ToggleFlashlight),
-            // Eating, drinking and bandages come with the survival needs (R5)
+            HotbarAction::UseItem { item_id } => self.use_item(&item_id),
             _ => None,
         }
     }
@@ -212,6 +267,8 @@ impl PlayState {
             hotbar,
             ammo: self.gun.as_ref().map(|_| self.last_shot.ammo),
             fps,
+            food: Some((self.hunger.current() / self.hunger.max().max(1.0), self.hunger.is_low())),
+            water: Some((self.thirst.current() / self.thirst.max().max(1.0), self.thirst.is_low())),
             message: self.toast.as_ref().map(|(t, _)| t.clone()).or_else(|| self.prompt.clone()),
             dead,
         }

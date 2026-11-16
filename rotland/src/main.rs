@@ -117,6 +117,17 @@ impl R0 {
                 self.flashlight_on = !self.flashlight_on;
                 return;
             }
+            play::HandChange::Health(amount) => {
+                if let Some(c) = self.combat.as_mut() {
+                    if amount > 0.0 {
+                        c.health.heal(amount);
+                    } else {
+                        // Spoiled food: sickness damage (no flinch)
+                        c.take_bites(&[-amount]);
+                    }
+                }
+                return;
+            }
         };
         self.pending_weapon_model = Some(def.as_ref().and_then(weapon_model_name));
         // Guns go to the shooting system, everything else to the melee swing
@@ -534,6 +545,9 @@ impl Game for R0 {
                         if let Some(pv) = self.player_visual.as_mut() {
                             pv.animator.reset_alive();
                         }
+                        if let Some(play) = self.play.as_mut() {
+                            play.needs_respawn();
+                        }
                         // Wake up at the camp (Godot respawns at the last settlement visited)
                         if let Some(w) = self.world_gen.as_ref() {
                             let spawn = w.settlements()[0].respawn_point(w.config());
@@ -593,6 +607,21 @@ impl Game for R0 {
         {
             self.save_at = None;
             self.save_now();
+        }
+        // Hunger and thirst drain; empty ones hurt, being well fed heals (play mode)
+        if let (Some(play), Some(p), Some(c)) = (self.play.as_mut(), self.player_ctrl.as_mut(), self.combat.as_mut()) {
+            let dead = c.is_dead();
+            let (damage, heal) = play.needs_tick(dt, p.is_sprinting, dead, (c.health.current(), c.health.max()), &mut p.stamina);
+            if heal > 0.0 {
+                c.health.heal(heal);
+            }
+            if damage > 0.0 && c.take_bites(&[damage]).died {
+                if let Some(pv) = self.player_visual.as_mut() {
+                    pv.animator.play_die();
+                }
+                log::info!("the player died of hunger or thirst");
+            }
+            play.health_full = c.health.current() >= c.health.max();
         }
         // Guns, crates and pickups (play mode)
         let alive_now = !self.combat.as_ref().is_some_and(|c| c.is_dead());
