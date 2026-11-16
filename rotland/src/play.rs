@@ -105,6 +105,11 @@ impl PlayState {
         })
     }
 
+    /// The interaction hint at the bottom of the screen ("[E] Trade").
+    pub fn set_prompt(&mut self, text: String) {
+        self.prompt = Some(text);
+    }
+
     /// A message in the middle of the screen for a few seconds.
     pub fn show_toast(&mut self, text: String) {
         self.toast = Some((text, TOAST_SECONDS));

@@ -4,6 +4,7 @@
 
 mod bench;
 mod camp;
+mod camp_npcs;
 mod camp_ui;
 mod combat;
 mod crates;
@@ -104,6 +105,8 @@ struct R0 {
     save_at: Option<f32>,
     /// The open camp screen (shop, bank, crafting, bounties), if any.
     camp_ui: Option<camp_ui::CampUiState>,
+    /// The camp's trader, banker, guards and residents.
+    camp_npcs: Option<camp_npcs::CampNpcs>,
 }
 
 /// The pack model name of a weapon ("res://assets/models/weapons/bat.glb" -> "bat").
@@ -279,6 +282,7 @@ impl R0 {
         self.player_visual = None;
         self.player_ctrl = None;
         self.camera_rig = None;
+        self.camp_npcs = None;
         self.play_time = 0.0;
         if self.scene == "play" && !self.clock_frozen {
             self.clock = world::time::Clock::new();
@@ -324,6 +328,13 @@ impl R0 {
                 }
                 // Godot's starter weapon is the bat (data/start_inventory.json)
                 self.player_visual = Some(player_visual::PlayerVisual::load(&gpu.device, pack, "human_player", Some("bat")));
+            }
+        }
+        // The camp's people (play scene)
+        if let (Some(pack), true) = (&self.pack, self.scene == "play") {
+            match game::CampLifeDirector::from_data_dir(camp.clone(), paths::repo_path("data")) {
+                Ok(director) => self.camp_npcs = Some(camp_npcs::CampNpcs::new(&gpu.device, pack, director)),
+                Err(e) => log::warn!("camp life not loaded: {e}"),
             }
         }
         // A saved game: the player where they were, the clock, the backpack and the emptied crates
@@ -690,7 +701,22 @@ impl Game for R0 {
                         .collect()
                 })
                 .unwrap_or_default();
-            play.interact_tick(dt, input.pressed(KeyCode::KeyE), p.position, facing, &near);
+            // E talks to the camp person in front (trader, banker, bounty board) before crates and items
+            let npc = self.camp_npcs.as_ref().and_then(|c| c.facing(p.position, facing));
+            let pressed = input.pressed(KeyCode::KeyE) && self.camp_ui.is_none();
+            play.interact_tick(dt, pressed && npc.is_none(), p.position, facing, &near);
+            if let Some((_, role, prompt)) = npc {
+                play.set_prompt(prompt);
+                let screen = match role.as_str() {
+                    "trader" => Some(camp_ui::CampScreen::Shop),
+                    "banker" => Some(camp_ui::CampScreen::Bank),
+                    r if r.starts_with("bounty") => Some(camp_ui::CampScreen::Bounties),
+                    _ => None,
+                };
+                if let (true, Some(s)) = (pressed, screen) {
+                    self.camp_ui = Some(camp_ui::CampUiState::new(s));
+                }
+            }
         }
         // Zombies chase the living player; while dead they lose the target
         let alive = !self.combat.as_ref().is_some_and(|c| c.is_dead());
@@ -703,6 +729,10 @@ impl Game for R0 {
         if !self.clock_frozen {
             self.clock.advance(dt);
             self.hour = self.clock.hour;
+        }
+        if let Some(c) = self.camp_npcs.as_mut() {
+            let player = alive.then_some(self.player);
+            c.update(dt, self.hour, player);
         }
         // Kills count for bounties; the trader restocks and the board refreshes with the days
         let night = !(6.0..20.0).contains(&self.hour);
@@ -795,6 +825,9 @@ impl Game for R0 {
             shadow.push(body);
             shadow.extend(weapon);
         }
+        let people = self.camp_npcs.as_ref().map(|c| c.pose(Some(self.player), &mut self.bones)).unwrap_or_default();
+        shadow.extend(people.iter().map(|b| engine::render::SkinnedBatch { mesh: b.mesh, instances: b.instances.clone() }));
+        main.extend(people);
         let zombies = self.zombies.as_ref().map(|z| z.pose(&mut self.bones)).unwrap_or_default();
         shadow.extend(zombies.iter().map(|b| engine::render::SkinnedBatch {
             mesh: b.mesh,
