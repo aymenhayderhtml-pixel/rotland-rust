@@ -4,6 +4,7 @@
 
 mod bench;
 mod camp;
+mod camp_ui;
 mod combat;
 mod crates;
 mod hud;
