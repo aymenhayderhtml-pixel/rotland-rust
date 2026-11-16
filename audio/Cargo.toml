@@ -1,0 +1,12 @@
+[package]
+name = "audio"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+paths = { path = "../paths" }
+glam.workspace = true
+log.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+kira = { version = "0.12.6", default-features = false, features = ["cpal", "wav", "pcm"] }

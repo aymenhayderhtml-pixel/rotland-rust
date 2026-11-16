@@ -53,6 +53,8 @@ pub struct PlayState {
     pub health_full: bool,
     /// Wallet, bank, trader, skills, bounties and difficulty.
     pub camp: crate::camp::Camp,
+    /// Something was picked up or a crate opened this frame (pickup sound).
+    pub picked_up: bool,
 }
 
 /// What changed in hand this frame.
@@ -102,6 +104,7 @@ impl PlayState {
             use_cooldown: 0.0,
             health_full: true,
             camp,
+            picked_up: false,
         })
     }
 
@@ -222,6 +225,7 @@ impl PlayState {
         if self.toast.as_ref().is_some_and(|(_, t)| *t <= 0.0) {
             self.toast = None;
         }
+        self.picked_up = false;
         if pressed {
             let result = interact(
                 player,
@@ -240,9 +244,13 @@ impl PlayState {
                     // Crate cash goes to the wallet; opening one counts for loot bounties
                     self.camp.wallet.add(cash);
                     self.camp.bounties.on_crate_looted();
+                    self.picked_up = true;
                     Some(toast)
                 }
-                InteractResult::PickedUpItem { toast, .. } => toast,
+                InteractResult::PickedUpItem { toast, .. } => {
+                    self.picked_up = true;
+                    toast
+                }
                 InteractResult::None => None,
             };
             if let Some(t) = text {

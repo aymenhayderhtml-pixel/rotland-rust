@@ -25,6 +25,8 @@ pub struct Combat {
     pub shots: u32,
     /// Sounds made this frame (swings), heard by zombies next frame.
     pub noises: Vec<Noise>,
+    /// Melee hits that landed this frame (for the hit sound).
+    pub hits: u32,
 }
 
 /// What the game should do after a combat frame.
@@ -44,13 +46,18 @@ impl Combat {
         if weapon.is_none() {
             log::warn!("weapon {weapon_id} not found in data/weapons.json");
         }
-        Self { health: Health::new(PLAYER_HEALTH), swing: MeleeSwing::new(), weapon, dead_for: None, kills: 0, shots: 0, noises: Vec::new() }
+        Self { health: Health::new(PLAYER_HEALTH), swing: MeleeSwing::new(), weapon, dead_for: None, kills: 0, shots: 0, noises: Vec::new(), hits: 0 }
     }
 
     /// The weapon in hand changes (hotbar). None: nothing to swing.
     pub fn set_weapon(&mut self, weapon: Option<WeaponDef>) {
         self.swing.cancel();
         self.weapon = weapon;
+    }
+
+    /// The melee weapon in hand (for its swing sound).
+    pub fn weapon_id(&self) -> Option<&str> {
+        self.weapon.as_ref().map(|w| w.id.as_str())
     }
 
     pub fn is_dead(&self) -> bool {
@@ -61,6 +68,7 @@ impl Combat {
     pub fn update(&mut self, dt: f32, attack_pressed: bool, player: &mut Player, zombies: &mut Zombies, physics: &PhysicsWorld) -> CombatEvents {
         let mut ev = CombatEvents::default();
         self.noises.clear();
+        self.hits = 0;
         self.health.tick(dt);
 
         if let Some(t) = self.dead_for.as_mut() {
@@ -80,6 +88,7 @@ impl Combat {
             let facing = Vec3::new(-player.yaw.sin(), 0.0, -player.yaw.cos());
             let attacker = Attacker { id: PLAYER_ID, position: player.position, facing, eye: player.position + Vec3::Y * 1.5 };
             for hit in self.swing.update(dt, attacker, &zombies.targets(), physics) {
+                self.hits += 1;
                 if zombies.hit(hit.target, hit.damage, hit.knockback) {
                     self.kills += 1;
                 }

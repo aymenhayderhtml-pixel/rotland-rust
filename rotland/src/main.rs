@@ -107,6 +107,10 @@ struct R0 {
     camp_ui: Option<camp_ui::CampUiState>,
     /// The camp's trader, banker, guards and residents.
     camp_npcs: Option<camp_npcs::CampNpcs>,
+    /// Sound (silent when muted or without a sound device).
+    audio: Option<audio::Audio>,
+    /// Seconds to the next footstep.
+    step_timer: f32,
 }
 
 /// The pack model name of a weapon ("res://assets/models/weapons/bat.glb" -> "bat").
@@ -436,6 +440,11 @@ impl Game for R0 {
         self.autoattack = args.flag("--autoattack");
         self.die_at = args.value("--die-at").and_then(|v| v.parse().ok());
         self.save_at = args.value("--save-at").and_then(|v| v.parse().ok());
+        // Scripted runs (screenshots, timed runs, stats) are silent, so tests never make noise
+        let muted = args.flag("--mute") || ["--shot", "--seconds", "--frames", "--stats"].iter().any(|f| args.value(f).is_some());
+        if self.scene == "play" {
+            self.audio = Some(audio::Audio::new(muted));
+        }
         // Test option: open a camp screen at the start (shop, bank, crafting, bounties)
         self.camp_ui = match args.value("--camp-screen") {
             Some("shop") => Some(camp_ui::CampUiState::new(camp_ui::CampScreen::Shop)),
@@ -573,6 +582,16 @@ impl Game for R0 {
                 p.update(&actions, rig.yaw, &self.physics, &self.mover, dt);
                 if let (Some(c), Some(z)) = (self.combat.as_mut(), self.zombies.as_mut()) {
                     let ev = c.update(dt, attack, p, z, &self.physics);
+                    if let Some(a) = self.audio.as_mut() {
+                        if ev.swing_started.is_some()
+                            && let Some(sound) = c.weapon_id().and_then(|w| a.data.weapon_sound(w, "swing")).map(str::to_string)
+                        {
+                            a.play_at(&sound, p.position);
+                        }
+                        if c.hits > 0 {
+                            a.event("meleeHit", Some(p.position));
+                        }
+                    }
                     if let (Some(clip), Some(pv)) = (ev.swing_started, self.player_visual.as_mut()) {
                         pv.animator.play_action(&clip, 1.0);
                     }
@@ -659,6 +678,9 @@ impl Game for R0 {
             }
             play.health_full = c.health.current() >= c.health.max();
             if let Some(toast) = play.camp.craft_tick(dt, &mut play.inventory, dead) {
+                if let Some(a) = self.audio.as_mut() {
+                    a.event("craftDone", None);
+                }
                 play.hotbar.on_inventory_changed(&play.inventory);
                 play.show_toast(toast);
             }
@@ -685,6 +707,20 @@ impl Game for R0 {
             {
                 c.kills += ev.kills;
                 c.shots += ev.shots_fired;
+                if let Some(a) = self.audio.as_mut() {
+                    let at = self.camera.position;
+                    if ev.shots_fired > 0
+                        && let Some(sound) = play.gun.as_ref().and_then(|g| a.data.weapon_sound(&g.id, "shot")).map(str::to_string)
+                    {
+                        a.play_at(&sound, at);
+                    }
+                    if ev.reload_started {
+                        a.event("reload", Some(at));
+                    }
+                    if ev.empty_click {
+                        a.event("dryFire", Some(at));
+                    }
+                }
                 c.noises.extend(ev.noise);
             }
             // Crates within reach: only the nearby chunks' spots are looked at
@@ -705,6 +741,9 @@ impl Game for R0 {
             let npc = self.camp_npcs.as_ref().and_then(|c| c.facing(p.position, facing));
             let pressed = input.pressed(KeyCode::KeyE) && self.camp_ui.is_none();
             play.interact_tick(dt, pressed && npc.is_none(), p.position, facing, &near);
+            if let (true, Some(a)) = (play.picked_up, self.audio.as_mut()) {
+                a.event("pickup", None);
+            }
             if let Some((_, role, prompt)) = npc {
                 play.set_prompt(prompt);
                 let screen = match role.as_str() {
@@ -734,11 +773,34 @@ impl Game for R0 {
             let player = alive.then_some(self.player);
             c.update(dt, self.hour, player);
         }
+        // Sound: heard from the camera; footsteps while walking on the ground (Footsteps.cs);
+        // the day and night ambience cross over with the clock
+        if let Some(a) = self.audio.as_mut() {
+            a.set_listener(self.camera.position, self.camera.forward());
+            if let Some(m) = &self.menus {
+                a.set_volumes(m.settings.master_volume, m.settings.music_volume, m.settings.sfx_volume);
+            }
+            a.tick(dt, !(6.0..20.0).contains(&self.hour));
+            if let Some(p) = self.player_ctrl.as_ref() {
+                self.step_timer -= dt;
+                if p.on_floor && p.horizontal_speed() >= 0.5 && alive {
+                    if self.step_timer <= 0.0 {
+                        a.play_ui("footstep_grass");
+                        self.step_timer = if p.is_sprinting { 0.33 } else { 0.5 };
+                    }
+                } else {
+                    self.step_timer = 0.0;
+                }
+            }
+        }
         // Kills count for bounties; the trader restocks and the board refreshes with the days
         let night = !(6.0..20.0).contains(&self.hour);
         if let (Some(play), Some(z)) = (self.play.as_mut(), self.zombies.as_mut()) {
             for kind in z.take_kills() {
                 play.camp.on_zombie_killed(&kind, night);
+                if let Some(a) = self.audio.as_mut() {
+                    a.event("zombieDeath", Some(self.player));
+                }
             }
             play.camp.tick(self.clock.day, self.hour);
         }
@@ -760,10 +822,13 @@ impl Game for R0 {
                         play.hotbar.on_inventory_changed(&play.inventory);
                     }
                     log::info!("the player died (kills so far: {})", c.kills);
-                } else if ev.bitten
-                    && let Some(pv) = self.player_visual.as_mut()
-                {
-                    pv.animator.play_hit();
+                } else if ev.bitten {
+                    if let Some(pv) = self.player_visual.as_mut() {
+                        pv.animator.play_hit();
+                    }
+                    if let Some(a) = self.audio.as_mut() {
+                        a.event("playerHurt", None);
+                    }
                 }
             }
         }
@@ -932,6 +997,12 @@ impl Game for R0 {
             );
         }
         s.insert("scene".into(), self.scene.clone().into());
+        if let Some(a) = &self.audio {
+            // Counted even when muted, so scripted runs can check sounds without playing them
+            s.insert("soundsPlayed".into(), a.played.into());
+            s.insert("lastSound".into(), a.last_played.clone().into());
+            s.insert("soundLive".into(), a.is_live().into());
+        }
         s.insert("seed".into(), self.seed.into());
         if let Some(st) = &self.streamer {
             s.insert("groundChunks".into(), st.chunks.len().into());
