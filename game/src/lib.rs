@@ -5,6 +5,7 @@
 
 pub mod camera_rig;
 pub mod damage;
+pub mod difficulty;
 pub mod health;
 pub mod flowfield;
 mod flowfield_scan;
@@ -15,21 +16,26 @@ pub mod items;
 pub mod loot;
 pub mod melee;
 pub mod player;
+pub mod skills;
 pub mod spawner;
 pub mod spawner_config;
+pub mod survival;
 pub mod weapons;
 pub mod zombie;
 
 pub use camera_rig::*;
 pub use damage::DamageInfo;
+pub use difficulty::*;
 pub use health::{DamageResult, Health, HealthEvent, IgnoredReason};
 pub use flowfield::FlowField;
 pub use input::{Actions, InputBindings};
 pub use items::*;
 pub use loot::*;
 pub use player::*;
+pub use skills::*;
 pub use spawner::{
     ActiveZombie, CampDensityRule, SpawnConfig, SpawnConfigData, SpawnContext, SpawnOrder,
     SpawnOrders, SpawnTypeEntry, SpawnTypeTable, Spawner, SpawnerRng,
 };
+pub use survival::*;
 pub use weapons::{WeaponAnim, WeaponDef, WeaponHold, WeaponKind, WeaponLoadError, WeaponRegistry, WeaponScope};
