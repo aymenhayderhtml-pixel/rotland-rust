@@ -38,11 +38,6 @@ pub fn display_request(settings: &Settings) -> DisplayRequest {
     }
 }
 
-/// Convenience function to build a `DisplayRequest` from `Settings`.
-pub fn from_settings(settings: &Settings) -> DisplayRequest {
-    display_request(settings)
-}
-
 impl From<&Settings> for DisplayRequest {
     fn from(s: &Settings) -> Self {
         display_request(s)
@@ -56,6 +51,7 @@ impl From<Settings> for DisplayRequest {
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
     use super::*;
 
@@ -132,7 +128,7 @@ mod tests {
         settings.render_scale = 0.8;
         settings.vsync = true;
 
-        let req1 = from_settings(&settings);
+        let req1 = display_request(&settings);
         let req2: DisplayRequest = (&settings).into();
         let req3: DisplayRequest = settings.clone().into();
         assert_eq!(req1, req2);

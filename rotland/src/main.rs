@@ -32,6 +32,7 @@ mod poi_links;
 mod car_lights;
 mod fp_weapon;
 mod trunk_play;
+mod display;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -1058,6 +1059,10 @@ impl Game for R0 {
                     }
                     self.camera.position = at;
                 }
+                // The player's field of view (Settings), before a gun's aim zoom
+                if let Some(m) = &self.menus {
+                    self.camera.fov_y_deg = display::apply_fov(self.camera.fov_y_deg, &m.settings);
+                }
                 // A gun's aim zoom (the rifle scope zooms much further, CameraRig/GunHandler)
                 let aiming = self.cursor_captured && input.mouse_held(winit::event::MouseButton::Right);
                 if let (true, Some(gun)) = (aiming, self.play.as_ref().and_then(|pl| pl.gun.as_ref()))
@@ -2063,6 +2068,11 @@ impl Game for R0 {
         if let Some(action) = m.ui(ctx, &self.slot_cards) {
             self.menu_action(action);
         }
+    }
+
+    /// Render scale and V-Sync from Settings, applied while playing (--scale / --vsync still win).
+    fn display(&self) -> Option<engine::DisplayRequest> {
+        self.menus.as_ref().map(|m| display::display_request(&m.settings))
     }
 
     fn cursor_grab(&self) -> Option<bool> {
