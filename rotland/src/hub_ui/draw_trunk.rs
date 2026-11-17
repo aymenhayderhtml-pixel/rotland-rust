@@ -77,11 +77,27 @@ pub fn draw_trunk(
                                     if let Some(bag) = view.inventory {
                                         for (i, slot) in bag.slots().iter().enumerate() {
                                             if let Some(stack) = slot {
+                                                let blocker = if let Some(trunk) = view.trunk_inventory {
+                                                    let can_fit = match view.item_registry {
+                                                        Some(reg) => trunk.can_add_with(&stack.item_id, 1, reg),
+                                                        None => trunk.can_add(&stack.item_id, 1),
+                                                    };
+                                                    if can_fit {
+                                                        None
+                                                    } else {
+                                                        Some("Trunk is full")
+                                                    }
+                                                } else {
+                                                    None
+                                                };
                                                 let name = view.item_name(&stack.item_id);
-                                                let btn_text = format!("{name}   x{}", stack.count);
+                                                let btn_text = match blocker {
+                                                    Some(b) => format!("{name}   x{}   ({b})", stack.count),
+                                                    None => format!("{name}   x{}", stack.count),
+                                                };
                                                 let btn = egui::Button::new(btn_text)
                                                     .min_size(vec2(ui.available_width(), 28.0));
-                                                if ui.add(btn).clicked() {
+                                                if ui.add_enabled(blocker.is_none(), btn).clicked() {
                                                     let count = if shift_down { 1 } else { 0 };
                                                     action = Some(HubAction::TrunkMove {
                                                         from_trunk: false,
@@ -115,11 +131,27 @@ pub fn draw_trunk(
                                     if let Some(trunk) = view.trunk_inventory {
                                         for (i, slot) in trunk.slots().iter().enumerate() {
                                             if let Some(stack) = slot {
+                                                let blocker = if let Some(bag) = view.inventory {
+                                                    let can_fit = match view.item_registry {
+                                                        Some(reg) => bag.can_add_with(&stack.item_id, 1, reg),
+                                                        None => bag.can_add(&stack.item_id, 1),
+                                                    };
+                                                    if can_fit {
+                                                        None
+                                                    } else {
+                                                        Some("Bag is full")
+                                                    }
+                                                } else {
+                                                    None
+                                                };
                                                 let name = view.item_name(&stack.item_id);
-                                                let btn_text = format!("{name}   x{}", stack.count);
+                                                let btn_text = match blocker {
+                                                    Some(b) => format!("{name}   x{}   ({b})", stack.count),
+                                                    None => format!("{name}   x{}", stack.count),
+                                                };
                                                 let btn = egui::Button::new(btn_text)
                                                     .min_size(vec2(ui.available_width(), 28.0));
-                                                if ui.add(btn).clicked() {
+                                                if ui.add_enabled(blocker.is_none(), btn).clicked() {
                                                     let count = if shift_down { 1 } else { 0 };
                                                     action = Some(HubAction::TrunkMove {
                                                         from_trunk: true,
