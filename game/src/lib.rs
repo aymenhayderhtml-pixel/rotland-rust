@@ -29,6 +29,7 @@ pub mod loot;
 pub mod map;
 pub mod melee;
 pub mod player;
+pub mod poi_zombies;
 pub mod profile_stats;
 pub mod skills;
 pub mod spawner;
@@ -61,6 +62,7 @@ pub use ladders::*;
 pub use loot::*;
 pub use map::*;
 pub use player::*;
+pub use poi_zombies::*;
 pub use profile_stats::*;
 pub use skills::*;
 pub use spawner::{
