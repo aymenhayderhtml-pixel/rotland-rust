@@ -674,4 +674,88 @@ mod tests {
         asserts += 1;
         assert!(asserts >= 7);
     }
+
+    #[test]
+    fn gun_with_ammo_fires_instead_of_bashing() {
+        let registry = load_weapons();
+        let pistol = registry.get("pistol").expect("pistol def");
+        let physics = flat_world();
+        let mut shooting = Shooting::default();
+        let mut inventory = Inventory::new();
+        inventory.add("pistol_ammo", 20);
+        let mut targets = MockWorld { zombies: Vec::new() };
+
+        let eye = Vec3::new(0.0, 1.65, 0.0);
+        let aim_dir = Vec3::new(0.0, 0.0, -1.0);
+
+        let mut asserts = 0;
+        // Case 1: Gun with rounds in magazine fires a bullet instead of bashing
+        shooting.set_magazine("pistol", 12);
+        let ev1 = shooting.update_targets(
+            0.0,
+            ShootInput { fire_pressed: true, ..Default::default() },
+            pistol,
+            eye,
+            aim_dir,
+            &mut inventory,
+            &mut targets,
+            &physics,
+        );
+        assert_eq!(ev1.shots_fired, 1);
+        asserts += 1;
+        assert!(!ev1.bash);
+        asserts += 1;
+        assert!(!ev1.empty_click);
+        asserts += 1;
+        assert_eq!(ev1.ammo, (11, 20));
+        asserts += 1;
+
+        // Case 2: Gun with 0 in magazine but ammo in inventory dry-fires and starts reload (no bash)
+        shooting.set_magazine("pistol", 0);
+        let ev2 = shooting.update_targets(
+            0.3, // past fire interval
+            ShootInput { fire_pressed: true, ..Default::default() },
+            pistol,
+            eye,
+            aim_dir,
+            &mut inventory,
+            &mut targets,
+            &physics,
+        );
+        assert_eq!(ev2.shots_fired, 0);
+        asserts += 1;
+        assert!(!ev2.bash);
+        asserts += 1;
+        assert!(ev2.empty_click);
+        asserts += 1;
+        assert!(ev2.reload_started);
+        asserts += 1;
+
+        // Case 3: Gun with 0 in magazine and 0 in inventory produces bash event (no dry fire click)
+        let mut empty_inventory = Inventory::new();
+        let mut empty_shooting = Shooting::default();
+        empty_shooting.set_magazine("pistol", 0);
+        let ev3 = empty_shooting.update_targets(
+            0.0,
+            ShootInput { fire_pressed: true, ..Default::default() },
+            pistol,
+            eye,
+            aim_dir,
+            &mut empty_inventory,
+            &mut targets,
+            &physics,
+        );
+        assert_eq!(ev3.shots_fired, 0);
+        asserts += 1;
+        assert!(ev3.bash);
+        asserts += 1;
+        assert!(!ev3.empty_click);
+        asserts += 1;
+        assert!(!ev3.reload_started);
+        asserts += 1;
+        assert_eq!(ev3.ammo, (0, 0));
+        asserts += 1;
+
+        assert!(asserts >= 13);
+    }
 }
