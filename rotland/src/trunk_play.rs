@@ -22,6 +22,7 @@ pub const DEFAULT_TRUNK_LOCAL: Vec3 = Vec3::new(0.0, 0.60, 2.20);
 pub const OPEN_TRUNK_PROMPT: &str = "[E] Open trunk";
 
 /// Returns the prompt text for opening a car trunk ("[E] Open trunk").
+#[cfg(test)]
 pub fn open_trunk_prompt() -> &'static str {
     OPEN_TRUNK_PROMPT
 }
@@ -81,6 +82,7 @@ pub fn trunk_in_front(
 }
 
 /// Finds the parked car using the default trunk marker local position.
+#[cfg(test)]
 pub fn trunk_in_front_default(cars: &Cars, player: Vec3, facing: Vec3) -> Option<String> {
     trunk_in_front(cars, player, facing, DEFAULT_TRUNK_LOCAL)
 }

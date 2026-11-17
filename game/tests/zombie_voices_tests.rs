@@ -9,7 +9,7 @@
 //! 6. Attack snarls trigger only on state entry into VoiceState::Attack.
 
 use game::{
-    VoiceEvent, VoiceState, VoiceZombie, ZombieVoices, AUDIBLE_RANGE, AUDIBLE_RANGE_SQ,
+    VoiceState, VoiceZombie, ZombieVoices, AUDIBLE_RANGE, AUDIBLE_RANGE_SQ,
     MAX_VOICES, SCAN_INTERVAL,
 };
 use glam::Vec3;

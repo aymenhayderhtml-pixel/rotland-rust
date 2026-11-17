@@ -29,6 +29,6 @@ pub fn at_hour(hour: f32, spot: Option<SpotLight>) -> Lighting {
         moon_toward: Vec3::from(look.moon_direction),
         moon_energy: look.moon_energy,
         moon_color: Vec3::from(look.moon_color),
-        spot,
+        spots: [spot, None, None],
     }
 }

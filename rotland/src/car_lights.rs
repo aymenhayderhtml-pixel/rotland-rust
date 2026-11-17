@@ -22,15 +22,15 @@ pub const HEADLIGHT_ENERGY: f32 = 2.5;
 pub const HEADLIGHT_COLOR: Vec3 = Vec3::new(1.0, 0.98, 0.90);
 
 /// Default contract position for headlight_L on hatchback model (docs/VEHICLE_CONTRACT.md).
+#[cfg(test)]
 pub const DEFAULT_HEADLIGHT_L: Vec3 = Vec3::new(-0.55, 0.66, -1.93);
 
 /// Default contract position for headlight_R on hatchback model (docs/VEHICLE_CONTRACT.md).
+#[cfg(test)]
 pub const DEFAULT_HEADLIGHT_R: Vec3 = Vec3::new(0.55, 0.66, -1.93);
 
-/// Local forward direction tilted slightly down (-Y) so the beam illuminates the ground.
-/// Local forward is -Z in Godot/Rotland coordinate conventions.
-/// With (0.0, -0.1, -1.0), the beam has a gentle ~5.7 degree downward pitch.
-const LOCAL_DIR: Vec3 = Vec3::new(0.0, -0.1, -1.0);
+/// Straight ahead along the car's forward (-Z), as Godot's SpotLight3D lamps (no tilt in CarLights.cs).
+const LOCAL_DIR: Vec3 = Vec3::NEG_Z;
 
 /// Computes the left and right spot lights for car headlights in world space.
 ///
@@ -73,14 +73,6 @@ pub fn headlight_spots(
     [Some(left_spot), Some(right_spot)]
 }
 
-/// Convenience helper using the standard model marker positions from VEHICLE_CONTRACT.
-pub fn default_headlight_spots(
-    world: Mat4,
-    lights_on: bool,
-    cfg: &VehicleConfigData,
-) -> [Option<SpotLight>; 2] {
-    headlight_spots(world, DEFAULT_HEADLIGHT_L, DEFAULT_HEADLIGHT_R, lights_on, cfg)
-}
 
 #[cfg(test)]
 mod tests {
@@ -117,14 +109,11 @@ mod tests {
         assert_eq!(right.energy, 2.5);
         assert_eq!(right.color, Vec3::new(1.0, 0.98, 0.90));
 
-        // Direction points forward (-Z) and a little down (-Y)
-        // Length of (0, -0.1, -1.0) is sqrt(0 + 0.01 + 1.0) = sqrt(1.01) ~= 1.0049876
-        // y = -0.1 / sqrt(1.01) ~= -0.09950372
-        // z = -1.0 / sqrt(1.01) ~= -0.9950372
-        let expected_dir = Vec3::new(0.0, -0.1, -1.0).normalize();
+        // Direction points straight forward (-Z), as Godot CarLights
+        let expected_dir = Vec3::NEG_Z;
         assert!((left.direction - expected_dir).length() < 1e-6);
         assert!((right.direction - expected_dir).length() < 1e-6);
-        assert!(left.direction.y < 0.0); // pointing down
+        assert_eq!(left.direction.y, 0.0); // straight ahead, like Godot
         assert!(left.direction.z < 0.0); // pointing forward
     }
 
@@ -145,7 +134,7 @@ mod tests {
         assert!((right.position - Vec3::new(10.55, 5.66, -21.93)).length() < 1e-5);
 
         // Direction is unaffected by pure translation
-        let expected_dir = Vec3::new(0.0, -0.1, -1.0).normalize();
+        let expected_dir = Vec3::NEG_Z;
         assert!((left.direction - expected_dir).length() < 1e-6);
     }
 
@@ -166,7 +155,7 @@ mod tests {
         assert!((right.position - Vec3::new(-0.55, 0.66, 1.93)).length() < 1e-5);
 
         // Direction flipped in Z (+Z), still pitched down (-Y):
-        let expected_dir = Vec3::new(0.0, -0.1, 1.0).normalize();
+        let expected_dir = Vec3::Z;
         assert!((left.direction - expected_dir).length() < 1e-5);
         assert!((right.direction - expected_dir).length() < 1e-5);
     }

@@ -29,6 +29,9 @@ mod bubbles;
 mod car_solid;
 mod keys_ui;
 mod poi_links;
+mod car_lights;
+mod fp_weapon;
+mod trunk_play;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -131,6 +134,8 @@ struct R0 {
     test_climb: bool,
     /// Test option --chop: stand at the nearest tree with the axe in hand.
     test_chop: bool,
+    /// Test option --first-person: start in the first-person camera.
+    test_first_person: bool,
     campfire_meshes: Option<campfire_mesh::CampfireMeshes>,
     /// The level-up banner and "+XP" toasts (always on, also when the hub is shut).
     overlays: Option<hub_ui::HubUiState>,
@@ -152,6 +157,16 @@ struct R0 {
     car_input: game::CarInput,
     /// Solid boxes for parked cars (removed while driven).
     car_solids: car_solid::ParkedCarSolids,
+    /// First-person weapon bob and kick.
+    fp_sway: fp_weapon::FpSway,
+    /// The car model's trunk and headlight markers (model space): trunk, left, right.
+    car_markers: (Vec3, Vec3, Vec3),
+    /// The car whose trunk screen is open.
+    open_trunk: Option<String>,
+    /// Zombie groans and attack snarls near the player (Godot ZombieVoices).
+    zombie_voices: Option<game::ZombieVoices>,
+    /// Zombie voice sounds started (stats).
+    voices_played: u32,
     /// This frame's keys for the rebindable actions.
     keys: KeyMap,
     /// The player was dead last frame (a death is counted once).
@@ -422,6 +437,7 @@ impl R0 {
         self.dogs = None;
         self.cars = None;
         self.car_solids = car_solid::ParkedCarSolids::default();
+        self.zombie_voices = Some(game::ZombieVoices::new(self.seed));
         self.trees = game::TreeFelling::new();
         self.trees.set_seed(self.seed as u64);
         self.falling.clear();
@@ -450,11 +466,14 @@ impl R0 {
         };
 
         if self.scene == "play" {
-            let rig = CameraRig::new();
+            let mut rig = CameraRig::new();
             let mut player = Player::new(self.player);
             // Start facing where the camera looks (away from it), not toward it
             player.yaw = rig.yaw;
             self.player_ctrl = Some(player);
+            if self.test_first_person {
+                rig.is_first_person = true;
+            }
             self.camera_rig = Some(rig);
         }
 
@@ -473,6 +492,16 @@ impl R0 {
                         c.seed = self.seed;
                         self.cars = Some(c);
                         self.car_solids = car_solid::ParkedCarSolids::from_pack(pack);
+                        let marker = |name: &str, fallback: Vec3| {
+                            pack.find("car_hatchback_red")
+                                .and_then(|m| m.markers.iter().find(|k| k.name == name))
+                                .map_or(fallback, |k| Vec3::from(k.translation))
+                        };
+                        self.car_markers = (
+                            marker("trunk", trunk_play::DEFAULT_TRUNK_LOCAL),
+                            marker("headlight_L", Vec3::new(-0.55, 0.66, -1.93)),
+                            marker("headlight_R", Vec3::new(0.55, 0.66, -1.93)),
+                        );
                     }
                     Err(e) => log::warn!("data/vehicles.json: {e}"),
                 }
@@ -741,6 +770,7 @@ impl Game for R0 {
         self.forced_zombies = args.value("--zombies").and_then(|s| s.parse::<usize>().ok());
         self.test_climb = args.flag("--climb");
         self.test_chop = args.flag("--chop");
+        self.test_first_person = args.flag("--first-person");
         self.near_animals = args.value("--animals").map(|s| s.split(',').filter(|e| !e.is_empty()).map(str::to_string).collect()).unwrap_or_default();
         self.start_yaw = args.value("--yaw").and_then(|s| s.parse::<f32>().ok()).map(f32::to_radians);
         self.give = args
@@ -945,6 +975,10 @@ impl Game for R0 {
                     let mut prey = wildlife::Prey { zombies: z, animals: self.wildlife.as_mut().map(|w| &mut w.sim), animal_bonus };
                     let ev = c.update(dt, attack, p, &mut prey, &self.physics);
                     swung = ev.swung.clone();
+                    if ev.swing_started.is_some() {
+                        self.fp_sway.trigger_swing();
+                    }
+                    self.fp_sway.update(dt, p.horizontal_speed());
                     if let Some(a) = self.audio.as_mut() {
                         if ev.swing_started.is_some()
                             && let Some(sound) = c.weapon_id().and_then(|w| a.data.weapon_sound(w, "swing")).map(str::to_string)
@@ -1097,7 +1131,7 @@ impl Game for R0 {
         }
         // Guns, crates and pickups (play mode)
         let alive_now = !self.combat.as_ref().is_some_and(|c| c.is_dead());
-        if let (Some(play), Some(p)) = (self.play.as_mut(), self.player_ctrl.as_ref())
+        if let (Some(play), Some(p)) = (self.play.as_mut(), self.player_ctrl.as_mut())
             && alive_now
             && self.scene == "play"
         {
@@ -1125,6 +1159,15 @@ impl Game for R0 {
             {
                 c.kills += ev.kills;
                 c.shots += ev.shots_fired;
+                if ev.shots_fired > 0 {
+                    self.fp_sway.trigger_shot();
+                }
+                // No bullets in the gun or the bag: the click swings it as a club (Godot GunBash)
+                if ev.bash
+                    && let Some(gun) = play.gun.as_ref()
+                {
+                    c.bash(gun, &mut p.stamina);
+                }
                 if let Some(a) = self.audio.as_mut() {
                     let at = self.camera.position;
                     if ev.shots_fired > 0
@@ -1161,7 +1204,18 @@ impl Game for R0 {
             play.camp.player_at = p.position;
             // A car within reach: E drives it; with a fuel can, F pours it in (Godot CarDriver / CarFuel)
             let mut car_prompt = None;
-            if let (None, Some(cars)) = (&npc, self.cars.as_mut())
+            // The back of a parked car: E opens its trunk (Godot PlayerInteractor / TrunkScreen)
+            if let (None, Some(cars)) = (&npc, self.cars.as_ref())
+                && cars.driven_car_id.is_none()
+                && let Some(id) = trunk_play::trunk_in_front(cars, p.position, facing, self.car_markers.0)
+            {
+                car_prompt = Some(trunk_play::OPEN_TRUNK_PROMPT.to_string());
+                if pressed {
+                    self.open_trunk = Some(id);
+                    self.hub = Some(hub_ui::HubUiState::new(hub_ui::HubScreen::Trunk));
+                }
+            }
+            if let (None, None, Some(cars)) = (&npc, &car_prompt, self.cars.as_mut())
                 && cars.driven_car_id.is_none()
                 && let Some(id) = cars
                     .live_cars()
@@ -1407,6 +1461,21 @@ impl Game for R0 {
         if let Some(z) = self.zombies.as_mut() {
             let frame = z.update(dt, alive.then_some(self.player), &noises, &self.physics);
             let mut bites: Vec<f32> = frame.bites.iter().map(|b| b.damage).collect();
+            // Zombies groan now and then and snarl as they attack (Godot ZombieVoices)
+            if let (Some(voices), Some(a)) = (self.zombie_voices.as_mut(), self.audio.as_mut()) {
+                let list: Vec<game::VoiceZombie> = z
+                    .list
+                    .iter()
+                    .map(|q| {
+                        let state = if q.health.is_dead() { game::VoiceState::Dead } else { q.brain.state().into() };
+                        game::VoiceZombie::new(q.id, q.position, state)
+                    })
+                    .collect();
+                for ev in voices.update(dt, self.player, &list) {
+                    self.voices_played += 1;
+                    a.play_at(&ev.sound_id, ev.position);
+                }
+            }
             // Camp guards shoot zombies near the camp and turn to face them
             if let (Some(g), Some(npcs)) = (self.camp_guards.as_mut(), self.camp_npcs.as_mut()) {
                 let posts: Vec<game::GuardPost> = npcs
@@ -1486,6 +1555,17 @@ impl Game for R0 {
                             play.camp.skills.add_xp("hunting", xp as f32);
                         }
                         play.camp.bounties.on_animal_killed(&species);
+                    }
+                }
+            }
+            // The trunk screen shuts when the player walks off or the car drives away (Godot TrunkScreen)
+            if let Some(id) = &self.open_trunk {
+                let gone = self.cars.as_ref().and_then(|c| c.get(id)).is_none_or(|c| c.is_driven() || c.body.position.distance(self.player) > 3.5);
+                let shown = self.hub.as_ref().is_some_and(|h| h.screen() == hub_ui::HubScreen::Trunk);
+                if gone || !shown {
+                    self.open_trunk = None;
+                    if shown {
+                        self.hub = None;
                     }
                 }
             }
@@ -1719,6 +1799,12 @@ impl Game for R0 {
                 if let Some(w) = &weapon {
                     main.push(engine::render::SkinnedBatch { mesh: w.mesh, instances: w.instances.clone() });
                 }
+            } else if let Some(w) = &weapon
+                && let Some(def) = self.play.as_ref().and_then(|p| p.gun.as_ref()).or_else(|| self.combat.as_ref().and_then(|c| c.weapon_def()))
+            {
+                // First person: the weapon sits in front of the camera (Godot FirstPersonMount)
+                let at = fp_weapon::fp_weapon_matrix_with_physics(&self.camera, def, self.fp_sway, &self.physics);
+                main.push(engine::render::SkinnedBatch { mesh: w.mesh, instances: vec![engine::render::SkinInstance::new(at, 0)] });
             }
             shadow.push(body);
             shadow.extend(weapon);
@@ -1755,15 +1841,28 @@ impl Game for R0 {
                 main.push(engine::render::SkinnedBatch { mesh: &meshes.flame, instances: flames });
             }
         }
+        let mut lighting = light::at_hour(self.hour, self.flashlight_on.then(|| {
+            // Held at the camera, pointing where it looks (Godot hangs it on the camera)
+            light::flashlight(self.camera.position, self.camera.forward())
+        }));
+        // The nearest car with its lights on lights the road (Godot CarLights); the renderer has 3 spots
+        if let Some(cars) = &self.cars
+            && let Some(car) = cars
+                .live_cars()
+                .filter(|c| c.lights_on)
+                .min_by(|a, b| a.body.position.distance(self.player).total_cmp(&b.body.position.distance(self.player)))
+        {
+            let (_, left, right) = self.car_markers;
+            let [l, r] = car_lights::headlight_spots(car.draw_state().world_matrix, left, right, true, &cars.config);
+            lighting.spots[1] = l;
+            lighting.spots[2] = r;
+        }
         renderer.draw(
             gpu,
             target,
             encoder,
             &self.camera,
-            &light::at_hour(self.hour, self.flashlight_on.then(|| {
-                // Held at the camera, pointing where it looks (Godot hangs it on the camera)
-                light::flashlight(self.camera.position, self.camera.forward())
-            })),
+            &lighting,
             &items,
             &main,
             &shadow,
@@ -1848,6 +1947,7 @@ impl Game for R0 {
                 state.map_ui.centre_on(glam::Vec2::new(self.player.x, self.player.z));
             }
             let dead = self.combat.as_ref().is_some_and(|c| c.is_dead());
+            let trunk_car = self.open_trunk.as_deref().and_then(|id| self.cars.as_ref()?.get(id));
             let action = {
                 let view = hub_ui::HubView {
                     inventory: Some(&play.inventory),
@@ -1892,12 +1992,25 @@ impl Game for R0 {
                         bounties: play.camp.bounties.active(),
                     }),
                     health: self.combat.as_ref().map(|c| (c.health.current(), c.health.max())),
+                    trunk_inventory: trunk_car.map(|c| &c.trunk),
+                    trunk_max_weight: trunk_car.map_or(40.0, |c| c.trunk.max_weight()),
                     ..Default::default()
                 };
                 hub_ui::draw(ctx, state, &view)
             };
             match action {
                 Some(hub_ui::HubAction::Close) => self.hub = None,
+                Some(hub_ui::HubAction::TrunkMove { from_trunk, slot, count }) => {
+                    if let (Some(id), Some(cars)) = (self.open_trunk.as_deref(), self.cars.as_mut())
+                        && let Some(car) = cars.get_mut(id)
+                    {
+                        let action = hub_ui::HubAction::TrunkMove { from_trunk, slot, count };
+                        if let Some(toast) = trunk_play::apply_trunk_action(&action, car, &mut play.inventory, &play.items) {
+                            play.show_toast(toast);
+                        }
+                        play.hotbar.on_inventory_changed(&play.inventory);
+                    }
+                }
                 Some(hub_ui::HubAction::Craft { recipe }) => {
                     let items = play.items.clone();
                     let status = play.camp.apply(camp_ui::CampAction::Craft { recipe }, &mut play.inventory, &items, dead);
@@ -1986,6 +2099,11 @@ impl Game for R0 {
         if let Some(a) = &self.audio {
             // Counted even when muted, so scripted runs can check sounds without playing them
             s.insert("soundsPlayed".into(), a.played.into());
+            s.insert("zombieVoices".into(), self.voices_played.into());
+            if let Some(z) = &self.zombies {
+                let near = z.list.iter().filter(|q| !q.health.is_dead()).map(|q| q.position.distance(self.player)).fold(f32::MAX, f32::min);
+                s.insert("nearestZombie".into(), format!("{near:.1}").into());
+            }
             s.insert("lastSound".into(), a.last_played.clone().into());
             s.insert("soundLive".into(), a.is_live().into());
         }

@@ -72,6 +72,11 @@ impl Combat {
         self.weapon = weapon;
     }
 
+    /// The melee weapon in hand (first-person view model).
+    pub fn weapon_def(&self) -> Option<&WeaponDef> {
+        self.weapon.as_ref()
+    }
+
     /// The melee weapon in hand (for its swing sound).
     pub fn weapon_id(&self) -> Option<&str> {
         self.weapon.as_ref().or(self.bash_weapon.as_ref()).map(|w| w.id.as_str())
@@ -98,21 +103,17 @@ impl Combat {
     }
 
     /// True if a gun bash is active (winding up or cooling down).
+    #[cfg(test)]
     pub fn is_bashing(&self) -> bool {
         self.bash_weapon.is_some()
     }
 
     /// Current state of the melee / bash swing.
+    #[cfg(test)]
     pub fn swing_state(&self) -> SwingState {
         self.swing.state()
     }
 
-    /// Cancels any swing in progress (melee or bash).
-    pub fn cancel_swing(&mut self) {
-        self.swing.cancel();
-        self.bash_weapon = None;
-        self.pending_swing_started = None;
-    }
 
     /// One frame: start a swing if asked, resolve hits on zombies, take bites, count down a death.
     pub fn update(&mut self, dt: f32, attack_pressed: bool, player: &mut Player, zombies: &mut impl MeleeWorld, physics: &PhysicsWorld) -> CombatEvents {

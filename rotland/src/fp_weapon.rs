@@ -6,7 +6,7 @@
 //! rather than the third-person right-hand bone matrix.
 
 use engine::render::Camera;
-use game::{WeaponDef, WeaponHold};
+use game::WeaponDef;
 use glam::{EulerRot, Mat4, Vec3};
 use physics::PhysicsWorld;
 
@@ -59,10 +59,6 @@ impl Default for FpSway {
 }
 
 impl FpSway {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// Triggers weapon kick for a gun shot (moves up 0.01m, back 0.04m, matching Godot `GunEffects.ViewKick`).
     pub fn trigger_shot(&mut self) {
         self.kick_offset += GUN_KICK_OFFSET;
@@ -181,6 +177,7 @@ pub fn fp_weapon_matrix_with_physics(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use game::WeaponHold;
 
     fn test_bat() -> WeaponDef {
         WeaponDef {

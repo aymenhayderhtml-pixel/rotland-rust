@@ -42,6 +42,7 @@ Save and menu options (play scene):
 | `--animals=deer,boar,rabbit` | put these animals 9 m in front of the player at the start (screenshots); `campfire` in the list lays a burning campfire 4 m ahead, `dog` gives the player a grown dog, `drive` seats the player in the camp's car (with `--autowalk` it drives off). Stats: `dogPosition`, `dogClip`, `campCar`, `mapChunks`, `hint`. The stats JSON has `animals` and `animalSpecies` |
 | `--hub=bag\|skills\|bounties\|profile\|map` | start with the player hub open on that tab (screenshots) |
 | `--chop` | after a second, stand at the nearest tree with the axe in hand (with `--autoattack` it is felled after 4 swings). Stats: `felledTrees`, `guardShots`, `parkedSolids`, `mapBuildings`, `strayDogs`, `profile`, `bubbles`, `campChats` |
+| `--first-person` | start in the first-person camera (screenshots of the weapon in view). Stats: `zombieVoices`, `nearestZombie` |
 | `--climb` | after a second, stand at the nearest ladder and grab it (with `--autowalk` the player climbs up). Stats: `ladders`, `climbing`, `campfires`, `campfiresLit` |
 | `--mute` | no sound. Runs with `--shot`, `--seconds`, `--frames` or `--stats` are always muted; the JSON stats still count `soundsPlayed` / `lastSound` |
 | `cargo run -p save --example check_godot` | reads the owner's Godot slots (read only) and prints what was understood |

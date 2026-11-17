@@ -37,7 +37,7 @@ pub struct Zombie {
     pub kind: String,
     look: usize,
     def: ZombieDef,
-    brain: ZombieBrain,
+    pub brain: ZombieBrain,
     pub health: Health,
     pub position: Vec3,
     velocity: Vec3,
