@@ -14,7 +14,7 @@ pub mod target;
 pub mod timing;
 pub mod ui;
 
-pub use app::{run, Game, GameStats};
+pub use app::{check_display_change, run, DisplayChange, DisplayRequest, Game, GameStats};
 pub use cli::EngineArgs;
 pub use egui;
 pub use gpu::Gpu;
