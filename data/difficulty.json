@@ -1,0 +1,16 @@
+{
+  "minMultiplier": 0.5,
+  "maxMultiplier": 2,
+  "step": 0.25,
+  "defaultPreset": "normal",
+  "presets": [
+    { "id": "relaxed", "name": "Relaxed", "zombies": 0.5, "loot": 1.5, "damage": 0.5, "death": "keep_all" },
+    { "id": "normal", "name": "Normal", "zombies": 1, "loot": 1, "damage": 1, "death": "lose_all" },
+    { "id": "hard", "name": "Hard", "zombies": 1.5, "loot": 0.75, "damage": 1.5, "death": "lose_all" }
+  ],
+  "deathRules": [
+    { "id": "lose_all", "name": "Lose everything" },
+    { "id": "keep_half", "name": "Keep half" },
+    { "id": "keep_all", "name": "Keep all" }
+  ]
+}

@@ -60,11 +60,19 @@ impl UiLayer {
     ) -> Vec<wgpu::CommandBuffer> {
         let raw_input = self.state.take_egui_input(window);
         // egui 0.37: run_pass (it may call the UI code more than once in a frame for layout passes)
-        let output = self.ctx.run_pass(raw_input, |ctx| build_ui(ctx));
+        let mut output = self.ctx.run_pass(raw_input, |ctx| build_ui(ctx));
 
         // When the game holds the mouse cursor, don't let egui modify cursor visibility or icon
         if !cursor_grabbed {
             self.state.handle_platform_output(window, output.platform_output);
+        }
+
+        // Texture uploads (font atlas) must be applied even on frames with no shapes, or later text is blank
+        for (id, image_deltas) in &output.textures_delta.set {
+            for image_delta in image_deltas {
+                self.renderer
+                    .update_texture(&gpu.device, &gpu.queue, *id, image_delta);
+            }
         }
 
         // Keep 3D path unchanged when no UI was drawn
@@ -72,14 +80,8 @@ impl UiLayer {
             for id in &output.textures_delta.free {
                 self.renderer.free_texture(id);
             }
+            output.textures_delta.clear();
             return Vec::new();
-        }
-
-        for (id, image_deltas) in &output.textures_delta.set {
-            for image_delta in image_deltas {
-                self.renderer
-                    .update_texture(&gpu.device, &gpu.queue, *id, image_delta);
-            }
         }
 
         let win_size = window.inner_size();
@@ -131,6 +133,8 @@ impl UiLayer {
         for id in &output.textures_delta.free {
             self.renderer.free_texture(id);
         }
+        // Handled above; clear so epaint's drop check doesn't fire
+        output.textures_delta.clear();
 
         user_cmd_bufs
     }

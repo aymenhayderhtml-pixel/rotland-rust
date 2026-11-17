@@ -1,0 +1,25 @@
+{
+  "searchRadiusChunks": 6,
+  "lotSize": 40,
+  "flatRadius": 24,
+  "blendRadius": 36,
+  "reliefLimit": 8,
+  "cliffCheckRadius": 40,
+  "maxSlopeDeg": 35,
+  "clearRadius": 32,
+  "safeZoneHalf": 17.5,
+  "safeZonePadding": 40,
+  "respawnOffset": [0, -2.6],
+  "guardRange": 40,
+  "guardSightInterval": 0.5,
+  "guardFireInterval": 1.2,
+  "guardDamage": 60,
+  "guardMissChance": 0.15,
+  "guardEyeHeight": 1.6,
+  "npcModels": {
+    "npc_trader": "npc_trader",
+    "npc_banker": "npc_trader",
+    "npc_guard": "npc_guard",
+    "npc_survivor": "npc_survivor"
+  }
+}

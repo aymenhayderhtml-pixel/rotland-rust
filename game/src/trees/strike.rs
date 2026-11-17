@@ -49,7 +49,7 @@ impl<'a> TreeCandidate<'a> {
 }
 
 /// True for tree props (model names start with "tree" or "pine_").
-/// Matches `scripts/World/ScatterConfig.cs` and `rust/world/src/scatter.rs:PropInstance::is_tree`.
+/// Matches `scripts/World/ScatterConfig.cs` and `world/src/scatter.rs:PropInstance::is_tree`.
 pub fn is_tree_kind(kind: &str) -> bool {
     kind.starts_with("tree") || kind.starts_with("pine_")
 }

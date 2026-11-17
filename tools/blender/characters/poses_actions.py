@@ -1,0 +1,177 @@
+"""Whole-body state clips: die, jump and crouch.
+
+Keyframes, bone entries and the rules are described in poses.py.
+"""
+CLIPS = {
+    # Falls backward as one piece: `root` rotates about the feet (positive X = backward).
+    # Arms hang down from the upper-arm offset in ARM_DOWN_OFFSET, so only the flail is keyed.
+    "die": {
+        "length": 1.2,
+        "loop": False,
+        "frames": {
+            0.0: {
+                "root": {"rot": (0, 0, 0), "loc": (0, 0, 0)},
+            },
+            0.15: {
+                # Impact: the knees give a little and the arms flail back
+                "root": {"rot": (6, 0, 0), "loc": (0, 0, 0.0)},
+                "thigh_R": (-6, 0, 0),
+                "thigh_L": (-6, 0, 0),
+                "forearm_R": (30, 0, 0),
+                "forearm_L": (30, 0, 0),
+                "upper_arm_R": (-20, 0, 0),
+                "upper_arm_L": (-20, 0, 0),
+            },
+            0.40: {
+                # Knees buckle, the body tips back
+                "root": {"rot": (34, 0, 0), "loc": (0, 0, 0.03)},
+                "thigh_R": (22, 0, 0),
+                "shin_R": (-60, 0, 0),
+                "thigh_L": (22, 0, 0),
+                "shin_L": (-60, 0, 0),
+                "forearm_R": (40, 0, 0),
+                "forearm_L": (40, 0, 0),
+                "upper_arm_R": (-30, 0, 0),
+                "upper_arm_L": (-30, 0, 0),
+            },
+            0.75: {
+                # Almost flat, legs starting to straighten
+                "root": {"rot": (72, 0, 0), "loc": (0, 0, 0.07)},
+                "thigh_R": (8, 0, 0),
+                "shin_R": (-30, 0, 0),
+                "thigh_L": (8, 0, 0),
+                "shin_L": (-30, 0, 0),
+                "forearm_R": (20, 0, 0),
+                "forearm_L": (20, 0, 0),
+                "upper_arm_R": (-10, 0, 0),
+                "upper_arm_L": (-10, 0, 0),
+            },
+            1.00: {
+                # Flat on the back, the body sinks onto the ground
+                "root": {"rot": (88, 0, 0), "loc": (0, 0, 0.10)},
+                "thigh_R": (2, 0, 0),
+                "shin_R": (-4, 0, 0),
+                "thigh_L": (2, 0, 0),
+                "shin_L": (-4, 0, 0),
+                "forearm_R": (10, 0, 0),
+                "forearm_L": (10, 0, 0),
+                "upper_arm_R": (-4, 0, 0),
+                "upper_arm_L": (-4, 0, 0),
+            },
+            1.20: {
+                # Settled and still
+                "root": {"rot": (88, 0, 0), "loc": (0, 0, 0.10)},
+                "thigh_R": (2, 0, 0),
+                "shin_R": (-4, 0, 0),
+                "thigh_L": (2, 0, 0),
+                "shin_L": (-4, 0, 0),
+                "forearm_R": (8, 0, 0),
+                "forearm_L": (8, 0, 0),
+                "upper_arm_R": (-4, 0, 0),
+                "upper_arm_L": (-4, 0, 0),
+            },
+        },
+    },
+    # ---------------- Phase 2 ----------------
+    # Upper-body clips only key the spine and up. Legs are not keyed, so build_characters
+    # holds them at rest. Arm X = swing forward (+). Arm Z is added to the arms-down offset,
+    # so Z = 0 hangs at the side; negative Z moves the right arm out, positive moves it in.
+    "jump": {
+        "length": 0.5,
+        "loop": True,
+        "frames": {
+            0.0: {
+                "hips": {"rot": (-4, 0, 0), "loc": (0, 0, 0)},
+                "spine": (-4, 0, 0),
+                "chest": (-4, 0, 0),
+                "neck": (0, 0, 0),
+                "head": (4, 0, 0),
+                "upper_arm_R": (10, 0, -25),
+                "forearm_R": (25, 0, 0),
+                "upper_arm_L": (10, 0, 25),
+                "forearm_L": (25, 0, 0),
+                "thigh_R": (72, 0, 0),
+                "shin_R": (-98, 0, 0),
+                "foot_R": (20, 0, 0),
+                "thigh_L": (72, 0, 0),
+                "shin_L": (-98, 0, 0),
+                "foot_L": (20, 0, 0),
+            },
+            0.5: {
+                "hips": {"rot": (-4, 0, 0), "loc": (0, 0, 0)},
+                "spine": (-4, 0, 0),
+                "chest": (-4, 0, 0),
+                "neck": (0, 0, 0),
+                "head": (4, 0, 0),
+                "upper_arm_R": (10, 0, -25),
+                "forearm_R": (25, 0, 0),
+                "upper_arm_L": (10, 0, 25),
+                "forearm_L": (25, 0, 0),
+                "thigh_R": (72, 0, 0),
+                "shin_R": (-98, 0, 0),
+                "foot_R": (20, 0, 0),
+                "thigh_L": (72, 0, 0),
+                "shin_L": (-98, 0, 0),
+                "foot_L": (20, 0, 0),
+            },
+        },
+    },
+    # Hips loc Y is up (bone-local Y = world Z for hips), so a negative Y drops the body.
+    "crouch": {
+        "length": 1.0,
+        "loop": True,
+        "frames": {
+            0.0: {
+                "hips": {"rot": (0, 0, 0), "loc": (0, -0.21, 0)},
+                "spine": (-8, 0, 0),
+                "chest": (-6, 0, 0),
+                "neck": (-2, 0, 0),
+                "head": (8, 0, 0),
+                "upper_arm_R": (20, 0, -10),
+                "forearm_R": (35, 0, 0),
+                "upper_arm_L": (20, 0, 10),
+                "forearm_L": (35, 0, 0),
+                "thigh_R": (45, 0, 0),
+                "shin_R": (-85, 0, 0),
+                "foot_R": (40, 0, 0),
+                "thigh_L": (45, 0, 0),
+                "shin_L": (-85, 0, 0),
+                "foot_L": (40, 0, 0),
+            },
+            0.5: {
+                "hips": {"rot": (0, 0, 0), "loc": (0, -0.22, 0)},
+                "spine": (-7, 0, 0),
+                "chest": (-3, 0, 0),
+                "neck": (-2, 0, 0),
+                "head": (8, 0, 0),
+                "upper_arm_R": (20, 0, -10),
+                "forearm_R": (35, 0, 0),
+                "upper_arm_L": (20, 0, 10),
+                "forearm_L": (35, 0, 0),
+                "thigh_R": (45, 0, 0),
+                "shin_R": (-85, 0, 0),
+                "foot_R": (40, 0, 0),
+                "thigh_L": (45, 0, 0),
+                "shin_L": (-85, 0, 0),
+                "foot_L": (40, 0, 0),
+            },
+            1.0: {
+                "hips": {"rot": (0, 0, 0), "loc": (0, -0.21, 0)},
+                "spine": (-8, 0, 0),
+                "chest": (-6, 0, 0),
+                "neck": (-2, 0, 0),
+                "head": (8, 0, 0),
+                "upper_arm_R": (20, 0, -10),
+                "forearm_R": (35, 0, 0),
+                "upper_arm_L": (20, 0, 10),
+                "forearm_L": (35, 0, 0),
+                "thigh_R": (45, 0, 0),
+                "shin_R": (-85, 0, 0),
+                "foot_R": (40, 0, 0),
+                "thigh_L": (45, 0, 0),
+                "shin_L": (-85, 0, 0),
+                "foot_L": (40, 0, 0),
+            },
+        },
+    },
+}

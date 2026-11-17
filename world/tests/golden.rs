@@ -1,4 +1,4 @@
-//! The Rust terrain must give the same numbers as the Godot version. rust/golden/world.json is written by the
+//! The Rust terrain must give the same numbers as the Godot version. golden/world.json is written by the
 //! Godot self-test GoldenWorldDump (ROTLAND_DUMP_GOLDEN=1). Every check counts what it compared, and the
 //! test fails if a section compared nothing, so a changed file layout can never pass silently.
 
@@ -33,7 +33,7 @@ fn same_color(a: Color, b: Color) -> bool {
 
 #[test]
 fn terrain_matches_godot() {
-    let text = std::fs::read_to_string(repo().join("rust/golden/world.json")).expect("rust/golden/world.json is missing");
+    let text = std::fs::read_to_string(repo().join("golden/world.json")).expect("golden/world.json is missing");
     let golden: Value = serde_json::from_str(&text).expect("golden file is not JSON");
     let config = SettlementConfig::load_from_file(repo().join("data/settlements.json")).expect("data/settlements.json");
     let scatter_config = ScatterConfig::load_from_file(repo().join("data/scatter.json")).expect("data/scatter.json");

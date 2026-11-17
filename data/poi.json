@@ -1,0 +1,14 @@
+{
+  "lotMargin": 1.5,
+  "maxSink": 1.5,
+  "approachDistance": 35,
+  "maxActiveZombies": 16,
+  "buildings": [
+    { "id": "cabin", "lot": [6, 5], "biome": { "forest": 1.0 }, "chancePerChunk": 1.0, "minFlatness": 0.9, "minDistanceFromSpawn": 60, "lootTable": "cabin", "zombies": [1, 2] },
+    { "id": "shed", "lot": [3, 3], "biome": { "forest": 1.0 }, "chancePerChunk": 0.6, "minFlatness": 0.9, "minDistanceFromSpawn": 60, "lootTable": "barn", "zombies": [0, 1] },
+    { "id": "house_small", "lot": [9, 7], "biome": { "plains": 1.0 }, "chancePerChunk": 0.5, "minFlatness": 0.97, "minDistanceFromSpawn": 60, "lootTable": "house", "zombies": [1, 2] },
+    { "id": "barn", "lot": [12, 8], "biome": { "plains": 1.0 }, "chancePerChunk": 0.4, "minFlatness": 0.98, "minDistanceFromSpawn": 80, "lootTable": "barn", "zombies": [1, 2] },
+    { "id": "watchtower", "lot": [3, 3], "biome": { "plains": 1.0 }, "chancePerChunk": 0.3, "minFlatness": 0.97, "minDistanceFromSpawn": 60, "lootTable": "cabin", "zombies": [1, 1] },
+    { "id": "gas_station", "lot": [10, 8], "biome": { "plains": 1.0 }, "chancePerChunk": 0.35, "minFlatness": 0.98, "minDistanceFromSpawn": 80, "lootTable": "gas_station", "zombies": [1, 2] }
+  ]
+}

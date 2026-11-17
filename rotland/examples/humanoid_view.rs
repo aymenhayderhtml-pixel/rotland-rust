@@ -49,7 +49,7 @@ impl Game for HumanoidView {
         self.renderer = Some(LitRenderer::new(gpu));
         self.ground = Some(make_ground(&gpu.device));
 
-        let pack_path = paths::repo_path("rust/assets/models.pack");
+        let pack_path = paths::repo_path("assets/models.pack");
         let pack = ModelPack::load(&pack_path)
             .or_else(|_| ModelPack::load("assets/models.pack"))
             .expect("failed to load models.pack; run baker first");

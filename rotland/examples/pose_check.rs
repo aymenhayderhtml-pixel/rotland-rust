@@ -25,9 +25,9 @@ fn main() {
     println!("Running pose_check...");
     let (device, _queue) = create_headless_device();
     let pack = ModelPack::load("assets/models.pack")
-        .or_else(|_| ModelPack::load("rust/assets/models.pack"))
-        .or_else(|_| ModelPack::load("../rust/assets/models.pack"))
-        .or_else(|_| ModelPack::load("../../rust/assets/models.pack"))
+        .or_else(|_| ModelPack::load("assets/models.pack"))
+        .or_else(|_| ModelPack::load("assets/models.pack"))
+        .or_else(|_| ModelPack::load("../assets/models.pack"))
         .expect("Failed to load models.pack");
 
     let mut visual = PlayerVisual::load(&device, &pack, "human_player", Some("bat"));

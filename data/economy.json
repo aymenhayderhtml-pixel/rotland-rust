@@ -1,0 +1,33 @@
+{
+  "startDollars": 20,
+  "sellRate": 0.5,
+  "buyRate": 1.0,
+  "restockHour": 6,
+  "bankSlots": 40,
+  "interactRange": 4,
+  "stock": [
+    { "id": "fuel_can", "qty": 2 },
+    { "id": "canned_beans", "qty": 6 },
+    { "id": "water_bottle", "qty": 6 },
+    { "id": "apple", "qty": 6 },
+    { "id": "soda", "qty": 4 },
+    { "id": "bandage", "qty": 5 },
+    { "id": "medkit", "qty": 1 },
+    { "id": "pistol_ammo", "qty": 60 },
+    { "id": "shells_12g", "qty": 16 },
+    { "id": "rifle_rounds", "qty": 10 },
+    { "id": "ammo_762", "qty": 8 },
+    { "id": "crowbar", "qty": 1 },
+    { "id": "knife", "qty": 1 },
+    { "id": "axe", "qty": 1 },
+    { "id": "machete", "qty": 1 },
+    { "id": "flashlight", "qty": 1 },
+    { "id": "campfire_kit", "qty": 2 },
+    { "id": "cloth", "qty": 6 },
+    { "id": "seeds_wheat", "qty": 6 },
+    { "id": "seeds_potato", "qty": 6 },
+    { "id": "seeds_carrot", "qty": 6 },
+    { "id": "hoe", "qty": 2 },
+    { "id": "watering_can", "qty": 2 }
+  ]
+}

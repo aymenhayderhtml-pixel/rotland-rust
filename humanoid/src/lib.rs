@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn print_pack_clips_for_human_player() {
-        let pack_path = paths::repo_path("rust/assets/models.pack");
+        let pack_path = paths::repo_path("assets/models.pack");
         if let Ok(pack) = ModelPack::load(&pack_path) {
             if let Some(player) = pack.find("human_player") {
                 println!("=== human_player clips in models.pack ({} total) ===", player.clips.len());

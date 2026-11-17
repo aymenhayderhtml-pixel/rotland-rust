@@ -1,0 +1,24 @@
+{
+  "resetHour": 6,
+  "dailyCount": 3,
+  "weeklyDays": 7,
+  "maxActive": 2,
+  "daily": [
+    { "id": "kill_any", "type": "kill_zombies", "text": "Kill {n} zombies", "count": [8, 12], "dollars": [12, 20], "skill": "combat", "xp": [40, 60] },
+    { "id": "kill_runners", "type": "kill_zombies", "zombie": "runner", "text": "Kill {n} runners", "count": [3, 5], "dollars": [18, 26], "skill": "combat", "xp": [50, 70] },
+    { "id": "kill_night", "type": "kill_at_night", "text": "Kill {n} zombies at night", "count": [4, 6], "dollars": [18, 28], "skill": "combat", "xp": [50, 80] },
+    { "id": "search_crates", "type": "loot_crates", "text": "Search {n} loot crates", "count": [2, 3], "dollars": [10, 16], "skill": "agility", "xp": [30, 45] },
+    { "id": "bring_wood", "type": "deliver_items", "item": "wood", "text": "Bring {n} wood", "count": [4, 6], "dollars": [8, 14], "skill": "farming", "xp": [30, 45] },
+    { "id": "bring_cloth", "type": "deliver_items", "item": "cloth", "text": "Bring {n} cloth", "count": [3, 5], "dollars": [8, 14], "skill": "farming", "xp": [30, 45] },
+    { "id": "bring_meat", "type": "deliver_items", "item": "raw_meat", "text": "Bring {n} raw meat", "count": [2, 3], "dollars": [10, 16], "skill": "hunting", "xp": [35, 50] },
+    { "id": "hunt_deer", "type": "hunt_animals", "animal": "deer", "text": "Hunt {n} deer", "count": [2, 3], "dollars": [14, 22], "skill": "hunting", "xp": [40, 60] },
+    { "id": "hunt_rabbits", "type": "hunt_animals", "animal": "rabbit", "text": "Hunt {n} rabbits", "count": [3, 5], "dollars": [8, 12], "skill": "hunting", "xp": [25, 40] },
+    { "id": "bring_hides", "type": "deliver_items", "item": "hide", "text": "Bring {n} hides", "count": [2, 3], "dollars": [10, 16], "skill": "hunting", "xp": [30, 45] }
+  ],
+  "weekly": [
+    { "id": "week_clear", "type": "clear_poi", "buildings": ["house_small", "cabin", "shed", "barn", "gas_station", "watchtower"], "text": "Clear the {what} of all its zombies", "count": [1, 1], "dollars": [60, 90], "skill": "combat", "xp": [200, 280] },
+    { "id": "week_kill", "type": "kill_zombies", "text": "Kill {n} zombies", "count": [60, 80], "dollars": [70, 100], "skill": "combat", "xp": [250, 320] },
+    { "id": "week_meat", "type": "deliver_items", "item": "raw_meat", "text": "Bring {n} raw meat", "count": [10, 14], "dollars": [60, 90], "skill": "hunting", "xp": [200, 260] },
+    { "id": "week_boar", "type": "hunt_animals", "animal": "boar", "text": "Hunt {n} boar", "count": [1, 2], "dollars": [50, 70], "skill": "hunting", "xp": [150, 200] }
+  ]
+}

@@ -1,0 +1,30 @@
+[
+  {
+    "id": "bat",
+    "count": 1
+  },
+  {
+    "id": "pistol",
+    "count": 1
+  },
+  {
+    "id": "canned_beans",
+    "count": 2
+  },
+  {
+    "id": "water_bottle",
+    "count": 2
+  },
+  {
+    "id": "bandage",
+    "count": 1
+  },
+  {
+    "id": "flashlight",
+    "count": 1
+  },
+  {
+    "id": "pistol_ammo",
+    "count": 36
+  }
+]

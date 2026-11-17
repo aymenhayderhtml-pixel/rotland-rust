@@ -1,4 +1,4 @@
-//! Finds the project folder (the one with `project.godot` and `data/`) while the program runs.
+//! Finds the project folder (the one with `Cargo.lock` and `data/`) while the program runs.
 //!
 //! Never bake the folder in at build time (`env!("CARGO_MANIFEST_DIR")`): all checkouts share one build
 //! folder, so a program built in a worker's checkout can be reused after that checkout is deleted, and
@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 
 fn is_repo(dir: &Path) -> bool {
-    dir.join("project.godot").is_file() && dir.join("data").is_dir()
+    dir.join("Cargo.lock").is_file() && dir.join("data").is_dir()
 }
 
 fn search_up(start: &Path) -> Option<PathBuf> {
@@ -22,7 +22,7 @@ pub fn repo_root() -> PathBuf {
     }
     let from_cwd = std::env::current_dir().ok().and_then(|d| search_up(&d));
     let from_exe = std::env::current_exe().ok().and_then(|e| search_up(&e));
-    from_cwd.or(from_exe).expect("could not find the Rotland project folder (project.godot + data/); set ROTLAND_REPO")
+    from_cwd.or(from_exe).expect("could not find the Rotland project folder (Cargo.lock + data/); set ROTLAND_REPO")
 }
 
 /// A file or folder inside the project, e.g. `repo_path("data/items.json")`.

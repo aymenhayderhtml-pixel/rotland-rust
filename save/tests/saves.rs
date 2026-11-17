@@ -281,7 +281,7 @@ fn slot_info_empty_damaged_filled() {
 
 #[test]
 fn fixture_parses_and_preserves_unknown_systems() {
-    let repo_fixture = paths::repo_path("rust/save/tests/fixtures/godot_save.json");
+    let repo_fixture = paths::repo_path("save/tests/fixtures/godot_save.json");
     let content = if repo_fixture.is_file() {
         std::fs::read_to_string(&repo_fixture).expect("read fixture via repo_path")
     } else {

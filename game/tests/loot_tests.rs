@@ -6,8 +6,8 @@ use world::BiomeId;
 
 #[test]
 fn golden_crate_loot_matches_godot_dump() {
-    let path = paths::repo_path("rust/golden/world.json");
-    let text = std::fs::read_to_string(&path).expect("read rust/golden/world.json");
+    let path = paths::repo_path("golden/world.json");
+    let text = std::fs::read_to_string(&path).expect("read golden/world.json");
     let golden: serde_json::Value = serde_json::from_str(&text).expect("valid golden json");
 
     let tables = LootTableRegistry::from_repo().expect("LootTableRegistry loads");

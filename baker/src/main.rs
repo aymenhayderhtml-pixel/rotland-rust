@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let repo_root = paths::repo_root();
 
     let models_dir = repo_root.join("assets/models");
-    let out_pack = repo_root.join("rust/assets/models.pack");
+    let out_pack = repo_root.join("assets/models.pack");
 
     let mut glb_files = Vec::new();
     find_glb_files(&models_dir, &mut glb_files)?;

@@ -5,7 +5,6 @@ fn load_config() -> SettlementConfigData {
     let candidates = [
         "data/settlements.json",
         "../data/settlements.json",
-        "../../data/settlements.json",
     ];
     for c in candidates {
         let p = std::path::Path::new(c);
@@ -14,7 +13,7 @@ fn load_config() -> SettlementConfigData {
         }
     }
     if let Ok(dir) = std::env::var("CARGO_MANIFEST_DIR") {
-        let p = std::path::PathBuf::from(dir).join("../../data/settlements.json");
+        let p = std::path::PathBuf::from(dir).join("../data/settlements.json");
         if p.exists() {
             return SettlementConfig::load_from_file(p).expect("failed to load settlements.json");
         }

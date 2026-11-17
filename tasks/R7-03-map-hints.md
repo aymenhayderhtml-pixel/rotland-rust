@@ -1,0 +1,8 @@
+# R7-03: Map, compass markers and hints — Rust port
+
+Read `tasks/R7-common.md` first. This lane writes logic in the game crate AND one egui page in `rust/rotland/src/map_ui/` (egui 0.37, look at `rust/rotland/src/camp_ui/` and `hud.rs` for style).
+
+1. `rust/game/src/map/`: `MapMath.cs`, `MapMarkers.cs`, `MapTiles.cs` (tile colours per biome/height from `rust/world`'s generator: open `rust/world/src/generator.rs` for `height(x,z)` and `biome(x,z) -> BiomeId`), `MapIcons.cs` (icon kinds only), `CompassMath.cs`. Explored-area memory (which tiles the player has seen) with `to_save`/`from_save` using the Godot keys (say the system id).
+2. `rust/game/src/hints/`: `HintSystem.cs`, `HintConfig.cs` + `HintConfigData.cs` + `HintDef.cs` (`data/hints.json`), `HintTriggers.cs`, `HintNpcDistance.cs`. Triggers become plain method calls (e.g. `on_event("first_night")`, `tick(dt, &HintContext)`); output: the hint to show now. Save which hints were shown (Godot keys).
+3. `rust/rotland/src/map_ui/`: the full-screen map page (port `MapView.cs` + `HubMapPage.cs`): pan, zoom, player arrow, camp and marker icons, explored fog. Draw the tiles into an `egui::ColorImage` texture (cache it, rebuild only when explored tiles change). `pub fn draw_map(ui: &mut egui::Ui, state: &mut MapUiState, view: &MapView<'_>) -> Option<MapAction>` (actions: add/remove marker, close). Add `mod map_ui;` to `main.rs` only (one line), no wiring.
+Tests: `rust/game/tests/map_tests.rs` (world<->map pixel math round trip, compass bearing for N/E/S/W, marker add/remove/save, explored tiles), `rust/game/tests/hints_tests.rs` (data loads, a trigger shows its hint once, cooldown/ordering as in the .cs, save round trip), `map_ui/tests.rs` `#[cfg(test)]` for `MapUiState` (zoom clamps, pan).

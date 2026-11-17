@@ -1,0 +1,7 @@
+{
+  "hunger": { "max": 100, "start": 100, "drainPerSec": 0.037, "sprintDrainMultiplier": 1.5, "emptyDamagePerSec": 1.0, "lowThreshold": 25 },
+  "thirst": { "max": 100, "start": 100, "drainPerSec": 0.056, "sprintDrainMultiplier": 1.5, "emptyDamagePerSec": 1.5, "lowThreshold": 25 },
+  "stamina": { "sprintCostPerSec": 15, "minToStartSprint": 10, "jumpCost": 8, "lowNeedsRegenMultiplier": 0.5 },
+  "wellFed": { "threshold": 80, "healPerSec": 0.5 },
+  "respawnNeedsValue": 75
+}

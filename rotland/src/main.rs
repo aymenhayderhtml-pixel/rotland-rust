@@ -803,7 +803,7 @@ impl Game for R0 {
             })
             .unwrap_or_default();
 
-        match pack::ModelPack::load(paths::repo_path("rust/assets/models.pack")) {
+        match pack::ModelPack::load(paths::repo_path("assets/models.pack")) {
             Ok(pack) => self.pack = Some(pack),
             Err(e) => log::warn!("no model pack ({e}); run `cargo run --release -p baker`"),
         }

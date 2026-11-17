@@ -1,2 +1,14 @@
-# Generated model pack (built by cargo run --release -p baker)
-assets/
+# Build output
+target/
+# Generated model pack (cargo run --release -p baker)
+assets/models.pack
+# Screenshots and stats from test runs
+shots/
+# Blender backups
+*.blend1
+*.blend2
+__pycache__/
+.DS_Store
+.claude/worktrees/
+# Model preview pictures written by the Blender scripts (remade on every run)
+assets/models/_previews/

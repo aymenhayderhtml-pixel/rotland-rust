@@ -1,0 +1,7 @@
+{
+  "combat":  { "name": "Combat",  "maxLevel": 20, "xpBase": 100, "xpGrowth": 1.35, "bonusPerLevel": { "meleeDamage": 0.03, "gunDamage": 0.02 } },
+  "hunting": { "name": "Hunting", "maxLevel": 20, "xpBase": 100, "xpGrowth": 1.35, "bonusPerLevel": { "animalDamage": 0.05, "animalStealth": 0.04 } },
+  "cooking": { "name": "Cooking", "maxLevel": 20, "xpBase": 100, "xpGrowth": 1.35, "bonusPerLevel": { "foodValue": 0.03 } },
+  "agility": { "name": "Agility", "maxLevel": 20, "xpBase": 100, "xpGrowth": 1.35, "bonusPerLevel": { "staminaMax": 0.03, "moveSpeed": 0.01 } },
+  "farming": { "name": "Farming", "maxLevel": 20, "xpBase": 100, "xpGrowth": 1.35, "bonusPerLevel": { "cropGrowth": 0.05, "cropYield": 0.04 } }
+}

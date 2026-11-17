@@ -1,0 +1,67 @@
+{
+  "spawn": {
+    "startDelay": 10,
+    "interval": 4,
+    "minDist": 40,
+    "maxDist": 120,
+    "despawnDist": 150,
+    "outOfViewAngleDeg": 75,
+    "dayCap": 6,
+    "nightCap": 3,
+    "biomes": { "forest": ["deer", "boar"], "plains": ["deer", "rabbit"] }
+  },
+  "behaviour": {
+    "crouchFactor": 0.5,
+    "sprintFactor": 1.5,
+    "minStealthFactor": 0.6,
+    "sightFrontDeg": 90,
+    "closeSenseDist": 3,
+    "gunshotNoise": 30,
+    "gunshotRange": 60,
+    "alertSeconds": 1.5,
+    "fleeSeconds": 8,
+    "fleeDistance": 60,
+    "zigzagDeg": 40,
+    "zigzagSeconds": 0.5,
+    "grazeMin": 4,
+    "grazeMax": 8,
+    "wanderRadius": 6,
+    "boarLeash": 25
+  },
+  "butcher": {
+    "seconds": 3,
+    "toolSpeedFactor": 2,
+    "toolIds": ["axe", "knife", "machete"],
+    "toolSlots": 6,
+    "range": 2.5,
+    "giveUpRange": 3.5,
+    "xp": 5,
+    "extraMeatLevels": [3, 6],
+    "bodySeconds": 300
+  },
+  "species": {
+    "deer": {
+      "name": "Deer", "model": "deer", "buckModel": "deer_buck", "buckChance": 0.33,
+      "health": 60, "bodyRadius": 0.3, "bodyHeight": 1.1,
+      "walkSpeed": 1.2, "runSpeed": 11, "detectRange": 30, "herd": [2, 4],
+      "xp": 30, "meat": 4, "hide": 1, "antler": 1,
+      "alertSound": "deer_snort"
+    },
+    "rabbit": {
+      "name": "Rabbit", "model": "rabbit", "health": 15, "bodyRadius": 0.15, "bodyHeight": 0.35,
+      "walkSpeed": 0.8, "runSpeed": 8,
+      "detectRange": 12, "herd": [1, 2], "zigzag": true,
+      "xp": 10, "meat": 1, "hide": 1,
+      "alertSound": "rabbit_squeak"
+    },
+    "boar": {
+      "name": "Boar", "model": "boar", "health": 120, "bodyRadius": 0.4, "bodyHeight": 0.9,
+      "walkSpeed": 1.0, "runSpeed": 9,
+      "detectRange": 12, "herd": [1, 1], "danger": true, "chargeSpeed": 9,
+      "attackRange": 1.8, "attackDamage": 20, "attackCooldown": 1.5, "attackKnockback": 6,
+      "fightRange": 2, "fightDamage": 15,
+      "xp": 50, "meat": 5, "hide": 1,
+      "alertSound": "boar_grunt", "attackSound": "boar_squeal"
+    }
+  }
+}

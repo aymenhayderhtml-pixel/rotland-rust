@@ -1,0 +1,144 @@
+{
+  "sounds": {
+    "pistol_shot": {
+      "files": ["res://assets/audio/sfx/pistol_shot_1.wav", "res://assets/audio/sfx/pistol_shot_2.wav"],
+      "volumeDb": 0, "pitchJitter": 0.05, "maxDistance": 60, "spatial": true, "bus": "SFX"
+    },
+    "shotgun_shot": {
+      "files": ["res://assets/audio/sfx/shotgun_shot.wav"],
+      "volumeDb": 0, "pitchJitter": 0.04, "maxDistance": 80, "spatial": true, "bus": "SFX"
+    },
+    "rifle_shot": {
+      "files": ["res://assets/audio/sfx/rifle_shot.wav"],
+      "volumeDb": 0, "pitchJitter": 0.03, "maxDistance": 120, "spatial": true, "bus": "SFX"
+    },
+    "dry_fire": {
+      "files": ["res://assets/audio/sfx/dry_fire.wav"],
+      "volumeDb": -4, "pitchJitter": 0.05, "maxDistance": 20, "spatial": true, "bus": "SFX"
+    },
+    "reload": {
+      "files": ["res://assets/audio/sfx/reload.wav"],
+      "volumeDb": -6, "pitchJitter": 0.03, "maxDistance": 25, "spatial": true, "bus": "SFX"
+    },
+    "swing_light": {
+      "files": ["res://assets/audio/sfx/swing_light.wav"],
+      "volumeDb": -6, "pitchJitter": 0.08, "maxDistance": 25, "spatial": true, "bus": "SFX"
+    },
+    "swing_heavy": {
+      "files": ["res://assets/audio/sfx/swing_heavy.wav"],
+      "volumeDb": -4, "pitchJitter": 0.07, "maxDistance": 25, "spatial": true, "bus": "SFX"
+    },
+    "hit_flesh": {
+      "files": ["res://assets/audio/sfx/hit_flesh_1.wav", "res://assets/audio/sfx/hit_flesh_2.wav"],
+      "volumeDb": -3, "pitchJitter": 0.1, "maxDistance": 25, "spatial": true, "bus": "SFX"
+    },
+    "hit_wood": {
+      "files": ["res://assets/audio/sfx/hit_wood.wav"],
+      "volumeDb": -6, "pitchJitter": 0.08, "maxDistance": 20, "spatial": true, "bus": "SFX"
+    },
+    "footstep_grass": {
+      "files": [
+        "res://assets/audio/sfx/footstep_grass_1.wav",
+        "res://assets/audio/sfx/footstep_grass_2.wav",
+        "res://assets/audio/sfx/footstep_grass_3.wav",
+        "res://assets/audio/sfx/footstep_grass_4.wav"
+      ],
+      "volumeDb": -10, "pitchJitter": 0.08, "maxDistance": 0, "spatial": false, "bus": "SFX"
+    },
+    "zombie_groan": {
+      "files": [
+        "res://assets/audio/sfx/zombie_groan_1.wav",
+        "res://assets/audio/sfx/zombie_groan_2.wav",
+        "res://assets/audio/sfx/zombie_groan_3.wav"
+      ],
+      "volumeDb": -4, "pitchJitter": 0.12, "maxDistance": 25, "spatial": true, "bus": "SFX"
+    },
+    "dog_bark": {
+      "files": ["res://assets/audio/sfx/dog_bark.wav"],
+      "volumeDb": -3, "pitchJitter": 0.08, "maxDistance": 30, "spatial": true, "bus": "SFX"
+    },
+    "zombie_attack": {
+      "files": ["res://assets/audio/sfx/zombie_attack.wav"],
+      "volumeDb": -2, "pitchJitter": 0.05, "maxDistance": 30, "spatial": true, "bus": "SFX"
+    },
+    "pickup": {
+      "files": ["res://assets/audio/sfx/pickup.wav"],
+      "volumeDb": -8, "pitchJitter": 0.03, "maxDistance": 0, "spatial": false, "bus": "UI"
+    },
+    "ui_click": {
+      "files": ["res://assets/audio/sfx/ui_click.wav"],
+      "volumeDb": -8, "pitchJitter": 0.02, "maxDistance": 0, "spatial": false, "bus": "UI"
+    },
+    "craft_done": {
+      "files": ["res://assets/audio/sfx/craft_done.wav"],
+      "volumeDb": -6, "pitchJitter": 0, "maxDistance": 0, "spatial": false, "bus": "UI"
+    },
+    "level_up": {
+      "files": ["res://assets/audio/sfx/level_up.wav"],
+      "volumeDb": -4, "pitchJitter": 0, "maxDistance": 0, "spatial": false, "bus": "UI"
+    },
+    "player_hurt": {
+      "files": ["res://assets/audio/sfx/player_hurt.wav"],
+      "volumeDb": -4, "pitchJitter": 0.08, "maxDistance": 0, "spatial": false, "bus": "SFX"
+    },
+    "car_engine_loop": {
+      "files": ["res://assets/audio/sfx/car_engine_loop.wav"],
+      "volumeDb": -10, "pitchJitter": 0, "maxDistance": 30, "spatial": true, "bus": "SFX"
+    },
+    "car_horn": {
+      "files": ["res://assets/audio/sfx/car_horn.wav"],
+      "volumeDb": -2, "pitchJitter": 0.02, "maxDistance": 90, "spatial": true, "bus": "SFX"
+    },
+    "car_door": {
+      "files": ["res://assets/audio/sfx/car_door.wav"],
+      "volumeDb": -3, "pitchJitter": 0.05, "maxDistance": 20, "spatial": true, "bus": "SFX"
+    },
+    "car_impact": {
+      "files": ["res://assets/audio/sfx/car_impact.wav"],
+      "volumeDb": -2, "pitchJitter": 0.08, "maxDistance": 40, "spatial": true, "bus": "SFX"
+    },
+    "deer_snort": {
+      "files": ["res://assets/audio/sfx/deer_snort.wav"],
+      "volumeDb": -4, "pitchJitter": 0.06, "maxDistance": 30, "spatial": true, "bus": "SFX"
+    },
+    "rabbit_squeak": {
+      "files": ["res://assets/audio/sfx/rabbit_squeak.wav"],
+      "volumeDb": -6, "pitchJitter": 0.08, "maxDistance": 20, "spatial": true, "bus": "SFX"
+    },
+    "boar_grunt": {
+      "files": ["res://assets/audio/sfx/boar_grunt.wav"],
+      "volumeDb": -3, "pitchJitter": 0.08, "maxDistance": 30, "spatial": true, "bus": "SFX"
+    },
+    "boar_squeal": {
+      "files": ["res://assets/audio/sfx/boar_squeal.wav"],
+      "volumeDb": -3, "pitchJitter": 0.06, "maxDistance": 35, "spatial": true, "bus": "SFX"
+    },
+    "day_loop": {
+      "files": ["res://assets/audio/ambient/day_loop.wav"],
+      "volumeDb": -14, "pitchJitter": 0, "maxDistance": 0, "spatial": false, "bus": "Ambient"
+    },
+    "night_loop": {
+      "files": ["res://assets/audio/ambient/night_loop.wav"],
+      "volumeDb": -14, "pitchJitter": 0, "maxDistance": 0, "spatial": false, "bus": "Ambient"
+    }
+  },
+  "weapons": {
+    "bat": { "swing": "swing_heavy" },
+    "machete": { "swing": "swing_light" },
+    "knife": { "swing": "swing_light" },
+    "axe": { "swing": "swing_heavy" },
+    "pistol": { "shot": "pistol_shot" },
+    "shotgun": { "shot": "shotgun_shot" },
+    "rifle": { "shot": "rifle_shot" }
+  },
+  "events": {
+    "dryFire": { "sound": "dry_fire" },
+    "reload": { "sound": "reload" },
+    "meleeHit": { "sound": "hit_flesh" },
+    "zombieDeath": { "sound": "zombie_groan", "maxSeconds": 0.6 },
+    "pickup": { "sound": "pickup" },
+    "levelUp": { "sound": "level_up" },
+    "playerHurt": { "sound": "player_hurt" },
+    "craftDone": { "sound": "craft_done" }
+  }
+}

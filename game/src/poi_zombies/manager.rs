@@ -26,7 +26,7 @@ pub const DEFAULT_DESPAWN_DISTANCE: f32 = 120.0;
 fn load_default_poi_config() -> PoiConfigData {
     let path = paths::repo_path("data/poi.json");
     PoiConfig::load_from_file(&path).unwrap_or_else(|_| {
-        let fallback_json = include_str!("../../../../data/poi.json");
+        let fallback_json = include_str!("../../../data/poi.json");
         PoiConfig::from_json(fallback_json).unwrap_or_default()
     })
 }

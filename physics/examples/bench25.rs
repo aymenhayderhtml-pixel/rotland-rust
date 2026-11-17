@@ -9,12 +9,12 @@ fn main() {
     println!("=== Rotland Physics Benchmark: 25 Characters in Forest (600 frames) ===");
 
     let repo_data = paths::repo_path("data");
-    let pack_path = paths::repo_path("rust/assets/models.pack");
+    let pack_path = paths::repo_path("assets/models.pack");
 
     let world_gen = WorldGenerator::from_data_dir(42, &repo_data)
         .expect("should load world generator from data dir");
     let pack = ModelPack::load(&pack_path)
-        .expect("should load models.pack from rust/assets/models.pack");
+        .expect("should load models.pack from assets/models.pack");
 
     let forest_coord = world_gen.densest_forest_near(Vec3::ZERO);
     println!("Densest forest chunk near spawn: {:?}", forest_coord);

@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "showSeconds": 8,
+  "hints": [
+    { "id": "start", "text": "You're in a safe camp. [WASD] move, [{sprint}] run, [{toggle_camera}] camera.", "trigger": "start" },
+    { "id": "trader", "text": "Talk to the trader [{interact}] to buy and sell. The banker keeps your stuff safe when you die.", "trigger": "after:10", "doneWhen": "npc_talked" },
+    { "id": "leave_camp", "text": "Outside the walls zombies can see and hear you. Gunshots are loud.", "trigger": "safe_zone_left" },
+    { "id": "zombie", "text": "Melee is quiet. [{slot_1}] bat, [Left click] swing.", "trigger": "zombie_near:25", "doneWhen": "melee_swung" },
+    { "id": "crate", "text": "Search crates and buildings for loot [{interact}].", "trigger": "crate_near:6", "doneWhen": "item_picked" },
+    { "id": "hungry", "text": "Eat and drink from the hotbar [{slot_3}]/[{slot_4}] or the backpack [{inventory}].", "trigger": "need_below:40", "doneWhen": "item_used" },
+    { "id": "dusk", "text": "Night is coming. Runners hunt at night: stay near the camp or use the flashlight [{slot_6}].", "trigger": "hour_from:19" },
+    { "id": "death", "text": "You lost your bag and cash, but kept your skills and the bank.", "trigger": "died" },
+    { "id": "heavy", "text": "Heavy bag. Sell or bank loot at the camp.", "trigger": "bag_over:0.8" },
+    { "id": "wood", "text": "4 wood make a campfire kit (backpack → Craft).", "trigger": "has_item:wood" },
+    { "id": "dog_breeder", "text": "A dog breeder sells puppies [{interact}]. The dog follows you and fights. {dog_stay}: stay. If it dies, it is gone for good.", "trigger": "near_npc:breeder:6" },
+    { "id": "bounty","text": "Bounties pay dollars and XP. Take up to 2 at a time from the board [{interact}].", "trigger": "board_near:8", "doneWhen": "board_used" }
+  ]
+}

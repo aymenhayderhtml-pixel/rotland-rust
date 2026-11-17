@@ -1,0 +1,35 @@
+{
+  "low": {
+    "shadows": false,
+    "shadowBlur": 1.0,
+    "shadowDistance": 30.0,
+    "shadowSplits": 0,
+    "loadRadius": 2,
+    "unloadRadius": 3,
+    "glow": false,
+    "fog": true,
+    "renderScale": 0.6
+  },
+  "medium": {
+    "shadows": true,
+    "shadowBlur": 1.0,
+    "shadowDistance": 50.0,
+    "shadowSplits": 1,
+    "loadRadius": 3,
+    "unloadRadius": 4,
+    "glow": false,
+    "fog": true,
+    "renderScale": 0.75
+  },
+  "high": {
+    "shadows": true,
+    "shadowBlur": 1.4,
+    "shadowDistance": 65.0,
+    "shadowSplits": 2,
+    "loadRadius": 4,
+    "unloadRadius": 5,
+    "glow": true,
+    "fog": true,
+    "renderScale": 1.0
+  }
+}
