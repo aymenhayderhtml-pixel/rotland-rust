@@ -1,5 +1,7 @@
 # Vehicle contract: the hatchback (V11-08)
 
+Godot paths (scripts/, scenes/, project.godot) refer to the frozen Godot repo (github.com/aymenhayderhtml-pixel/rotland, on the owner's machine at ../zombi servival).
+
 Art (Blender) and code (Godot C#) both build against this file. **Don't change names without updating this contract and `VehicleModelContract`.**
 
 ## Files

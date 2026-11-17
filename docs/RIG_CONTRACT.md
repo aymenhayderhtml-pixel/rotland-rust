@@ -1,5 +1,7 @@
 # Rig contract: humanoid characters (player, zombies, NPCs)
 
+Godot paths (scripts/, scenes/, project.godot) refer to the frozen Godot repo (github.com/aymenhayderhtml-pixel/rotland, on the owner's machine at ../zombi servival).
+
 Art (Blender scripts) and code (Godot C#) both build against this file. **Don't change names without updating this contract and its self-test.**
 
 ## Files

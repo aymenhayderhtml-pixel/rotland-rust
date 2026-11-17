@@ -1,5 +1,7 @@
 # Animal contract: the pet dog (V11-08) and the wild animals (V12-01)
 
+Godot paths (scripts/, scenes/, project.godot) refer to the frozen Godot repo (github.com/aymenhayderhtml-pixel/rotland, on the owner's machine at ../zombi servival).
+
 Art (Blender) and code (Godot C#) both build against this file. **Don't change names without updating this contract and `AnimalRigContract`.**
 
 ## Species at a glance

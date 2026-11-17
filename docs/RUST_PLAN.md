@@ -1,5 +1,7 @@
 # Rust migration plan (2026-11-15)
 
+Note (2026-11-17): The Rust game moved to its own repo rotland-rust; the Godot repo is frozen as the reference.
+
 **Owner's call:** move Rotland from Godot/C# to **Rust with our own engine on wgpu** (no Bevy, no other game engine), tuned to the limit for **one PC**: the owner's laptop (i5-10310U, 4 cores / 8 threads, Intel UHD CML GT2 on Vulkan 1.4 / Mesa, 14 GB RAM). Claude (Opus) orchestrates; **Gemini 3.8 Flash** workers port systems; **Haiku** workers build, test and check.
 
 ## Ground rules
@@ -19,7 +21,7 @@
 - **Zombie pathing:** a flow field around the player instead of a navmesh per zombie (one search serves the whole horde).
 - **Headless mode** (no window) for tests; **bench mode** with fixed camera paths, writing the same JSON as the Godot benchmark.
 
-## Code layout (`rust/`, a cargo workspace)
+## Code layout (cargo workspace)
 | Crate | What |
 |---|---|
 | `engine` | window, input, renderer, asset pack loading, audio, physics glue, frame timing |

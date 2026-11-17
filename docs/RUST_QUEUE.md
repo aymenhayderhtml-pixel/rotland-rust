@@ -1,5 +1,8 @@
 # Rust migration: overnight work queue (2026-11-15)
 
+Note (2026-11-17): The Rust game moved to its own repo rotland-rust; the Godot repo is frozen as the reference.
+Godot paths (scripts/, scenes/, project.godot) refer to the frozen Godot repo (github.com/aymenhayderhtml-pixel/rotland, on the owner's machine at ../zombi servival).
+
 The owner is asleep. Claude keeps working in a loop: when a round's workers finish, merge, build and test once, fix small breaks, wire into the game, check screenshots, commit and push, log worker mistakes in docs/JESTER.md, then start the next round. Workers: Gemini 3.8 Flash (owner's choice for these rounds), write-only (no builds/tests), worktree each. Plan: docs/RUST_PLAN.md.
 
 ## Done

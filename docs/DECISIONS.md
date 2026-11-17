@@ -1,5 +1,7 @@
 # Decisions log
 
+Note: The game is now built in Rust (custom wgpu engine, see docs/RUST_PLAN.md) and Godot-specific tech notes are history.
+
 ## Locked
 | Date | Decision | Why |
 |---|---|---|
