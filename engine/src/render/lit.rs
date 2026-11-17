@@ -29,12 +29,12 @@ pub struct Lighting {
     pub moon_toward: Vec3,
     pub moon_energy: f32,
     pub moon_color: Vec3,
-    /// One spot light (the flashlight), or None.
-    pub spot: Option<SpotLight>,
+    /// Up to 3 spot lights (e.g. index 0: flashlight, indices 1..2: vehicle headlights).
+    pub spots: [Option<SpotLight>; 3],
 }
 
 /// A cone of light from a point, like Godot's SpotLight3D. Colour is sRGB.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SpotLight {
     pub position: Vec3,
     pub direction: Vec3,
@@ -43,6 +43,22 @@ pub struct SpotLight {
     pub angle_deg: f32,
     pub color: Vec3,
     pub energy: f32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable, PartialEq)]
+pub struct SpotLightUniform {
+    pub pos: [f32; 4],
+    pub dir: [f32; 4],
+    pub color: [f32; 4],
+}
+
+impl SpotLightUniform {
+    pub const ZERO: Self = Self {
+        pos: [0.0; 4],
+        dir: [0.0, -1.0, 0.0, 1.0],
+        color: [0.0; 4],
+    };
 }
 
 #[repr(C)]
@@ -63,9 +79,7 @@ struct SceneUniforms {
     fog_color: [f32; 4],
     moon_dir: [f32; 4],
     moon_color: [f32; 4],
-    spot_pos: [f32; 4],
-    spot_dir: [f32; 4],
-    spot_color: [f32; 4],
+    spots: [SpotLightUniform; 3],
 }
 
 /// Dynamic uniform offsets must be 256-byte aligned.
@@ -316,6 +330,16 @@ impl LitRenderer {
         let lin = srgb_to_linear;
         let v4 = |v: Vec3, w: f32| Vec4::from((v, w)).to_array();
         let s = &self.shadows;
+        let mut spots = [SpotLightUniform::ZERO; 3];
+        for (dst, src) in spots.iter_mut().zip(light.spots.iter()) {
+            if let Some(sp) = src {
+                *dst = SpotLightUniform {
+                    pos: v4(sp.position, sp.range),
+                    dir: v4(sp.direction.normalize_or_zero(), sp.angle_deg.to_radians().cos()),
+                    color: v4(lin(sp.color), sp.energy),
+                };
+            }
+        }
         let scene = SceneUniforms {
             view_proj: view_proj.to_cols_array_2d(),
             inv_view_proj: view_proj.inverse().to_cols_array_2d(),
@@ -332,9 +356,7 @@ impl LitRenderer {
             fog_color: v4(lin(light.fog_color), 1.0),
             moon_dir: v4(light.moon_toward.normalize_or_zero(), light.moon_energy),
             moon_color: v4(lin(light.moon_color), 1.0),
-            spot_pos: light.spot.map_or([0.0; 4], |sp| v4(sp.position, sp.range)),
-            spot_dir: light.spot.map_or([0.0, -1.0, 0.0, 1.0], |sp| v4(sp.direction.normalize_or_zero(), sp.angle_deg.to_radians().cos())),
-            spot_color: light.spot.map_or([0.0; 4], |sp| v4(lin(sp.color), sp.energy)),
+            spots,
         };
         gpu.queue.write_buffer(&self.scene_buf, 0, bytemuck::bytes_of(&scene));
     }
@@ -342,4 +364,20 @@ impl LitRenderer {
 
 fn in_view(frustum: &Frustum, d: &DrawItem) -> bool {
     frustum.intersects_aabb(d.mesh.min + d.offset, d.mesh.max + d.offset)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_uniform_size_and_alignment() {
+        assert_eq!(std::mem::size_of::<SpotLightUniform>(), 48);
+        assert_eq!(std::mem::size_of::<SpotLightUniform>() % 16, 0);
+
+        assert_eq!(std::mem::size_of::<SceneUniforms>(), 528);
+        assert_eq!(std::mem::size_of::<SceneUniforms>() % 16, 0);
+
+        assert_eq!(std::mem::offset_of!(SceneUniforms, spots), 384);
+    }
 }
