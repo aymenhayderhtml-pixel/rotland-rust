@@ -157,6 +157,11 @@ impl WeaponDef {
     pub fn is_gun(&self) -> bool {
         self.kind == WeaponKind::Gun
     }
+
+    /// First-person hold offset. If none was specified in data, returns default zero.
+    pub fn fp_hold_or_default(&self) -> WeaponHold {
+        self.fp_hold.clone().unwrap_or_default()
+    }
 }
 
 /// Every weapon from weapons.json, keyed by id (port of scripts/Combat/WeaponRegistry.cs).
