@@ -9,6 +9,7 @@ pub struct Gpu {
     pub config: wgpu::SurfaceConfiguration,
     pub adapter_info: wgpu::AdapterInfo,
     pub window: Arc<Window>,
+    pub supported_present_modes: Vec<wgpu::PresentMode>,
 }
 
 pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -48,15 +49,7 @@ impl Gpu {
         let modes = surface.get_capabilities(&adapter).present_modes;
         log::info!("present modes: {modes:?}");
         // Uncapped: Mailbox (no tearing) first, then Immediate. Wayland may offer only Fifo (capped).
-        config.present_mode = if vsync {
-            wgpu::PresentMode::AutoVsync
-        } else if modes.contains(&wgpu::PresentMode::Mailbox) {
-            wgpu::PresentMode::Mailbox
-        } else if modes.contains(&wgpu::PresentMode::Immediate) {
-            wgpu::PresentMode::Immediate
-        } else {
-            wgpu::PresentMode::AutoNoVsync
-        };
+        config.present_mode = Self::choose_present_mode(&modes, vsync);
         config.desired_maximum_frame_latency = 2;
         surface.configure(&device, &config);
         Self {
@@ -66,6 +59,30 @@ impl Gpu {
             config,
             adapter_info,
             window,
+            supported_present_modes: modes,
+        }
+    }
+
+    /// Selects the appropriate present mode based on requested vsync state and adapter capabilities.
+    pub fn choose_present_mode(modes: &[wgpu::PresentMode], vsync: bool) -> wgpu::PresentMode {
+        if vsync {
+            wgpu::PresentMode::AutoVsync
+        } else if modes.contains(&wgpu::PresentMode::Mailbox) {
+            wgpu::PresentMode::Mailbox
+        } else if modes.contains(&wgpu::PresentMode::Immediate) {
+            wgpu::PresentMode::Immediate
+        } else {
+            wgpu::PresentMode::AutoNoVsync
+        }
+    }
+
+    /// Updates the surface present mode for vsync if it changed and reconfigures the surface.
+    pub fn set_vsync(&mut self, vsync: bool) {
+        let new_mode = Self::choose_present_mode(&self.supported_present_modes, vsync);
+        if self.config.present_mode != new_mode {
+            self.config.present_mode = new_mode;
+            self.surface.configure(&self.device, &self.config);
+            log::info!("reconfigured present mode to {:?}", new_mode);
         }
     }
 
@@ -76,5 +93,54 @@ impl Gpu {
         self.config.width = width;
         self.config.height = height;
         self.surface.configure(&self.device, &self.config);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn chooses_vsync_mode() {
+        let modes = vec![
+            wgpu::PresentMode::Fifo,
+            wgpu::PresentMode::Mailbox,
+            wgpu::PresentMode::Immediate,
+        ];
+        assert_eq!(
+            Gpu::choose_present_mode(&modes, true),
+            wgpu::PresentMode::AutoVsync
+        );
+    }
+
+    #[test]
+    fn chooses_mailbox_when_available_and_no_vsync() {
+        let modes = vec![
+            wgpu::PresentMode::Fifo,
+            wgpu::PresentMode::Mailbox,
+            wgpu::PresentMode::Immediate,
+        ];
+        assert_eq!(
+            Gpu::choose_present_mode(&modes, false),
+            wgpu::PresentMode::Mailbox
+        );
+    }
+
+    #[test]
+    fn chooses_immediate_when_mailbox_unavailable_and_no_vsync() {
+        let modes = vec![wgpu::PresentMode::Fifo, wgpu::PresentMode::Immediate];
+        assert_eq!(
+            Gpu::choose_present_mode(&modes, false),
+            wgpu::PresentMode::Immediate
+        );
+    }
+
+    #[test]
+    fn falls_back_to_auto_no_vsync() {
+        let modes = vec![wgpu::PresentMode::Fifo];
+        assert_eq!(
+            Gpu::choose_present_mode(&modes, false),
+            wgpu::PresentMode::AutoNoVsync
+        );
     }
 }
