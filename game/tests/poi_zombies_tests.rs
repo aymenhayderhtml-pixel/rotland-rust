@@ -2,7 +2,7 @@ use std::f32::consts::FRAC_PI_2;
 
 use game::bounties::{BountyConfigData, BountyDef, BountyManager, CLEAR_POI};
 use game::poi_zombies::{
-    PoiSpawn, PoiZombieSite, PoiZombies, POI_ZOMBIES_SAVE_ID, POI_ZOMBIES_SAVE_KEY,
+    PoiZombieSite, PoiZombies, POI_ZOMBIES_SAVE_ID, POI_ZOMBIES_SAVE_KEY,
 };
 use glam::Vec3;
 
@@ -46,7 +46,7 @@ fn test_spawn_count_markers_near() {
     assert_eq!(spawns[0].poi_id, "watchtower_near");
     let expected_pos = Vec3::new(10.0 + 2.4, 5.0, 20.0);
     assert!(
-        spawns[0].position.distance_to(expected_pos) < 1e-4,
+        spawns[0].position.distance(expected_pos) < 1e-4,
         "spawn position should match first marker offset"
     );
     assert!(manager.is_visited("watchtower_near"));
@@ -65,7 +65,7 @@ fn test_spawn_count_markers_near() {
     assert_eq!(spawns_rot.len(), 1);
     let expected_rot_pos = Vec3::new(10.0, 0.0, 8.0);
     assert!(
-        spawns_rot[0].position.distance_to(expected_rot_pos) < 1e-4,
+        spawns_rot[0].position.distance(expected_rot_pos) < 1e-4,
         "rotated marker position should match yaw transformation"
     );
 
@@ -143,7 +143,7 @@ fn test_cleared_after_all_die_and_never_respawns() {
     );
 
     let player = Vec3::new(0.0, 0.0, 5.0);
-    let spawns = manager.update(player, &[site.clone()], 0);
+    let spawns = manager.update(player, std::slice::from_ref(&site), 0);
     assert_eq!(spawns.len(), 2);
     assert!(!manager.is_cleared("cabin_clear"));
 
@@ -167,7 +167,7 @@ fn test_cleared_after_all_die_and_never_respawns() {
 
     // Player leaves 200 m away, then walks back near: building never respawns
     let player_far = Vec3::new(200.0, 0.0, 0.0);
-    let _ = manager.update(player_far, &[site.clone()], 0);
+    let _ = manager.update(player_far, std::slice::from_ref(&site), 0);
 
     let spawns_again = manager.update(player, &[site], 0);
     assert!(spawns_again.is_empty(), "cleared building must never wake again");
@@ -221,7 +221,7 @@ fn test_sleep_despawn_when_player_leaves() {
         vec![Vec3::new(0.0, 0.0, 0.0)],
     );
 
-    let spawns = manager.update(Vec3::new(10.0, 0.0, 15.0), &[site.clone()], 0);
+    let spawns = manager.update(Vec3::new(10.0, 0.0, 15.0), std::slice::from_ref(&site), 0);
     assert_eq!(spawns.len(), 1);
     manager.on_zombie_spawned("shed_despawn", 301);
 
@@ -250,16 +250,17 @@ fn test_bounty_receives_clear_event() {
         },
     );
 
-    let mut clear_bounty = BountyDef::new(
-        "bounty_clear_cabin",
-        CLEAR_POI,
-        "Clear the cabin",
-        1,
-        100,
-        50,
-        "combat",
-    );
-    clear_bounty.poi_id = Some("cabin_target".to_string());
+    let clear_bounty = BountyDef {
+        id: "bounty_clear_cabin".into(),
+        bounty_type: CLEAR_POI.into(),
+        text: "Clear the cabin".into(),
+        target: 1,
+        dollars: 100,
+        xp: 50,
+        skill: "combat".into(),
+        poi_id: Some("cabin_target".to_string()),
+        ..Default::default()
+    };
     bounty_mgr.add_active_for_test(clear_bounty);
     assert_eq!(bounty_mgr.active()[0].progress, 0);
 

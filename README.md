@@ -43,6 +43,7 @@ Save and menu options (play scene):
 | `--hub=bag\|skills\|bounties\|profile\|map` | start with the player hub open on that tab (screenshots) |
 | `--chop` | after a second, stand at the nearest tree with the axe in hand (with `--autoattack` it is felled after 4 swings). Stats: `felledTrees`, `guardShots`, `parkedSolids`, `mapBuildings`, `strayDogs`, `profile`, `bubbles`, `campChats` |
 | `--first-person` | start in the first-person camera (screenshots of the weapon in view). Stats: `zombieVoices`, `nearestZombie` |
+| `--poi` | after a second, stand 20 m from the nearest building (wakes its zombies). Stats: `poisVisited`, `poiZombiesAwake`, `poisCleared` |
 | `--climb` | after a second, stand at the nearest ladder and grab it (with `--autowalk` the player climbs up). Stats: `ladders`, `climbing`, `campfires`, `campfiresLit` |
 | `--mute` | no sound. Runs with `--shot`, `--seconds`, `--frames` or `--stats` are always muted; the JSON stats still count `soundsPlayed` / `lastSound` |
 | `cargo run -p save --example check_godot` | reads the owner's Godot slots (read only) and prints what was understood |

@@ -147,11 +147,12 @@ impl Zombies {
         });
     }
 
-    /// One zombie of type `kind` (e.g. "walker", "runner") at `at`, for the spawner.
-    pub fn spawn_kind(&mut self, kind: &str, at: Vec3) {
-        if let Some(def) = self.defs.get(kind).cloned() {
-            self.spawn(kind, &def, at);
-        }
+    /// One zombie of type `kind` (e.g. "walker", "runner") at `at`, for the spawner. Returns its id.
+    pub fn spawn_kind(&mut self, kind: &str, at: Vec3) -> Option<u64> {
+        let def = self.defs.get(kind).cloned()?;
+        let id = self.next_id;
+        self.spawn(kind, &def, at);
+        Some(id)
     }
 
     /// Removes zombies the spawner says are too far away.

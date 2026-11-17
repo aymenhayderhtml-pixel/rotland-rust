@@ -137,6 +137,8 @@ struct R0 {
     test_chop: bool,
     /// Test option --first-person: start in the first-person camera.
     test_first_person: bool,
+    /// Test option --poi: stand 20 m from the nearest building after a second.
+    test_poi: bool,
     campfire_meshes: Option<campfire_mesh::CampfireMeshes>,
     /// The level-up banner and "+XP" toasts (always on, also when the hub is shut).
     overlays: Option<hub_ui::HubUiState>,
@@ -166,8 +168,14 @@ struct R0 {
     open_trunk: Option<String>,
     /// Zombie groans and attack snarls near the player (Godot ZombieVoices).
     zombie_voices: Option<game::ZombieVoices>,
+    /// Zombies waiting inside buildings (Godot PoiManager; visited buildings saved in worldstate).
+    poi_zombies: Option<game::PoiZombies>,
+    /// Each building model's spawn markers (model space), read from the pack once.
+    poi_markers: HashMap<String, Vec<Vec3>>,
     /// Zombie voice sounds started (stats).
     voices_played: u32,
+    /// Buildings cleared this session (stats).
+    pois_cleared: u32,
     /// This frame's keys for the rebindable actions.
     keys: KeyMap,
     /// The player was dead last frame (a death is counted once).
@@ -379,6 +387,9 @@ impl R0 {
         }
         let mut ws = file.systems.worldstate.clone().unwrap_or_default();
         ws.fallen_trees = serde_json::from_value(self.trees.to_save()["fallen_trees"].clone()).unwrap_or_default();
+        if let Some(pz) = &self.poi_zombies {
+            ws.visited_pois = pz.visited_ids();
+        }
         file.systems.worldstate = Some(ws);
         match slots.write(self.active_slot as usize, &file) {
             Ok(()) => {
@@ -439,6 +450,7 @@ impl R0 {
         self.cars = None;
         self.car_solids = car_solid::ParkedCarSolids::default();
         self.zombie_voices = Some(game::ZombieVoices::new(self.seed));
+        self.poi_zombies = Some(game::PoiZombies::new(self.seed));
         self.trees = game::TreeFelling::new();
         self.trees.set_seed(self.seed as u64);
         self.falling.clear();
@@ -554,6 +566,9 @@ impl R0 {
             }
             if let Some(ws) = &file.systems.worldstate {
                 self.trees.from_save(&serde_json::json!({ "fallen_trees": ws.fallen_trees }));
+                if let Some(pz) = self.poi_zombies.as_mut() {
+                    pz.from_save(&serde_json::json!({ "visited_pois": ws.visited_pois }));
+                }
             }
             if let (Some(d), Some(v)) = (self.dogs.as_mut(), file.systems.extra.get("dog")) {
                 d.sim.from_save(v);
@@ -772,6 +787,7 @@ impl Game for R0 {
         self.test_climb = args.flag("--climb");
         self.test_chop = args.flag("--chop");
         self.test_first_person = args.flag("--first-person");
+        self.test_poi = args.flag("--poi");
         self.near_animals = args.value("--animals").map(|s| s.split(',').filter(|e| !e.is_empty()).map(str::to_string).collect()).unwrap_or_default();
         self.start_yaw = args.value("--yaw").and_then(|s| s.parse::<f32>().ok()).map(f32::to_radians);
         self.give = args
@@ -930,6 +946,20 @@ impl Game for R0 {
                 let in_car = self.cars.as_ref().is_some_and(|c| c.driven_car_id.is_some());
                 // Ladders first: while climbing, the ladder moves the player instead of walking
                 let mut grab = input.pressed(self.keys.interact) && self.camp_ui.is_none() && self.hub.is_none() && !dead;
+                if self.test_poi && self.time > 1.0 {
+                    self.test_poi = false;
+                    let me = p.position;
+                    let nearest = self.streamer.as_ref().and_then(|s| {
+                        s.chunks.values().flat_map(|c| c.pois.iter()).min_by(|a, b| a.position.distance(me).total_cmp(&b.position.distance(me))).map(|q| q.position)
+                    });
+                    if let Some(poi) = nearest {
+                        let away = Vec3::new(me.x - poi.x, 0.0, me.z - poi.z).normalize_or(Vec3::X);
+                        let at = poi + away * 20.0;
+                        p.position = Vec3::new(at.x, self.physics.ground_height(at.x, at.z).unwrap_or(at.y) + 0.05, at.z);
+                        p.yaw = away.x.atan2(away.z);
+                        rig.yaw = p.yaw;
+                    }
+                }
                 if self.test_chop && self.time > 1.0 {
                     self.test_chop = false;
                     let me = p.position;
@@ -1466,6 +1496,53 @@ impl Game for R0 {
         if let Some(z) = self.zombies.as_mut() {
             let frame = z.update(dt, alive.then_some(self.player), &noises, &self.physics);
             let mut bites: Vec<f32> = frame.bites.iter().map(|b| b.damage).collect();
+            // Buildings near the player wake the zombies waiting inside; a building is cleared when they are
+            // all dead (Godot PoiManager; clear bounties count it)
+            if let (Some(pz), Some(st), Some(pack)) = (self.poi_zombies.as_mut(), self.streamer.as_ref(), self.pack.as_ref()) {
+                let markers = &mut self.poi_markers;
+                let sites: Vec<game::PoiZombieSite> = st
+                    .chunks
+                    .values()
+                    .flat_map(|c| c.pois.iter())
+                    .map(|poi| {
+                        let spawns = markers
+                            .entry(poi.building_id.clone())
+                            .or_insert_with(|| {
+                                pack.find(&poi.building_id)
+                                    .map(|m| m.markers.iter().filter(|k| k.name.starts_with("spawn_")).map(|k| Vec3::from(k.translation)).collect())
+                                    .unwrap_or_default()
+                            })
+                            .clone();
+                        game::PoiZombieSite::new(&poi.id, &poi.building_id, poi.position, poi.yaw, spawns)
+                    })
+                    .collect();
+                let alive = z.list.iter().filter(|q| !q.health.is_dead()).count();
+                for spawn in pz.update(self.player, &sites, alive) {
+                    if let Some(id) = z.spawn_kind(&spawn.kind, spawn.position) {
+                        pz.on_zombie_spawned(&spawn.poi_id, id);
+                    }
+                }
+                // Far behind: gone for good (the building does not wait for them)
+                let at: Vec<(u64, Vec3)> = z.list.iter().map(|q| (q.id, q.position)).collect();
+                let far = pz.check_despawns(self.player, &at);
+                z.despawn(&far);
+                let mut cleared: Vec<String> = far.iter().filter_map(|id| pz.on_zombie_despawned(*id)).collect();
+                // Dead, or removed by the spawner
+                let tracked: Vec<u64> = pz.zombie_to_poi.keys().copied().collect();
+                for id in tracked {
+                    if z.list.iter().find(|q| q.id == id).is_none_or(|q| q.health.is_dead())
+                        && let Some(poi) = pz.on_zombie_died(id)
+                    {
+                        cleared.push(poi);
+                    }
+                }
+                if let Some(play) = self.play.as_mut() {
+                    for poi in cleared {
+                        play.camp.bounties.on_poi_cleared(&poi);
+                        self.pois_cleared += 1;
+                    }
+                }
+            }
             // Zombies groan now and then and snarl as they attack (Godot ZombieVoices)
             if let (Some(voices), Some(a)) = (self.zombie_voices.as_mut(), self.audio.as_mut()) {
                 let list: Vec<game::VoiceZombie> = z
@@ -2110,6 +2187,11 @@ impl Game for R0 {
             // Counted even when muted, so scripted runs can check sounds without playing them
             s.insert("soundsPlayed".into(), a.played.into());
             s.insert("zombieVoices".into(), self.voices_played.into());
+            s.insert("poisCleared".into(), self.pois_cleared.into());
+            if let Some(pz) = &self.poi_zombies {
+                s.insert("poiZombiesAwake".into(), pz.awake_count().into());
+                s.insert("poisVisited".into(), pz.visited_ids().len().into());
+            }
             if let Some(z) = &self.zombies {
                 let near = z.list.iter().filter(|q| !q.health.is_dead()).map(|q| q.position.distance(self.player)).fold(f32::MAX, f32::min);
                 s.insert("nearestZombie".into(), format!("{near:.1}").into());
