@@ -31,6 +31,7 @@ pub mod skills;
 pub mod spawner;
 pub mod spawner_config;
 pub mod survival;
+pub mod trees;
 pub mod weapons;
 pub mod vehicles;
 pub mod zombie;
@@ -61,5 +62,6 @@ pub use spawner::{
     SpawnOrders, SpawnTypeEntry, SpawnTypeTable, Spawner, SpawnerRng,
 };
 pub use survival::*;
+pub use trees::*;
 pub use vehicles::*;
 pub use weapons::{WeaponAnim, WeaponDef, WeaponHold, WeaponKind, WeaponLoadError, WeaponRegistry, WeaponScope};
