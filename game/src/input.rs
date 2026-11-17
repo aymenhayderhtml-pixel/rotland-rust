@@ -40,6 +40,31 @@ impl Default for InputBindings {
     }
 }
 
+pub use crate::keybinds::*;
+
+impl InputBindings {
+    /// Builds `InputBindings` from user-configured `KeyBindings`.
+    pub fn from_keybindings(kb: &crate::keybinds::KeyBindings) -> Self {
+        Self {
+            move_forward: kb.keycode_of("move_forward").unwrap_or(KeyCode::KeyW),
+            move_back: kb.keycode_of("move_back").unwrap_or(KeyCode::KeyS),
+            move_left: kb.keycode_of("move_left").unwrap_or(KeyCode::KeyA),
+            move_right: kb.keycode_of("move_right").unwrap_or(KeyCode::KeyD),
+            jump: kb.keycode_of("jump").unwrap_or(KeyCode::Space),
+            sprint: kb.keycode_of("sprint").unwrap_or(KeyCode::ShiftLeft),
+            crouch: kb.keycode_of("crouch").unwrap_or(KeyCode::KeyC),
+            toggle_camera: kb.keycode_of("toggle_camera").unwrap_or(KeyCode::KeyV),
+            aim_button: MouseButton::Right,
+        }
+    }
+}
+
+impl From<&crate::keybinds::KeyBindings> for InputBindings {
+    fn from(kb: &crate::keybinds::KeyBindings) -> Self {
+        Self::from_keybindings(kb)
+    }
+}
+
 /// Player input actions for one frame, mapped from raw device input.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Actions {
