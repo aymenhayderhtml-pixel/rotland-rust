@@ -1,5 +1,6 @@
 //! Map, compass markers, and exploration system (port of scripts/UI/ and scripts/World/ map logic).
 
+mod buildings;
 mod compass;
 mod explore;
 mod icons;
@@ -8,6 +9,7 @@ mod math;
 mod state;
 mod tiles;
 
+pub use buildings::*;
 pub use compass::{
     bearing_to_view_deg, direction_name, marker_x, relative_angle_deg, HALF_VIEW_DEG,
 };
