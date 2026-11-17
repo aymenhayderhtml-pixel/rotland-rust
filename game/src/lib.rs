@@ -38,6 +38,7 @@ pub mod trees;
 pub mod weapons;
 pub mod vehicles;
 pub mod zombie;
+pub mod zombie_voices;
 
 pub use animals::*;
 pub use bounties::*;
@@ -71,3 +72,4 @@ pub use survival::*;
 pub use trees::*;
 pub use vehicles::*;
 pub use weapons::{WeaponAnim, WeaponDef, WeaponHold, WeaponKind, WeaponLoadError, WeaponRegistry, WeaponScope};
+pub use zombie_voices::*;
