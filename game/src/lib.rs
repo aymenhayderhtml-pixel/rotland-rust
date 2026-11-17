@@ -23,11 +23,13 @@ pub mod guns;
 pub mod guns_fire;
 pub mod input;
 pub mod items;
+pub mod keybinds;
 pub mod ladders;
 pub mod loot;
 pub mod map;
 pub mod melee;
 pub mod player;
+pub mod profile_stats;
 pub mod skills;
 pub mod spawner;
 pub mod spawner_config;
@@ -54,10 +56,12 @@ pub use hints::*;
 pub use flowfield::FlowField;
 pub use input::{Actions, InputBindings};
 pub use items::*;
+pub use keybinds::*;
 pub use ladders::*;
 pub use loot::*;
 pub use map::*;
 pub use player::*;
+pub use profile_stats::*;
 pub use skills::*;
 pub use spawner::{
     ActiveZombie, CampDensityRule, SpawnConfig, SpawnConfigData, SpawnContext, SpawnOrder,
