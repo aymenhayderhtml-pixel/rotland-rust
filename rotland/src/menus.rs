@@ -75,6 +75,17 @@ pub struct Menus {
     pub settings: Settings,
     pub pending_delete: Option<u8>,
     pub save_path: Option<PathBuf>,
+    /// The key for every action (Settings > Controls), built from `settings.key_bindings`.
+    pub keys: game::KeyBindings,
+    pub keys_ui: crate::keys_ui::KeysUiState,
+    /// A key that went down this frame, for rebinding.
+    pub pressed_key: Option<winit::keyboard::KeyCode>,
+}
+
+fn keys_from(settings: &Settings) -> game::KeyBindings {
+    let mut keys = game::KeyBindings::default();
+    keys.apply(&settings.key_bindings);
+    keys
 }
 
 impl Menus {
@@ -82,9 +93,12 @@ impl Menus {
     pub fn new(settings: Settings) -> Self {
         Self {
             screen: Screen::Main,
+            keys: keys_from(&settings),
             settings,
             pending_delete: None,
             save_path: default_save_path(),
+            keys_ui: Default::default(),
+            pressed_key: None,
         }
     }
 
@@ -92,9 +106,12 @@ impl Menus {
     pub fn in_game(settings: Settings) -> Self {
         Self {
             screen: Screen::None,
+            keys: keys_from(&settings),
             settings,
             pending_delete: None,
             save_path: default_save_path(),
+            keys_ui: Default::default(),
+            pressed_key: None,
         }
     }
 

@@ -29,7 +29,7 @@ fn test_zombie_in_range_shot_at_fire_rate() {
     let target = GuardTarget::new(100, Vec3::new(10.0, 0.0, 0.0), true);
 
     // Frame 1 (dt = 0.1): scan_timer and fire_timer both start at 0, so guard scans and fires on frame 1
-    let frame1: GuardFrame = guards.update_clear(0.1, &[guard.clone()], &[target.clone()]);
+    let frame1: GuardFrame = guards.update_clear(0.1, std::slice::from_ref(&guard), std::slice::from_ref(&target));
     assert_eq!(frame1.shots.len(), 1, "Guard must fire on first acquisition");
     assert_eq!(frame1.sounds.len(), 1, "Rifle sound must play on fire");
     assert_eq!(frame1.sounds[0].0, GuardRifle::SHOT_SOUND);
@@ -50,12 +50,12 @@ fn test_zombie_in_range_shot_at_fire_rate() {
 
     // Next 11 frames of dt = 0.1 (total elapsed = 1.2s since start, 1.1s since shot): fire timer has not expired yet
     for _ in 0..11 {
-        let frame: GuardFrame = guards.update_clear(0.1, &[guard.clone()], &[target.clone()]);
+        let frame: GuardFrame = guards.update_clear(0.1, std::slice::from_ref(&guard), std::slice::from_ref(&target));
         assert_eq!(frame.shots.len(), 0, "Guard must wait fire_interval before shooting again");
     }
 
     // Frame 13 (total elapsed = 1.3s, 1.2s since shot): fire_timer (1.2s) reaches 0 and fires second shot
-    let frame13: GuardFrame = guards.update_clear(0.1, &[guard.clone()], &[target]);
+    let frame13: GuardFrame = guards.update_clear(0.1, std::slice::from_ref(&guard), &[target]);
     assert_eq!(frame13.shots.len(), 1, "Guard must fire second shot after fire_interval (1.2s)");
     assert_eq!(guards.shots_fired("guard_1"), 2);
 }
@@ -146,7 +146,7 @@ fn test_guard_aim_yaw_directions() {
 
     // East (+X): yaw = atan2(-10, -0) = -PI/2
     let target_east = GuardTarget::new(1, Vec3::new(10.0, 0.0, 0.0), true);
-    let frame_east = guards.update_clear(0.1, &[guard.clone()], &[target_east]);
+    let frame_east = guards.update_clear(0.1, std::slice::from_ref(&guard), &[target_east]);
     assert!((frame_east.yaws[0].1 - (-FRAC_PI_2)).abs() < 1e-4);
 
     // West (-X): yaw = atan2(10, -0) = +PI/2
@@ -155,7 +155,7 @@ fn test_guard_aim_yaw_directions() {
         .with_camp_center(Vec3::ZERO)
         .with_miss_chance(0.0);
     let target_west = GuardTarget::new(2, Vec3::new(-10.0, 0.0, 0.0), true);
-    let frame_west = guards_west.update_clear(0.1, &[guard.clone()], &[target_west]);
+    let frame_west = guards_west.update_clear(0.1, std::slice::from_ref(&guard), &[target_west]);
     assert!((frame_west.yaws[0].1 - FRAC_PI_2).abs() < 1e-4);
 
     // North (-Z, forward in Godot): yaw = atan2(-0, 10) = 0.0
@@ -164,7 +164,7 @@ fn test_guard_aim_yaw_directions() {
         .with_camp_center(Vec3::ZERO)
         .with_miss_chance(0.0);
     let target_north = GuardTarget::new(3, Vec3::new(0.0, 0.0, -10.0), true);
-    let frame_north = guards_north.update_clear(0.1, &[guard.clone()], &[target_north]);
+    let frame_north = guards_north.update_clear(0.1, std::slice::from_ref(&guard), &[target_north]);
     assert!(frame_north.yaws[0].1.abs() < 1e-4);
 
     // South (+Z, backward in Godot): yaw = atan2(-0, -10) = PI or -PI
@@ -188,7 +188,7 @@ fn test_target_death_switches_to_next_target() {
     let target_a = GuardTarget::new(101, Vec3::new(10.0, 0.0, 0.0), true);
 
     // Frame 1: fires at target A
-    let f1 = guards.update_clear(0.1, &[guard.clone()], &[target_a]);
+    let f1 = guards.update_clear(0.1, std::slice::from_ref(&guard), &[target_a]);
     assert_eq!(f1.shots.len(), 1);
     assert_eq!(f1.shots[0].target_id, 101);
 
@@ -197,7 +197,7 @@ fn test_target_death_switches_to_next_target() {
     let target_b = GuardTarget::new(102, Vec3::new(12.0, 0.0, 0.0), true);
 
     // Advance 0.5s to trigger scan_timer
-    let _ = guards.update_clear(0.5, &[guard.clone()], &[dead_target_a, target_b.clone()]);
+    let _ = guards.update_clear(0.5, std::slice::from_ref(&guard), &[dead_target_a, target_b.clone()]);
 
     // Guard acquires target B
     assert_eq!(guards.current_target("guard_1"), Some(102));

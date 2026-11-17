@@ -62,6 +62,11 @@ pub fn restore_play(file: &SaveFile, play: &mut PlayState) {
     };
     let looted = file.systems.worldstate.as_ref().map(|w| w.looted.clone()).unwrap_or_default();
     play.camp.load_from(&file.systems);
+    if let Some(st) = &file.systems.stats
+        && let Ok(v) = serde_json::to_value(st)
+    {
+        play.stats.from_save(&v);
+    }
     // Hunger and thirst live in Godot's "need_hunger" / "need_thirst" systems
     if let Some(v) = file.systems.extra.get("need_hunger") {
         play.hunger.from_save(v);
@@ -110,7 +115,7 @@ pub fn capture(base: Option<&SaveFile>, s: &Snapshot) -> SaveFile {
     player.spawn = d3(s.spawn);
     sys.player = Some(player);
     sys.time = Some(save::TimeSaveData { hour: s.clock.hour, day: s.clock.day });
-    let mut stats = sys.stats.clone().unwrap_or_default();
+    let mut stats: save::StatsSaveData = serde_json::from_value(s.play.stats.to_save()).unwrap_or_default();
     stats.play_time = s.play_time;
     stats.highest_day = stats.highest_day.max(s.clock.day);
     sys.stats = Some(stats);

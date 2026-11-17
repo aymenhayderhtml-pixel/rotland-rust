@@ -25,7 +25,6 @@ const TOAST_SECONDS: f32 = 3.0;
 /// Seconds between two uses of food, drink or bandages (ItemUse.cs UseCooldown).
 const USE_COOLDOWN: f32 = 0.8;
 
-const HOTBAR_KEYS: [KeyCode; 6] = [KeyCode::Digit1, KeyCode::Digit2, KeyCode::Digit3, KeyCode::Digit4, KeyCode::Digit5, KeyCode::Digit6];
 
 pub struct PlayState {
     pub items: Arc<ItemRegistry>,
@@ -57,6 +56,8 @@ pub struct PlayState {
     pub picked_up: bool,
     /// What the player has explored (Godot WorldMap, saved under "map").
     pub map: game::MapState,
+    /// Lifetime numbers for the profile page (Godot PlayerStats, save id "stats").
+    pub stats: game::ProfileStats,
     /// The tips for new players (Godot HintSystem, saved under "hints"); None if data/hints.json is broken.
     pub hints: Option<game::HintSystem>,
 }
@@ -112,6 +113,7 @@ impl PlayState {
             camp,
             picked_up: false,
             map: game::MapState::new(),
+            stats: game::ProfileStats::default(),
             hints: game::HintSystem::from_repo().map_err(|e| log::warn!("data/hints.json: {e}")).ok(),
         })
     }
@@ -126,6 +128,24 @@ impl PlayState {
     }
 
     /// A message in the middle of the screen for a few seconds.
+    /// Notes the POI buildings within reveal range on the map, dimmed once all their crates are looted.
+    pub fn note_buildings<'a>(
+        &mut self,
+        player: Vec3,
+        chunks: impl Iterator<Item = (&'a [world::PoiInstance], &'a [world::LootSpot])>,
+        config: &world::PoiConfigData,
+    ) {
+        let looted = self.loot_state.all_looted();
+        for (pois, crates) in chunks {
+            crate::poi_links::note_nearby_pois(&mut self.map, player, pois, crates, config, |id| looted.contains(id));
+        }
+    }
+
+    /// Puts items on the ground as a world item (felled wood).
+    pub fn drop_on_ground(&mut self, item_id: &str, count: u32, at: Vec3) {
+        self.world_items.add(item_id, count, at);
+    }
+
     pub fn show_toast(&mut self, text: String) {
         self.toast = Some((text, TOAST_SECONDS));
     }
@@ -257,8 +277,8 @@ impl PlayState {
     }
 
     /// Hotbar keys 1-6: take out or put away the item in that slot.
-    pub fn hotbar_keys(&mut self, input: &Input) -> Option<HandChange> {
-        let key = HOTBAR_KEYS.iter().position(|k| input.pressed(*k))? + 1;
+    pub fn hotbar_keys(&mut self, input: &Input, keys: &[KeyCode; 6]) -> Option<HandChange> {
+        let key = keys.iter().position(|k| input.pressed(*k))? + 1;
         self.press(key)
     }
 

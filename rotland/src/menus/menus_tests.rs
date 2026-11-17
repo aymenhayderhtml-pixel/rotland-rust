@@ -193,6 +193,7 @@ fn test_settings_round_trip_through_temp_file() {
         sfx_volume: 0.95,
         show_fps: false,
         graphics_preset: "high".to_string(),
+        key_bindings: Default::default(),
     };
     original.clamp();
 
@@ -232,6 +233,7 @@ fn test_settings_clamping() {
         sfx_volume: 0.5,
         show_fps: true,
         graphics_preset: "invalid_preset_name".to_string(),
+        key_bindings: Default::default(),
     };
     s.clamp();
     assert_eq!(s.mouse_sensitivity, MAX_SENSITIVITY);
@@ -254,6 +256,7 @@ fn test_settings_clamping() {
         sfx_volume: 0.0,
         show_fps: true,
         graphics_preset: "LOW".to_string(),
+        key_bindings: Default::default(),
     };
     low.clamp();
     assert_eq!(low.mouse_sensitivity, MIN_SENSITIVITY);

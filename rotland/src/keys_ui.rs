@@ -15,11 +15,6 @@ pub struct KeysUiState {
 }
 
 impl KeysUiState {
-    /// Creates a new default `KeysUiState`.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// Puts the UI into waiting mode for `action`.
     pub fn begin_rebind(&mut self, action: &str) {
         self.waiting = Some(action.to_string());
@@ -34,17 +29,7 @@ impl KeysUiState {
 
     /// Returns true if currently waiting for a key press.
     pub fn is_waiting(&self) -> bool {
-        self.waiting.is_some()
-    }
-
-    /// The action name currently waiting for a key press.
-    pub fn waiting_action(&self) -> Option<&str> {
-        self.waiting.as_deref()
-    }
-
-    /// Returns true if a conflict swap confirmation is open.
-    pub fn has_conflict(&self) -> bool {
-        self.conflict.is_some()
+        self.waiting.is_some() || self.conflict.is_some()
     }
 }
 
@@ -62,8 +47,8 @@ pub fn draw_keys(
     if let Some(key) = pressed_key {
         if key == KeyCode::Escape {
             state.cancel();
-        } else if let Some(action) = state.waiting.take() {
-            if let Some(code) = KeyBindings::key_to_godot_code(key, false) {
+        } else if let Some(action) = state.waiting.take()
+            && let Some(code) = KeyBindings::key_to_godot_code(key, false) {
                 if let Some(other) = bindings.conflict_with(&action, code) {
                     state.conflict = Some((action, other.to_string(), code));
                 } else {
@@ -71,7 +56,6 @@ pub fn draw_keys(
                     changed = true;
                 }
             }
-        }
     }
 
     Frame::NONE

@@ -24,6 +24,11 @@ impl Input {
         self.pressed.contains(&key)
     }
 
+    /// The keys that went down this frame (key rebinding waits for one).
+    pub fn pressed_keys(&self) -> Vec<KeyCode> {
+        self.pressed.iter().copied().collect()
+    }
+
     pub fn mouse_held(&self, button: MouseButton) -> bool {
         self.mouse_held.contains(&button)
     }

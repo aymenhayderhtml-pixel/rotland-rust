@@ -50,10 +50,12 @@ pub struct Car {
 impl Car {
     pub fn new(id: impl Into<String>, colour: impl Into<String>, cfg: &VehicleConfigData) -> Self {
         let trunk = Inventory::with_capacity(cfg.trunk_slots, cfg.trunk_max_weight);
+        let id = id.into();
+        let body = CarBody { self_tag: car_tag(&id), ..CarBody::new(Vec3::ZERO, Quat::IDENTITY) };
         Self {
-            id: id.into(),
+            id,
             colour: colour.into(),
-            body: CarBody::new(Vec3::ZERO, Quat::IDENTITY),
+            body,
             tank: CarFuel::new(cfg.tank_litres),
             condition: CarHealth::new(cfg.health),
             trunk,
@@ -245,4 +247,14 @@ impl Car {
             lights_on: self.lights_on,
         }
     }
+}
+
+/// The physics tag of a car's parked box: a stable non-zero hash of its id (FNV-1a).
+pub fn car_tag(id: &str) -> u128 {
+    let mut h: u128 = 0x6c62272e07bb014262b821756295c58d;
+    for b in id.bytes() {
+        h ^= b as u128;
+        h = h.wrapping_mul(0x0000000001000000000000000000013B);
+    }
+    h | 1
 }

@@ -25,6 +25,10 @@ mod shooting;
 mod streaming;
 mod terrain;
 mod zombies;
+mod bubbles;
+mod car_solid;
+mod keys_ui;
+mod poi_links;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -125,6 +129,8 @@ struct R0 {
     e_used: bool,
     /// --climb: after a second, stand at the nearest ladder and grab it (tests; --autowalk then climbs).
     test_climb: bool,
+    /// Test option --chop: stand at the nearest tree with the axe in hand.
+    test_chop: bool,
     campfire_meshes: Option<campfire_mesh::CampfireMeshes>,
     /// The level-up banner and "+XP" toasts (always on, also when the hub is shut).
     overlays: Option<hub_ui::HubUiState>,
@@ -134,6 +140,8 @@ struct R0 {
     hint_text: Option<String>,
     /// The camp's trader, banker, guards and residents.
     camp_npcs: Option<camp_npcs::CampNpcs>,
+    /// The camp guards' rifles (Godot SettlementGuard).
+    camp_guards: Option<game::CampGuards>,
     /// Deer, rabbits and boars (play scene).
     wildlife: Option<wildlife::Wildlife>,
     /// The player's dog and strays.
@@ -142,10 +150,68 @@ struct R0 {
     cars: Option<game::Cars>,
     /// This frame's driving keys (only while in a car).
     car_input: game::CarInput,
+    /// Solid boxes for parked cars (removed while driven).
+    car_solids: car_solid::ParkedCarSolids,
+    /// This frame's keys for the rebindable actions.
+    keys: KeyMap,
+    /// The player was dead last frame (a death is counted once).
+    was_dead: bool,
+    /// Axe hits and felled trees (Godot TreeFelling, saved in worldstate).
+    trees: game::TreeFelling,
+    /// Trees falling over right now: id -> (chunk, slot).
+    falling: HashMap<String, (glam::IVec2, streaming::TreeSlot)>,
     /// Sound (silent when muted or without a sound device).
     audio: Option<audio::Audio>,
     /// Seconds to the next footstep.
     step_timer: f32,
+}
+
+use winit::keyboard::KeyCode;
+
+/// The keys of the rebindable actions this frame (Godot KeyBindings; Settings > Controls).
+#[derive(Clone)]
+struct KeyMap {
+    movement: game::InputBindings,
+    interact: KeyCode,
+    reload: KeyCode,
+    dog_stay: KeyCode,
+    inventory: KeyCode,
+    skills: KeyCode,
+    bounties: KeyCode,
+    profile: KeyCode,
+    map: KeyCode,
+    slots: [KeyCode; 6],
+}
+
+impl KeyMap {
+    fn from_bindings(kb: &game::KeyBindings) -> Self {
+        let k = |action: &str, fallback: KeyCode| kb.keycode_of(action).unwrap_or(fallback);
+        Self {
+            movement: game::InputBindings::from_keybindings(kb),
+            interact: k("interact", KeyCode::KeyE),
+            reload: k("reload", KeyCode::KeyR),
+            dog_stay: k("dog_stay", KeyCode::KeyG),
+            inventory: k("inventory", KeyCode::Tab),
+            skills: k("toggle_skills", KeyCode::KeyL),
+            bounties: k("toggle_bounties", KeyCode::KeyJ),
+            profile: k("toggle_profile", KeyCode::KeyP),
+            map: k("toggle_map", KeyCode::KeyM),
+            slots: [
+                k("slot_1", KeyCode::Digit1),
+                k("slot_2", KeyCode::Digit2),
+                k("slot_3", KeyCode::Digit3),
+                k("slot_4", KeyCode::Digit4),
+                k("slot_5", KeyCode::Digit5),
+                k("slot_6", KeyCode::Digit6),
+            ],
+        }
+    }
+}
+
+impl Default for KeyMap {
+    fn default() -> Self {
+        Self::from_bindings(&game::KeyBindings::default())
+    }
 }
 
 /// The pack model name of a weapon ("res://assets/models/weapons/bat.glb" -> "bat").
@@ -295,6 +361,9 @@ impl R0 {
         if let Some(c) = &self.cars {
             file.systems.extra.insert("cars".into(), c.to_save());
         }
+        let mut ws = file.systems.worldstate.clone().unwrap_or_default();
+        ws.fallen_trees = serde_json::from_value(self.trees.to_save()["fallen_trees"].clone()).unwrap_or_default();
+        file.systems.worldstate = Some(ws);
         match slots.write(self.active_slot as usize, &file) {
             Ok(()) => {
                 log::info!("saved slot {} to {}", self.active_slot, slots.path_for(self.active_slot as usize).display());
@@ -348,9 +417,14 @@ impl R0 {
         self.player_ctrl = None;
         self.camera_rig = None;
         self.camp_npcs = None;
+        self.camp_guards = None;
         self.wildlife = None;
         self.dogs = None;
         self.cars = None;
+        self.car_solids = car_solid::ParkedCarSolids::default();
+        self.trees = game::TreeFelling::new();
+        self.trees.set_seed(self.seed as u64);
+        self.falling.clear();
         self.skill_seen.clear();
         self.play_time = 0.0;
         if self.scene == "play" && !self.clock_frozen {
@@ -398,6 +472,7 @@ impl R0 {
                     Ok(mut c) => {
                         c.seed = self.seed;
                         self.cars = Some(c);
+                        self.car_solids = car_solid::ParkedCarSolids::from_pack(pack);
                     }
                     Err(e) => log::warn!("data/vehicles.json: {e}"),
                 }
@@ -419,6 +494,10 @@ impl R0 {
             match game::CampLifeDirector::from_data_dir(camp.clone(), paths::repo_path("data")) {
                 Ok(director) => self.camp_npcs = Some(camp_npcs::CampNpcs::new(&gpu.device, pack, director)),
                 Err(e) => log::warn!("camp life not loaded: {e}"),
+            }
+            match game::CampGuards::from_repo() {
+                Ok(g) => self.camp_guards = Some(g.with_camp_center(camp.center).with_seed(self.seed)),
+                Err(e) => log::warn!("camp guards not loaded: {e}"),
             }
         }
         // A saved game: the player where they were, the clock, the backpack and the emptied crates
@@ -442,6 +521,9 @@ impl R0 {
             }
             if let (Some(c), Some(v)) = (self.cars.as_mut(), file.systems.extra.get("cars")) {
                 c.from_save(v);
+            }
+            if let Some(ws) = &file.systems.worldstate {
+                self.trees.from_save(&serde_json::json!({ "fallen_trees": ws.fallen_trees }));
             }
             if let (Some(d), Some(v)) = (self.dogs.as_mut(), file.systems.extra.get("dog")) {
                 d.sim.from_save(v);
@@ -513,6 +595,7 @@ impl R0 {
         self.loaded_save = save_file;
         let world_gen = Arc::new(world_gen);
         let mut streamer = streaming::Streamer::new(world_gen.clone());
+        streamer.felled = self.trees.fallen.iter().filter_map(|id| game::parse_tree_id(id)).collect();
         // Load the first ring before the first frame (Godot holds the player still until the ground is ready)
         if let Some(pack) = &self.pack {
             while !streamer.is_ready_around(self.player) {
@@ -657,6 +740,7 @@ impl Game for R0 {
         self.slots = Some(slots);
         self.forced_zombies = args.value("--zombies").and_then(|s| s.parse::<usize>().ok());
         self.test_climb = args.flag("--climb");
+        self.test_chop = args.flag("--chop");
         self.near_animals = args.value("--animals").map(|s| s.split(',').filter(|e| !e.is_empty()).map(str::to_string).collect()).unwrap_or_default();
         self.start_yaw = args.value("--yaw").and_then(|s| s.parse::<f32>().ok()).map(f32::to_radians);
         self.give = args
@@ -678,6 +762,12 @@ impl Game for R0 {
         }
         self.start_world(gpu, save_file);
         // Test option: take out hotbar slot N at the start (e.g. --slot=2 for the pistol)
+        // Test option --chop: the axe in hand
+        if self.test_chop
+            && let Some(axe) = self.play.as_ref().and_then(|p| p.weapons.get("axe").cloned())
+        {
+            self.apply_hand(play::HandChange::Weapon(Some(axe)));
+        }
         if let Some(n) = args.value("--slot").and_then(|v| v.parse::<usize>().ok())
             && let Some(change) = self.play.as_mut().and_then(|p| p.press(n))
         {
@@ -696,8 +786,13 @@ impl Game for R0 {
             // The hub's keys (Godot project.godot): Tab bag, L skills, J bounties, P profile, M map; the
             // same key again closes it
             use hub_ui::{HubScreen, HubTab};
-            use winit::keyboard::KeyCode as K;
-            for (key, tab) in [(K::Tab, HubTab::Bag), (K::KeyL, HubTab::Skills), (K::KeyJ, HubTab::Bounties), (K::KeyP, HubTab::Profile), (K::KeyM, HubTab::Map)] {
+            // The player's own keys (Settings > Controls)
+            self.keys = self.menus.as_ref().map(|m| KeyMap::from_bindings(&m.keys)).unwrap_or_default();
+            let keys = self.keys.clone();
+            if let Some(m) = self.menus.as_mut() {
+                m.pressed_key = input.pressed_keys().into_iter().next();
+            }
+            for (key, tab) in [(keys.inventory, HubTab::Bag), (keys.skills, HubTab::Skills), (keys.bounties, HubTab::Bounties), (keys.profile, HubTab::Profile), (keys.map, HubTab::Map)] {
                 if input.pressed(key) && self.camp_ui.is_none() && !self.menus.as_ref().is_some_and(|m| m.is_open()) {
                     self.hub = match &self.hub {
                         Some(h) if h.screen() == HubScreen::Tab(tab) => None,
@@ -708,6 +803,7 @@ impl Game for R0 {
             // Esc closes an open camp or hub screen (the screen itself sees the key), otherwise the menus
             if input.pressed(winit::keyboard::KeyCode::Escape)
                 && !self.screen_open()
+                && !self.menus.as_ref().is_some_and(|m| m.keys_ui.is_waiting())
                 && let Some(m) = self.menus.as_mut()
             {
                 let was_open = m.is_open();
@@ -731,7 +827,7 @@ impl Game for R0 {
             }
             self.play_time += dt as f64;
 
-            let mut actions = Actions::from_default_input(input);
+            let mut actions = Actions::from_input(input, &keys.movement);
             if !self.cursor_captured || self.screen_open() {
                 actions.look_delta = (0.0, 0.0);
             }
@@ -749,7 +845,7 @@ impl Game for R0 {
                 actions = Actions::default();
             }
             // G: the dog stays or follows again (Godot dog_stay)
-            if input.pressed(winit::keyboard::KeyCode::KeyG)
+            if input.pressed(keys.dog_stay)
                 && !self.screen_open()
                 && let Some(d) = self.dogs.as_mut()
                 && d.sim.has_dog()
@@ -760,7 +856,7 @@ impl Game for R0 {
                     play.show_toast(if mode == "Stay" { "Dog: stay".into() } else { "Dog: follow".into() });
                 }
             }
-            if let Some(change) = self.play.as_mut().and_then(|p| p.hotbar_keys(input)) {
+            if let Some(change) = self.play.as_mut().and_then(|p| p.hotbar_keys(input, &keys.slots)) {
                 self.apply_hand(change);
             }
             let attack = !dead && !self.screen_open() && (self.autoattack || (self.cursor_captured && input.mouse_pressed(winit::event::MouseButton::Left)));
@@ -773,7 +869,7 @@ impl Game for R0 {
                 let driven = self.cars.as_ref().and_then(|c| c.driven_car_id.clone());
                 if let (Some(id), Some(cars)) = (driven, self.cars.as_mut()) {
                     use winit::keyboard::KeyCode as K;
-                    if input.pressed(K::KeyE) && self.hub.is_none() && self.camp_ui.is_none() {
+                    if input.pressed(self.keys.interact) && self.hub.is_none() && self.camp_ui.is_none() {
                         let spot = cars.exit(&id, &self.physics);
                         p.position = spot + Vec3::Y * 0.1;
                         p.velocity = Vec3::ZERO;
@@ -797,12 +893,26 @@ impl Game for R0 {
                             let diff = (car_yaw - rig.yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
                             rig.yaw += diff * (dt * 2.5).min(1.0);
                         }
-                        self.e_used = input.pressed(K::KeyE);
+                        self.e_used = input.pressed(self.keys.interact);
                     }
                 }
                 let in_car = self.cars.as_ref().is_some_and(|c| c.driven_car_id.is_some());
                 // Ladders first: while climbing, the ladder moves the player instead of walking
-                let mut grab = input.pressed(winit::keyboard::KeyCode::KeyE) && self.camp_ui.is_none() && self.hub.is_none() && !dead;
+                let mut grab = input.pressed(self.keys.interact) && self.camp_ui.is_none() && self.hub.is_none() && !dead;
+                if self.test_chop && self.time > 1.0 {
+                    self.test_chop = false;
+                    let me = p.position;
+                    let nearest = self.streamer.as_ref().and_then(|s| {
+                        s.chunks.values().flat_map(|c| c.trees.iter()).min_by(|a, b| a.position.distance(me).total_cmp(&b.position.distance(me))).map(|t| t.position)
+                    });
+                    if let Some(tree) = nearest {
+                        let away = Vec3::new(me.x - tree.x, 0.0, me.z - tree.z).normalize_or(Vec3::X);
+                        let at = tree + away * 1.3;
+                        p.position = Vec3::new(at.x, self.physics.ground_height(at.x, at.z).unwrap_or(at.y) + 0.05, at.z);
+                        p.yaw = away.x.atan2(away.z);
+                        rig.yaw = p.yaw;
+                    }
+                }
                 if self.test_climb && self.time > 1.0 {
                     self.test_climb = false;
                     let nearest = self.streamer.as_ref().and_then(|s| {
@@ -829,10 +939,12 @@ impl Game for R0 {
                 } else {
                     p.update(&actions, rig.yaw, &self.physics, &self.mover, dt);
                 }
+                let mut swung = None;
                 if let (Some(c), Some(z)) = (self.combat.as_mut(), self.zombies.as_mut()) {
                     let animal_bonus = self.play.as_ref().map_or(0.0, |pl| pl.camp.skills.get_bonus("animalDamage"));
                     let mut prey = wildlife::Prey { zombies: z, animals: self.wildlife.as_mut().map(|w| &mut w.sim), animal_bonus };
                     let ev = c.update(dt, attack, p, &mut prey, &self.physics);
+                    swung = ev.swung.clone();
                     if let Some(a) = self.audio.as_mut() {
                         if ev.swing_started.is_some()
                             && let Some(sound) = c.weapon_id().and_then(|w| a.data.weapon_sound(w, "swing")).map(str::to_string)
@@ -860,6 +972,42 @@ impl Game for R0 {
                             *p = Player::new(spawn);
                             // Face where the camera looks, not the default direction
                             p.yaw = rig.yaw;
+                        }
+                    }
+                }
+                // An axe swing that lands near a tree chops it (Godot MeleeHandler + TreeStrike/TreeFelling)
+                if let Some((weapon, dir)) = swung
+                    && weapon.tags.iter().any(|t| t == "chop")
+                    && let Some(st) = self.streamer.as_mut()
+                {
+                    let me = p.position;
+                    let hit = {
+                        let near = st.chunks.iter().flat_map(|(c, ch)| {
+                            ch.trees
+                                .iter()
+                                .filter(move |t| t.position.distance_squared(me) < 36.0)
+                                .map(move |t| game::TreeCandidate::new(*c, t.index, t.position, &t.model))
+                        });
+                        game::find_tree_strike(me + Vec3::Y, dir, weapon.range, weapon.arc_deg, near)
+                    };
+                    if let Some(hit) = hit {
+                        let id = game::tree_id(hit.chunk, hit.index);
+                        let model = st.chunks.get(&hit.chunk).and_then(|ch| ch.trees.iter().find(|t| t.index == hit.index)).map(|t| t.model.clone()).unwrap_or_default();
+                        let r = self.trees.strike(&id, hit.point, &model, Some(&weapon.id), None, me);
+                        if let (Some(sound), Some(a)) = (r.sound_event, self.audio.as_mut()) {
+                            a.play_at(sound, hit.point);
+                        }
+                        if r.felled {
+                            if let Some(slot) = st.fell(&mut self.physics, hit.chunk, hit.index) {
+                                self.falling.insert(id, (hit.chunk, slot));
+                            }
+                            // The wood lands 1.5 m to the +X side, on the ground (Godot TreeFelling.Fell)
+                            if r.wood_given > 0 && let Some(play) = self.play.as_mut() {
+                                let (x, z) = (hit.point.x + 1.5, hit.point.z);
+                                let y = self.physics.ground_height(x, z).unwrap_or(hit.point.y) + 0.125;
+                                play.drop_on_ground("wood", r.wood_given, Vec3::new(x, y, z));
+                                play.show_toast(format!("Tree felled: +{} wood", r.wood_given));
+                            }
                         }
                     }
                 }
@@ -960,7 +1108,7 @@ impl Game for R0 {
                 // --autoattack clicks every other frame, so semi-automatic guns see a fresh press each time
                 fire_pressed: (self.autoattack && ((self.time * 10.0) as u32).is_multiple_of(2)) || (captured && input.mouse_pressed(MouseButton::Left)),
                 fire_held: captured && input.mouse_held(MouseButton::Left),
-                reload_pressed: input.pressed(KeyCode::KeyR),
+                reload_pressed: input.pressed(self.keys.reload),
                 aiming: captured && input.mouse_held(MouseButton::Right),
             };
             let animal_bonus = play.camp.skills.get_bonus("animalDamage");
@@ -1009,7 +1157,7 @@ impl Game for R0 {
                 .unwrap_or_default();
             // E talks to the camp person in front (trader, banker, bounty board) before crates and items
             let npc = self.camp_npcs.as_ref().and_then(|c| c.facing(p.position, facing));
-            let pressed = input.pressed(KeyCode::KeyE) && self.camp_ui.is_none() && self.hub.is_none() && !self.e_used;
+            let pressed = input.pressed(self.keys.interact) && self.camp_ui.is_none() && self.hub.is_none() && !self.e_used;
             play.camp.player_at = p.position;
             // A car within reach: E drives it; with a fuel can, F pours it in (Godot CarDriver / CarFuel)
             let mut car_prompt = None;
@@ -1210,7 +1358,18 @@ impl Game for R0 {
                 }
                 self.hint_text = hints.tick(dt, &ctx).map(|h| fill_keys(&h.text));
             }
-            for kind in z.take_kills() {
+            // Profile numbers: deaths, distance travelled (teleports skipped), kills and headshots
+            let dead_now = self.combat.as_ref().is_some_and(|c| c.is_dead());
+            if dead_now && !self.was_dead {
+                play.stats.record_death();
+            }
+            self.was_dead = dead_now;
+            if !dead_now {
+                play.stats.update_position(glam::Vec2::new(self.player.x, self.player.z));
+            }
+            play.stats.record_day(self.clock.day);
+            for (kind, headshot) in z.take_kills() {
+                play.stats.record_kill(&kind, headshot);
                 play.camp.on_zombie_killed(&kind, night);
                 if let Some(a) = self.audio.as_mut() {
                     a.event("zombieDeath", Some(self.player));
@@ -1248,6 +1407,36 @@ impl Game for R0 {
         if let Some(z) = self.zombies.as_mut() {
             let frame = z.update(dt, alive.then_some(self.player), &noises, &self.physics);
             let mut bites: Vec<f32> = frame.bites.iter().map(|b| b.damage).collect();
+            // Camp guards shoot zombies near the camp and turn to face them
+            if let (Some(g), Some(npcs)) = (self.camp_guards.as_mut(), self.camp_npcs.as_mut()) {
+                let posts: Vec<game::GuardPost> = npcs
+                    .director
+                    .fixed_npcs()
+                    .iter()
+                    .filter(|n| n.role == "guard")
+                    .map(|n| game::GuardPost { id: n.id.clone(), position: n.position, yaw: n.yaw })
+                    .collect();
+                let targets: Vec<game::GuardTarget> =
+                    z.list.iter().map(|q| game::GuardTarget { id: q.id, position: q.position, alive: !q.health.is_dead() }).collect();
+                let physics = &self.physics;
+                // Clear when nothing solid sits between the eye and the target (the last 0.3 m is the target's ground)
+                let clear = |a: Vec3, b: Vec3| {
+                    let d = b - a;
+                    let len = d.length();
+                    len < 0.5 || physics.raycast(a, d / len, len - 0.3).is_none()
+                };
+                let gf = g.update(dt, &posts, &targets, &clear);
+                for shot in gf.shots {
+                    let kb = (shot.to - shot.from).normalize_or_zero() * 2.0;
+                    z.hit_unclaimed(shot.target_id, shot.damage, kb);
+                }
+                if let Some(a) = self.audio.as_mut() {
+                    for (id, at) in &gf.sounds {
+                        a.play_at(id, *at);
+                    }
+                }
+                npcs.aim = gf.yaws.into_iter().collect();
+            }
             // Wild animals: graze, flee, boars charge the player and fight zombies (Godot Animal/AnimalSpawner)
             if let (Some(w), Some(p), Some(g)) = (self.wildlife.as_mut(), self.player_ctrl.as_ref(), self.world_gen.as_ref()) {
                 let zl: Vec<(u64, Vec3, bool)> = z.list.iter().map(|q| (q.id, q.position, q.health.is_dead())).collect();
@@ -1300,6 +1489,22 @@ impl Game for R0 {
                     }
                 }
             }
+            // Felled trees tip over away from the player, then vanish
+            for f in self.trees.update(dt) {
+                if let (Some((coord, slot)), Some(st)) = (self.falling.get(&f.id), self.streamer.as_mut())
+                    && let Some(pl) = st.chunks.get_mut(coord).and_then(|ch| slot.placed.and_then(|i| ch.placed.get_mut(i)))
+                {
+                    let scale = if f.finished { 0.0001 } else { slot.scale };
+                    let axis = Vec3::Y.cross(f.fall_dir).normalize_or(Vec3::X);
+                    pl.matrix = Mat4::from_translation(slot.position)
+                        * Mat4::from_axis_angle(axis, f.tilt_angle)
+                        * Mat4::from_rotation_y(slot.yaw)
+                        * Mat4::from_scale(Vec3::splat(scale));
+                }
+                if f.finished {
+                    self.falling.remove(&f.id);
+                }
+            }
             // Cars: parked ones only live on loaded ground; the driven one takes the keys and runs things over
             if let Some(cars) = self.cars.as_mut() {
                 cars.is_night = !(6.0..20.0).contains(&self.hour);
@@ -1318,6 +1523,8 @@ impl Game for R0 {
                     }
                 }
                 let cf = cars.update(dt, &self.car_input, &self.physics);
+                let solids: Vec<(String, Mat4, bool)> = cars.live_cars().map(|c| (c.id.clone(), c.draw_state().world_matrix, c.is_driven())).collect();
+                self.car_solids.sync(&mut self.physics, &solids);
                 let mut targets: Vec<(u64, Vec3)> = z.list.iter().filter(|q| !q.health.is_dead()).map(|q| (q.id, q.position)).collect();
                 if let Some(w) = &self.wildlife {
                     targets.extend(w.sim.list.iter().filter(|a| !a.is_dead() && !a.retired).map(|a| (a.id, a.position)));
@@ -1358,6 +1565,15 @@ impl Game for R0 {
                 }
             }
             // The dog follows, barks and bites zombies and animals (Godot Dog / DogCombat)
+            // Buildings near the player go on the map (Godot MapBuilding / WorldMap)
+            if let (Some(st), Some(play), Some(g)) = (self.streamer.as_ref(), self.play.as_mut(), self.world_gen.as_ref()) {
+                play.note_buildings(self.player, st.chunks.values().map(|c| (c.pois.as_slice(), c.crates.as_slice())), g.poi_config());
+            }
+            // Stray dogs wait at the loaded POI buildings
+            let dog_sites: Vec<game::DogPoiSite> = match (self.streamer.as_ref(), self.world_gen.as_ref()) {
+                (Some(st), Some(g)) => st.chunks.values().flat_map(|c| poi_links::build_dog_poi_sites(&c.pois, g.poi_config())).collect(),
+                _ => Vec::new(),
+            };
             if let (Some(d), Some(p)) = (self.dogs.as_mut(), self.player_ctrl.as_ref()) {
                 let zl: Vec<(u64, Vec3, bool)> = z.list.iter().map(|q| (q.id, q.position, q.health.is_dead())).collect();
                 let al: Vec<(u64, Vec3, bool)> = self
@@ -1378,7 +1594,7 @@ impl Game for R0 {
                     camp_position: camp,
                     now_hours: (self.clock.day as f64 - 1.0) * 24.0 + self.clock.hour as f64,
                     day: self.clock.day,
-                    poi_sites: &[],
+                    poi_sites: &dog_sites,
                     world_seed: self.seed,
                 };
                 let f = d.update(dt, &ctx, &self.physics);
@@ -1557,6 +1773,19 @@ impl Game for R0 {
 
     fn ui(&mut self, ctx: &engine::egui::Context) {
         let on_main = self.menus.as_ref().is_some_and(|m| matches!(m.screen(), menus::Screen::Main | menus::Screen::SlotPicker { .. }));
+        // Speech bubbles over camp people chatting near the player (Godot CampChatBubble)
+        if let (Some(npcs), false) = (self.camp_npcs.as_ref(), on_main) {
+            let range = npcs.director.data.bubble_range;
+            let list: Vec<(Vec3, &str, f32)> = npcs
+                .director
+                .residents()
+                .iter()
+                .filter(|r| r.visible && r.bubble.is_saying() && r.position.distance(self.player) < range)
+                .map(|r| (r.position + Vec3::Y * 2.0, r.bubble.text.as_str(), r.bubble.alpha()))
+                .collect();
+            let r = ctx.content_rect();
+            bubbles::draw_bubbles(ctx, self.camera.view_proj(r.width() / r.height().max(1.0)), (r.width(), r.height()), &list);
+        }
         if let (Some(play), Some(p), Some(c), false) = (self.play.as_ref(), self.player_ctrl.as_ref(), self.combat.as_ref(), on_main) {
             let show_fps = self.menus.as_ref().is_none_or(|m| m.settings.show_fps);
             let fps = if show_fps { self.fps } else { 0.0 };
@@ -1619,7 +1848,6 @@ impl Game for R0 {
                 state.map_ui.centre_on(glam::Vec2::new(self.player.x, self.player.z));
             }
             let dead = self.combat.as_ref().is_some_and(|c| c.is_dead());
-            let kills = self.combat.as_ref().map_or(0, |c| c.kills);
             let action = {
                 let view = hub_ui::HubView {
                     inventory: Some(&play.inventory),
@@ -1636,7 +1864,11 @@ impl Game for R0 {
                     difficulty_config: Some(&play.camp.difficulty_config),
                     days_survived: self.clock.day,
                     play_time_seconds: self.play_time,
-                    kills,
+                    kills: play.stats.kills(),
+                    kills_by_type: Some(play.stats.kills_by_type()),
+                    headshots: play.stats.headshots(),
+                    deaths: play.stats.deaths(),
+                    distance_metres: play.stats.distance_metres(),
                     is_dead: dead,
                     near_lit_campfire: play.camp.campfires.near_campfire(self.player),
                     dog: dog.as_ref().map(|(g, food)| hub_ui::DogView {
@@ -1789,6 +2021,20 @@ impl Game for R0 {
             }
             s.insert("mapChunks".into(), play.map.explore.chunk_count().into());
             s.insert("hint".into(), self.hint_text.clone().unwrap_or_default().into());
+            s.insert("felledTrees".into(), self.trees.fallen.len().into());
+            s.insert("guardShots".into(), self.camp_guards.as_ref().map_or(0, |g| g.total_shots_fired()).into());
+            s.insert("parkedSolids".into(), self.car_solids.count().into());
+            s.insert("mapBuildings".into(), play.map.found.len().into());
+            s.insert("strayDogs".into(), self.dogs.as_ref().map_or(0, |d| d.sim.strays().len()).into());
+            s.insert(
+                "profile".into(),
+                format!("kills {} headshots {} deaths {} distance {:.0}", play.stats.kills(), play.stats.headshots(), play.stats.deaths(), play.stats.distance_metres()).into(),
+            );
+            s.insert(
+                "bubbles".into(),
+                self.camp_npcs.as_ref().map_or(0, |c| c.director.residents().iter().filter(|r| r.visible && r.bubble.is_saying()).count()).into(),
+            );
+            s.insert("campChats".into(), self.camp_npcs.as_ref().map_or(0, |c| c.director.chats().len()).into());
             s.insert("campfiresLit".into(), play.camp.campfires.campfires().iter().filter(|f| f.is_lit()).count().into());
         }
         if let Some(w) = &self.wildlife {

@@ -22,6 +22,8 @@ pub struct CarBody {
     pub compression: [f32; 4],
     pub steer_angle: f32,
     pub grounded: bool,
+    /// The physics tag of this car's own parked box (see `car_tag`), skipped by its rays.
+    pub self_tag: u128,
 }
 
 impl Default for CarBody {
@@ -40,6 +42,7 @@ impl CarBody {
             compression: [0.0; 4],
             steer_angle: 0.0,
             grounded: false,
+            self_tag: 0,
         }
     }
 
@@ -139,7 +142,7 @@ impl CarBody {
             // Cast from 1 m above the hub: a hub pushed under the ground on a hard landing or a slope
             // change must still find the ground (a ray starting inside it misses, and the car fell through)
             const LIFT: f32 = 1.0;
-            let hit = physics.raycast(hub + up * LIFT, -up, max_dist + LIFT).map(|mut h| {
+            let hit = physics.raycast_except(hub + up * LIFT, -up, max_dist + LIFT, self.self_tag).map(|mut h| {
                 h.distance -= LIFT;
                 h
             });
@@ -253,7 +256,7 @@ impl CarBody {
             let dir = delta / dist;
             // Ground and slopes (normal pointing up) are the wheels' job, not walls: driving up a hill
             // must not count as hitting one
-            if let Some(hit) = physics.raycast(center, dir, dist)
+            if let Some(hit) = physics.raycast_except(center, dir, dist, self.self_tag)
                 && hit.normal.y < 0.6
             {
                 let penetration = dist - hit.distance;

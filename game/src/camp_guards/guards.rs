@@ -116,6 +116,9 @@ impl CampGuards {
         let mut frame = GuardFrame::default();
 
         for guard in guards {
+            // Look for a target before borrowing this guard's state (find_target reads self)
+            let rescan = self.guard_states.get(&guard.id).is_none_or(|s| s.scan_timer - dt <= 0.0);
+            let found = if rescan { Some(self.find_target(guard, targets, los)) } else { None };
             let state = self
                 .guard_states
                 .entry(guard.id.clone())
@@ -129,7 +132,7 @@ impl CampGuards {
             state.scan_timer -= dt;
             if state.scan_timer <= 0.0 {
                 state.scan_timer = self.config.guard_sight_interval;
-                state.current_target_id = self.find_target(guard, targets, los);
+                state.current_target_id = found.flatten();
             }
 
             // 2. Validate target: dead or absent target is dropped at once

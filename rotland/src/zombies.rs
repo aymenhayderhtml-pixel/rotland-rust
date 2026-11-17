@@ -62,7 +62,7 @@ pub struct Zombies {
     next_id: u64,
     rng: u64,
     /// Types of the zombies the player killed since the last `take_kills`.
-    kills: Vec<String>,
+    kills: Vec<(String, bool)>,
 }
 
 /// What happened to the player this frame.
@@ -176,13 +176,14 @@ impl Zombies {
     /// Applies a hit from the player. Returns true if it killed the zombie.
     pub fn hit(&mut self, id: u64, damage: DamageInfo, knockback: Vec3) -> bool {
         let Some(z) = self.list.iter_mut().find(|z| z.id == id) else { return false };
+        let headshot = damage.headshot;
         let result = z.health.take_damage(damage.clone());
         if result.dealt > 0.0 {
             z.knock += Vec3::new(knockback.x, 0.0, knockback.z);
             z.pending_hit = Some(damage);
         }
         if result.died_now {
-            self.kills.push(z.kind.clone());
+            self.kills.push((z.kind.clone(), headshot));
         }
         result.died_now
     }
@@ -240,7 +241,17 @@ impl Zombies {
     }
 
     /// The types of zombies killed since the last call.
-    pub fn take_kills(&mut self) -> Vec<String> {
+    /// A hit that is not the player's (camp guards): a kill does not count for the player.
+    pub fn hit_unclaimed(&mut self, id: u64, damage: DamageInfo, knockback: Vec3) -> bool {
+        let killed = self.hit(id, damage, knockback);
+        if killed {
+            self.kills.pop();
+        }
+        killed
+    }
+
+    /// (type, was a headshot) of each zombie the player killed since the last call.
+    pub fn take_kills(&mut self) -> Vec<(String, bool)> {
         std::mem::take(&mut self.kills)
     }
 

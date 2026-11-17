@@ -38,6 +38,8 @@ pub struct CombatEvents {
     pub died: bool,
     /// Time to wake up at the camp.
     pub respawn: bool,
+    /// A swing landed this frame (hit or miss): the weapon and the flat swing direction, for trees.
+    pub swung: Option<(WeaponDef, Vec3)>,
 }
 
 impl Combat {
@@ -95,6 +97,7 @@ impl Combat {
             }
             if let Some(noise) = self.swing.take_noise() {
                 self.noises.push(noise);
+                ev.swung = Some((weapon.clone(), facing));
             }
         }
         ev

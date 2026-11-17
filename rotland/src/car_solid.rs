@@ -104,7 +104,7 @@ impl ParkedCarSolids {
                     if moved {
                         let old_handle = entry.handle;
                         physics.remove(old_handle);
-                        let handle = physics.add_static(&self.colliders, position, yaw, scale_val);
+                        let handle = physics.add_static_tagged(&self.colliders, position, yaw, scale_val, game::car_tag(id));
                         self.entries.insert(
                             id.clone(),
                             CarSolidEntry {
@@ -115,7 +115,7 @@ impl ParkedCarSolids {
                         );
                     }
                 } else {
-                    let handle = physics.add_static(&self.colliders, position, yaw, scale_val);
+                    let handle = physics.add_static_tagged(&self.colliders, position, yaw, scale_val, game::car_tag(id));
                     self.entries.insert(
                         id.clone(),
                         CarSolidEntry {
@@ -145,15 +145,9 @@ impl ParkedCarSolids {
     }
 
     /// True if a parked collider is active for the car with `id`.
+    #[cfg(test)]
     pub fn contains(&self, id: &str) -> bool {
         self.entries.contains_key(id)
-    }
-
-    /// Clears and removes all parked car colliders from the PhysicsWorld.
-    pub fn clear(&mut self, physics: &mut PhysicsWorld) {
-        for (_, entry) in self.entries.drain() {
-            physics.remove(entry.handle);
-        }
     }
 }
 

@@ -230,41 +230,35 @@ impl ProfileStats {
             }
         }
 
-        if let Some(hs) = obj.get("headshots") {
-            if let Some(val) = hs.as_i64().map(|n| n.max(0) as u32).or_else(|| hs.as_u64().map(|n| n as u32)) {
+        if let Some(hs) = obj.get("headshots")
+            && let Some(val) = hs.as_i64().map(|n| n.max(0) as u32).or_else(|| hs.as_u64().map(|n| n as u32)) {
                 self.headshots = val;
             }
-        }
 
-        if let Some(d) = obj.get("deaths") {
-            if let Some(val) = d.as_i64().map(|n| n.max(0) as u32).or_else(|| d.as_u64().map(|n| n as u32)) {
+        if let Some(d) = obj.get("deaths")
+            && let Some(val) = d.as_i64().map(|n| n.max(0) as u32).or_else(|| d.as_u64().map(|n| n as u32)) {
                 self.deaths = val;
             }
-        }
 
-        if let Some(hd) = obj.get("highestDay") {
-            if let Some(val) = hd.as_i64().map(|n| (n as i32).max(1)) {
+        if let Some(hd) = obj.get("highestDay")
+            && let Some(val) = hd.as_i64().map(|n| (n as i32).max(1)) {
                 self.highest_day = val;
             }
-        }
 
-        if let Some(pt) = obj.get("playTime") {
-            if let Some(val) = pt.as_f64().map(|n| n.max(0.0)) {
+        if let Some(pt) = obj.get("playTime")
+            && let Some(val) = pt.as_f64().map(|n| n.max(0.0)) {
                 self.play_time_seconds = val;
             }
-        }
 
-        if let Some(dist) = obj.get("distance") {
-            if let Some(val) = dist.as_f64().map(|n| (n as f32).max(0.0)) {
+        if let Some(dist) = obj.get("distance")
+            && let Some(val) = dist.as_f64().map(|n| (n as f32).max(0.0)) {
                 self.distance_walked = val;
             }
-        }
 
-        if let Some(driven) = obj.get("distanceDriven") {
-            if let Some(val) = driven.as_f64().map(|n| (n as f32).max(0.0)) {
+        if let Some(driven) = obj.get("distanceDriven")
+            && let Some(val) = driven.as_f64().map(|n| (n as f32).max(0.0)) {
                 self.distance_driven = val;
             }
-        }
     }
 
     /// Constructs a `ProfileStats` instance from a saved JSON value.

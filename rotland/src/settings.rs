@@ -43,6 +43,9 @@ pub struct Settings {
 
     #[serde(alias = "graphicsPreset")]
     pub graphics_preset: String,
+    /// Keys the player changed: action -> Godot key code (only the ones that differ from the defaults).
+    #[serde(alias = "keyBindings")]
+    pub key_bindings: std::collections::HashMap<String, u32>,
 }
 
 impl Default for Settings {
@@ -58,6 +61,7 @@ impl Default for Settings {
             sfx_volume: 1.0,
             show_fps: true,
             graphics_preset: "medium".to_string(),
+            key_bindings: std::collections::HashMap::new(),
         }
     }
 }

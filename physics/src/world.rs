@@ -99,6 +99,19 @@ impl PhysicsWorld {
         yaw: f32,
         scale: f32,
     ) -> ColliderHandle {
+        self.add_static_tagged(colliders, position, yaw, scale, 0)
+    }
+
+    /// Like `add_static`, with a tag (non-zero) that `raycast_except` can skip: a parked car's box
+    /// must not be seen by that same car's wheel rays.
+    pub fn add_static_tagged(
+        &mut self,
+        colliders: &[Vec<[f32; 3]>],
+        position: Vec3,
+        yaw: f32,
+        scale: f32,
+        tag: u128,
+    ) -> ColliderHandle {
         if colliders.is_empty() {
             return ColliderHandle::invalid();
         }
@@ -138,6 +151,7 @@ impl PhysicsWorld {
                     .with_memberships(GROUP_WORLD)
                     .with_filter(GROUP_CHARACTER | GROUP_WORLD),
             )
+            .user_data(tag)
             .build();
 
         let handle = self.raw.insert_collider(collider, None);
@@ -177,6 +191,11 @@ impl PhysicsWorld {
 
     /// General raycast against static world geometry.
     pub fn raycast(&self, origin: Vec3, dir: Vec3, max_distance: f32) -> Option<Hit> {
+        self.raycast_except(origin, dir, max_distance, 0)
+    }
+
+    /// Raycast that ignores colliders added with this tag (0 ignores nothing).
+    pub fn raycast_except(&self, origin: Vec3, dir: Vec3, max_distance: f32, skip_tag: u128) -> Option<Hit> {
         let ray = Ray::new(
             Vector::new(origin.x, origin.y, origin.z),
             Vector::new(dir.x, dir.y, dir.z),
@@ -186,6 +205,8 @@ impl PhysicsWorld {
                 .with_memberships(GROUP_CHARACTER | GROUP_WORLD)
                 .with_filter(GROUP_WORLD),
         );
+        let skip = |_: ColliderHandle, c: &Collider| c.user_data != skip_tag;
+        let filter = if skip_tag == 0 { filter } else { filter.predicate(&skip) };
 
         let (handle, intersection) =
             self.raw

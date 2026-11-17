@@ -156,11 +156,10 @@ impl KeyBindings {
     pub fn apply(&mut self, overrides: &HashMap<String, u32>) {
         self.reset_all();
         for action in KEYBINDS_ALL_ACTIONS {
-            if let Some(&code) = overrides.get(action.action) {
-                if code > 0 {
+            if let Some(&code) = overrides.get(action.action)
+                && code > 0 {
                     self.current.insert(action.action.to_string(), code);
                 }
-            }
         }
     }
 
@@ -229,11 +228,10 @@ impl KeyBindings {
                         if code > 0 {
                             map.insert(k.clone(), code as u32);
                         }
-                    } else if let Some(code) = v.as_i64() {
-                        if code > 0 {
+                    } else if let Some(code) = v.as_i64()
+                        && code > 0 {
                             map.insert(k.clone(), code as u32);
                         }
-                    }
                 }
             }
         }

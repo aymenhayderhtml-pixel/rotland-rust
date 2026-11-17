@@ -18,6 +18,8 @@ struct Look {
 
 pub struct CampNpcs {
     pub director: CampLifeDirector,
+    /// Guards turned toward a target this frame: id -> yaw.
+    pub aim: HashMap<String, f32>,
     looks: Vec<Look>,
     look_index: HashMap<String, usize>,
     /// Per person: the clip playing and how long it has played.
@@ -57,7 +59,7 @@ impl CampNpcs {
             look_index.insert(name.clone(), looks.len());
             looks.push(Look { mesh: GpuMesh::new(device, &name, &m.vertices), rig: Rig::new(skel), clips: m.clips.clone() });
         }
-        Self { director, looks, look_index, clocks: HashMap::new() }
+        Self { director, aim: HashMap::new(), looks, look_index, clocks: HashMap::new() }
     }
 
     /// Runs the camp's routine and advances every person's animation clock.
@@ -77,7 +79,7 @@ impl CampNpcs {
             id: n.id.clone(),
             model: n.model_id.clone(),
             position: n.position,
-            yaw: n.yaw,
+            yaw: self.aim.get(&n.id).copied().unwrap_or(n.yaw),
             clip: n.animation.clone(),
             phase: n.idle_phase,
         });

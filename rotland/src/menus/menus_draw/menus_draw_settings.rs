@@ -157,6 +157,16 @@ pub fn draw_settings(menus: &mut Menus, ui: &mut egui::Ui) -> Option<MenuAction>
                 );
             });
 
+            ui.add_space(10.0);
+            // Controls: click an action, then press its new key (Godot ControlsPanel)
+            egui::CollapsingHeader::new(RichText::new("Controls").size(16.0)).id_salt("controls").show(ui, |ui| {
+                ScrollArea::vertical().id_salt("controls_scroll").max_height(260.0).show(ui, |ui| {
+                    if crate::keys_ui::draw_keys(ui, &mut menus.keys, &mut menus.keys_ui, menus.pressed_key) {
+                        menus.settings.key_bindings = menus.keys.overrides();
+                        changed = true;
+                    }
+                });
+            });
             ui.add_space(14.0);
             ui.vertical_centered(|ui| {
                 if ui
