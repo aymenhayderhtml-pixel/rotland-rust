@@ -1,0 +1,292 @@
+//! State groupings and core data structures for Rotland.
+
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use engine::render::{Camera, LitRenderer};
+use game::{CameraRig, Player};
+use glam::{Mat4, Vec3};
+use winit::keyboard::KeyCode;
+use world::WorldGenerator;
+
+use crate::{
+    camp_npcs, camp_ui, campfire_mesh, car_solid, combat, dog_view, fp_weapon, hub_ui, menus,
+    play, player_visual, props, streaming, wildlife, zombies,
+};
+
+/// Visual hook for the player body (to be rendered by another worker).
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug)]
+pub struct PlayerPose {
+    pub position: Vec3,
+    pub yaw: f32,
+    pub horizontal_speed: f32,
+    pub on_floor: bool,
+    pub crouching: bool,
+    pub first_person: bool,
+}
+
+/// The keys of the rebindable actions this frame (Godot KeyBindings; Settings > Controls).
+#[derive(Clone)]
+pub struct KeyMap {
+    pub movement: game::InputBindings,
+    pub interact: KeyCode,
+    pub reload: KeyCode,
+    pub dog_stay: KeyCode,
+    pub inventory: KeyCode,
+    pub skills: KeyCode,
+    pub bounties: KeyCode,
+    pub profile: KeyCode,
+    pub map: KeyCode,
+    pub slots: [KeyCode; 6],
+}
+
+impl KeyMap {
+    pub fn from_bindings(kb: &game::KeyBindings) -> Self {
+        let k = |action: &str, fallback: KeyCode| kb.keycode_of(action).unwrap_or(fallback);
+        Self {
+            movement: game::InputBindings::from_keybindings(kb),
+            interact: k("interact", KeyCode::KeyE),
+            reload: k("reload", KeyCode::KeyR),
+            dog_stay: k("dog_stay", KeyCode::KeyG),
+            inventory: k("inventory", KeyCode::Tab),
+            skills: k("toggle_skills", KeyCode::KeyL),
+            bounties: k("toggle_bounties", KeyCode::KeyJ),
+            profile: k("toggle_profile", KeyCode::KeyP),
+            map: k("toggle_map", KeyCode::KeyM),
+            slots: [
+                k("slot_1", KeyCode::Digit1),
+                k("slot_2", KeyCode::Digit2),
+                k("slot_3", KeyCode::Digit3),
+                k("slot_4", KeyCode::Digit4),
+                k("slot_5", KeyCode::Digit5),
+                k("slot_6", KeyCode::Digit6),
+            ],
+        }
+    }
+}
+
+impl Default for KeyMap {
+    fn default() -> Self {
+        Self::from_bindings(&game::KeyBindings::default())
+    }
+}
+
+/// The pack model name of a weapon ("res://assets/models/weapons/bat.glb" -> "bat").
+pub fn weapon_model_name(def: &game::WeaponDef) -> Option<String> {
+    let file = def.model.rsplit('/').next()?;
+    Some(file.trim_end_matches(".glb").to_string()).filter(|s| !s.is_empty())
+}
+
+/// GPU renderer, camera, models, and visual batches.
+#[derive(Default)]
+pub struct RenderState {
+    pub renderer: Option<LitRenderer>,
+    pub camera: Camera,
+    pub bones: Vec<Mat4>,
+    pub library: props::PropLibrary,
+    pub pack: Option<pack::ModelPack>,
+    pub campfire_meshes: Option<campfire_mesh::CampfireMeshes>,
+    pub pending_weapon_model: Option<Option<String>>,
+    pub car_markers: (Vec3, Vec3, Vec3),
+    pub fps: f32,
+    pub flashlight_on: bool,
+}
+
+/// Terrain, streaming chunks, static physics, trees, and POI markers.
+#[derive(Default)]
+pub struct WorldState {
+    pub world_gen: Option<Arc<WorldGenerator>>,
+    pub streamer: Option<streaming::Streamer>,
+    pub physics: physics::PhysicsWorld,
+    pub trees: game::TreeFelling,
+    pub falling: HashMap<String, (glam::IVec2, streaming::TreeSlot)>,
+    pub poi_markers: HashMap<String, Vec<Vec3>>,
+    pub poi_zombies: Option<game::PoiZombies>,
+}
+
+impl WorldState {
+    pub fn height(&self, x: f32, z: f32) -> f32 {
+        self.world_gen.as_ref().map_or(0.0, |w| w.height(x, z))
+    }
+}
+
+/// Player, combat, zombies, wildlife, companion dogs, and vehicles.
+#[derive(Default)]
+pub struct ActorsState {
+    pub player: Vec3,
+    pub player_ctrl: Option<Player>,
+    pub player_visual: Option<player_visual::PlayerVisual>,
+    pub camera_rig: Option<CameraRig>,
+    pub mover: physics::CharacterMover,
+    pub combat: Option<combat::Combat>,
+    pub zombies: Option<zombies::Zombies>,
+    pub wildlife: Option<wildlife::Wildlife>,
+    pub dogs: Option<dog_view::DogView>,
+    pub cars: Option<game::Cars>,
+    pub car_input: game::CarInput,
+    pub car_solids: car_solid::ParkedCarSolids,
+    pub fp_sway: fp_weapon::FpSway,
+    pub open_trunk: Option<String>,
+    pub camp_guards: Option<game::CampGuards>,
+    pub camp_npcs: Option<camp_npcs::CampNpcs>,
+    pub zombie_voices: Option<game::ZombieVoices>,
+    pub climb: game::LadderClimb,
+    pub was_dead: bool,
+}
+
+impl ActorsState {
+    /// Pose hook exposing player state for visual character models and animations.
+    pub fn player_pose(&self) -> Option<PlayerPose> {
+        let p = self.player_ctrl.as_ref()?;
+        let rig = self.camera_rig.as_ref()?;
+        Some(PlayerPose {
+            position: p.position,
+            yaw: p.yaw,
+            horizontal_speed: p.horizontal_speed(),
+            on_floor: p.on_floor,
+            crouching: p.crouching,
+            first_person: rig.is_first_person,
+        })
+    }
+}
+
+/// Backpack, hotbar, camp management, game clock, and survival stats.
+pub struct PlaySide {
+    pub play: Option<play::PlayState>,
+    pub clock: world::time::Clock,
+    pub clock_frozen: bool,
+    pub hour: f32,
+    pub skill_seen: HashMap<String, (u32, f32)>,
+    pub hint_text: Option<String>,
+    pub voices_played: u32,
+    pub pois_cleared: u32,
+}
+
+impl Default for PlaySide {
+    fn default() -> Self {
+        Self {
+            play: None,
+            clock: world::time::Clock::new(),
+            clock_frozen: false,
+            hour: 12.0,
+            skill_seen: HashMap::new(),
+            hint_text: None,
+            voices_played: 0,
+            pois_cleared: 0,
+        }
+    }
+}
+
+/// Menus, camp screens, player hub, HUD toasts, and key state.
+#[derive(Default)]
+pub struct UiState {
+    pub menus: Option<menus::Menus>,
+    pub camp_ui: Option<camp_ui::CampUiState>,
+    pub hub: Option<hub_ui::HubUiState>,
+    pub overlays: Option<hub_ui::HubUiState>,
+    pub keys: KeyMap,
+    pub cursor_captured: bool,
+    pub e_used: bool,
+}
+
+impl UiState {
+    /// A camp screen or the hub is open: the mouse is free and the player's hands are busy.
+    pub fn screen_open(&self) -> bool {
+        self.camp_ui.is_some() || self.hub.is_some()
+    }
+}
+
+/// Save slots, session timers, and command line test flags.
+pub struct SessionState {
+    pub slots: Option<save::Slots>,
+    pub slot_cards: [menus::SlotSummary; 3],
+    pub active_slot: u8,
+    pub loaded_save: Option<save::SaveFile>,
+    pub pending_world: Option<(i32, Option<save::SaveFile>)>,
+    pub play_time: f64,
+    pub quit: bool,
+    pub time: f32,
+    pub last_dt: f32,
+    pub seed: i32,
+    pub scene: String,
+    pub walk: bool,
+    pub walk_time: f32,
+    pub free_cam: bool,
+    pub autowalk: bool,
+    pub autoattack: bool,
+    pub die_at: Option<f32>,
+    pub save_at: Option<f32>,
+    pub forced_zombies: Option<usize>,
+    pub start_yaw: Option<f32>,
+    pub give: Vec<(String, u32)>,
+    pub near_animals: Vec<String>,
+    pub test_climb: bool,
+    pub test_chop: bool,
+    pub test_first_person: bool,
+    pub test_poi: bool,
+}
+
+impl Default for SessionState {
+    fn default() -> Self {
+        Self {
+            slots: None,
+            slot_cards: [
+                menus::SlotSummary::default(),
+                menus::SlotSummary::default(),
+                menus::SlotSummary::default(),
+            ],
+            active_slot: 1,
+            loaded_save: None,
+            pending_world: None,
+            play_time: 0.0,
+            quit: false,
+            time: 0.0,
+            last_dt: 0.0,
+            seed: 42,
+            scene: "play".to_string(),
+            walk: false,
+            walk_time: 0.0,
+            free_cam: false,
+            autowalk: false,
+            autoattack: false,
+            die_at: None,
+            save_at: None,
+            forced_zombies: None,
+            start_yaw: None,
+            give: Vec::new(),
+            near_animals: Vec::new(),
+            test_climb: false,
+            test_chop: false,
+            test_first_person: false,
+            test_poi: false,
+        }
+    }
+}
+
+/// Sound and audio effects.
+#[derive(Default)]
+pub struct AudioState {
+    pub audio: Option<audio::Audio>,
+    pub step_timer: f32,
+}
+
+/// The top-level Rotland game instance grouping all subsystem states.
+#[derive(Default)]
+pub struct R0 {
+    pub render: RenderState,
+    pub world: WorldState,
+    pub actors: ActorsState,
+    pub play: PlaySide,
+    pub ui: UiState,
+    pub session: SessionState,
+    pub audio: AudioState,
+}
+
+impl R0 {
+    /// Visual hook exposing player state for character models and animations.
+    #[allow(dead_code)]
+    pub fn player_pose(&self) -> Option<PlayerPose> {
+        self.actors.player_pose()
+    }
+}
