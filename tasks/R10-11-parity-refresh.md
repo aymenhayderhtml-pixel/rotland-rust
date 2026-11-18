@@ -14,3 +14,14 @@ The audit was written at R7. Rounds R8 and R9 finished many rows since (see `doc
 Don't change code. Don't guess: if you can't tell, write "unsure" and why.
 
 ## Worker notes
+- **Files changed**:
+  - `docs/RUST_PARITY.md`: Updated parity matrix audit to R9 (2026-11-18), verified 17 completed features from R8/R9 with exact file:line evidence, added new owner requests from GitHub (#5, #6, #7, #8), and rewrote the Top 15 missing features ranked by player impact.
+  - `tasks/R10-11-parity-refresh.md`: Filled in worker notes.
+- **New public API**: None (documentation update only; no code changes).
+- **Wiring for Claude**: None needed.
+- **Tests**: None (documentation task).
+- **Checked?**: not checked (write-only round).
+- **Questions / known issues**:
+  - `DogNameDialog`: Full UI dialog and validation exist in `rotland/src/hub_ui/draw_dog.rs:draw_dog_name_dialog` and `rotland/src/hub_ui/screen.rs:HubScreen::DogNameDialog`, but `main.rs:1349` immediately purchases the puppy with default name "Rex" without opening the dialog. Classified as **logic only**.
+  - `Shift+G Go Home`: `DogManager::go_home` and `DogMode::Home` exist in `game/src/dogs/manager.rs` and `game/src/dogs/dog_update.rs`, but `main.rs` only processes G key (toggle stay). Classified as **logic only**.
+  - `POI car spawning`: `CarSpawnRules` exists in `game/src/vehicles/spawn_rules.rs`, but `main.rs` only initializes the starter camp car. Classified as **logic only**.
