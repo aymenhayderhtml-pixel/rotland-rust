@@ -3,6 +3,8 @@
 use engine::egui::{self, vec2, Color32, CornerRadius, Frame, Margin, ProgressBar, RichText, ScrollArea, Stroke};
 use game::{CAMPFIRE_STATION, HAND_STATION};
 
+use crate::hub_ui::draw_bag::item_text::craft_blocker_reason;
+
 use super::action::CampAction;
 use super::state::CampUiState;
 use super::view::CampView;
@@ -43,6 +45,20 @@ pub fn draw_crafting(ui: &mut egui::Ui, _state: &mut CampUiState, view: &CampVie
                         )
                     });
 
+                    let is_crafting = view.crafting.is_some_and(|c| c.is_crafting());
+                    let blocker_reason = if can_craft {
+                        None
+                    } else {
+                        craft_blocker_reason(
+                            recipe,
+                            Some(inv),
+                            view.near_lit_campfire,
+                            is_crafting,
+                            view.is_dead,
+                            |id| view.item_name(id).to_string(),
+                        )
+                    };
+
                     Frame::NONE
                         .fill(if station_ready {
                             Color32::from_rgb(28, 30, 34)
@@ -68,11 +84,19 @@ pub fn draw_crafting(ui: &mut egui::Ui, _state: &mut CampUiState, view: &CampVie
                                 );
 
                                 if recipe.station == CAMPFIRE_STATION {
-                                    ui.label(
-                                        RichText::new("[Campfire]")
-                                            .size(12.0)
-                                            .color(Color32::from_rgb(235, 140, 70)),
-                                    );
+                                    if view.near_lit_campfire {
+                                        ui.label(
+                                            RichText::new("[Campfire]")
+                                                .size(12.0)
+                                                .color(Color32::from_rgb(235, 140, 70)),
+                                        );
+                                    } else {
+                                        ui.label(
+                                            RichText::new("[Needs campfire]")
+                                                .size(12.0)
+                                                .color(Color32::from_rgb(255, 102, 89)),
+                                        );
+                                    }
                                 } else {
                                     ui.label(
                                         RichText::new("[Hand]")
@@ -128,7 +152,13 @@ pub fn draw_crafting(ui: &mut egui::Ui, _state: &mut CampUiState, view: &CampVie
 
                                 // Craft button
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    if ui.add_enabled(can_craft, egui::Button::new("Craft")).clicked() {
+                                    let mut craft_btn = ui.add_enabled(can_craft, egui::Button::new("Craft"));
+                                    if !can_craft {
+                                        if let Some(reason) = &blocker_reason {
+                                            craft_btn = craft_btn.on_disabled_hover_text(reason);
+                                        }
+                                    }
+                                    if craft_btn.clicked() {
                                         action = Some(CampAction::Craft {
                                             recipe: recipe.id.clone(),
                                         });

@@ -5,6 +5,7 @@ use engine::egui::{
 };
 
 use super::action::HubAction;
+use super::draw_bag::item_text::format_trunk_row;
 use super::state::HubUiState;
 use super::view::HubView;
 
@@ -91,10 +92,7 @@ pub fn draw_trunk(
                                                     None
                                                 };
                                                 let name = view.item_name(&stack.item_id);
-                                                let btn_text = match blocker {
-                                                    Some(b) => format!("{name}   x{}   ({b})", stack.count),
-                                                    None => format!("{name}   x{}", stack.count),
-                                                };
+                                                let btn_text = format_trunk_row(name, stack.count, blocker);
                                                 let btn = egui::Button::new(btn_text)
                                                     .min_size(vec2(ui.available_width(), 28.0));
                                                 if ui.add_enabled(blocker.is_none(), btn).clicked() {
@@ -145,10 +143,7 @@ pub fn draw_trunk(
                                                     None
                                                 };
                                                 let name = view.item_name(&stack.item_id);
-                                                let btn_text = match blocker {
-                                                    Some(b) => format!("{name}   x{}   ({b})", stack.count),
-                                                    None => format!("{name}   x{}", stack.count),
-                                                };
+                                                let btn_text = format_trunk_row(name, stack.count, blocker);
                                                 let btn = egui::Button::new(btn_text)
                                                     .min_size(vec2(ui.available_width(), 28.0));
                                                 if ui.add_enabled(blocker.is_none(), btn).clicked() {
