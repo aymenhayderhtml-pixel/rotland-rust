@@ -16,12 +16,7 @@ Target laptop: Intel UHD, steady 30+ FPS. Goal: zero new heap allocations per fr
 5. Search the per-frame files for any other `collect::<Vec<_>>()`, `.clone()` of Vecs/Strings, `format!` in hot loops, and list them in notes (fix the easy ones).
 
 ## Measure
-If you can run it: before and after, under the lock, with scratch saves:
-```bash
-flock /tmp/rotland-heavy.lock cargo build --release
-flock /tmp/rotland-heavy.lock target/release/rotland --save-dir=/tmp/r10perf --stats --seconds=60
-```
-Paste both stats outputs (avg FPS, 1% low / frame time) in notes. Say if the laptop was on battery. If you can't run it, say "not measured" — Claude will.
+Write-only round: don't build or run. Claude measures before/after with `--stats`.
 
 No behaviour change. Keep the frame order R10-01 documented.
 

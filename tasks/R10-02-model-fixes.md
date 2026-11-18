@@ -37,8 +37,8 @@ Then fix at the right place:
 List every other model script and say for each: fine / fixed (what). At least check zombies, buildings, camp NPCs, weapons.
 
 ## Verify
-If you can run Blender (`blender -b --python tools/blender/<script>.py`), regenerate the .glb files you changed. Claude runs `cargo run --release -p baker` and takes screenshots. If you can, render a quick Blender preview image of the car and character from front, side and below and list the image paths in your notes.
+Write-only round: don't run Blender. List in your notes the exact `blender -b --python ...` commands for each script you changed; Claude runs them, bakes, and takes screenshots.
 
-Add a small Python check script `tools/blender/check_normals.py` that loads a .glb and reports open edges (non-manifold) and inward-facing normals, and run it on the car and player.
+Add a small Python check script `tools/blender/check_normals.py` that loads a .glb and reports open edges (non-manifold) and inward-facing normals (Claude runs it on the car and player).
 
 ## Worker notes

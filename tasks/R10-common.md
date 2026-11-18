@@ -12,15 +12,10 @@ The Godot reference (frozen) is at `../zombi servival/` (full path `/home/aymen/
 - R10-01 is the only lane allowed to edit `rotland/src/main.rs`. Every other lane: **never edit main.rs** (or the files R10-01 creates). Write the hook you need under "Wiring for Claude".
 - Edit **only** the files your task lists under "You own". If you need a change in a file you don't own, write it in your notes.
 
-## Build rule for R10 (changed from R9)
-To cut down Claude's fix-up work, workers **may** now check their own code if their tool can run commands on this machine:
-```bash
-flock /tmp/rotland-heavy.lock cargo check -p <your crate> --all-targets
-flock /tmp/rotland-heavy.lock cargo test -p <your crate> <your test name filter>
-```
-- Always through `flock`. Never run the game window, never `cargo build --release`, never the baker (Claude bakes), never `pkill`.
-- If you can't run commands, don't worry: write carefully and say "not checked" in your notes.
-- Never claim "tests pass" unless you ran them and paste the last lines of the output in your notes.
+## Build rule for R10: WRITE ONLY
+The owner's laptop CPU is weak. Workers **do not run** `cargo build`, `cargo check`, `cargo test`, `cargo clippy`, the game, the baker, or Blender. Claude builds and tests everything **once** after merging.
+- Because nobody compiles your code before Claude, be extra careful: open every type and function you use and copy its real signature; check imports; check borrow rules by reading.
+- In your notes write "not checked (write-only round)". Never claim tests pass.
 
 ## Mistakes that keep happening (docs/JESTER.md #1-#33) — don't repeat them
 1. Never call a function you haven't seen. Open the type's file and copy its real signature (glam has `distance`, not `distance_to`).

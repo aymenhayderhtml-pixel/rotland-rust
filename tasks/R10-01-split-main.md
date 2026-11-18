@@ -2,7 +2,7 @@
 
 Read `tasks/R10-common.md` first. This lane goes first; R10-09 and R10-10 wait for it. Every other lane leaves its main.rs hooks for Claude to wire into the files you create, so clear names matter.
 
-**Pick a strong agent that can run cargo for this lane.** It is a big refactor and must compile.
+It is a big refactor and must compile on Claude's first build: move code carefully, keep every `use` line the moved code needs, and re-read each new file once for missing imports and borrow conflicts.
 
 ## Goal
 `rotland/src/main.rs` is 2,356 lines with one struct `R0` of 50+ fields. Split it so no file is over ~400 lines and each file has one topic. **No behaviour change at all**: the game must play exactly the same. This is a move-and-group refactor, not a rewrite.
@@ -30,10 +30,9 @@ Read `tasks/R10-common.md` first. This lane goes first; R10-09 and R10-10 wait f
 5. **Leave the game logic where it is** for now (tree strike, footsteps, car ramming) but put each in its own clearly named function in its own file, with a `// TODO(R11): move to game/ with tests` comment. Moving it into `game/` is the next round.
 6. **scripts/check.sh** (BUILD-002): runs `cargo build`, `cargo test`, `cargo clippy --all-targets -- -D warnings`, all under `flock /tmp/rotland-heavy.lock`, stops at the first failure, prints a one-line OK/FAIL summary. `chmod +x`. In README's build section, add one line that `mold` is required (BUILD-001) and how to install it (`sudo apt install mold`).
 
-## Must do before committing
-- `flock /tmp/rotland-heavy.lock cargo check -p rotland --all-targets` must pass with no warnings.
-- `flock /tmp/rotland-heavy.lock cargo clippy -p rotland --all-targets` clean.
-- Paste both outputs' last lines in your notes.
+## Before committing (write-only round, no cargo)
+- Re-read every new file: all `use` lines present, every moved function's callers updated, no field accessed through the old `R0` path, `mod` lines in main.rs for every new file.
+- Grep for leftover `self.<old_field>` names that you regrouped.
 
 ## Notes must include
 - The new file list with line counts (`wc -l rotland/src/main.rs rotland/src/app/*.rs`).

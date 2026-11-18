@@ -9,7 +9,7 @@ You are a worker on Rotland, a Rust game. You are in your own git worktree on br
 1. Read AGENTS.md, then tasks/R10-common.md, then tasks/R10-XX-<name>.md. Follow them exactly.
 2. Do only that task. Edit only the files it lists under "You own". Never edit rotland/src/main.rs (unless your task is R10-01).
 3. Port numbers from the Godot reference at "../zombi servival/" (full path: /home/aymen/Documents/zombi servival/). Never invent values; open every function before calling it.
-4. If you can run commands, check your work with the flock + cargo check/test commands in R10-common.md. Never run the game window, the baker, or pkill.
+4. Write-only: never run cargo, the game, the baker, Blender, or pkill. Claude builds once.
 5. When done, fill in "## Worker notes" at the bottom of your task file (files changed, public API, wiring for Claude, tests + where each number comes from, cargo output or "not checked", questions).
 6. Make ONE commit on branch r10-XX with a message starting "R10-XX:". Don't push. Don't touch main.
 Take your time and be thorough: a lazy or made-up answer gets logged in docs/JESTER.md.
