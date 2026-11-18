@@ -11,6 +11,7 @@ cargo build --release
 target/release/rotland
 ```
 
+- The `mold` linker is required to build (BUILD-001); install it via `sudo apt install mold`.
 - Add `--menu` to start directly on the main menu: `target/release/rotland --menu`.
 - Rebuild model assets: `cargo run --release -p baker` compiles all `.glb` models from `assets/models/` into `assets/models.pack`. This is required on a fresh clone because `assets/models.pack` is not tracked in git.
 - Saves are stored in `~/.local/share/rotland-rust/`.

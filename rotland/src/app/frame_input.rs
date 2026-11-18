@@ -1,0 +1,197 @@
+//! Input gathering, key actions, hotbar selection, and hand equipment changes.
+
+use engine::Input;
+use game::{Actions, Player};
+use glam::Vec3;
+use winit::event::MouseButton;
+use winit::keyboard::KeyCode;
+
+use super::state::{
+    weapon_model_name, ActorsState, KeyMap, PlaySide, RenderState, SessionState, UiState,
+    WorldState,
+};
+use crate::{hub_ui, menus, play};
+
+/// Result of input processing for the frame.
+pub enum InputOutcome {
+    /// A menu is open, so game simulation is paused for this frame.
+    MenuOpen,
+    /// Player actions to feed into actors and simulation updates.
+    Active {
+        actions: Actions,
+        attack: bool,
+        dead: bool,
+    },
+}
+
+/// Puts a weapon in hand (or empties it): the swing uses its numbers, the model shows in the hand.
+pub fn apply_hand(
+    change: play::HandChange,
+    render: &mut RenderState,
+    play: &mut PlaySide,
+    actors: &mut ActorsState,
+    world: &WorldState,
+) {
+    let def = match change {
+        play::HandChange::Weapon(def) => def,
+        play::HandChange::ToggleFlashlight => {
+            render.flashlight_on = !render.flashlight_on;
+            return;
+        }
+        play::HandChange::PlaceCampfire => {
+            // Godot CampfirePlacer: 1.5 m in front on flat ground, away from other fires
+            if let (Some(play_state), Some(p)) = (play.play.as_mut(), actors.player_ctrl.as_ref()) {
+                let facing = game::yaw_forward(p.yaw);
+                let physics = &world.physics;
+                let ground = |spot: Vec3| {
+                    physics
+                        .raycast(spot + Vec3::Y * 3.0, Vec3::NEG_Y, 6.0)
+                        .map(|h| (h.point, h.normal))
+                };
+                let text = match play_state.camp.campfires.place(
+                    p.position,
+                    facing,
+                    Some(&mut play_state.inventory),
+                    ground,
+                ) {
+                    Ok(_) => "Campfire placed".to_string(),
+                    Err(e) => e.message().to_string(),
+                };
+                play_state.hotbar.on_inventory_changed(&play_state.inventory);
+                play_state.show_toast(text);
+            }
+            return;
+        }
+        play::HandChange::Health(amount) => {
+            if let Some(c) = actors.combat.as_mut() {
+                if amount > 0.0 {
+                    c.health.heal(amount);
+                } else {
+                    // Spoiled food: sickness damage (no flinch)
+                    c.take_bites(&[-amount]);
+                }
+            }
+            return;
+        }
+    };
+    render.pending_weapon_model = Some(def.as_ref().and_then(weapon_model_name));
+    // Guns go to the shooting system, everything else to the melee swing
+    let is_gun = def.as_ref().is_some_and(|d| d.is_gun());
+    if let Some(play_state) = play.play.as_mut() {
+        play_state.gun = if is_gun { def.clone() } else { None };
+    }
+    if let Some(c) = actors.combat.as_mut() {
+        c.set_weapon(if is_gun { None } else { def });
+    }
+}
+
+/// Reads hardware inputs, handles hotkeys for hub and menus, and constructs player Actions.
+pub fn process_input(
+    input: &Input,
+    dt: f32,
+    render: &mut RenderState,
+    world: &WorldState,
+    actors: &mut ActorsState,
+    play: &mut PlaySide,
+    ui: &mut UiState,
+    session: &mut SessionState,
+) -> InputOutcome {
+    use hub_ui::{HubScreen, HubTab};
+
+    // The player's own keys (Settings > Controls)
+    ui.keys = ui
+        .menus
+        .as_ref()
+        .map(|m| KeyMap::from_bindings(&m.keys))
+        .unwrap_or_default();
+    let keys = ui.keys.clone();
+    if let Some(m) = ui.menus.as_mut() {
+        m.pressed_key = input.pressed_keys().into_iter().next();
+    }
+    for (key, tab) in [
+        (keys.inventory, HubTab::Bag),
+        (keys.skills, HubTab::Skills),
+        (keys.bounties, HubTab::Bounties),
+        (keys.profile, HubTab::Profile),
+        (keys.map, HubTab::Map),
+    ] {
+        if input.pressed(key) && ui.camp_ui.is_none() && !ui.menus.as_ref().is_some_and(|m| m.is_open()) {
+            ui.hub = match &ui.hub {
+                Some(h) if h.screen() == HubScreen::Tab(tab) => None,
+                _ => Some(hub_ui::HubUiState::new(HubScreen::Tab(tab))),
+            };
+        }
+    }
+    // Esc closes an open camp or hub screen (the screen itself sees the key), otherwise the menus
+    if input.pressed(KeyCode::Escape)
+        && !ui.screen_open()
+        && !ui.menus.as_ref().is_some_and(|m| m.keys_ui.is_waiting())
+        && let Some(m) = ui.menus.as_mut()
+    {
+        let was_open = m.is_open();
+        m.on_escape();
+        if !was_open && m.is_open() {
+            if let Some(slots) = &session.slots {
+                session.slot_cards = crate::session::summaries(slots);
+            }
+        } else if was_open && !m.is_open() {
+            ui.cursor_captured = true;
+        }
+    }
+    if ui.menus.as_ref().is_some_and(|m| m.is_open()) {
+        if dt > 0.0 {
+            render.fps += (1.0 / dt - render.fps) * (dt * 2.0).min(1.0);
+        }
+        return InputOutcome::MenuOpen;
+    }
+    if !ui.cursor_captured && input.mouse_pressed(MouseButton::Left) {
+        ui.cursor_captured = true;
+    }
+    session.play_time += dt as f64;
+
+    let mut actions = Actions::from_input(input, &keys.movement);
+    if !ui.cursor_captured || ui.screen_open() {
+        actions.look_delta = (0.0, 0.0);
+    }
+    if let Some(m) = &ui.menus {
+        let sens = m.settings.mouse_sensitivity;
+        actions.look_delta.0 *= sens;
+        actions.look_delta.1 *= if m.settings.invert_y { -sens } else { sens };
+    }
+    if session.autowalk {
+        actions.move_vec.y = -1.0;
+    }
+
+    let dead = actors.combat.as_ref().is_some_and(|c| c.is_dead());
+    if dead {
+        actions = Actions::default();
+    }
+    // G: the dog stays or follows again (Godot dog_stay)
+    if input.pressed(keys.dog_stay)
+        && !ui.screen_open()
+        && let Some(d) = actors.dogs.as_mut()
+        && d.sim.has_dog()
+    {
+        d.sim.toggle_stay();
+        let mode = d.sim.dog().map(|g| format!("{:?}", g.mode())).unwrap_or_default();
+        if let Some(play_state) = play.play.as_mut() {
+            play_state.show_toast(if mode == "Stay" {
+                "Dog: stay".into()
+            } else {
+                "Dog: follow".into()
+            });
+        }
+    }
+    if let Some(change) = play.play.as_mut().and_then(|p| p.hotbar_keys(input, &keys.slots)) {
+        apply_hand(change, render, play, actors, world);
+    }
+    let attack = !dead
+        && !ui.screen_open()
+        && (session.autoattack || (ui.cursor_captured && input.mouse_pressed(MouseButton::Left)));
+
+    InputOutcome::Active {
+        actions,
+        attack,
+        dead,
+    }
+}
