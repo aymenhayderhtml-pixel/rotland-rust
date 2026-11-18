@@ -129,7 +129,11 @@
     "axe": { "swing": "swing_heavy" },
     "pistol": { "shot": "pistol_shot" },
     "shotgun": { "shot": "shotgun_shot" },
-    "rifle": { "shot": "rifle_shot" }
+    "rifle": { "shot": "rifle_shot" },
+    "ak47": { "shot": "rifle_shot" },
+    "smg": { "shot": "pistol_shot" },
+    "crowbar": { "swing": "swing_heavy" },
+    "katana": { "swing": "swing_light" }
   },
   "events": {
     "dryFire": { "sound": "dry_fire" },

@@ -58,7 +58,19 @@ impl SoundData {
     }
 
     /// The sound a weapon makes for an action ("swing" or "shot").
+    ///
+    /// If the weapon or action is missing from `data/sounds.json`, falls back by
+    /// weapon class (gun "shot" -> "pistol_shot", melee "swing" -> "swing_light")
+    /// with a log warning, so a missing entry is never silent.
     pub fn weapon_sound(&self, weapon: &str, action: &str) -> Option<&str> {
-        self.weapons.get(weapon)?.get(action).map(String::as_str)
+        if let Some(sound) = self.weapons.get(weapon).and_then(|slots| slots.get(action)) {
+            return Some(sound.as_str());
+        }
+        log::warn!("missing sound for weapon '{weapon}', action '{action}'; using fallback");
+        match action {
+            "shot" => Some("pistol_shot"),
+            "swing" => Some("swing_light"),
+            _ => None,
+        }
     }
 }
