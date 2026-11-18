@@ -2,6 +2,8 @@
 
 use engine::egui::{self, vec2, Color32, CornerRadius, Frame, Margin, RichText, ScrollArea, Stroke};
 
+use crate::hub_ui::draw_bag::item_text::format_bank_row;
+
 use super::action::CampAction;
 use super::state::CampUiState;
 use super::view::CampView;
@@ -69,11 +71,7 @@ pub fn draw_bank(ui: &mut egui::Ui, state: &mut CampUiState, view: &CampView) ->
                                     let (rect, _) = ui.allocate_exact_size(vec2(24.0, 24.0), egui::Sense::hover());
                                     ui.painter().rect_filled(rect, CornerRadius::same(4), icon_color);
 
-                                    let info_text = if bank_full {
-                                        format!("{name}   x{}   (Bank full)", stack.count)
-                                    } else {
-                                        format!("{name}   x{}", stack.count)
-                                    };
+                                    let info_text = format_bank_row(name, stack.count, bank_full, "Bank full");
 
                                     let label = RichText::new(info_text).size(14.0).color(if bank_full {
                                         Color32::from_rgb(140, 140, 145)
@@ -181,11 +179,7 @@ pub fn draw_bank(ui: &mut egui::Ui, state: &mut CampUiState, view: &CampView) ->
                                     let (rect, _) = ui.allocate_exact_size(vec2(24.0, 24.0), egui::Sense::hover());
                                     ui.painter().rect_filled(rect, CornerRadius::same(4), icon_color);
 
-                                    let info_text = if bag_full {
-                                        format!("{name}   x{}   (Bag full)", stack.count)
-                                    } else {
-                                        format!("{name}   x{}", stack.count)
-                                    };
+                                    let info_text = format_bank_row(name, stack.count, bag_full, "Bag full");
 
                                     let label = RichText::new(info_text).size(14.0).color(if bag_full {
                                         Color32::from_rgb(140, 140, 145)

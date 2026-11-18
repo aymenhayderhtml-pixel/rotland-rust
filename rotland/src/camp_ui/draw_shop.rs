@@ -3,6 +3,8 @@
 use engine::egui::{self, vec2, Color32, CornerRadius, Frame, Margin, RichText, ScrollArea, Stroke};
 use game::{buy_blocker, buy_price, sell_price};
 
+use crate::hub_ui::draw_bag::item_text::format_shop_row;
+
 use super::action::CampAction;
 use super::state::CampUiState;
 use super::view::CampView;
@@ -69,7 +71,7 @@ pub fn draw_shop(ui: &mut egui::Ui, state: &mut CampUiState, view: &CampView) ->
                                     ui.painter().rect_filled(rect, CornerRadius::same(4), icon_color);
 
                                     // The reason it can't be bought shows on hover, so it never runs into the buttons
-                                    let info_text = format!("{name}   ${price}   x{qty}");
+                                    let info_text = format_shop_row(name, price, qty);
 
                                     let label = RichText::new(info_text).size(14.0).color(if blocker.is_some() {
                                         Color32::from_rgb(140, 140, 145)
@@ -180,7 +182,7 @@ pub fn draw_shop(ui: &mut egui::Ui, state: &mut CampUiState, view: &CampView) ->
                                     let (rect, _) = ui.allocate_exact_size(vec2(24.0, 24.0), egui::Sense::hover());
                                     ui.painter().rect_filled(rect, CornerRadius::same(4), icon_color);
 
-                                    let info_text = format!("{name}   ${price}   x{}", stack.count);
+                                    let info_text = format_shop_row(name, price, stack.count);
                                     if ui.button(RichText::new(info_text).size(14.0)).clicked() {
                                         state.select_row(&row_key);
                                     }

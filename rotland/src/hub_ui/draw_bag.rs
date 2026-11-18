@@ -6,6 +6,12 @@ use engine::egui::{
 };
 use game::{CAMPFIRE_STATION, DEFAULT_SLOT_COUNT, HAND_STATION, HOTBAR_SIZE};
 
+#[path = "draw_crafting.rs"]
+pub mod draw_crafting;
+#[path = "item_text.rs"]
+pub mod item_text;
+
+use draw_crafting::draw_crafting_subpanel;
 use super::action::HubAction;
 use super::draw::parse_hex_color;
 use super::draw_bag_details::draw_details_panel;
@@ -77,7 +83,7 @@ pub fn draw_bag(ui: &mut egui::Ui, state: &mut HubUiState, view: &HubView) -> Op
         // Right Column: Details Panel
         ui.vertical(|ui| {
             ui.set_width(300.0);
-            let details_action = draw_details_panel(ui, state, view);
+            let details_action = draw_details_panel(ui, state, view, None);
             if let Some(act) = details_action {
                 action = Some(act);
             }
@@ -213,75 +219,3 @@ fn draw_slot_grid(
     action
 }
 
-fn draw_crafting_subpanel(ui: &mut egui::Ui, view: &HubView) -> Option<HubAction> {
-    let mut action = None;
-
-    ui.horizontal(|ui| {
-        ui.label(RichText::new("Crafting").size(14.0).strong().color(Color32::WHITE));
-        let station_text = if view.near_lit_campfire {
-            "[Campfire ready]"
-        } else {
-            "[Hand]"
-        };
-        ui.label(RichText::new(station_text).size(12.0).color(Color32::from_rgb(180, 200, 180)));
-    });
-
-    ScrollArea::vertical()
-        .id_salt("bag_craft_scroll")
-        .max_height(140.0)
-        .show(ui, |ui| {
-            if let (Some(registry), Some(inv)) = (view.recipe_registry, view.inventory) {
-                for recipe in registry.all() {
-                    let is_hand = recipe.station == HAND_STATION;
-                    let is_campfire = recipe.station == CAMPFIRE_STATION;
-                    if !is_hand && (!is_campfire || !view.near_lit_campfire) {
-                        continue;
-                    }
-
-                    let can_craft = view.crafting.is_some_and(|c| {
-                        c.can_craft(
-                            &recipe.id,
-                            &recipe.station,
-                            inv,
-                            view.near_lit_campfire,
-                            view.is_dead,
-                            registry,
-                        )
-                    });
-
-                    ui.horizontal(|ui| {
-                        ui.label(RichText::new(&recipe.name).size(13.0).color(Color32::WHITE));
-                        ui.label(RichText::new("->").size(12.0).color(Color32::GRAY));
-
-                        for out in &recipe.outputs {
-                            let name = view.item_name(&out.id);
-                            ui.label(RichText::new(format!("{name} x{}", out.count)).size(12.0));
-                        }
-
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.add_enabled(can_craft, egui::Button::new("Craft")).clicked() {
-                                action = Some(HubAction::Craft { recipe: recipe.id.clone() });
-                            }
-                        });
-                    });
-                    ui.separator();
-                }
-            }
-        });
-
-    // Active craft progress
-    if let Some(crafting) = view.crafting
-        && let Some(active) = crafting.active()
-    {
-        ui.horizontal(|ui| {
-            let p = crafting.progress();
-            ui.label(RichText::new(format!("{}: {:.0}%", active.name, p * 100.0)).size(12.0));
-            ui.add(ProgressBar::new(p).desired_width(120.0));
-            if ui.button("Cancel").clicked() {
-                action = Some(HubAction::CancelCraft);
-            }
-        });
-    }
-
-    action
-}
