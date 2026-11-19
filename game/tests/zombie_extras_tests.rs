@@ -74,6 +74,7 @@ fn sense<'a>(body: Body, world: &'a PhysicsWorld, target: Option<Vec3>) -> Brain
         corpses: &[],
         target_unreachable: false,
         leg_hit: false,
+        player_in_safe_zone: false,
     }
 }
 
@@ -498,3 +499,135 @@ fn a_stuck_zombie_escapes() {
     let diff = Vec3::new(target_2.x - shared_pt.x, 0.0, target_2.z - shared_pt.z).length();
     assert!(diff <= 2.5, "second zombie wanders near shared spot, diff is {diff}"); // assert 7
 }
+
+#[test]
+fn herd_chasing_zombie_alerts_idle_one_at_7m_not_at_9m() {
+    let r = rig();
+    let player = Vec3::new(10.0, 0.0, 2.0);
+
+    // Chasing leader at (10, 0, 10)
+    let leader_pos = Vec3::new(10.0, 0.0, 10.0);
+    let chasing_info = [HerdZombie::new(leader_pos, ZombieState::Chase, player)];
+
+    // Bystander 1: at 7m away (within Godot HerdRadius = 8m)
+    let pos_7m = Vec3::new(10.0, 0.0, 17.0); // 7m away
+    let mut brain_7m = make_brain(&r, pos_7m, 101);
+    let mut body_7m = Body { pos: pos_7m, yaw: 0.0 };
+    let ctx_7m = BrainInput {
+        nearby_zombies: &chasing_info,
+        ..sense(body_7m, &r.world, None)
+    };
+    let out_7m = run_frame(&mut brain_7m, &mut body_7m, ctx_7m);
+    assert_eq!(out_7m.state, ZombieState::Chase); // alerted at 7 m
+
+    // Bystander 2: at 9m away (outside Godot HerdRadius = 8m)
+    let pos_9m = Vec3::new(10.0, 0.0, 19.0); // 9m away
+    let mut brain_9m = make_brain(&r, pos_9m, 102);
+    let mut body_9m = Body { pos: pos_9m, yaw: 0.0 };
+    let ctx_9m = BrainInput {
+        nearby_zombies: &chasing_info,
+        ..sense(body_9m, &r.world, None)
+    };
+    let out_9m = run_frame(&mut brain_9m, &mut body_9m, ctx_9m);
+    assert_eq!(out_9m.state, ZombieState::Idle); // not alerted at 9 m
+}
+
+#[test]
+fn leg_hit_at_0_5m_becomes_crawler_at_1_2m_does_not() {
+    let r = rig();
+    let player = Vec3::new(10.0, 0.0, 4.0);
+
+    // Zombie at feet y = 0.0
+    // Hit 1: at y = 0.5m (below LegHitHeight 0.6m in ZombieBehaviourDef.cs:14)
+    let mut brain_low = make_brain(&r, start().pos, 201);
+    let mut body_low = start();
+    let hit_low = DamageInfo {
+        amount: 25.0,
+        hit_point: body_low.pos + Vec3::new(0.0, 0.5, 0.0),
+        ..DamageInfo::new(25.0)
+    };
+    let ctx_low = BrainInput {
+        took_damage: Some(hit_low),
+        ..sense(body_low, &r.world, Some(player))
+    };
+    run_frame(&mut brain_low, &mut body_low, ctx_low);
+    assert!(brain_low.is_crawler(), "hit at 0.5m should turn zombie into crawler");
+
+    // Hit 2: at y = 1.2m (above LegHitHeight 0.6m)
+    let mut brain_high = make_brain(&r, start().pos, 202);
+    let mut body_high = start();
+    let hit_high = DamageInfo {
+        amount: 25.0,
+        hit_point: body_high.pos + Vec3::new(0.0, 1.2, 0.0),
+        ..DamageInfo::new(25.0)
+    };
+    let ctx_high = BrainInput {
+        took_damage: Some(hit_high),
+        ..sense(body_high, &r.world, Some(player))
+    };
+    run_frame(&mut brain_high, &mut body_high, ctx_high);
+    assert!(!brain_high.is_crawler(), "hit at 1.2m should not turn zombie into crawler");
+}
+
+#[test]
+fn scream_produces_a_noise_event_with_godot_radius() {
+    let r = rig();
+    let mut brain = make_brain(&r, start().pos, 301);
+    brain.set_scream_chance(1.0);
+    let mut body = start();
+    let player = Vec3::new(10.0, 0.0, 5.0);
+
+    let ctx = sense(body, &r.world, Some(player));
+    let out = run_frame(&mut brain, &mut body, ctx);
+    assert_eq!(out.state, ZombieState::Scream);
+    assert!(out.scream, "scream flag must be set on the frame scream starts");
+
+    // In rotland/src/zombies/mod.rs, when out.scream is true, a Noise is emitted with radius = scream_alert_radius (25.0)
+    let noise = Noise {
+        position: body.pos,
+        radius: r.tuning.scream_alert_radius,
+    };
+    assert_eq!(noise.radius, 25.0, "scream noise radius matches Godot ZombieBehaviourDef.cs:22");
+}
+
+#[test]
+fn safe_zone_true_zombie_never_enters_chase_on_the_player() {
+    let r = rig();
+    let mut brain = make_brain(&r, start().pos, 401);
+    let mut body = start();
+    let player = Vec3::new(10.0, 0.0, 5.0); // 5m in front, clearly in sight range
+
+    // Tick for 60 frames with player_in_safe_zone = true
+    for _ in 0..60 {
+        let ctx = BrainInput {
+            player_in_safe_zone: true,
+            ..sense(body, &r.world, Some(player))
+        };
+        let out = run_frame(&mut brain, &mut body, ctx);
+        assert_ne!(out.state, ZombieState::Chase, "zombie must never enter chase on safe zone player");
+        assert_ne!(out.state, ZombieState::Attack);
+    }
+}
+
+#[test]
+fn unreachable_true_while_chasing_enters_bang_state() {
+    let r = rig();
+    let mut brain = make_brain(&r, start().pos, 501);
+    let mut body = start();
+    let player = Vec3::new(10.0, 0.0, 9.0); // 1m in front
+
+    // First frame: chase player
+    let ctx_chase = sense(body, &r.world, Some(player));
+    let out = run_frame(&mut brain, &mut body, ctx_chase);
+    assert_eq!(out.state, ZombieState::Chase);
+
+    // Player climbs a ladder / becomes unreachable while within 1.5m
+    let ctx_unreachable = BrainInput {
+        target_unreachable: true,
+        ..sense(body, &r.world, Some(player))
+    };
+    let out_bang = run_frame(&mut brain, &mut body, ctx_unreachable);
+    assert_eq!(out_bang.state, ZombieState::Bang, "chasing zombie close to unreachable target enters Bang state");
+    assert_eq!(out_bang.anim, AnimClip::Bang);
+}
+

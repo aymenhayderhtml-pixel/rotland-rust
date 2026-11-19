@@ -75,6 +75,7 @@ fn sense<'a>(body: Body, world: &'a PhysicsWorld, target: Option<Vec3>) -> Brain
         corpses: &[],
         target_unreachable: false,
         leg_hit: false,
+        player_in_safe_zone: false,
     }
 }
 

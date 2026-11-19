@@ -50,6 +50,8 @@ pub struct BrainInput<'a> {
     pub target_unreachable: bool,
     /// Explicit leg hit flag (or inferred from hit_point / damage info).
     pub leg_hit: bool,
+    /// Whether the player is inside the safe zone (Godot ZombiePlayerLink.cs / SealsOff).
+    pub player_in_safe_zone: bool,
 }
 
 impl<'a> BrainInput<'a> {
@@ -68,6 +70,7 @@ impl<'a> BrainInput<'a> {
             corpses: &[],
             target_unreachable: false,
             leg_hit: false,
+            player_in_safe_zone: false,
         }
     }
 }
@@ -238,6 +241,11 @@ impl ZombieBrain {
         self.home
     }
 
+    /// Last seen target spot known to this zombie's senses.
+    pub fn last_seen(&self) -> Vec3 {
+        self.senses.last_seen()
+    }
+
     pub fn update(&mut self, ctx: &BrainInput<'_>, dt: f32) -> BrainOutput {
         self.just_screamed = false;
         if ctx.is_dead || self.state == ZombieState::Dead {
@@ -254,16 +262,22 @@ impl ZombieBrain {
             };
         }
 
+        let effective_target = if ctx.player_in_safe_zone {
+            None
+        } else {
+            ctx.target
+        };
+
         self.stagger_timer = (self.stagger_timer - dt).max(0.0);
         let flinched = match &ctx.took_damage {
-            Some(info) => self.on_hit(info, ctx.target, ctx.position.y, ctx.leg_hit),
+            Some(info) => self.on_hit(info, effective_target, ctx.position.y, ctx.leg_hit),
             None => false,
         };
         if let Some(spot) = self.last_audible(ctx) {
             self.hear_noise(spot);
         }
         self.senses
-            .update(dt, ctx.position, forward(ctx.yaw), ctx.target, ctx.world);
+            .update(dt, ctx.position, forward(ctx.yaw), effective_target, ctx.world);
 
         let step = if self.is_staggered() {
             Step::default()
@@ -293,7 +307,12 @@ impl ZombieBrain {
 
     fn think(&mut self, ctx: &BrainInput<'_>, dt: f32) -> Step {
         self.time_in_state += dt;
-        if ctx.target.is_none() && matches!(self.state, ZombieState::Chase | ZombieState::Attack) {
+        let effective_target = if ctx.player_in_safe_zone {
+            None
+        } else {
+            ctx.target
+        };
+        if effective_target.is_none() && matches!(self.state, ZombieState::Chase | ZombieState::Attack) {
             self.enter_wander(ctx.position);
             return Step::default();
         }
