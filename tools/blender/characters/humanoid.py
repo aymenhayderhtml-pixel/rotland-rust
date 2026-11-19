@@ -99,7 +99,7 @@ class MeshBuilder:
             (0, 4, 7, 3),  # left (-X)
             (1, 2, 6, 5),  # right (+X)
         ]
-        color_idx = palette.index_of(color)
+        color_idx = palette.key_of(color)
         for face_idx in faces_def:
             face = self.bm.faces.new([new_verts[i] for i in face_idx])
             face[self.pal_layer] = color_idx
@@ -108,7 +108,7 @@ class MeshBuilder:
     def add_tapered_box(self, bottom_corners, top_corners, color, bone_name):
         """Adds a 6-sided prism connecting 4 bottom corners and 4 top corners."""
         b_idx = BONE_NAMES.index(bone_name)
-        color_idx = palette.index_of(color)
+        color_idx = palette.key_of(color)
 
         v_bottom = [self.bm.verts.new(p) for p in bottom_corners]
         v_top = [self.bm.verts.new(p) for p in top_corners]
@@ -146,6 +146,9 @@ class MeshBuilder:
         centers = [Vector(c) for c, _, _ in sections]
         a = Vector(axis) if axis is not None else centers[-1] - centers[0]
         a.normalize()
+        travel = centers[-1] - centers[0]
+        if travel.length_squared > 1e-10 and travel.dot(a) < 0.0:
+            a = -a
         ref = Vector((0, 0, 1)) if abs(a.z) < 0.9 else Vector((0, 1, 0))
         side = ref.cross(a).normalized()
         up = a.cross(side).normalized()
@@ -162,14 +165,14 @@ class MeshBuilder:
                 ring.append(v)
             rings.append(ring)
         for k in range(len(rings) - 1):
-            ci = palette.index_of(colors[k])
+            ci = palette.key_of(colors[k])
             r0, r1 = rings[k], rings[k + 1]
             for i in range(segs):
                 j = (i + 1) % segs
                 self.bm.faces.new([r0[i], r0[j], r1[j], r1[i]])[self.pal_layer] = ci
         # Winding is fixed for the whole mesh in finalize()
-        self.bm.faces.new(list(reversed(rings[0])))[self.pal_layer] = palette.index_of(colors[0])
-        self.bm.faces.new(rings[-1])[self.pal_layer] = palette.index_of(colors[-1])
+        self.bm.faces.new(list(reversed(rings[0])))[self.pal_layer] = palette.key_of(colors[0])
+        self.bm.faces.new(rings[-1])[self.pal_layer] = palette.key_of(colors[-1])
 
     def add_ellipsoid(self, center, radii, color, bone_name, segs=8, rings=5):
         """Low-poly ellipsoid (a loft of `rings` rings along Z, with small flat caps)."""
@@ -189,10 +192,11 @@ class MeshBuilder:
         bmesh.ops.triangulate(self.bm, faces=list(self.bm.faces))
         self.bm.normal_update()
 
-        # Generate UVs from palette indices
+        # Capture palette keys before conversion/free, then use each key's own sheet.
+        keys = [face[self.pal_layer] for face in self.bm.faces]
         uv_layer = self.bm.loops.layers.uv.new("UVMap")
         for face in self.bm.faces:
-            color_name = palette.NAMES[face[self.pal_layer]]
+            color_name = palette.name_of_key(face[self.pal_layer])
             uv = palette.uv_center(color_name)
             for loop in face.loops:
                 loop[uv_layer].uv = uv
@@ -202,7 +206,11 @@ class MeshBuilder:
         self.bm.to_mesh(mesh)
         for poly in mesh.polygons:
             poly.use_smooth = False
-        mesh.materials.append(common.palette_material())
+        sheets = ["A"] + (["B"] if any(palette.sheet_of_key(k) == "B" for k in keys) else [])
+        for sheet in sheets:
+            mesh.materials.append(common.palette_material(sheet))
+        for poly, key in zip(mesh.polygons, keys):
+            poly.material_index = sheets.index(palette.sheet_of_key(key))
         obj = bpy.data.objects.new(name, mesh)
         bpy.context.scene.collection.objects.link(obj)
         self.bm.free()
@@ -384,10 +392,17 @@ def build_humanoid(variant):
     mb = MeshBuilder()
     look = {"skin": skin, "hair": hair, "shirt": shirt, "pants": pants, "shoes": shoes,
             "blood": blood, "bare_arm": bare_arm, "name": name, "zombie": name.startswith("zombie_")}
+    for key, default in {
+        "hair_style": "short_swept", "jacket": None, "gloves": None,
+        "knee_pads": False, "holster": False, "beard": None,
+        "chest_rig": False, "long_sleeves": False, "watch": False,
+        "cargo_pockets": name in {"human_player", "npc_guard", "npc_survivor"},
+    }.items():
+        look[key] = variant.get(key, default)
     humanoid_body.build_body(mb, look, hunched, arm_points)
 
     # NPC extras (apron, helmet, rucksack...) use the same bones, so weights stay rigid
-    npc_extras.add_extras(mb, variant.get("extras"))
+    npc_extras.add_extras(mb, variant.get("extras"), arm_points=arm_points)
 
     # Finalize mesh
     mesh_obj = mb.finalize(name, scale)

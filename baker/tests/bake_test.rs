@@ -234,6 +234,29 @@ fn assert_ccw_outward(rel: &str) -> pack::Model {
     model
 }
 
+#[test]
+fn baked_human_player_has_ccw_winding_22_joints_and_valid_height() {
+    for name in [
+        "human_player",
+        "npc_trader",
+        "npc_banker",
+        "npc_guard",
+        "npc_survivor",
+        "npc_villager",
+        "npc_mechanic",
+        "npc_scout",
+    ] {
+        let rel = format!("characters/{name}.glb");
+        let model = assert_ccw_outward(&rel);
+        let skeleton = model.skeleton.as_ref().unwrap_or_else(|| panic!("{name} must have a skeleton"));
+        assert_eq!(skeleton.joints.len(), 22, "{name} should have 22 joints");
+        assert!(model.vertices.len() / 3 <= 5000, "{name} exceeds 5000 triangles");
+        let height = model.bounds_max[1] - model.bounds_min[1];
+        assert!((1.70..=1.94).contains(&height), "{name} height out of range: {height}");
+        assert!(model.bounds_min[1].abs() < 0.03, "{name} feet are not at ground: {}", model.bounds_min[1]);
+    }
+}
+
 /// The renderer draws glTF/Blender models (all props, cars, zombies) plus hand-built
 /// prop meshes through the `skinned` pipeline with `FrontFace::Ccw`. Guard that the
 /// baked vehicle parts and a representative prop really are CCW-outward, and that the

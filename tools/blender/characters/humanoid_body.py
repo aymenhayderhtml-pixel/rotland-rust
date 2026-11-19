@@ -1,10 +1,14 @@
-"""Rounded humanoid body (visual plan step 1): lofted limbs, a shaped head, hands with fingers.
+"""Stylized heroic low-poly humanoid body for Rotland.
 
-Every part is built on exactly one bone of the 22-bone rig (docs/RIG_CONTRACT.md), so the rigid
-weights stay exact and every existing clip keeps working. Joint fillers (knees, elbows,
-shoulders) are spheres on the lower bone, so bends don't open gaps.
-Facing +Y, right is +X, metres, standing at z=0.
+Every vertex belongs rigidly to one of the 22 bones in docs/RIG_CONTRACT.md.
+Deltoid shoulder caps live on upper_arm_L/R so they rotate cleanly with the arms
+(eliminating floating shoulder pads), and all accessories (watch, knee straps,
+holster, cargo pocket, boots, beard, hair) sit mathematically flush to the body.
+
+Facing +Y in Blender (-Z in Godot), right is +X, up is +Z, feet on z = 0.
 """
+import math
+
 from mathutils import Vector
 
 import zombie_details
@@ -15,7 +19,7 @@ def _lerp(a, b, t):
 
 
 def build_body(mb, look, hunched, arm_points):
-    """Adds the whole body to MeshBuilder `mb`. `look` holds the palette names (skin, hair...)."""
+    """Adds the complete stylized humanoid body to MeshBuilder `mb`."""
     hips_z = 0.90 if not hunched else 0.88
     lm = {
         "hips_z": hips_z,
@@ -24,7 +28,6 @@ def build_body(mb, look, hunched, arm_points):
         "neck_z": hips_z + 0.56,
         "head_z": hips_z + 0.64,
         "head_top": 1.80 if not hunched else 1.77,
-        # Forward offsets for the zombie hunch: hips, spine, chest, neck, face
         "hy": 0.0 if not hunched else 0.02,
         "sy": 0.0 if not hunched else 0.05,
         "cy": 0.0 if not hunched else 0.10,
@@ -41,154 +44,501 @@ def build_body(mb, look, hunched, arm_points):
 
 
 def _feet(mb, look):
+    """Chunky rugged survival boots with flush lugged soles (no heel/toe overhang)."""
     shoes = look["shoes"]
     for sign, foot, toe in ((1, "foot_R", "toe_R"), (-1, "foot_L", "toe_L")):
         x = sign * 0.10
-        # Main shoe body (heel to ball of foot, resting above sole z=0.014)
-        mb.add_loft([((x, -0.068, 0.048), 0.036, 0.034), ((x, -0.035, 0.052), 0.046, 0.046),
-                     ((x, 0.02, 0.052), 0.048, 0.046), ((x, 0.10, 0.042), 0.047, 0.036)],
-                    shoes, foot, segs=10, axis=(0, 1, 0))
-        # Toe box (ball of foot to toe tip)
-        mb.add_loft([((x, 0.10, 0.040), 0.047, 0.034), ((x, 0.155, 0.032), 0.045, 0.026),
-                     ((x, 0.196, 0.025), 0.031, 0.017)], shoes, toe, segs=10, axis=(0, 1, 0))
-        # Sole: dark strip all round the bottom from ground (z=0.0) to z=0.014
-        mb.add_box((x - 0.049, -0.072, 0.0), (x + 0.049, 0.10, 0.014), "pants_dark", foot)
-        mb.add_box((x - 0.047, 0.10, 0.0), (x + 0.047, 0.192, 0.014), "pants_dark", toe)
-        # Laces across the instep (offset by ~3 mm so they sit proudly on top of the shoe, REND-003)
-        for y, top in ((0.035, 0.096), (0.068, 0.086)):
-            mb.add_box((x - 0.022, y - 0.006, top), (x + 0.022, y + 0.006, top + 0.007), "rock_light", foot)
+        # Flush lugged rubber sole: z = 0.000..0.020, matching exact heel (-0.060) to toe (+0.188)
+        mb.add_box((x - 0.046, -0.052, 0.0), (x + 0.046, 0.100, 0.018), "tire_black", foot)
+        mb.add_box((x - 0.044, 0.098, 0.0), (x + 0.044, 0.184, 0.016), "tire_black", toe)
+        # Main leather boot upper (heel to ball)
+        mb.add_loft(
+            [
+                ((x, -0.052, 0.052), 0.046, 0.036),
+                ((x, -0.022, 0.058), 0.050, 0.044),
+                ((x, 0.035, 0.056), 0.050, 0.042),
+                ((x, 0.102, 0.046), 0.049, 0.032),
+            ],
+            shoes,
+            foot,
+            segs=8,
+            axis=(0, 1, 0),
+        )
+        # Padded boot ankle collar wrapping cleanly into lower shin
+        mb.add_loft(
+            [
+                ((x, -0.010, 0.058), 0.050, 0.054),
+                ((x, -0.006, 0.108), 0.051, 0.053),
+            ],
+            shoes,
+            foot,
+            segs=8,
+            axis=(0, 0, 1),
+        )
+        # Reinforced toe cap (ball to toe tip)
+        mb.add_loft(
+            [
+                ((x, 0.098, 0.044), 0.049, 0.030),
+                ((x, 0.150, 0.036), 0.045, 0.024),
+                ((x, 0.188, 0.028), 0.032, 0.016),
+            ],
+            shoes,
+            toe,
+            segs=8,
+            axis=(0, 1, 0),
+        )
+        # Clean flush laces across the boot instep
+        for ly, lz in ((0.032, 0.096), (0.058, 0.088), (0.082, 0.079)):
+            mb.add_box((x - 0.022, ly - 0.005, lz), (x + 0.022, ly + 0.005, lz + 0.006), "rock_light", foot)
 
 
 def _legs(mb, look, lm):
+    """Athletic stylized legs with snug knee pads, flush cargo pocket, and drop-leg holster."""
     pants, blood = look["pants"], look.get("blood")
     hz = lm["hips_z"]
     for sign, side in ((1, "R"), (-1, "L")):
         x = sign * 0.10
-        mb.add_loft([((x, 0.0, hz + 0.03), 0.068, 0.070), ((x, 0.005, 0.80), 0.066, 0.069),
-                     ((x, 0.005, 0.66), 0.058, 0.061), ((x, 0.0, 0.53), 0.050, 0.053),
-                     ((x, 0.0, 0.49), 0.048, 0.051)], pants, "thigh_" + side, segs=10)
-        # Knee cap on the shin, so a bent knee stays closed
-        mb.add_ellipsoid((x, 0.006, 0.50), (0.050, 0.053, 0.046), pants, "shin_" + side)
-        mb.add_loft([((x, 0.0, 0.50), 0.050, 0.052), ((x, -0.006, 0.40), 0.052, 0.058),
-                     ((x, 0.0, 0.26), 0.043, 0.046), ((x, 0.0, 0.12), 0.040, 0.042),
-                     ((x, 0.0, 0.07), 0.040, 0.042)], pants, "shin_" + side, segs=10)
-        # Pants hem, slightly wider than the shin, over the shoe top
-        mb.add_loft([((x, 0.0, 0.135), 0.046, 0.048), ((x, 0.0, 0.085), 0.047, 0.049)], pants, "shin_" + side, segs=10)
+        # Fuller athletic thigh tucked cleanly into pelvis
+        mb.add_loft(
+            [
+                ((x, 0.0, hz + 0.04), 0.078, 0.080),
+                ((x, 0.004, 0.78), 0.075, 0.077),
+                ((x, 0.004, 0.64), 0.066, 0.068),
+                ((x, 0.002, 0.53), 0.057, 0.059),
+                ((x, 0.0, 0.48), 0.054, 0.056),
+            ],
+            pants,
+            "thigh_" + side,
+            segs=8,
+        )
+        # Knee joint sphere on shin so bends never crack
+        mb.add_ellipsoid((x, 0.004, 0.50), (0.056, 0.058, 0.050), pants, "shin_" + side, segs=8, rings=4)
+        # Athletic calf tapering into cuffed pant hem over boot collar
+        mb.add_loft(
+            [
+                ((x, 0.0, 0.50), 0.055, 0.057),
+                ((x, -0.007, 0.39), 0.059, 0.064),
+                ((x, -0.002, 0.24), 0.049, 0.052),
+                ((x, 0.0, 0.115), 0.048, 0.050),
+                ((x, 0.0, 0.075), 0.044, 0.046),
+            ],
+            pants,
+            "shin_" + side,
+            segs=8,
+        )
+        # Crisp pant hem cuff resting over the boot collar
+        mb.add_loft(
+            [
+                ((x, 0.0, 0.150), 0.053, 0.055),
+                ((x, 0.0, 0.098), 0.055, 0.057),
+            ],
+            pants,
+            "shin_" + side,
+            segs=8,
+        )
+        # Snug 360-degree knee-pad wrap + flush curved front armor pad (zero poking sticks!)
+        if look.get("knee_pads"):
+            mb.add_loft(
+                [
+                    ((x, 0.0, 0.478), 0.059, 0.061),
+                    ((x, 0.0, 0.514), 0.059, 0.061),
+                ],
+                "gun_black",
+                "shin_" + side,
+                segs=8,
+            )
+            mb.add_box((x - 0.038, 0.044, 0.462), (x + 0.038, 0.068, 0.538), "tire_black", "shin_" + side)
+
         if blood and sign == 1:
-            # Zombie knee tear
-            mb.add_box((x - 0.035, 0.040, 0.52), (x + 0.035, 0.060, 0.58), blood, "thigh_" + side)
+            mb.add_box((x - 0.035, 0.046, 0.52), (x + 0.035, 0.066, 0.58), blood, "thigh_" + side)
+
+    # Flush cargo pocket embedded cleanly into outer left thigh (outer edge x ~ -0.172)
+    if look.get("cargo_pockets"):
+        mb.add_box((-0.182, -0.040, 0.635), (-0.150, 0.042, 0.765), pants, "thigh_L")
+        mb.add_box((-0.184, -0.042, 0.742), (-0.152, 0.044, 0.770), "pants_dark", "thigh_L")
+
+    # Snug drop-leg tactical pistol holster on outer right thigh (outer edge x ~ +0.172)
+    if look.get("holster"):
+        # 360-degree snug thigh strap (zero protruding sticks!)
+        mb.add_loft(
+            [
+                ((0.10, 0.004, 0.705), 0.075, 0.077),
+                ((0.10, 0.004, 0.740), 0.076, 0.078),
+            ],
+            "tire_black",
+            "thigh_R",
+            segs=8,
+        )
+        # Holster pouch embedded snugly against right thigh
+        mb.add_box((0.152, -0.034, 0.635), (0.196, 0.038, 0.775), "leather", "thigh_R")
+        # Pistol grip butt tucked cleanly inside holster top
+        mb.add_box((0.162, -0.038, 0.770), (0.188, 0.008, 0.825), "gun_black", "thigh_R")
 
 
 def _torso(mb, look, lm):
+    """Athletic V-taper torso with solid open-jacket styling, utility belt, and collar."""
     shirt, pants, skin, blood = look["shirt"], look["pants"], look["skin"], look.get("blood")
+    jacket = look.get("jacket")
+    outer = jacket if jacket else shirt
     hz, sz, cz, nz = lm["hips_z"], lm["spine_z"], lm["chest_z"], lm["neck_z"]
     hy, sy, cy, ny, fy = lm["hy"], lm["sy"], lm["cy"], lm["ny"], lm["fy"]
-    # Pelvis and seat
-    mb.add_loft([((0, hy - 0.005, hz - 0.075), 0.105, 0.070), ((0, hy, hz - 0.03), 0.140, 0.086),
-                 ((0, hy, hz + 0.05), 0.150, 0.090), ((0, hy, sz), 0.150, 0.088)], pants, "hips", segs=12)
-    # Belt wraps around waist (a ring matching hips size); buckle sits proudly on front (REND-003)
-    mb.add_loft([((0, hy, sz - 0.042), 0.155, 0.093), ((0, hy, sz + 0.006), 0.155, 0.093)], "bark_dark", "hips", segs=12)
-    mb.add_box((-0.025, hy + 0.093, sz - 0.035), (0.025, hy + 0.101, sz - 0.003), "metal", "hips")
-    # Midriff: the shirt hem hangs just over the belt top
+
+    # Pelvis and hips
+    mb.add_loft(
+        [
+            ((0, hy - 0.004, hz - 0.075), 0.122, 0.080),
+            ((0, hy, hz - 0.025), 0.156, 0.096),
+            ((0, hy, hz + 0.055), 0.164, 0.100),
+            ((0, hy, sz + 0.012), 0.162, 0.098),
+        ],
+        pants,
+        "hips",
+        segs=10,
+    )
+    # Sturdy leather utility belt + metallic buckle
+    mb.add_loft(
+        [
+            ((0, hy, sz - 0.044), 0.169, 0.104),
+            ((0, hy, sz + 0.004), 0.169, 0.104),
+        ],
+        "leather",
+        "hips",
+        segs=10,
+    )
+    mb.add_box((-0.028, hy + 0.098, sz - 0.038), (0.028, hy + 0.112, sz - 0.002), "chrome", "hips")
+
+    # Compact flush hip utility pouches for survivor / player
+    if look.get("chest_rig") or look.get("holster"):
+        mb.add_box((-0.155, hy + 0.052, sz - 0.058), (-0.095, hy + 0.106, sz + 0.006), "canvas_khaki", "hips")
+        mb.add_box((0.095, hy + 0.052, sz - 0.058), (0.155, hy + 0.106, sz + 0.006), "canvas_khaki", "hips")
+
+    # Midriff (spine): full outer jacket/shirt volume so waist never looks pinched!
     my = (hy + sy) / 2
-    mb.add_loft([((0, hy, sz - 0.022), 0.150, 0.089), ((0, my, sz + 0.09), 0.152, 0.090),
-                 ((0, sy, cz), 0.162, 0.096)], shirt, "spine", segs=12)
+    mb.add_loft(
+        [
+            ((0, hy, sz - 0.020), 0.168, 0.103),
+            ((0, my, sz + 0.085), 0.166, 0.102),
+            ((0, sy, cz + 0.010), 0.176, 0.108),
+        ],
+        outer,
+        "spine",
+        segs=10,
+    )
+
+    # Athletic V-taper chest sloping smoothly into shoulders and neck
+    pc = (sy + cy) / 2 + 0.005
+    mb.add_loft(
+        [
+            ((0, sy, cz - 0.005), 0.175, 0.107),
+            ((0, pc, cz + 0.115), 0.194, 0.116),
+            ((0, cy, nz - 0.045), 0.200, 0.108),
+            ((0, cy - 0.004, nz + 0.005), 0.130, 0.080),
+        ],
+        outer,
+        "chest",
+        segs=10,
+    )
+
+    if jacket:
+        # Crisp open-jacket center placket showing the inner shirt cleanly down the front
+        mb.add_box((-0.044, sy + 0.092, sz - 0.018), (0.044, sy + 0.111, cz + 0.008), shirt, "spine")
+        mb.add_box((-0.046, pc + 0.096, cz - 0.002), (0.046, pc + 0.120, nz - 0.028), shirt, "chest")
+        # Clean raised jacket lapel edges flanking the open center
+        for sx in (-1, 1):
+            x0, x1 = (0.044, 0.070) if sx > 0 else (-0.070, -0.044)
+            mb.add_box((x0, sy + 0.095, sz - 0.018), (x1, sy + 0.115, cz + 0.008), jacket, "spine")
+            mb.add_box((x0, pc + 0.100, cz - 0.002), (x1, pc + 0.124, nz - 0.032), jacket, "chest")
+        # Buttoned chest flap pockets flush on left & right pecs
+        for sx in (-1, 1):
+            px0, px1 = (0.082, 0.145) if sx > 0 else (-0.145, -0.082)
+            mb.add_box((px0, pc + 0.096, cz + 0.075), (px1, pc + 0.120, cz + 0.145), jacket, "chest")
+            mb.add_box((px0 - 0.002, pc + 0.102, cz + 0.128), (px1 + 0.002, pc + 0.124, cz + 0.148), "leather", "chest")
+        # Turned-up structured jacket collar framing the neck cleanly
+        mb.add_loft(
+            [
+                ((0, cy - 0.004, nz - 0.022), 0.084, 0.078),
+                ((0, cy - 0.006, nz + 0.034), 0.076, 0.072),
+            ],
+            jacket,
+            "chest",
+            segs=10,
+        )
+    else:
+        # Standard shirt collar & single breast pocket
+        mb.add_loft(
+            [
+                ((0, cy, nz - 0.025), 0.076, 0.072),
+                ((0, cy + 0.002, nz + 0.026), 0.068, 0.064),
+            ],
+            outer,
+            "chest",
+            segs=8,
+        )
+        mb.add_box((-0.140, pc + 0.092, cz + 0.070), (-0.062, pc + 0.116, cz + 0.145), outer, "chest")
+
+    # Compact shoulder radio mounted cleanly on left upper chest (zero torso clipping!)
+    if look.get("chest_rig"):
+        mb.add_box((-0.148, pc + 0.092, cz + 0.145), (-0.098, pc + 0.130, cz + 0.215), "gun_black", "chest")
+        mb.add_box((-0.114, pc + 0.106, cz + 0.212), (-0.104, pc + 0.116, cz + 0.285), "tire_black", "chest")
+        mb.add_box((-0.138, pc + 0.126, cz + 0.188), (-0.126, pc + 0.134, cz + 0.200), "carrot_orange", "chest")
+
     if blood:
-        mb.add_box((0.02, sy + 0.074, sz + 0.03), (0.12, sy + 0.097, sz + 0.12), blood, "spine")
-    # Chest: ribcage, then shoulders sloping into the neck
-    pc = (sy + cy) / 2 + 0.006
-    mb.add_loft([((0, sy, cz), 0.162, 0.096), ((0, pc, cz + 0.12), 0.180, 0.106),
-                 ((0, cy, nz - 0.05), 0.188, 0.100), ((0, cy - 0.005, nz - 0.005), 0.120, 0.075)],
-                shirt, "chest", segs=12)
-    # Collar round the neck, and a breast pocket on the left
-    mb.add_loft([((0, cy, nz - 0.03), 0.070, 0.066), ((0, cy + 0.004, nz + 0.022), 0.063, 0.059)], shirt, "chest", segs=10)
-    mb.add_box((-0.135, pc + 0.082, cz + 0.07), (-0.055, pc + 0.100, cz + 0.15), shirt, "chest")
-    if blood:
-        mb.add_box((-0.14, pc + 0.086, cz + 0.08), (-0.02, pc + 0.110, nz - 0.07), blood, "chest")
-    # Neck
-    mb.add_loft([((0, ny, nz - 0.03), 0.047, 0.045), ((0, (ny + fy) / 2, lm["head_z"] + 0.03), 0.044, 0.042)],
-                skin, "neck", segs=10)
+        mb.add_box((0.02, sy + 0.082, sz + 0.03), (0.12, sy + 0.108, sz + 0.12), blood, "spine")
+        mb.add_box((-0.14, pc + 0.094, cz + 0.08), (-0.02, pc + 0.120, nz - 0.07), blood, "chest")
+
+    # Strong, well-proportioned athletic neck (nested cleanly into collar and jaw)
+    mb.add_loft(
+        [
+            ((0, ny, nz - 0.035), 0.062, 0.058),
+            ((0, (ny + fy) / 2, lm["head_z"] + 0.045), 0.056, 0.054),
+        ],
+        skin,
+        "neck",
+        segs=8,
+    )
 
 
-# Head profile: (height fraction, half-width, half-depth, forward offset). Chin at the bottom, crown at the top.
-_HEAD = [(0.02, 0.050, 0.050, 0.022), (0.13, 0.070, 0.074, 0.016), (0.31, 0.084, 0.090, 0.006),
-         (0.54, 0.090, 0.098, 0.0), (0.77, 0.088, 0.096, -0.006), (0.91, 0.070, 0.080, -0.010),
-         (1.0, 0.034, 0.040, -0.012)]
-# Hair cap sits on top and back of the head, above the brow line (no eye band, closed crown)
-_HAIR_CAP = [(0.60, 0.095, 0.100, -0.012), (0.76, 0.095, 0.098, -0.014), (0.90, 0.080, 0.086, -0.015),
-             (1.00, 0.048, 0.052, -0.014), (1.035, 0.020, 0.024, -0.012)]
+# Heroic stylized head profile over span = 0.24 m (chin at head_z = 1.54, skull crown at 1.78)
+_HEAD = [
+    (0.00, 0.044, 0.048, 0.024),  # defined chin
+    (0.14, 0.072, 0.076, 0.015),  # crisp jawline
+    (0.34, 0.088, 0.092, 0.005),  # cheekbones
+    (0.54, 0.094, 0.098, 0.000),  # brow / eye level
+    (0.76, 0.092, 0.098, -0.004), # forehead / temples
+    (0.92, 0.074, 0.082, -0.008), # upper crown
+    (1.00, 0.038, 0.044, -0.010), # top crown
+]
+
+# Conformal lower-jaw beard shell hugging exact chin/jaw curve (+4 mm proud, zero floating tape!)
+_BEARD_JAW = [
+    (-0.012, 0.047, 0.050, 0.026),
+    (0.11, 0.074, 0.077, 0.017),
+    (0.18, 0.082, 0.084, 0.010),
+]
 
 
 def _head(mb, look, lm, zombie):
     skin, hair = look["skin"], look["hair"]
-    h, top, f = lm["head_z"], lm["head_top"], lm["fy"]
-    span = top - h
+    h, f = lm["head_z"], lm["fy"]
+    span = min(0.242, lm["head_top"] - h)
 
     def prof(rows, extra=0.0):
         return [((0, f + yc, h + fr * span), rx + extra, ry + extra) for fr, rx, ry, yc in rows]
 
-    mb.add_loft(prof(_HEAD), skin, "head", segs=12)
-    mb.add_loft(prof(_HAIR_CAP), hair, "head", segs=12)
-    # Ears
+    mb.add_loft(prof(_HEAD), skin, "head", segs=10)
+
+    # Subtle sculpted ears
     for s in (1, -1):
-        mb.add_ellipsoid((s * 0.090, f - 0.004, h + 0.11), (0.013, 0.022, 0.030), skin, "head", segs=6, rings=4)
-    # Eyes, pupils and brows
+        mb.add_ellipsoid((s * 0.092, f - 0.004, h + 0.116), (0.013, 0.020, 0.028), skin, "head", segs=6, rings=3)
+
+    # Subtle brow overhang ridge casting crisp low-poly shade over eyes
+    mb.add_box((-0.068, f + 0.076, h + 0.136), (0.068, f + 0.098, h + 0.150), skin, "head")
+
+    # Flush stylized eyes tucked neatly under the brow ridge (zero bug-eyes!)
     eye = "white" if not zombie else "rock_light"
     pupil = "hair_dark" if not zombie else "blood_dark"
     brow = hair if not zombie else "bark_dark"
     for s in (1, -1):
-        mb.add_ellipsoid((s * 0.041, f + 0.080, h + 0.112), (0.019, 0.009, 0.013), eye, "head", segs=8, rings=4)
-        mb.add_ellipsoid((s * 0.039, f + 0.087, h + 0.111), (0.0085, 0.005, 0.0095), pupil, "head", segs=6, rings=3)
-        mb.add_box((s * 0.042 - 0.022, f + 0.074, h + 0.132), (s * 0.042 + 0.022, f + 0.090, h + 0.143), brow, "head")
-    # Nose: bridge to tip, with a flat underside
-    mb.add_loft([((0, f + 0.094, h + 0.130), 0.010, 0.010), ((0, f + 0.110, h + 0.088), 0.017, 0.014),
-                 ((0, f + 0.104, h + 0.075), 0.015, 0.010)], skin, "head", segs=6)
-    # Mouth
-    mouth = "bark_dark" if not zombie else "blood_dark"
+        cx = s * 0.036
+        # Flat-flush sclera & iris seated under the 0.098 brow overhang
+        mb.add_box((cx - 0.018, f + 0.082, h + 0.118), (cx + 0.018, f + 0.094, h + 0.132), eye, "head")
+        mb.add_box((cx - 0.007, f + 0.089, h + 0.120), (cx + 0.007, f + 0.096, h + 0.131), pupil, "head")
+        # Expressive brow bar
+        mb.add_box((cx - 0.022, f + 0.084, h + 0.139), (cx + 0.022, f + 0.101, h + 0.149), brow, "head")
+
+    # Sharp faceted low-poly nose bridge & tip
+    mb.add_loft(
+        [
+            ((0, f + 0.094, h + 0.136), 0.010, 0.009),
+            ((0, f + 0.112, h + 0.096), 0.016, 0.013),
+            ((0, f + 0.098, h + 0.086), 0.014, 0.009),
+        ],
+        skin,
+        "head",
+        segs=5,
+    )
+
+    # Clean subtle mouth (zombies draw their open mouth/teeth in zombie_details.py)
     if not zombie:
-        mb.add_box((-0.026, f + 0.086, h + 0.048), (0.026, f + 0.098, h + 0.056), mouth, "head")
+        mb.add_box((-0.022, f + 0.084, h + 0.056), (0.022, f + 0.094, h + 0.063), "bark_dark", "head")
+
+    # Optional jaw-hugging short beard (conformal shell + subtle chin stubble)
+    beard_col = look.get("beard")
+    if beard_col and not zombie:
+        mb.add_loft(prof(_BEARD_JAW), beard_col, "head", segs=10)
+
+    _hair(mb, look, h, span, f, zombie)
 
 
-# Fingers across the palm, thumb side (+Y) first: (offset across the palm, length)
-_FINGERS = [(0.026, 0.066), (0.009, 0.074), (-0.009, 0.069), (-0.026, 0.055)]
+def _hair(mb, look, h, span, f, zombie):
+    """Modular low-poly hairstyles replacing the receding bald cap."""
+    hair = look["hair"]
+    style = look.get("hair_style", "short_swept")
+
+    if style == "none":
+        return
+
+    if style == "helmet_under":
+        # Close-cropped hair tucked cleanly underneath helmets/caps/beanies
+        cap = [
+            (0.62, 0.093, 0.099, -0.008),
+            (0.84, 0.086, 0.092, -0.010),
+            (0.98, 0.052, 0.058, -0.010),
+        ]
+        mb.add_loft([((0, f + yc, h + fr * span), rx, ry) for fr, rx, ry, yc in cap], hair, "head", segs=8)
+        return
+
+    # Full natural-hairline base shell (starts cleanly at forehead brow line fr=0.69, covers back down to nape!)
+    back_crown = [
+        (0.32, 0.084, 0.068, -0.036),  # nape of neck in back
+        (0.56, 0.096, 0.086, -0.022),  # behind ears
+        (0.72, 0.098, 0.104, -0.006),  # full temple & forehead hairline!
+        (0.88, 0.093, 0.099, -0.005),
+        (1.01, 0.068, 0.075, -0.005),
+        (1.065, 0.036, 0.040, -0.005),
+    ]
+    mb.add_loft([((0, f + yc, h + fr * span), rx, ry) for fr, rx, ry, yc in back_crown], hair, "head", segs=10)
+
+    # Clean temple sideburns framing the sides of the face
+    for s in (1, -1):
+        mb.add_box(
+            (s * 0.086 - 0.012, f + 0.004, h + 0.115),
+            (s * 0.086 + 0.012, f + 0.044, h + 0.180),
+            hair,
+            "head",
+        )
+
+    if style == "short_swept":
+        # Iconic rugged survivor swept hair volume / front quiff locks (zero bald forehead!)
+        mb.add_box((-0.074, f + 0.008, h + 0.172), (0.074, f + 0.096, h + 0.212), hair, "head", rot=(-0.10, 0.0, 0.05))
+        mb.add_box((-0.048, f + 0.018, h + 0.194), (0.078, f + 0.098, h + 0.236), hair, "head", rot=(-0.14, -0.08, 0.10))
+        mb.add_box((-0.080, f - 0.025, h + 0.192), (0.052, f + 0.076, h + 0.246), hair, "head", rot=(-0.06, 0.10, -0.05))
+    elif style == "slick":
+        mb.add_box((-0.074, f - 0.015, h + 0.178), (0.074, f + 0.096, h + 0.226), hair, "head", rot=(-0.08, 0.0, 0.0))
+    elif style == "long_ponytail":
+        # Framing side bangs + full layered hair flowing down back + ponytail
+        for s in (1, -1):
+            mb.add_box((s * 0.078 - 0.016, f + 0.045, h + 0.135), (s * 0.078 + 0.016, f + 0.095, h + 0.205), hair, "head")
+        mb.add_loft(
+            [
+                ((0, f - 0.058, h + 0.165), 0.072, 0.048),
+                ((0, f - 0.082, h + 0.065), 0.056, 0.040),
+                ((0, f - 0.092, h - 0.035), 0.036, 0.028),
+            ],
+            hair,
+            "head",
+            segs=8,
+        )
+    elif style == "wild" and not zombie:
+        mb.add_box((-0.080, f + 0.010, h + 0.175), (0.080, f + 0.104, h + 0.232), hair, "head", rot=(-0.18, 0.08, 0.12))
+
+
+# Curled fingers across palm: (offset along +Y, length)
+_FINGERS = [(0.024, 0.062), (0.008, 0.070), (-0.008, 0.065), (-0.024, 0.052)]
 
 
 def _arms(mb, look, lm, hunched, arm_points):
-    skin, shirt = look["skin"], look["shirt"]
+    """Seamless shoulders (deltoids on upper_arm!), athletic arms, snug watch, fingerless gloves."""
+    skin = look["skin"]
+    outer = look.get("jacket") or look["shirt"]
     sh_y = 0.0 if not hunched else 0.08
     sh_z = lm["hips_z"] + 0.52
+
     for sign, side in ((1, "R"), (-1, "L")):
         shoulder, elbow, wrist, tip = arm_points(sign, sh_y, sh_z)
-        sleeve = skin if look.get("bare_arm") == side else shirt
+        sleeve = skin if look.get("bare_arm") == side else outer
         a = (tip - wrist).normalized()
-        back = Vector((sign * 0.5, 0.0, 0.866))  # back of the hand (perpendicular to the arm)
+        back = Vector((sign * 0.5, 0.0, 0.866))
         across = Vector((0.0, 1.0, 0.0))
-        mb.add_ellipsoid(shoulder, (0.056, 0.058, 0.052), sleeve, "shoulder_" + side, segs=10, rings=6)
-        # Upper arm: from shoulder extending slightly past the elbow joint (overlap at joint)
-        mb.add_loft([(shoulder, 0.054, 0.054), (_lerp(shoulder, elbow, 0.45), 0.052, 0.055),
-                     (elbow, 0.045, 0.045), (_lerp(elbow, wrist, 0.04), 0.044, 0.044)], sleeve, "upper_arm_" + side, segs=10)
-        if sleeve != skin:
-            # Rolled sleeve cuff just above the elbow
-            mb.add_loft([(_lerp(shoulder, elbow, 0.80), 0.051, 0.051), (_lerp(shoulder, elbow, 0.97), 0.050, 0.050)],
-                        sleeve, "upper_arm_" + side, segs=10)
-        # Elbow joint sphere attached to forearm (slightly enlarged to 0.046 for seamless coverage)
-        mb.add_ellipsoid(elbow, (0.046, 0.046, 0.046), skin, "forearm_" + side, segs=8, rings=5)
-        # Forearm starting slightly above elbow to overlap cleanly
-        mb.add_loft([(_lerp(elbow, shoulder, 0.03), 0.044, 0.044), (elbow, 0.043, 0.043),
-                     (_lerp(elbow, wrist, 0.3), 0.046, 0.044), (wrist, 0.032, 0.030)],
-                    skin, "forearm_" + side, segs=10)
-        _hand(mb, skin, "hand_" + side, wrist, a, back, across)
+
+        # Sleek tucked clavicle bridge on shoulder_L/R (NO detached giant shoulder balloon!)
+        clav = Vector((sign * 0.125, sh_y, sh_z + 0.004))
+        mb.add_loft([(clav, 0.056, 0.056), (shoulder, 0.050, 0.050)], sleeve, "shoulder_" + side, segs=8)
+
+        # Rounded deltoid shoulder cap ON upper_arm_L/R -> rotates cleanly WITH arm!
+        mb.add_ellipsoid(shoulder, (0.058, 0.060, 0.056), sleeve, "upper_arm_" + side, segs=8, rings=4)
+
+        # Athletic upper arm with clean elbow overlap
+        mb.add_loft(
+            [
+                (shoulder, 0.056, 0.056),
+                (_lerp(shoulder, elbow, 0.48), 0.054, 0.056),
+                (elbow, 0.047, 0.047),
+                (_lerp(elbow, wrist, 0.04), 0.045, 0.045),
+            ],
+            sleeve,
+            "upper_arm_" + side,
+            segs=8,
+        )
+        if sleeve != skin and not look.get("long_sleeves"):
+            # Crisp rolled sleeve cuff just above elbow
+            mb.add_loft(
+                [
+                    (_lerp(shoulder, elbow, 0.78), 0.053, 0.053),
+                    (_lerp(shoulder, elbow, 0.96), 0.052, 0.052),
+                ],
+                sleeve,
+                "upper_arm_" + side,
+                segs=8,
+            )
+
+        fore_col = sleeve if (look.get("long_sleeves") and sleeve != skin) else skin
+        # Seamless elbow joint sphere on forearm
+        mb.add_ellipsoid(elbow, (0.047, 0.047, 0.047), fore_col, "forearm_" + side, segs=8, rings=4)
+        # Muscular tapered forearm
+        mb.add_loft(
+            [
+                (_lerp(elbow, shoulder, 0.03), 0.045, 0.045),
+                (elbow, 0.045, 0.045),
+                (_lerp(elbow, wrist, 0.30), 0.048, 0.046),
+                (wrist, 0.035, 0.033),
+            ],
+            fore_col,
+            "forearm_" + side,
+            segs=8,
+        )
+        if look.get("long_sleeves") and sleeve != skin:
+            mb.add_loft(
+                [
+                    (_lerp(elbow, wrist, 0.86), 0.040, 0.038),
+                    (_lerp(elbow, wrist, 0.98), 0.039, 0.037),
+                ],
+                sleeve,
+                "forearm_" + side,
+                segs=8,
+            )
+
+        # Skin-tight wristwatch on LEFT wrist only (exact forearm radius at 0.84 is 0.037 -> watch 0.040!)
+        if look.get("watch") and side == "L":
+            w0 = _lerp(elbow, wrist, 0.80)
+            w1 = _lerp(elbow, wrist, 0.89)
+            mb.add_loft([(w0, 0.040, 0.038), (w1, 0.039, 0.037)], "tire_black", "forearm_L", segs=8)
+            wmid = _lerp(w0, w1, 0.5) + back * 0.036
+            mb.add_ellipsoid(wmid, (0.012, 0.014, 0.008), "chrome", "forearm_L", segs=6, rings=3)
+
+        _hand(mb, skin, look.get("gloves"), "hand_" + side, wrist, a, back, across)
 
 
-def _hand(mb, skin, bone, wrist, a, back, across):
-    mb.add_loft([(wrist, 0.030, 0.018), (wrist + a * 0.03, 0.040, 0.020), (wrist + a * 0.080, 0.039, 0.017)],
-                skin, bone, segs=8)
-    base_c = wrist + a * 0.074
+def _hand(mb, skin, glove, bone, wrist, a, back, across):
+    """Sculpted low-poly hand with optional fingerless tactical glove."""
+    palm_col = glove if glove else skin
+    mb.add_loft(
+        [
+            (wrist, 0.033, 0.020),
+            (wrist + a * 0.032, 0.042, 0.022),
+            (wrist + a * 0.078, 0.040, 0.018),
+        ],
+        palm_col,
+        bone,
+        segs=6,
+    )
+    base_c = wrist + a * 0.072
     for dy, length in _FINGERS:
         base = base_c + across * dy
-        mid = base + a * (length * 0.55) - back * 0.003
-        tip = base + a * length - back * 0.012  # slight curl toward the palm
-        mb.add_loft([(base, 0.0095, 0.0085), (mid, 0.009, 0.008), (tip, 0.0072, 0.0068)], skin, bone, segs=6)
-    t0 = wrist + a * 0.02 + across * 0.028 - back * 0.006
-    t1 = wrist + a * 0.065 + across * 0.048 - back * 0.012
-    mb.add_loft([(t0, 0.012, 0.011), (t1, 0.010, 0.009)], skin, bone, segs=6)
+        mid = base + a * (length * 0.52) - back * 0.004
+        tip = base + a * length - back * 0.014
+        cols = [palm_col, skin] if glove else skin
+        mb.add_loft([(base, 0.0095, 0.0085), (mid, 0.009, 0.008), (tip, 0.007, 0.0065)], cols, bone, segs=5)
+    t0 = wrist + a * 0.022 + across * 0.028 - back * 0.006
+    t1 = wrist + a * 0.064 + across * 0.046 - back * 0.012
+    mb.add_loft([(t0, 0.012, 0.011), (t1, 0.0095, 0.009)], skin, bone, segs=5)
