@@ -28,6 +28,7 @@ pub struct MinimapConfig {
     pub radius_metres: f32,
     pub opacity: f32,
     pub border_width_px: f32,
+    pub player_arrow_size_px: f32,
     pub corner: MinimapCorner,
     pub show_zombies: bool,
 }
@@ -40,6 +41,7 @@ impl Default for MinimapConfig {
             radius_metres: 60.0,
             opacity: 0.85,
             border_width_px: 2.0,
+            player_arrow_size_px: 16.0,
             corner: MinimapCorner::TopLeft,
             show_zombies: true,
         }
@@ -68,6 +70,7 @@ impl MinimapConfig {
         self.radius_metres = self.radius_metres.clamp(15.0, 300.0);
         self.opacity = self.opacity.clamp(0.1, 1.0);
         self.border_width_px = self.border_width_px.clamp(0.5, 6.0);
+        self.player_arrow_size_px = self.player_arrow_size_px.clamp(8.0, 28.0);
     }
 }
 
@@ -159,6 +162,88 @@ pub fn collect_minimap_zombies(
         .map(|pos| world_to_minimap_offset(pos, player_xz, radius_metres, radius_px))
         .filter(|offset| offset.length_squared() <= limit_sq)
         .collect()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MinimapCampSite {
+    pub center: Vec2,
+    pub yaw: f32,
+    pub half_size: f32,
+    pub gate_half: f32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MinimapCampOutline {
+    pub segments: Vec<(Vec2, Vec2)>,
+    pub gateposts: Vec<Vec2>,
+    pub interior_quad: Option<[Vec2; 4]>,
+}
+
+pub fn clip_segment_to_circle(a: Vec2, b: Vec2, radius: f32) -> Option<(Vec2, Vec2)> {
+    let r = radius.max(0.0);
+    let d = b - a;
+    let qa = d.length_squared();
+    if qa < 1e-8 {
+        return (a.length_squared() <= r * r).then_some((a, b));
+    }
+    let qb = 2.0 * a.dot(d);
+    let qc = a.length_squared() - r * r;
+    let disc = qb * qb - 4.0 * qa * qc;
+    if disc < 0.0 {
+        return None;
+    }
+    let root = disc.sqrt();
+    let t0 = ((-qb - root) / (2.0 * qa)).max(0.0);
+    let t1 = ((-qb + root) / (2.0 * qa)).min(1.0);
+    (t0 <= t1).then(|| (a + d * t0, a + d * t1))
+}
+
+pub fn collect_minimap_camp_outlines(
+    camps: &[MinimapCampSite],
+    player_xz: Vec2,
+    radius_metres: f32,
+    radius_px: f32,
+    clip_radius_px: f32,
+) -> Vec<MinimapCampOutline> {
+    let mut out = Vec::new();
+    let clip_sq = clip_radius_px.max(0.0).powi(2);
+    for camp in camps {
+        let local_to_off = |lx: f32, lz: f32| {
+            let c = camp.yaw.cos();
+            let s = camp.yaw.sin();
+            let world = camp.center + Vec2::new(c * lx + s * lz, -s * lx + c * lz);
+            world_to_minimap_offset(world, player_xz, radius_metres, radius_px)
+        };
+        let h = camp.half_size;
+        let g = camp.gate_half.clamp(0.0, h * 0.5);
+        let nw = local_to_off(-h, -h);
+        let ne = local_to_off(h, -h);
+        let se = local_to_off(h, h);
+        let sw = local_to_off(-h, h);
+        let gate_l = local_to_off(-g, -h);
+        let gate_r = local_to_off(g, -h);
+        let walls = [(nw, gate_l), (gate_r, ne), (ne, se), (se, sw), (sw, nw)];
+        let segments: Vec<(Vec2, Vec2)> = walls
+            .into_iter()
+            .filter_map(|(a, b)| clip_segment_to_circle(a, b, clip_radius_px))
+            .collect();
+        let gateposts: Vec<Vec2> = [gate_l, gate_r]
+            .into_iter()
+            .filter(|p| p.length_squared() <= clip_sq)
+            .collect();
+        let interior_quad = [nw, ne, se, sw]
+            .iter()
+            .all(|p| p.length_squared() <= clip_sq)
+            .then_some([nw, ne, se, sw]);
+        if !segments.is_empty() || interior_quad.is_some() {
+            out.push(MinimapCampOutline {
+                segments,
+                gateposts,
+                interior_quad,
+            });
+        }
+    }
+    out
 }
 
 pub fn minimap_chunk_window(player_xz: Vec2, radius_metres: f32) -> (IVec2, i32) {

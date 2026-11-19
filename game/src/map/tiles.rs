@@ -22,6 +22,42 @@ pub const UNEXPLORED_COLOR: [u8; 4] = [51, 48, 43, 255];
 // Godot: MapTiles.cs Cliff ("6b5236" -> 107, 82, 54)
 pub const CLIFF_COLOR: [f32; 3] = [107.0 / 255.0, 82.0 / 255.0, 54.0 / 255.0];
 
+fn sample_chunk_heights(
+    generator: &WorldGenerator,
+    origin_x: f32,
+    origin_z: f32,
+) -> [[f32; TEXELS_PER_CHUNK + 2]; TEXELS_PER_CHUNK + 2] {
+    let n = TEXELS_PER_CHUNK;
+    let mut heights = [[0.0f32; TEXELS_PER_CHUNK + 2]; TEXELS_PER_CHUNK + 2];
+    #[allow(clippy::needless_range_loop)]
+    for k in 0..n + 2 {
+        for m in 0..n + 2 {
+            let sx = origin_x + (k as f32 - 1.0) * TEXEL_METRES + TEXEL_METRES * 0.5;
+            let sz = origin_z + (m as f32 - 1.0) * TEXEL_METRES + TEXEL_METRES * 0.5;
+            heights[k][m] = generator.height(sx, sz);
+        }
+    }
+    heights
+}
+
+/// Renders a 16x16 RGB8 terrain-only image for a 64m chunk (without fog), suitable for caching.
+pub fn render_chunk_terrain_rgb(generator: &WorldGenerator, chunk: IVec2) -> Vec<[u8; 3]> {
+    let n = TEXELS_PER_CHUNK;
+    let origin_x = chunk.x as f32 * WorldGenerator::CHUNK_SIZE;
+    let origin_z = chunk.y as f32 * WorldGenerator::CHUNK_SIZE;
+    let heights = sample_chunk_heights(generator, origin_x, origin_z);
+    let mut pixels = vec![[0u8; 3]; n * n];
+    for j in 0..n {
+        for i in 0..n {
+            let x = origin_x + i as f32 * TEXEL_METRES + TEXEL_METRES * 0.5;
+            let z = origin_z + j as f32 * TEXEL_METRES + TEXEL_METRES * 0.5;
+            let rgba = shade_texel(generator, &heights, i + 1, j + 1, x, z);
+            pixels[j * n + i] = [rgba[0], rgba[1], rgba[2]];
+        }
+    }
+    pixels
+}
+
 /// Renders a 16x16 RGBA8 tile image for a 64m chunk.
 // Godot: MapTiles.cs Render
 pub fn render_chunk_tiles(
@@ -32,39 +68,22 @@ pub fn render_chunk_tiles(
     let n = TEXELS_PER_CHUNK;
     let origin_x = chunk.x as f32 * WorldGenerator::CHUNK_SIZE;
     let origin_z = chunk.y as f32 * WorldGenerator::CHUNK_SIZE;
-
-    // Heights are sampled on a grid one texel wider for slope calculations
-    let mut heights = [[0.0f32; TEXELS_PER_CHUNK + 2]; TEXELS_PER_CHUNK + 2];
-    #[allow(clippy::needless_range_loop)]
-    for k in 0..n + 2 {
-        for m in 0..n + 2 {
-            let sx = origin_x + (k as f32 - 1.0) * TEXEL_METRES + TEXEL_METRES * 0.5;
-            let sz = origin_z + (m as f32 - 1.0) * TEXEL_METRES + TEXEL_METRES * 0.5;
-            heights[k][m] = generator.height(sx, sz);
-        }
-    }
-
+    let heights = sample_chunk_heights(generator, origin_x, origin_z);
     let mut pixels = vec![0u8; n * n * 4];
     for j in 0..n {
         for i in 0..n {
             let x = origin_x + i as f32 * TEXEL_METRES + TEXEL_METRES * 0.5;
             let z = origin_z + j as f32 * TEXEL_METRES + TEXEL_METRES * 0.5;
             let cell = MapExplore::cell_of(Vec2::new(x, z));
-
             let rgba = if explore.is_revealed(cell) {
                 shade_texel(generator, &heights, i + 1, j + 1, x, z)
             } else {
                 UNEXPLORED_COLOR
             };
-
             let idx = (j * n + i) * 4;
-            pixels[idx] = rgba[0];
-            pixels[idx + 1] = rgba[1];
-            pixels[idx + 2] = rgba[2];
-            pixels[idx + 3] = rgba[3];
+            pixels[idx..idx + 4].copy_from_slice(&rgba);
         }
     }
-
     pixels
 }
 

@@ -4,9 +4,11 @@ use std::f32::consts::FRAC_PI_2;
 use std::path::Path;
 
 use game::{
-    MapBuilding, MapMarkerKind, MapState, MinimapConfig, MinimapCorner, collect_minimap_markers,
-    collect_minimap_zombies, minimap_chunk_window, minimap_circle, minimap_player_axes,
-    world_to_minimap_offset,
+    MINIMAP_UNEXPLORED_RGB, MapBuilding, MapExplore, MapMarkerKind, MapState, MinimapCampSite,
+    MinimapConfig, MinimapCorner, TEXELS_PER_CHUNK, clip_segment_to_circle,
+    collect_minimap_camp_outlines, collect_minimap_markers, collect_minimap_zombies,
+    minimap_chunk_window, minimap_circle, minimap_patch_bounds, minimap_player_axes,
+    render_minimap_patch, smooth_explored_coverage, world_to_minimap_offset,
 };
 use glam::{IVec2, Vec2};
 
@@ -14,6 +16,7 @@ use glam::{IVec2, Vec2};
 fn config_loads_data_and_defaults_on_missing_file() {
     let cfg = MinimapConfig::load_default();
     assert_eq!(cfg, MinimapConfig::default());
+    assert!((cfg.player_arrow_size_px - 16.0).abs() < 1e-4);
     assert_eq!(
         MinimapConfig::load(Path::new("/missing/minimap.json")),
         MinimapConfig::default()
@@ -116,4 +119,52 @@ fn finds_chunk_window() {
         (IVec2::new(-1, 1), 1)
     );
     assert_eq!(minimap_chunk_window(Vec2::ZERO, 100.0).1, 2);
+}
+
+#[test]
+fn clips_camp_outline_and_keeps_north_gate_open() {
+    let clipped = clip_segment_to_circle(Vec2::new(-20.0, 0.0), Vec2::new(20.0, 0.0), 10.0)
+        .expect("segment crossing circle should clip");
+    assert!((clipped.0.x + 10.0).abs() < 1e-4 && clipped.0.y.abs() < 1e-4);
+    assert!((clipped.1.x - 10.0).abs() < 1e-4 && clipped.1.y.abs() < 1e-4);
+    assert!(clip_segment_to_circle(Vec2::splat(20.0), Vec2::new(30.0, 20.0), 10.0).is_none());
+
+    let camp = MinimapCampSite {
+        center: Vec2::ZERO,
+        yaw: 0.0,
+        half_size: 17.5,
+        gate_half: 3.2,
+    };
+    let outlines = collect_minimap_camp_outlines(&[camp], Vec2::ZERO, 60.0, 86.0, 84.0);
+    assert_eq!(outlines.len(), 1);
+    assert_eq!(outlines[0].segments.len(), 5);
+    assert_eq!(outlines[0].gateposts.len(), 2);
+    assert!(outlines[0].interior_quad.is_some());
+}
+
+#[test]
+fn smooth_exploration_patch_has_terrain_and_dark_unexplored_pixels() {
+    let mut explore = MapExplore::new();
+    explore.reveal(Vec2::ZERO, 80.0);
+    assert!((smooth_explored_coverage(&explore, Vec2::ZERO) - 1.0).abs() < 1e-4);
+    assert!((smooth_explored_coverage(&explore, Vec2::new(50.0, 0.0)) - 1.0).abs() < 1e-4);
+    assert!(smooth_explored_coverage(&explore, Vec2::new(150.0, 0.0)) < 1e-4);
+
+    let green = vec![[80u8, 140u8, 60u8]; TEXELS_PER_CHUNK * TEXELS_PER_CHUNK];
+    let (min, max) = minimap_patch_bounds(IVec2::ZERO, 40.0);
+    let mut rgba = Vec::new();
+    render_minimap_patch(
+        &explore,
+        min,
+        max,
+        16,
+        |_| Some(green.as_slice()),
+        &mut rgba,
+    );
+    assert_eq!(rgba.len(), 16 * 16 * 4);
+    assert_eq!(&rgba[0..4], &[80, 140, 60, 255]);
+
+    let empty = MapExplore::new();
+    render_minimap_patch(&empty, min, max, 16, |_| Some(green.as_slice()), &mut rgba);
+    assert_eq!(&rgba[0..3], &MINIMAP_UNEXPLORED_RGB);
 }

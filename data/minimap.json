@@ -4,6 +4,7 @@
   "radius_metres": 60.0,
   "opacity": 0.85,
   "border_width_px": 2.0,
+  "player_arrow_size_px": 16.0,
   "corner": "top_left",
   "show_zombies": true
 }
