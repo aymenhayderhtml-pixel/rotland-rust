@@ -185,15 +185,16 @@ pub struct HudLayoutRects {
 pub fn compute_hud_layout(screen_w: f32, screen_h: f32) -> HudLayoutRects {
     let scale = hud_scale(screen_h);
 
-    // 1. Reserved top-left 180px box for future minimap (#7)
-    let minimap_size = 180.0;
-    let minimap_reserved = HudRect::from_min_size(16.0, 16.0, minimap_size, minimap_size);
+    // 1. Reserved top-left 180px box for minimap (#7), scaled with HUD scale
+    let minimap_size = 180.0 * scale;
+    let minimap_reserved =
+        HudRect::from_min_size(16.0 * scale, 16.0 * scale, minimap_size, minimap_size);
 
-    // 2. FPS counter: moved below the 180px minimap box to avoid collision
+    // 2. FPS counter: positioned below the minimap box to avoid collision at every resolution
     let fps_w = 80.0 * scale;
     let fps_h = 20.0 * scale;
-    let fps_y = 16.0 + minimap_size + 8.0;
-    let fps = HudRect::from_min_size(16.0, fps_y, fps_w, fps_h);
+    let fps_y = (16.0 + 180.0 + 8.0) * scale;
+    let fps = HudRect::from_min_size(16.0 * scale, fps_y, fps_w, fps_h);
 
     // 3. Compass strip: top center
     let compass_w = (600.0 * scale).min(screen_w - 32.0 * scale);

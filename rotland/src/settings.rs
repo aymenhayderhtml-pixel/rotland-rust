@@ -41,6 +41,9 @@ pub struct Settings {
     #[serde(alias = "showFps")]
     pub show_fps: bool,
 
+    #[serde(alias = "showMinimap")]
+    pub show_minimap: bool,
+
     #[serde(alias = "graphicsPreset")]
     pub graphics_preset: String,
     /// Keys the player changed: action -> Godot key code (only the ones that differ from the defaults).
@@ -60,6 +63,7 @@ impl Default for Settings {
             music_volume: 1.0,
             sfx_volume: 1.0,
             show_fps: true,
+            show_minimap: true,
             graphics_preset: "medium".to_string(),
             key_bindings: std::collections::HashMap::new(),
         }

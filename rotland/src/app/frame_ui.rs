@@ -193,6 +193,7 @@ pub fn draw_ui(
             );
         }
         hud::draw_hud(ctx, &state, &mut ui.icons);
+        super::minimap::draw_minimap_hud(ctx, world, actors, play_state, ui);
         if let (Some(t), false) = (&play.hint_text, c.is_dead()) {
             hud::hint::draw_hint(ctx, t);
         }

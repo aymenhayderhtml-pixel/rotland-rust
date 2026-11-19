@@ -6,6 +6,7 @@ mod explore;
 mod icons;
 mod markers;
 mod math;
+mod minimap;
 mod state;
 mod tiles;
 
@@ -20,6 +21,10 @@ pub use icons::{
 };
 pub use markers::{collect_markers, letter_for, MapMarker, MapMarkerKind};
 pub use math::{screen_to_world, step_zoom, world_to_screen, MAP_DEFAULT_ZOOM, SCALES};
+pub use minimap::{
+    collect_minimap_markers, collect_minimap_zombies, minimap_chunk_window, minimap_circle,
+    minimap_player_axes, world_to_minimap_offset, MinimapConfig, MinimapCorner, MinimapMarker,
+};
 pub use state::{MapBuilding, MapState};
 pub use tiles::{
     render_chunk_tiles, CLIFF_COLOR, CLIFF_SLOPE, TEXELS_PER_CHUNK, TEXEL_METRES, UNEXPLORED_COLOR,

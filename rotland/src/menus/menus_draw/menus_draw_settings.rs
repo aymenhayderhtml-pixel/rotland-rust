@@ -144,6 +144,12 @@ pub fn draw_settings(menus: &mut Menus, ui: &mut egui::Ui) -> Option<MenuAction>
                             changed = true;
                         }
                         ui.end_row();
+
+                        ui.label(RichText::new("Show mini-map").size(16.0));
+                        if ui.checkbox(&mut menus.settings.show_minimap, "").changed() {
+                            changed = true;
+                        }
+                        ui.end_row();
                     });
 
                 ui.add_space(14.0);

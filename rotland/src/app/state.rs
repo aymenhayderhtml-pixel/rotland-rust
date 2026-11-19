@@ -226,6 +226,8 @@ pub struct UiState {
     pub right_held: bool,
     /// Item pictures for the hotbar and bag, loaded once (R10-04).
     pub icons: crate::hud::IconCache,
+    /// HUD mini-map config and cached local terrain tiles.
+    pub minimap: crate::app::minimap::MinimapState,
 }
 
 impl UiState {

@@ -1,6 +1,9 @@
 #![allow(clippy::too_many_arguments)] // each frame step takes the state groups it touches as separate borrows
 //! Application orchestration and frame pipeline modules.
 
+pub mod minimap;
+mod minimap_draw;
+
 pub mod frame_actors;
 pub mod frame_audio;
 pub mod frame_camp;

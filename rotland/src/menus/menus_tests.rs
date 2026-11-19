@@ -192,6 +192,7 @@ fn test_settings_round_trip_through_temp_file() {
         music_volume: 0.45,
         sfx_volume: 0.95,
         show_fps: false,
+        show_minimap: true,
         graphics_preset: "high".to_string(),
         key_bindings: Default::default(),
     };
@@ -232,6 +233,7 @@ fn test_settings_clamping() {
         music_volume: 3.0,
         sfx_volume: 0.5,
         show_fps: true,
+        show_minimap: true,
         graphics_preset: "invalid_preset_name".to_string(),
         key_bindings: Default::default(),
     };
@@ -255,6 +257,7 @@ fn test_settings_clamping() {
         music_volume: 0.0,
         sfx_volume: 0.0,
         show_fps: true,
+        show_minimap: true,
         graphics_preset: "LOW".to_string(),
         key_bindings: Default::default(),
     };
@@ -263,6 +266,15 @@ fn test_settings_clamping() {
     assert_eq!(low.field_of_view, MIN_FOV);
     assert_eq!(low.render_scale, MIN_RENDER_SCALE);
     assert_eq!(low.graphics_preset, "LOW");
+}
+
+#[test]
+fn test_settings_missing_show_minimap_defaults_true() {
+    let old_json = r#"{ "show_fps": false, "field_of_view": 80.0 }"#;
+    let parsed: Settings = serde_json::from_str(old_json).expect("old settings should deserialize");
+    assert!(!parsed.show_fps);
+    assert!(parsed.show_minimap, "old settings files without show_minimap must default to ON");
+    assert_eq!(parsed.field_of_view, 80.0);
 }
 
 #[test]

@@ -12,8 +12,8 @@ pub const RESERVED_MINIMAP_SIZE: f32 = 180.0;
 /// Draws the FPS counter below the reserved minimap region.
 pub fn draw_fps(painter: &egui::Painter, screen: &Rect, fps: f32, scale: f32) {
     let fps_text = format!("{:.0} FPS", fps);
-    let x = screen.min.x + 16.0;
-    let y = screen.min.y + 16.0 + RESERVED_MINIMAP_SIZE + 8.0;
+    let x = screen.min.x + 16.0 * scale;
+    let y = screen.min.y + (16.0 + RESERVED_MINIMAP_SIZE + 8.0) * scale;
 
     draw_outline_text(
         painter,
