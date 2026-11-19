@@ -174,9 +174,8 @@ pub fn update_actors(
         if session.test_climb && session.time > 1.0 {
             session.test_climb = false;
             let nearest = world.streamer.as_ref().and_then(|s| {
-                s.chunks
-                    .values()
-                    .flat_map(|c| c.ladders.iter())
+                s.ladders
+                    .iter()
                     .min_by(|a, b| a.foot.distance(p.position).total_cmp(&b.foot.distance(p.position)))
                     .cloned()
             });
@@ -185,18 +184,19 @@ pub fn update_actors(
                 grab = true;
             }
         }
-        let rails: Vec<game::LadderRail> = if grab || actors.climb.is_active() {
+        let empty_rails = [];
+        let rails: &[game::LadderRail] = if grab || actors.climb.is_active() {
             world
                 .streamer
                 .as_ref()
-                .map(|s| s.chunks.values().flat_map(|c| c.ladders.iter().cloned()).collect())
-                .unwrap_or_default()
+                .map(|s| s.ladders.as_slice())
+                .unwrap_or(&empty_rails)
         } else {
-            Vec::new()
+            &empty_rails
         };
         let was_climbing = actors.climb.is_active();
         let climb_in = game::ClimbInput::new(-actions.move_vec.y, actions.jump, grab);
-        let climbing = !dead && !in_car && game::climb_tick(&mut actors.climb, p, &climb_in, &rails, dt);
+        let climbing = !dead && !in_car && game::climb_tick(&mut actors.climb, p, &climb_in, rails, dt);
         ui.e_used = ui.e_used || (grab && (climbing || was_climbing));
         if in_car {
             // the car moves the player (above)

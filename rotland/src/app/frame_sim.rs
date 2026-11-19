@@ -4,7 +4,7 @@ use glam::Vec3;
 
 use super::frame_cars::car_ramming;
 use super::state::{ActorsState, AudioState, PlaySide, RenderState, SessionState, UiState, WorldState};
-use crate::{poi_links, wildlife};
+use crate::wildlife;
 
 /// Executes entity AI simulations: zombies, POI spawns, voices, guards, wildlife, cars, and dogs.
 pub fn update_sim(
@@ -18,11 +18,24 @@ pub fn update_sim(
     audio: &mut AudioState,
 ) {
     let alive = !actors.combat.as_ref().is_some_and(|c| c.is_dead());
-    let noises = actors.combat.as_ref().map(|c| c.noises.clone()).unwrap_or_default();
+    let mut noises_scratch = std::mem::take(&mut actors.noises_scratch);
+    noises_scratch.clear();
+    if let Some(c) = actors.combat.as_ref() {
+        noises_scratch.extend(c.noises.iter().map(|n| (n.position, n.radius)));
+    }
 
     if let Some(z) = actors.zombies.as_mut() {
-        let frame = z.update(dt, alive.then_some(actors.player), &noises, &world.physics);
-        let mut bites: Vec<f32> = frame.bites.iter().map(|b| b.damage).collect();
+        let frame = {
+            let combat_noises: &[crate::combat::Noise] = actors
+                .combat
+                .as_ref()
+                .map(|c| c.noises.as_slice())
+                .unwrap_or(&[]);
+            z.update(dt, alive.then_some(actors.player), combat_noises, &world.physics)
+        };
+        let mut bites = std::mem::take(&mut actors.bites_scratch);
+        bites.clear();
+        bites.extend(frame.bites.iter().map(|b| b.damage));
 
         // Buildings near the player wake the zombies waiting inside; a building is cleared when they are all dead
         if let (Some(pz), Some(st), Some(pack)) = (
@@ -30,107 +43,129 @@ pub fn update_sim(
             world.streamer.as_ref(),
             render.pack.as_ref(),
         ) {
-            let markers = &mut world.poi_markers;
-            let sites: Vec<game::PoiZombieSite> = st
-                .chunks
-                .values()
-                .flat_map(|c| c.pois.iter())
-                .map(|poi| {
-                    let spawns = markers
-                        .entry(poi.building_id.clone())
-                        .or_insert_with(|| {
-                            pack.find(&poi.building_id)
-                                .map(|m| {
-                                    m.markers
-                                        .iter()
-                                        .filter(|k| k.name.starts_with("spawn_"))
-                                        .map(|k| Vec3::from(k.translation))
-                                        .collect()
-                                })
-                                .unwrap_or_default()
-                        })
-                        .clone();
-                    game::PoiZombieSite::new(&poi.id, &poi.building_id, poi.position, poi.yaw, spawns)
-                })
-                .collect();
+            if world.poi_sites_generation != st.generation {
+                world.poi_sites_generation = st.generation;
+                let markers = &mut world.poi_markers;
+                world.poi_zombie_sites.clear();
+                for chunk in st.chunks.values() {
+                    for poi in &chunk.pois {
+                        let spawns = markers
+                            .entry(poi.building_id.clone())
+                            .or_insert_with(|| {
+                                pack.find(&poi.building_id)
+                                    .map(|m| {
+                                        m.markers
+                                            .iter()
+                                            .filter(|k| k.name.starts_with("spawn_"))
+                                            .map(|k| Vec3::from(k.translation))
+                                            .collect()
+                                    })
+                                    .unwrap_or_default()
+                            })
+                            .clone();
+                        world.poi_zombie_sites.push(game::PoiZombieSite::new(
+                            &poi.id,
+                            &poi.building_id,
+                            poi.position,
+                            poi.yaw,
+                            spawns,
+                        ));
+                    }
+                }
+            }
             let alive_count = z.list.iter().filter(|q| !q.health.is_dead()).count();
-            for spawn in pz.update(actors.player, &sites, alive_count) {
+            for spawn in pz.update(actors.player, &world.poi_zombie_sites, alive_count) {
                 if let Some(id) = z.spawn_kind(&spawn.kind, spawn.position) {
                     pz.on_zombie_spawned(&spawn.poi_id, id);
                 }
             }
             // Far behind: gone for good (the building does not wait for them)
-            let at: Vec<(u64, Vec3)> = z.list.iter().map(|q| (q.id, q.position)).collect();
+            let mut at = std::mem::take(&mut actors.zombie_pos_scratch);
+            at.clear();
+            at.extend(z.list.iter().map(|q| (q.id, q.position)));
             let far = pz.check_despawns(actors.player, &at);
+            actors.zombie_pos_scratch = at;
             z.despawn(&far);
-            let mut cleared: Vec<String> =
-                far.iter().filter_map(|id| pz.on_zombie_despawned(*id)).collect();
+
+            let mut cleared = std::mem::take(&mut world.cleared_poi_scratch);
+            cleared.clear();
+            cleared.extend(far.iter().filter_map(|id| pz.on_zombie_despawned(*id)));
             // Dead, or removed by the spawner
-            let tracked: Vec<u64> = pz.zombie_to_poi.keys().copied().collect();
-            for id in tracked {
+            let mut tracked = std::mem::take(&mut world.tracked_zombie_scratch);
+            tracked.clear();
+            tracked.extend(pz.zombie_to_poi.keys().copied());
+            for &id in &tracked {
                 if z.list.iter().find(|q| q.id == id).is_none_or(|q| q.health.is_dead())
                     && let Some(poi) = pz.on_zombie_died(id)
                 {
                     cleared.push(poi);
                 }
             }
+            world.tracked_zombie_scratch = tracked;
             if let Some(play_state) = play.play.as_mut() {
-                for poi in cleared {
-                    play_state.camp.bounties.on_poi_cleared(&poi);
+                for poi in &cleared {
+                    play_state.camp.bounties.on_poi_cleared(poi);
                     play.pois_cleared += 1;
                 }
             }
+            world.cleared_poi_scratch = cleared;
         }
 
         // Zombies groan now and then and snarl as they attack (Godot ZombieVoices)
         if let (Some(voices), Some(a)) = (actors.zombie_voices.as_mut(), audio.audio.as_mut()) {
-            let list: Vec<game::VoiceZombie> = z
-                .list
-                .iter()
-                .map(|q| {
-                    let state = if q.health.is_dead() {
-                        game::VoiceState::Dead
-                    } else {
-                        q.brain.state().into()
-                    };
-                    game::VoiceZombie::new(q.id, q.position, state)
-                })
-                .collect();
+            let mut list = std::mem::take(&mut actors.voice_zombies_scratch);
+            list.clear();
+            list.extend(z.list.iter().map(|q| {
+                let state = if q.health.is_dead() {
+                    game::VoiceState::Dead
+                } else {
+                    q.brain.state().into()
+                };
+                game::VoiceZombie::new(q.id, q.position, state)
+            }));
             for ev in voices.update(dt, actors.player, &list) {
                 play.voices_played += 1;
                 a.play_at(&ev.sound_id, ev.position);
             }
+            actors.voice_zombies_scratch = list;
         }
 
         // Camp guards shoot zombies near the camp and turn to face them
         if let (Some(g), Some(npcs)) = (actors.camp_guards.as_mut(), actors.camp_npcs.as_mut()) {
-            let posts: Vec<game::GuardPost> = npcs
-                .director
-                .fixed_npcs()
-                .iter()
-                .filter(|n| n.role == "guard")
-                .map(|n| game::GuardPost {
-                    id: n.id.clone(),
-                    position: n.position,
-                    yaw: n.yaw,
-                })
-                .collect();
-            let targets: Vec<game::GuardTarget> = z
-                .list
-                .iter()
-                .map(|q| game::GuardTarget {
-                    id: q.id,
-                    position: q.position,
-                    alive: !q.health.is_dead(),
-                })
-                .collect();
+            let mut guard_posts = std::mem::take(&mut actors.guard_posts_scratch);
+            let guards_iter = npcs.director.fixed_npcs().iter().filter(|n| n.role == "guard");
+            let mut post_count = 0;
+            for (i, n) in guards_iter.enumerate() {
+                post_count += 1;
+                if i < guard_posts.len() {
+                    guard_posts[i].id.clear();
+                    guard_posts[i].id.push_str(&n.id);
+                    guard_posts[i].position = n.position;
+                    guard_posts[i].yaw = n.yaw;
+                } else {
+                    guard_posts.push(game::GuardPost {
+                        id: n.id.clone(),
+                        position: n.position,
+                        yaw: n.yaw,
+                    });
+                }
+            }
+            guard_posts.truncate(post_count);
+
+            let mut guard_targets = std::mem::take(&mut actors.guard_targets_scratch);
+            guard_targets.clear();
+            guard_targets.extend(z.list.iter().map(|q| game::GuardTarget {
+                id: q.id,
+                position: q.position,
+                alive: !q.health.is_dead(),
+            }));
             let physics = &world.physics;
             let clear = |a: Vec3, b: Vec3| {
                 let d = b - a;
                 let len = d.length();
                 len < 0.5 || physics.raycast(a, d / len, len - 0.3).is_none()
             };
-            let gf = g.update(dt, &posts, &targets, &clear);
+            let gf = g.update(dt, &guard_posts, &guard_targets, &clear);
             for shot in gf.shots {
                 let kb = (shot.to - shot.from).normalize_or_zero() * 2.0;
                 z.hit_unclaimed(shot.target_id, shot.damage, kb);
@@ -140,8 +175,16 @@ pub fn update_sim(
                     a.play_at(id, *at);
                 }
             }
-            npcs.aim = gf.yaws.into_iter().collect();
+            npcs.aim.clear();
+            npcs.aim.extend(gf.yaws);
+
+            actors.guard_posts_scratch = guard_posts;
+            actors.guard_targets_scratch = guard_targets;
         }
+
+        let mut zombie_status = std::mem::take(&mut actors.zombie_status_scratch);
+        zombie_status.clear();
+        zombie_status.extend(z.list.iter().map(|q| (q.id, q.position, q.health.is_dead())));
 
         // Wild animals: graze, flee, boars charge the player and fight zombies (Godot Animal/AnimalSpawner)
         if let (Some(w), Some(p), Some(g)) = (
@@ -149,9 +192,6 @@ pub fn update_sim(
             actors.player_ctrl.as_ref(),
             world.world_gen.as_ref(),
         ) {
-            let zl: Vec<(u64, Vec3, bool)> =
-                z.list.iter().map(|q| (q.id, q.position, q.health.is_dead())).collect();
-            let heard: Vec<(Vec3, f32)> = noises.iter().map(|n| (n.position, n.radius)).collect();
             let biome = match g.biome(actors.player.x, actors.player.z) {
                 world::BiomeId::Plains => "plains",
                 world::BiomeId::Forest => "forest",
@@ -172,8 +212,8 @@ pub fn update_sim(
                 player_hunting_level: skills.map_or(1, |sk| sk.get_level("hunting")),
                 is_night: !(6.0..20.0).contains(&play.hour),
                 biome_name: Some(biome),
-                noises: &heard,
-                zombies: &zl,
+                noises: &noises_scratch,
+                zombies: &zombie_status,
                 in_no_spawn_zone: Some(&no_spawn),
             };
             let af = w.update(dt, &ctx, &world.physics);
@@ -207,12 +247,18 @@ pub fn update_sim(
 
         // Cars: parked ones only live on loaded ground; the driven one takes the keys and runs things over
         if let Some(cars) = actors.cars.as_mut() {
+            let mut car_solids_scratch = std::mem::take(&mut actors.car_solids_scratch);
+            let mut car_targets_scratch = std::mem::take(&mut actors.car_targets_scratch);
+            let mut car_gone_scratch = std::mem::take(&mut actors.car_gone_scratch);
             car_ramming(
                 dt,
                 cars,
                 &actors.car_input,
                 &mut world.physics,
                 &mut actors.car_solids,
+                &mut car_solids_scratch,
+                &mut car_targets_scratch,
+                &mut car_gone_scratch,
                 world.streamer.as_ref(),
                 z,
                 actors.wildlife.as_mut(),
@@ -222,6 +268,9 @@ pub fn update_sim(
                 &mut audio.audio,
                 play.play.as_mut(),
             );
+            actors.car_solids_scratch = car_solids_scratch;
+            actors.car_targets_scratch = car_targets_scratch;
+            actors.car_gone_scratch = car_gone_scratch;
         }
 
         // The dog follows, barks and bites zombies and animals (Godot Dog / DogCombat)
@@ -240,30 +289,26 @@ pub fn update_sim(
             );
         }
 
-        // Stray dogs wait at the loaded POI buildings
-        let dog_sites: Vec<game::DogPoiSite> = match (world.streamer.as_ref(), world.world_gen.as_ref()) {
-            (Some(st), Some(g)) => st
-                .chunks
-                .values()
-                .flat_map(|c| poi_links::build_dog_poi_sites(&c.pois, g.poi_config()))
-                .collect(),
-            _ => Vec::new(),
-        };
+        // Stray dogs wait at the loaded POI buildings (cached in streamer on chunk load/unload)
+        let empty_dog_sites = [];
+        let dog_sites: &[game::DogPoiSite] = world
+            .streamer
+            .as_ref()
+            .map(|st| st.dog_sites.as_slice())
+            .unwrap_or(&empty_dog_sites);
+
         if let (Some(d), Some(p)) = (actors.dogs.as_mut(), actors.player_ctrl.as_ref()) {
-            let zl: Vec<(u64, Vec3, bool)> =
-                z.list.iter().map(|q| (q.id, q.position, q.health.is_dead())).collect();
-            let al: Vec<(u64, Vec3, bool)> = actors
-                .wildlife
-                .as_ref()
-                .map(|w| {
+            let mut animal_status = std::mem::take(&mut actors.animal_status_scratch);
+            animal_status.clear();
+            if let Some(w) = actors.wildlife.as_ref() {
+                animal_status.extend(
                     w.sim
                         .list
                         .iter()
                         .filter(|a| !a.retired)
-                        .map(|a| (a.id, a.position, a.is_dead()))
-                        .collect()
-                })
-                .unwrap_or_default();
+                        .map(|a| (a.id, a.position, a.is_dead())),
+                );
+            }
             let camp = world
                 .world_gen
                 .as_ref()
@@ -274,13 +319,13 @@ pub fn update_sim(
                 player_dead: !alive,
                 player_sprinting: p.is_sprinting,
                 player_velocity: p.velocity,
-                zombies: &zl,
-                animals: &al,
+                zombies: &zombie_status,
+                animals: &animal_status,
                 is_night: !(6.0..20.0).contains(&play.hour),
                 camp_position: camp,
                 now_hours: (play.clock.day as f64 - 1.0) * 24.0 + play.clock.hour as f64,
                 day: play.clock.day,
-                poi_sites: &dog_sites,
+                poi_sites: dog_sites,
                 world_seed: session.seed,
             };
             let f = d.update(dt, &ctx, &world.physics);
@@ -302,7 +347,11 @@ pub fn update_sim(
             if let (Some(t), Some(play_state)) = (f.toasts.last(), play.play.as_mut()) {
                 play_state.show_toast(t.clone());
             }
+            actors.animal_status_scratch = animal_status;
         }
+
+        actors.zombie_status_scratch = zombie_status;
+        actors.noises_scratch = noises_scratch;
 
         if let Some(c) = actors.combat.as_mut() {
             let ev = c.take_bites(&bites);
@@ -325,5 +374,6 @@ pub fn update_sim(
                 }
             }
         }
+        actors.bites_scratch = bites;
     }
 }

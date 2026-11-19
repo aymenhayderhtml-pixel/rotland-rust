@@ -7,7 +7,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 
 use engine::render::{ColorVertex, GpuMesh};
-use physics::{ColliderHandle, PhysicsWorld};
+use game::{DogPoiSite, LadderRail};
 use glam::{IVec2, Vec3};
 use world::{LootSpot, PoiInstance, PropInstance, WorldGenerator};
 
@@ -36,7 +36,7 @@ pub struct LoadedChunk {
     /// Loot crate spots of this chunk (opened with E; see crates.rs).
     pub crates: Vec<LootSpot>,
     /// Ladders on this chunk's buildings (watchtowers, the camp's towers), from the models' markers.
-    pub ladders: Vec<game::LadderRail>,
+    pub ladders: Vec<LadderRail>,
     /// Standing trees that an axe can fell.
     pub trees: Vec<TreeSlot>,
     /// The POI buildings on this chunk (stray dogs, map notes).
@@ -69,26 +69,84 @@ pub struct Streamer {
     shapes: HashMap<String, Vec<Vec<[f32; 3]>>>,
     /// Felled trees (chunk, prop index): left out when their chunk loads.
     pub felled: HashSet<(IVec2, usize)>,
+    /// Cached dog POI sites across all loaded chunks, rebuilt only on chunk load/unload.
+    pub dog_sites: Vec<DogPoiSite>,
+    /// Cached ladders across all loaded chunks, rebuilt only on chunk load/unload.
+    pub ladders: Vec<LadderRail>,
+    /// Monotonic counter incremented whenever chunks load or unload.
+    pub generation: u64,
+    far_scratch: Vec<IVec2>,
+    missing_scratch: Vec<IVec2>,
+    rx_scratch: Vec<Built>,
 }
 
 impl Streamer {
     pub fn new(world_gen: Arc<WorldGenerator>) -> Self {
         let (tx, rx) = channel();
         let camp_chunk = world_gen.settlements().first().map_or(IVec2::new(i32::MAX, i32::MAX), |s| terrain::chunk_of(s.center));
-        Self { world_gen, chunks: HashMap::new(), in_flight: HashSet::new(), tx, rx, camp_chunk, shapes: HashMap::new(), felled: HashSet::new() }
+        Self {
+            world_gen,
+            chunks: HashMap::new(),
+            in_flight: HashSet::new(),
+            tx,
+            rx,
+            camp_chunk,
+            shapes: HashMap::new(),
+            felled: HashSet::new(),
+            dog_sites: Vec::new(),
+            ladders: Vec::new(),
+            generation: 0,
+            far_scratch: Vec::new(),
+            missing_scratch: Vec::new(),
+            rx_scratch: Vec::new(),
+        }
+    }
+
+    /// Rebuilds cached dog POI sites across all currently loaded chunks.
+    pub fn rebuild_dog_sites(&mut self) {
+        self.dog_sites.clear();
+        let cfg = self.world_gen.poi_config();
+        for chunk in self.chunks.values() {
+            for poi in &chunk.pois {
+                self.dog_sites.push(crate::poi_links::build_dog_poi_site(poi, cfg));
+            }
+        }
+    }
+
+    /// Rebuilds cached ladder rails across all currently loaded chunks.
+    pub fn rebuild_ladders(&mut self) {
+        self.ladders.clear();
+        for chunk in self.chunks.values() {
+            self.ladders.extend(chunk.ladders.iter().cloned());
+        }
     }
 
     /// True when every chunk within the load radius of `at` is on the GPU.
     pub fn is_ready_around(&self, at: Vec3) -> bool {
-        wanted(terrain::chunk_of(at)).iter().all(|c| self.chunks.contains_key(c))
+        let center = terrain::chunk_of(at);
+        for dz in -LOAD_RADIUS..=LOAD_RADIUS {
+            for dx in -LOAD_RADIUS..=LOAD_RADIUS {
+                if !self.chunks.contains_key(&(center + IVec2::new(dx, dz))) {
+                    return false;
+                }
+            }
+        }
+        true
     }
 
     /// Call once per frame with the player's position.
     pub fn update(&mut self, device: &wgpu::Device, pack: &pack::ModelPack, library: &mut PropLibrary, physics: &mut PhysicsWorld, player: Vec3) {
         let center = terrain::chunk_of(player);
-        let far: Vec<IVec2> = self.chunks.keys().copied().filter(|c| (c.x - center.x).abs().max((c.y - center.y).abs()) > UNLOAD_RADIUS).collect();
-        let changed = !far.is_empty();
-        for c in far {
+        self.far_scratch.clear();
+        self.far_scratch.extend(
+            self.chunks
+                .keys()
+                .copied()
+                .filter(|c| (c.x - center.x).abs().max((c.y - center.y).abs()) > UNLOAD_RADIUS),
+        );
+        let changed = !self.far_scratch.is_empty();
+        for i in 0..self.far_scratch.len() {
+            let c = self.far_scratch[i];
             if let Some(chunk) = self.chunks.remove(&c) {
                 for h in chunk.colliders.into_iter().chain(chunk.trees.into_iter().filter_map(|t| t.collider)) {
                     physics.remove(h);
@@ -97,9 +155,19 @@ impl Streamer {
         }
 
         // Ask for the missing chunks, nearest first
-        let mut missing: Vec<IVec2> = wanted(center).into_iter().filter(|c| !self.chunks.contains_key(c) && !self.in_flight.contains(c)).collect();
-        missing.sort_by_key(|c| (*c - center).length_squared());
-        for coord in missing.into_iter().take(MAX_IN_FLIGHT.saturating_sub(self.in_flight.len())) {
+        self.missing_scratch.clear();
+        for dz in -LOAD_RADIUS..=LOAD_RADIUS {
+            for dx in -LOAD_RADIUS..=LOAD_RADIUS {
+                let c = center + IVec2::new(dx, dz);
+                if !self.chunks.contains_key(&c) && !self.in_flight.contains(&c) {
+                    self.missing_scratch.push(c);
+                }
+            }
+        }
+        self.missing_scratch.sort_by_key(|c| (*c - center).length_squared());
+        let budget = MAX_IN_FLIGHT.saturating_sub(self.in_flight.len()).min(self.missing_scratch.len());
+        for i in 0..budget {
+            let coord = self.missing_scratch[i];
             self.in_flight.insert(coord);
             let (world_gen, tx) = (self.world_gen.clone(), self.tx.clone());
             rayon::spawn(move || {
@@ -111,7 +179,15 @@ impl Streamer {
         }
 
         let mut applied = false;
-        for built in self.rx.try_iter().take(MAX_APPLIED_PER_FRAME).collect::<Vec<_>>() {
+        self.rx_scratch.clear();
+        while self.rx_scratch.len() < MAX_APPLIED_PER_FRAME {
+            if let Ok(built) = self.rx.try_recv() {
+                self.rx_scratch.push(built);
+            } else {
+                break;
+            }
+        }
+        for built in self.rx_scratch.drain(..) {
             self.in_flight.remove(&built.coord);
             let c = built.coord;
             if (c.x - center.x).abs().max((c.y - center.y).abs()) > UNLOAD_RADIUS {
@@ -122,6 +198,9 @@ impl Streamer {
             applied = true;
         }
         if changed || applied {
+            self.generation = self.generation.wrapping_add(1);
+            self.rebuild_dog_sites();
+            self.rebuild_ladders();
             // Queries (ground height, the player's mover) must see the new shapes this frame
             physics.update_broad_phase();
         }
@@ -193,8 +272,4 @@ impl Streamer {
         }
         Some(slot)
     }
-}
-
-fn wanted(center: IVec2) -> Vec<IVec2> {
-    (-LOAD_RADIUS..=LOAD_RADIUS).flat_map(|dz| (-LOAD_RADIUS..=LOAD_RADIUS).map(move |dx| center + IVec2::new(dx, dz))).collect()
 }

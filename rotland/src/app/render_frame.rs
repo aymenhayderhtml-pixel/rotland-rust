@@ -45,7 +45,8 @@ pub fn render_frame(
         );
     }
     // Farm beds: the soil, and the crop's model for its stage (Godot PlotNode)
-    let mut beds: Vec<props::Placed> = Vec::new();
+    let mut beds = std::mem::take(&mut render.scratch_beds);
+    beds.clear();
     if let (Some(play_state), Some(pack)) = (play.play.as_ref(), render.pack.as_ref()) {
         for v in play_state.camp.farm.plot_views() {
             if let Some(slot) = render.library.get(&gpu.device, pack, "soil_plot", false) {
@@ -70,6 +71,7 @@ pub fn render_frame(
         }
     }
     let (Some(renderer), Some(streamer)) = (render.renderer.as_mut(), world.streamer.as_ref()) else {
+        render.scratch_beds = beds;
         return;
     };
     let items: Vec<DrawItem> = streamer
@@ -90,6 +92,7 @@ pub fn render_frame(
         target.aspect(),
         renderer.shadows.distance,
     );
+    render.scratch_beds = beds;
     let driving = actors.cars.as_ref().is_some_and(|c| c.driven_car_id.is_some());
     if let (Some(pv), Some(pose), false) = (actors.player_visual.as_mut(), player_pose, driving) {
         let loco = humanoid::Locomotion {

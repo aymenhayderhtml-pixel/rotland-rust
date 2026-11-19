@@ -10,6 +10,9 @@ pub fn car_ramming(
     car_input: &game::CarInput,
     physics: &mut physics::PhysicsWorld,
     car_solids: &mut crate::car_solid::ParkedCarSolids,
+    solids_scratch: &mut Vec<(String, Mat4, bool)>,
+    targets_scratch: &mut Vec<(u64, Vec3)>,
+    gone_scratch: &mut Vec<glam::IVec2>,
     streamer: Option<&crate::streaming::Streamer>,
     zombies: &mut crate::zombies::Zombies,
     wildlife: Option<&mut crate::wildlife::Wildlife>,
@@ -24,30 +27,45 @@ pub fn car_ramming(
         for c in st.chunks.keys() {
             cars.respawn_chunk(*c);
         }
-        let gone: Vec<glam::IVec2> = cars
-            .live_cars()
-            .filter(|c| !c.is_driven())
-            .map(|c| game::chunk_of(c.body.position, WorldGenerator::CHUNK_SIZE))
-            .filter(|k| !st.chunks.contains_key(k))
-            .collect();
-        for k in gone {
+        gone_scratch.clear();
+        gone_scratch.extend(
+            cars.live_cars()
+                .filter(|c| !c.is_driven())
+                .map(|c| game::chunk_of(c.body.position, WorldGenerator::CHUNK_SIZE))
+                .filter(|k| !st.chunks.contains_key(k)),
+        );
+        for &k in gone_scratch.iter() {
             cars.store_chunk(k);
         }
     }
     let cf = cars.update(dt, car_input, physics);
-    let solids: Vec<(String, Mat4, bool)> = cars
-        .live_cars()
-        .map(|c| (c.id.clone(), c.draw_state().world_matrix, c.is_driven()))
-        .collect();
-    car_solids.sync(physics, &solids);
-    let mut targets: Vec<(u64, Vec3)> = zombies
-        .list
-        .iter()
-        .filter(|q| !q.health.is_dead())
-        .map(|q| (q.id, q.position))
-        .collect();
+    let mut solid_count = 0;
+    for (i, c) in cars.live_cars().enumerate() {
+        solid_count += 1;
+        let mat = c.draw_state().world_matrix;
+        let driven = c.is_driven();
+        if i < solids_scratch.len() {
+            solids_scratch[i].0.clear();
+            solids_scratch[i].0.push_str(&c.id);
+            solids_scratch[i].1 = mat;
+            solids_scratch[i].2 = driven;
+        } else {
+            solids_scratch.push((c.id.clone(), mat, driven));
+        }
+    }
+    solids_scratch.truncate(solid_count);
+    car_solids.sync(physics, solids_scratch);
+
+    targets_scratch.clear();
+    targets_scratch.extend(
+        zombies
+            .list
+            .iter()
+            .filter(|q| !q.health.is_dead())
+            .map(|q| (q.id, q.position)),
+    );
     if let Some(w) = wildlife.as_ref() {
-        targets.extend(
+        targets_scratch.extend(
             w.sim
                 .list
                 .iter()
@@ -55,7 +73,7 @@ pub fn car_ramming(
                 .map(|a| (a.id, a.position)),
         );
     }
-    for (id, dmg, kb) in cars.run_over(&targets) {
+    for (id, dmg, kb) in cars.run_over(targets_scratch) {
         match wildlife {
             Some(ref mut w) if id >= crate::wildlife::FIRST_ANIMAL_ID => {
                 w.sim.hit(id, dmg, kb);

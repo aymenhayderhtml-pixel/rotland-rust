@@ -124,18 +124,16 @@ pub fn update_world_interactions(
 
         // Crates within reach: only the nearby chunks' spots are looked at
         let facing = game::yaw_forward(p.yaw);
-        let near: Vec<world::LootSpot> = world
-            .streamer
-            .as_ref()
-            .map(|st| {
-                st.chunks
-                    .values()
-                    .flat_map(|c| c.crates.iter())
-                    .filter(|c| c.position.distance_squared(p.position) < 25.0)
-                    .cloned()
-                    .collect()
-            })
-            .unwrap_or_default();
+        world.near_crates_scratch.clear();
+        if let Some(st) = world.streamer.as_ref() {
+            for c in st.chunks.values() {
+                for spot in &c.crates {
+                    if spot.position.distance_squared(p.position) < 25.0 {
+                        world.near_crates_scratch.push(spot.clone());
+                    }
+                }
+            }
+        }
         // E talks to the camp person in front (trader, banker, bounty board) before crates and items
         let npc = actors
             .camp_npcs
@@ -247,7 +245,7 @@ pub fn update_world_interactions(
 
         // A bed in front comes before crates; tilling with a hoe only when nothing else is offered
         let bed = free && play_state.camp.bed_in_front(p.position, facing).is_some();
-        play_state.interact_tick(dt, pressed && free && !bed, p.position, facing, &near);
+        play_state.interact_tick(dt, pressed && free && !bed, p.position, facing, &world.near_crates_scratch);
         if free && (bed || !play_state.has_prompt()) {
             let physics = &world.physics;
             let ground = |spot: Vec3| {
