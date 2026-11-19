@@ -282,12 +282,7 @@ fn slot_info_empty_damaged_filled() {
 #[test]
 fn fixture_parses_and_preserves_unknown_systems() {
     let repo_fixture = paths::repo_path("save/tests/fixtures/godot_save.json");
-    let content = if repo_fixture.is_file() {
-        std::fs::read_to_string(&repo_fixture).expect("read fixture via repo_path")
-    } else {
-        let manifest = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/godot_save.json");
-        std::fs::read_to_string(&manifest).expect("read fixture via CARGO_MANIFEST_DIR")
-    };
+    let content = std::fs::read_to_string(&repo_fixture).expect("read fixture via repo_path");
 
     let save = SaveFile::from_json_str(&content).expect("parse fixture");
 

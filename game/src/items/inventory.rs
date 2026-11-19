@@ -24,10 +24,11 @@ impl Default for Inventory {
 }
 
 impl Inventory {
-    /// Creates an inventory with default slots (24), default weight (40 kg), and loads items.json from the repo.
+    /// Creates an inventory with default slots (24), default weight (40 kg), and shared item registry.
+    ///
+    /// Note: Prefer `Inventory::with_registry(registry)` to pass an explicit registry.
     pub fn new() -> Self {
-        let registry = ItemRegistry::from_repo().expect("data/items.json must load for Inventory::new");
-        Self::with_registry(Arc::new(registry))
+        Self::with_registry(ItemRegistry::shared())
     }
     pub fn with_registry(registry: Arc<ItemRegistry>) -> Self {
         Self::with_capacity_and_registry(DEFAULT_SLOT_COUNT, DEFAULT_MAX_WEIGHT, registry)
@@ -35,9 +36,11 @@ impl Inventory {
     pub fn from_registry(registry: ItemRegistry) -> Self {
         Self::with_registry(Arc::new(registry))
     }
+    /// Creates an inventory with custom slots and weight, and shared item registry.
+    ///
+    /// Note: Prefer `Inventory::with_capacity_and_registry(slots, weight, registry)`.
     pub fn with_capacity(slot_count: usize, max_weight: f32) -> Self {
-        let registry = ItemRegistry::from_repo().expect("data/items.json must load for Inventory::with_capacity");
-        Self::with_capacity_and_registry(slot_count, max_weight, Arc::new(registry))
+        Self::with_capacity_and_registry(slot_count, max_weight, ItemRegistry::shared())
     }
     pub fn with_capacity_and_registry(slot_count: usize, max_weight: f32, registry: Arc<ItemRegistry>) -> Self {
         Self {

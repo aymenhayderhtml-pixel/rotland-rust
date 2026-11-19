@@ -41,11 +41,22 @@ pub fn load_start_inventory_entries(path: &Path) -> Result<Vec<StartItemEntry>, 
     Ok(entries)
 }
 
-/// Creates a new Inventory pre-populated with starting items from data/start_inventory.json.
-pub fn start_inventory(registry: &ItemRegistry) -> Inventory {
+/// Attempts to create a new Inventory pre-populated from `data/start_inventory.json`.
+pub fn try_start_inventory(registry: &ItemRegistry) -> Result<Inventory, StartInventoryLoadError> {
     let path = paths::repo_path("data/start_inventory.json");
     start_inventory_from_path(registry, &path)
-        .expect("data/start_inventory.json must load successfully")
+}
+
+/// Creates a new Inventory pre-populated with starting items from data/start_inventory.json.
+/// If loading fails, logs an error and returns an empty inventory so the game never crashes.
+pub fn start_inventory(registry: &ItemRegistry) -> Inventory {
+    match try_start_inventory(registry) {
+        Ok(inv) => inv,
+        Err(err) => {
+            eprintln!("failed to load start inventory: {err}; starting with empty inventory");
+            Inventory::from_registry(registry.clone())
+        }
+    }
 }
 
 /// Creates a new Inventory pre-populated from the specified start_inventory.json path.

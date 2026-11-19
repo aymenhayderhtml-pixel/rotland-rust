@@ -5,7 +5,78 @@ use engine::anim::Rig;
 use engine::render::{GpuMesh, SkinInstance, SkinnedBatch};
 use glam::{Mat4, Vec3};
 use humanoid::{weapon_world_matrix_named, HumanoidAnimator, Locomotion};
-use pack::ModelPack;
+use pack::{Joint, ModelPack, PackVertex, Skeleton};
+
+/// Pure helper: returns the requested model from `pack`, or falls back to `fallback_name` if missing.
+/// Logs an error message if the primary model is missing.
+pub fn pick_model_or_fallback<'a>(
+    pack: &'a ModelPack,
+    name: &str,
+    fallback_name: Option<&str>,
+) -> Option<&'a pack::Model> {
+    if let Some(m) = pack.find(name) {
+        return Some(m);
+    }
+    eprintln!("player_visual: model '{name}' not found in pack");
+    if let Some(fb) = fallback_name {
+        if let Some(m) = pack.find(fb) {
+            eprintln!("player_visual: using fallback model '{fb}' for '{name}'");
+            return Some(m);
+        }
+    }
+    None
+}
+
+/// Creates a minimal fallback skeleton with a root joint and hand_R attachment joint.
+pub fn fallback_skeleton() -> Skeleton {
+    let make_joint = |name: &str, parent: Option<u16>| Joint {
+        name: name.to_string(),
+        parent,
+        inverse_bind: Mat4::IDENTITY.to_cols_array(),
+        rest_translation: [0.0, 0.0, 0.0],
+        rest_rotation: [0.0, 0.0, 0.0, 1.0],
+        rest_scale: [1.0, 1.0, 1.0],
+    };
+    Skeleton {
+        joints: vec![
+            make_joint("root", None),
+            make_joint("hand_R", Some(0)),
+        ],
+    }
+}
+
+/// Generates a simple box mesh (12 triangles / 36 vertices) as a fallback when character geometry is missing.
+pub fn fallback_box_vertices() -> Vec<PackVertex> {
+    let min = [-0.25f32, 0.0, -0.25];
+    let max = [0.25f32, 1.8, 0.25];
+    let color = [180, 180, 180, 255];
+    let mut v = Vec::with_capacity(36);
+
+    let mut add_quad = |p1: [f32; 3], p2: [f32; 3], p3: [f32; 3], p4: [f32; 3], n: [f32; 3]| {
+        v.push(PackVertex { position: p1, normal: n, color, bone: 0, _pad: [0; 3] });
+        v.push(PackVertex { position: p2, normal: n, color, bone: 0, _pad: [0; 3] });
+        v.push(PackVertex { position: p3, normal: n, color, bone: 0, _pad: [0; 3] });
+
+        v.push(PackVertex { position: p1, normal: n, color, bone: 0, _pad: [0; 3] });
+        v.push(PackVertex { position: p3, normal: n, color, bone: 0, _pad: [0; 3] });
+        v.push(PackVertex { position: p4, normal: n, color, bone: 0, _pad: [0; 3] });
+    };
+
+    // Front (+Z)
+    add_quad([min[0], min[1], max[2]], [max[0], min[1], max[2]], [max[0], max[1], max[2]], [min[0], max[1], max[2]], [0.0, 0.0, 1.0]);
+    // Back (-Z)
+    add_quad([max[0], min[1], min[2]], [min[0], min[1], min[2]], [min[0], max[1], min[2]], [max[0], max[1], min[2]], [0.0, 0.0, -1.0]);
+    // Left (-X)
+    add_quad([min[0], min[1], min[2]], [min[0], min[1], max[2]], [min[0], max[1], max[2]], [min[0], max[1], min[2]], [-1.0, 0.0, 0.0]);
+    // Right (+X)
+    add_quad([max[0], min[1], max[2]], [max[0], min[1], min[2]], [max[0], max[1], min[2]], [max[0], max[1], max[2]], [1.0, 0.0, 0.0]);
+    // Top (+Y)
+    add_quad([min[0], max[1], max[2]], [max[0], max[1], max[2]], [max[0], max[1], min[2]], [min[0], max[1], min[2]], [0.0, 1.0, 0.0]);
+    // Bottom (-Y)
+    add_quad([min[0], min[1], min[2]], [max[0], min[1], min[2]], [max[0], min[1], max[2]], [min[0], min[1], max[2]], [0.0, -1.0, 0.0]);
+
+    v
+}
 
 /// Posed humanoid character mesh with optional weapon attachment.
 pub struct PlayerVisual {
@@ -19,34 +90,55 @@ pub struct PlayerVisual {
 
 impl PlayerVisual {
     /// Loads a rigged humanoid character model and optional weapon from `pack`.
+    /// Missing models or skeletons log an error and use a fallback (box mesh / skip weapon).
     pub fn load(
         device: &wgpu::Device,
         pack: &ModelPack,
         char_name: &str,
         weapon_model: Option<&str>,
     ) -> Self {
-        let char_model = pack
-            .find(char_name)
-            .unwrap_or_else(|| panic!("character model '{char_name}' not found in pack"));
-        let skeleton = char_model
-            .skeleton
-            .as_ref()
-            .unwrap_or_else(|| panic!("character model '{char_name}' has no skeleton"));
-        let rig = Rig::new(skeleton);
+        let (body_mesh, rig, animator) = match pack.find(char_name) {
+            Some(char_model) => match &char_model.skeleton {
+                Some(skeleton) => {
+                    let rig = Rig::new(skeleton);
+                    let body_mesh = GpuMesh::new(device, char_name, &char_model.vertices);
+                    let animator = HumanoidAnimator::new(skeleton, &char_model.clips);
+                    (body_mesh, rig, animator)
+                }
+                None => {
+                    eprintln!("player_visual: character model '{char_name}' has no skeleton; using fallback box mesh");
+                    let skel = fallback_skeleton();
+                    let rig = Rig::new(&skel);
+                    let animator = HumanoidAnimator::new(&skel, &[]);
+                    let box_verts = fallback_box_vertices();
+                    let body_mesh = GpuMesh::new(device, "fallback_box", &box_verts);
+                    (body_mesh, rig, animator)
+                }
+            },
+            None => {
+                eprintln!("player_visual: character model '{char_name}' not found in pack; using fallback box mesh");
+                let skel = fallback_skeleton();
+                let rig = Rig::new(&skel);
+                let animator = HumanoidAnimator::new(&skel, &[]);
+                let box_verts = fallback_box_vertices();
+                let body_mesh = GpuMesh::new(device, "fallback_box", &box_verts);
+                (body_mesh, rig, animator)
+            }
+        };
+
         let hand_joint = rig.joint_index("hand_R").unwrap_or(0);
-        let body_mesh = GpuMesh::new(device, char_name, &char_model.vertices);
-        let animator = HumanoidAnimator::new(skeleton, &char_model.clips);
 
         let (weapon_mesh, weapon_name) = match weapon_model {
-            Some(wname) => {
-                let wmodel = pack
-                    .find(wname)
-                    .unwrap_or_else(|| panic!("weapon model '{wname}' not found in pack"));
-                (
+            Some(wname) => match pack.find(wname) {
+                Some(wmodel) => (
                     Some(GpuMesh::new(device, wname, &wmodel.vertices)),
                     Some(wname.to_string()),
-                )
-            }
+                ),
+                None => {
+                    eprintln!("player_visual: weapon model '{wname}' not found in pack; skipping drawing weapon");
+                    (None, None)
+                }
+            },
             None => (None, None),
         };
 
@@ -107,11 +199,18 @@ impl PlayerVisual {
         if weapon_model == self.weapon_name.as_deref() {
             return;
         }
-        match weapon_model.and_then(|w| pack.find(w).map(|m| (w, m))) {
-            Some((name, model)) => {
-                self.weapon_mesh = Some(GpuMesh::new(device, name, &model.vertices));
-                self.weapon_name = Some(name.to_string());
-            }
+        match weapon_model {
+            Some(wname) => match pack.find(wname) {
+                Some(model) => {
+                    self.weapon_mesh = Some(GpuMesh::new(device, wname, &model.vertices));
+                    self.weapon_name = Some(wname.to_string());
+                }
+                None => {
+                    eprintln!("player_visual: weapon model '{wname}' not found in pack; skipping drawing weapon");
+                    self.weapon_mesh = None;
+                    self.weapon_name = None;
+                }
+            },
             None => {
                 self.weapon_mesh = None;
                 self.weapon_name = None;
@@ -129,3 +228,37 @@ impl PlayerVisual {
         self.hand_joint
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pack::Model;
+
+    #[test]
+    fn player_visual_picks_fallback_when_mesh_missing() {
+        let fallback_model = Model {
+            name: "box".into(),
+            folder: "characters".into(),
+            vertices: vec![],
+            bounds_min: [0.0; 3],
+            bounds_max: [1.0; 3],
+            markers: vec![],
+            colliders: vec![],
+            skeleton: None,
+            clips: vec![],
+        };
+        let pack = ModelPack::new(vec![fallback_model]);
+
+        let picked = pick_model_or_fallback(&pack, "missing_mesh", Some("box"));
+        assert!(picked.is_some());
+        assert_eq!(picked.unwrap().name, "box");
+
+        let picked_primary = pick_model_or_fallback(&pack, "box", Some("other"));
+        assert!(picked_primary.is_some());
+        assert_eq!(picked_primary.unwrap().name, "box");
+
+        let picked_none = pick_model_or_fallback(&pack, "missing_mesh", Some("missing_fallback"));
+        assert!(picked_none.is_none());
+    }
+}
+

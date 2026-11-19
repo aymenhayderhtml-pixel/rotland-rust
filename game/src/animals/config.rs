@@ -337,6 +337,12 @@ impl AnimalConfigData {
 
 impl Default for AnimalConfigData {
     fn default() -> Self {
-        Self::from_repo().expect("data/animals.json must load")
+        Self {
+            spawn: AnimalSpawnData::default(),
+            behaviour: AnimalBehaviourData::default(),
+            butcher: AnimalButcherData::default(),
+            species: HashMap::new(),
+        }
     }
 }
+

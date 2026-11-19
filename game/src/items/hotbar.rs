@@ -92,8 +92,9 @@ impl Hotbar {
 
         match def.category {
             ItemCategory::Weapon => {
-                if self.equipped_item_id.as_deref() == Some(&stack.item_id) {
-                    let item_id = self.equipped_item_id.take().unwrap();
+                if self.equipped_item_id.as_deref() == Some(&stack.item_id)
+                    && let Some(item_id) = self.equipped_item_id.take()
+                {
                     HotbarAction::UnequipWeapon { item_id }
                 } else {
                     self.equipped_item_id = Some(stack.item_id.clone());

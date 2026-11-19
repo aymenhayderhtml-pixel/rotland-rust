@@ -1,3 +1,4 @@
+pub mod data_error;
 pub mod def;
 pub mod hotbar;
 pub mod inventory;
@@ -6,6 +7,7 @@ pub mod save;
 pub mod stack;
 pub mod start;
 
+pub use data_error::{load_world_generator, DataError};
 pub use def::{ItemCategory, ItemDef, ItemEffects};
 pub use hotbar::{Hotbar, HotbarAction, HOTBAR_SIZE};
 pub use inventory::Inventory;
@@ -16,5 +18,5 @@ pub use stack::{
 };
 pub use start::{
     load_start_inventory_entries, start_inventory, start_inventory_from_path,
-    StartInventoryLoadError, StartItemEntry,
+    try_start_inventory, StartInventoryLoadError, StartItemEntry,
 };

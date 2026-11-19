@@ -139,7 +139,9 @@ impl CraftingSystem {
             return false;
         }
 
-        let recipe = registry.get(recipe_id).cloned().unwrap();
+        let Some(recipe) = registry.get(recipe_id).cloned() else {
+            return false;
+        };
         for input in &recipe.inputs {
             inventory.remove(&input.id, input.count);
         }

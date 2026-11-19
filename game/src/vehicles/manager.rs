@@ -86,9 +86,13 @@ impl Cars {
         let rec = spawn_rules::new_record(id, colour, at, yaw, fuel, health);
         self.records.insert(id.to_string(), rec.clone());
         let mut car = Car::new(id, colour, &self.config);
-        car.apply_record(&rec);
-        self.live.insert(id.to_string(), car);
-        self.live.get_mut(id).unwrap()
+        match self.live.entry(id.to_string()) {
+            std::collections::hash_map::Entry::Occupied(mut occ) => {
+                occ.insert(car);
+                occ.into_mut()
+            }
+            std::collections::hash_map::Entry::Vacant(vac) => vac.insert(car),
+        }
     }
 
     pub fn respawn_chunk(&mut self, coord: IVec2) {
