@@ -106,7 +106,11 @@ pub fn process_input(
         .unwrap_or_default();
     let keys = ui.keys.clone();
     if let Some(m) = ui.menus.as_mut() {
-        m.pressed_key = input.pressed_keys().into_iter().next();
+        m.pressed_key = if m.is_open() {
+            input.pressed_keys().into_iter().next()
+        } else {
+            None
+        };
     }
     for (key, tab) in [
         (keys.inventory, HubTab::Bag),

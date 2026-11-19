@@ -24,47 +24,74 @@ pub fn update_camp_and_stats(
     if let (Some(play_state), Some(z)) = (play.play.as_mut(), actors.zombies.as_mut()) {
         // Tips for new players: what is near and what the player has (Godot HintTriggers)
         if let Some(hints) = play_state.hints.as_mut() {
-            let mut ctx = game::HintContext::new();
             let at = actors.player;
-            ctx.nearest_zombie_dist = z
+            play.hint_ctx.nearest_zombie_dist = z
                 .list
                 .iter()
                 .filter(|q| !q.health.is_dead())
                 .map(|q| q.position.distance(at))
                 .reduce(f32::min);
-            ctx.nearest_crate_dist = world.streamer.as_ref().and_then(|s| {
+            play.hint_ctx.nearest_crate_dist = world.streamer.as_ref().and_then(|s| {
                 s.chunks
                     .values()
                     .flat_map(|c| c.crates.iter())
                     .map(|c| c.position.distance(at))
                     .reduce(f32::min)
             });
+            play.hint_ctx.nearest_board_dist = None;
+            for val in play.hint_ctx.npc_distances.values_mut() {
+                *val = f32::MAX;
+            }
             if let Some(c) = &actors.camp_npcs {
                 for n in c.director.fixed_npcs() {
                     let d = n.position.distance(at);
                     if n.role.starts_with("bounty") {
-                        ctx.nearest_board_dist =
-                            Some(ctx.nearest_board_dist.map_or(d, |b: f32| b.min(d)));
+                        play.hint_ctx.nearest_board_dist =
+                            Some(play.hint_ctx.nearest_board_dist.map_or(d, |b: f32| b.min(d)));
                     }
-                    let e = ctx.npc_distances.entry(n.role.clone()).or_insert(d);
-                    *e = e.min(d);
+                    if let Some(e) = play.hint_ctx.npc_distances.get_mut(&n.role) {
+                        *e = (*e).min(d);
+                    } else {
+                        play.hint_ctx.npc_distances.insert(n.role.clone(), d);
+                    }
                 }
             }
-            ctx.needs.insert("food".into(), play_state.hunger.current());
-            ctx.needs.insert("water".into(), play_state.thirst.current());
-            ctx.hour = play.hour;
-            ctx.bag_weight_ratio = Some(
+            if let Some(v) = play.hint_ctx.needs.get_mut("food") {
+                *v = play_state.hunger.current();
+            } else {
+                play.hint_ctx.needs.insert("food".into(), play_state.hunger.current());
+            }
+            if let Some(v) = play.hint_ctx.needs.get_mut("water") {
+                *v = play_state.thirst.current();
+            } else {
+                play.hint_ctx.needs.insert("water".into(), play_state.thirst.current());
+            }
+            play.hint_ctx.hour = play.hour;
+            play.hint_ctx.bag_weight_ratio = Some(
                 play_state.inventory.total_weight() / play_state.inventory.max_weight().max(1.0),
             );
-            ctx.inventory_items = play_state
-                .inventory
-                .slots()
-                .iter()
-                .flatten()
-                .map(|s| s.item_id.clone())
-                .collect();
-            ctx.is_menu_open = menu_open;
-            ctx.is_dead = !alive;
+
+            // Rebuild inventory items only when inventory changes (fingerprint / hash check)
+            let mut inv_hasher = std::hash::DefaultHasher::new();
+            use std::hash::{Hash, Hasher};
+            for (i, slot) in play_state.inventory.slots().iter().enumerate() {
+                if let Some(stack) = slot {
+                    i.hash(&mut inv_hasher);
+                    stack.item_id.hash(&mut inv_hasher);
+                    stack.count.hash(&mut inv_hasher);
+                }
+            }
+            let inv_hash = inv_hasher.finish();
+            if inv_hash != play.hint_inventory_hash {
+                play.hint_inventory_hash = inv_hash;
+                play.hint_ctx.inventory_items.clear();
+                for slot in play_state.inventory.slots().iter().flatten() {
+                    play.hint_ctx.inventory_items.insert(slot.item_id.clone());
+                }
+            }
+
+            play.hint_ctx.is_menu_open = menu_open;
+            play.hint_ctx.is_dead = !alive;
             if let Some(g) = world.world_gen.as_ref() {
                 hints.on_safe_zone_changed(
                     g.settlements()
@@ -75,7 +102,15 @@ pub fn update_camp_and_stats(
             if play_state.picked_up {
                 hints.on_event("item_picked");
             }
-            play.hint_text = hints.tick(dt, &ctx).map(|h| fill_keys(&h.text));
+            if let Some(h) = hints.tick(dt, &play.hint_ctx) {
+                if play.active_hint_id.as_deref() != Some(&h.id) {
+                    play.active_hint_id = Some(h.id.clone());
+                    play.hint_text = Some(fill_keys(&h.text));
+                }
+            } else {
+                play.active_hint_id = None;
+                play.hint_text = None;
+            }
         }
 
         // Profile numbers: deaths, distance travelled (teleports skipped), kills and headshots
@@ -107,7 +142,14 @@ pub fn update_camp_and_stats(
                 play_state.camp.skills.get_level(&def.id),
                 play_state.camp.skills.get_xp(&def.id),
             );
-            let before = play.skill_seen.insert(def.id.clone(), now);
+            let before = if let Some(entry) = play.skill_seen.get_mut(&def.id) {
+                let prev = *entry;
+                *entry = now;
+                Some(prev)
+            } else {
+                play.skill_seen.insert(def.id.clone(), now);
+                None
+            };
             if let (false, Some((level, xp))) = (first, before) {
                 if now.0 > level {
                     overlays.trigger_level_up(&def.name, now.0);

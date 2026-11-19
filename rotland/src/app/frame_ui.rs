@@ -189,16 +189,21 @@ pub fn draw_ui(
     // The hub (bag, crafting, skills, bounties, profile)
     let mut hand = None;
     let mut close_hub = false;
-    let camps: Vec<glam::Vec2> = world
-        .world_gen
-        .as_ref()
-        .map(|g| {
-            g.settlements()
+    let empty_camps = [];
+    let camps: &[glam::Vec2] = if ui.hub.is_some() {
+        if world.camps.is_empty()
+            && let Some(g) = world.world_gen.as_ref()
+        {
+            world.camps = g
+                .settlements()
                 .iter()
                 .map(|s| glam::Vec2::new(s.center.x, s.center.z))
-                .collect()
-        })
-        .unwrap_or_default();
+                .collect();
+        }
+        &world.camps
+    } else {
+        &empty_camps
+    };
     let yaw = actors.player_ctrl.as_ref().map_or(0.0, |p| p.yaw);
     let day = play.clock.day;
     if let (Some(play_state), Some(state), false) = (play.play.as_mut(), ui.hub.as_mut(), on_main) {

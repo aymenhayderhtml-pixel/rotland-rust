@@ -4,10 +4,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use engine::render::{Camera, LitRenderer};
-use game::{CameraRig, Player};
+use game::{
+    CameraRig, DogPoiSite, GuardPost, GuardTarget, HintContext, LadderRail, Player, PoiZombieSite,
+    VoiceZombie,
+};
 use glam::{Mat4, Vec3};
 use winit::keyboard::KeyCode;
-use world::WorldGenerator;
+use world::{LootSpot, WorldGenerator};
 
 use crate::{
     camp_npcs, camp_ui, campfire_mesh, car_solid, combat, dog_view, fp_weapon, hub_ui, menus,
@@ -91,6 +94,7 @@ pub struct RenderState {
     pub car_markers: (Vec3, Vec3, Vec3),
     pub fps: f32,
     pub flashlight_on: bool,
+    pub scratch_beds: Vec<props::Placed>,
 }
 
 /// Terrain, streaming chunks, static physics, trees, and POI markers.
@@ -103,6 +107,12 @@ pub struct WorldState {
     pub falling: HashMap<String, (glam::IVec2, streaming::TreeSlot)>,
     pub poi_markers: HashMap<String, Vec<Vec3>>,
     pub poi_zombies: Option<game::PoiZombies>,
+    pub near_crates_scratch: Vec<LootSpot>,
+    pub poi_zombie_sites: Vec<PoiZombieSite>,
+    pub poi_sites_generation: u64,
+    pub tracked_zombie_scratch: Vec<u64>,
+    pub cleared_poi_scratch: Vec<String>,
+    pub camps: Vec<glam::Vec2>,
 }
 
 impl WorldState {
@@ -133,6 +143,17 @@ pub struct ActorsState {
     pub zombie_voices: Option<game::ZombieVoices>,
     pub climb: game::LadderClimb,
     pub was_dead: bool,
+    pub bites_scratch: Vec<f32>,
+    pub zombie_pos_scratch: Vec<(u64, Vec3)>,
+    pub voice_zombies_scratch: Vec<VoiceZombie>,
+    pub guard_posts_scratch: Vec<GuardPost>,
+    pub guard_targets_scratch: Vec<GuardTarget>,
+    pub zombie_status_scratch: Vec<(u64, Vec3, bool)>,
+    pub noises_scratch: Vec<(Vec3, f32)>,
+    pub animal_status_scratch: Vec<(u64, Vec3, bool)>,
+    pub car_solids_scratch: Vec<(String, Mat4, bool)>,
+    pub car_targets_scratch: Vec<(u64, Vec3)>,
+    pub car_gone_scratch: Vec<glam::IVec2>,
 }
 
 impl ActorsState {
@@ -161,6 +182,9 @@ pub struct PlaySide {
     pub hint_text: Option<String>,
     pub voices_played: u32,
     pub pois_cleared: u32,
+    pub hint_ctx: HintContext,
+    pub hint_inventory_hash: u64,
+    pub active_hint_id: Option<String>,
 }
 
 impl Default for PlaySide {
@@ -174,6 +198,9 @@ impl Default for PlaySide {
             hint_text: None,
             voices_played: 0,
             pois_cleared: 0,
+            hint_ctx: HintContext::default(),
+            hint_inventory_hash: 0,
+            active_hint_id: None,
         }
     }
 }
