@@ -44,17 +44,19 @@ def _feet(mb, look):
     shoes = look["shoes"]
     for sign, foot, toe in ((1, "foot_R", "toe_R"), (-1, "foot_L", "toe_L")):
         x = sign * 0.10
-        mb.add_loft([((x, -0.068, 0.046), 0.036, 0.032), ((x, -0.035, 0.050), 0.046, 0.046),
-                     ((x, 0.02, 0.050), 0.048, 0.046), ((x, 0.10, 0.040), 0.047, 0.036)],
+        # Main shoe body (heel to ball of foot, resting above sole z=0.014)
+        mb.add_loft([((x, -0.068, 0.048), 0.036, 0.034), ((x, -0.035, 0.052), 0.046, 0.046),
+                     ((x, 0.02, 0.052), 0.048, 0.046), ((x, 0.10, 0.042), 0.047, 0.036)],
                     shoes, foot, segs=10, axis=(0, 1, 0))
-        mb.add_loft([((x, 0.098, 0.040), 0.047, 0.036), ((x, 0.155, 0.032), 0.045, 0.028),
-                     ((x, 0.196, 0.025), 0.031, 0.018)], shoes, toe, segs=10, axis=(0, 1, 0))
-        # Sole: a darker strip all round the bottom
+        # Toe box (ball of foot to toe tip)
+        mb.add_loft([((x, 0.10, 0.040), 0.047, 0.034), ((x, 0.155, 0.032), 0.045, 0.026),
+                     ((x, 0.196, 0.025), 0.031, 0.017)], shoes, toe, segs=10, axis=(0, 1, 0))
+        # Sole: dark strip all round the bottom from ground (z=0.0) to z=0.014
         mb.add_box((x - 0.049, -0.072, 0.0), (x + 0.049, 0.10, 0.014), "pants_dark", foot)
-        mb.add_box((x - 0.047, 0.10, 0.0), (x + 0.047, 0.192, 0.012), "pants_dark", toe)
-        # Laces across the instep
-        for y, top in ((0.035, 0.094), (0.068, 0.084)):
-            mb.add_box((x - 0.022, y - 0.006, top - 0.008), (x + 0.022, y + 0.006, top + 0.003), "rock_light", foot)
+        mb.add_box((x - 0.047, 0.10, 0.0), (x + 0.047, 0.192, 0.014), "pants_dark", toe)
+        # Laces across the instep (offset by ~3 mm so they sit proudly on top of the shoe, REND-003)
+        for y, top in ((0.035, 0.096), (0.068, 0.086)):
+            mb.add_box((x - 0.022, y - 0.006, top), (x + 0.022, y + 0.006, top + 0.007), "rock_light", foot)
 
 
 def _legs(mb, look, lm):
@@ -84,9 +86,9 @@ def _torso(mb, look, lm):
     # Pelvis and seat
     mb.add_loft([((0, hy - 0.005, hz - 0.075), 0.105, 0.070), ((0, hy, hz - 0.03), 0.140, 0.086),
                  ((0, hy, hz + 0.05), 0.150, 0.090), ((0, hy, sz), 0.150, 0.088)], pants, "hips", segs=12)
-    # Belt and buckle
-    mb.add_loft([((0, hy, sz - 0.036), 0.155, 0.093), ((0, hy, sz), 0.155, 0.093)], "bark_dark", "hips", segs=12)
-    mb.add_box((-0.025, hy + 0.086, sz - 0.031), (0.025, hy + 0.099, sz - 0.005), "metal", "hips")
+    # Belt wraps around waist (a ring matching hips size); buckle sits proudly on front (REND-003)
+    mb.add_loft([((0, hy, sz - 0.042), 0.155, 0.093), ((0, hy, sz + 0.006), 0.155, 0.093)], "bark_dark", "hips", segs=12)
+    mb.add_box((-0.025, hy + 0.093, sz - 0.035), (0.025, hy + 0.101, sz - 0.003), "metal", "hips")
     # Midriff: the shirt hem hangs just over the belt top
     my = (hy + sy) / 2
     mb.add_loft([((0, hy, sz - 0.022), 0.150, 0.089), ((0, my, sz + 0.09), 0.152, 0.090),
@@ -112,9 +114,9 @@ def _torso(mb, look, lm):
 _HEAD = [(0.02, 0.050, 0.050, 0.022), (0.13, 0.070, 0.074, 0.016), (0.31, 0.084, 0.090, 0.006),
          (0.54, 0.090, 0.098, 0.0), (0.77, 0.088, 0.096, -0.006), (0.91, 0.070, 0.080, -0.010),
          (1.0, 0.034, 0.040, -0.012)]
-_HAIR_TOP = [(0.64, 0.095, 0.104, -0.004), (0.80, 0.093, 0.102, -0.008), (0.93, 0.074, 0.085, -0.012),
-             (1.03, 0.036, 0.042, -0.012)]
-_HAIR_BACK = [(0.24, 0.080, 0.070, -0.030), (0.45, 0.092, 0.078, -0.028), (0.66, 0.094, 0.080, -0.022)]
+# Hair cap sits on top and back of the head, above the brow line (no eye band, closed crown)
+_HAIR_CAP = [(0.60, 0.095, 0.100, -0.012), (0.76, 0.095, 0.098, -0.014), (0.90, 0.080, 0.086, -0.015),
+             (1.00, 0.048, 0.052, -0.014), (1.035, 0.020, 0.024, -0.012)]
 
 
 def _head(mb, look, lm, zombie):
@@ -126,8 +128,7 @@ def _head(mb, look, lm, zombie):
         return [((0, f + yc, h + fr * span), rx + extra, ry + extra) for fr, rx, ry, yc in rows]
 
     mb.add_loft(prof(_HEAD), skin, "head", segs=12)
-    mb.add_loft(prof(_HAIR_TOP), hair, "head", segs=12)
-    mb.add_loft(prof(_HAIR_BACK), hair, "head", segs=12)
+    mb.add_loft(prof(_HAIR_CAP), hair, "head", segs=12)
     # Ears
     for s in (1, -1):
         mb.add_ellipsoid((s * 0.090, f - 0.004, h + 0.11), (0.013, 0.022, 0.030), skin, "head", segs=6, rings=4)
@@ -163,14 +164,18 @@ def _arms(mb, look, lm, hunched, arm_points):
         back = Vector((sign * 0.5, 0.0, 0.866))  # back of the hand (perpendicular to the arm)
         across = Vector((0.0, 1.0, 0.0))
         mb.add_ellipsoid(shoulder, (0.056, 0.058, 0.052), sleeve, "shoulder_" + side, segs=10, rings=6)
+        # Upper arm: from shoulder extending slightly past the elbow joint (overlap at joint)
         mb.add_loft([(shoulder, 0.054, 0.054), (_lerp(shoulder, elbow, 0.45), 0.052, 0.055),
-                     (elbow, 0.045, 0.045)], sleeve, "upper_arm_" + side, segs=10)
+                     (elbow, 0.045, 0.045), (_lerp(elbow, wrist, 0.04), 0.044, 0.044)], sleeve, "upper_arm_" + side, segs=10)
         if sleeve != skin:
             # Rolled sleeve cuff just above the elbow
             mb.add_loft([(_lerp(shoulder, elbow, 0.80), 0.051, 0.051), (_lerp(shoulder, elbow, 0.97), 0.050, 0.050)],
                         sleeve, "upper_arm_" + side, segs=10)
-        mb.add_ellipsoid(elbow, (0.043, 0.043, 0.043), skin, "forearm_" + side, segs=8, rings=5)
-        mb.add_loft([(elbow, 0.042, 0.042), (_lerp(elbow, wrist, 0.3), 0.046, 0.044), (wrist, 0.032, 0.030)],
+        # Elbow joint sphere attached to forearm (slightly enlarged to 0.046 for seamless coverage)
+        mb.add_ellipsoid(elbow, (0.046, 0.046, 0.046), skin, "forearm_" + side, segs=8, rings=5)
+        # Forearm starting slightly above elbow to overlap cleanly
+        mb.add_loft([(_lerp(elbow, shoulder, 0.03), 0.044, 0.044), (elbow, 0.043, 0.043),
+                     (_lerp(elbow, wrist, 0.3), 0.046, 0.044), (wrist, 0.032, 0.030)],
                     skin, "forearm_" + side, segs=10)
         _hand(mb, skin, "hand_" + side, wrist, a, back, across)
 
