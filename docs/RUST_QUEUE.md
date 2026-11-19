@@ -27,6 +27,8 @@ The owner is asleep. Claude keeps working in a loop: when a round's workers fini
 
 - R9 (7 Gemini workers, two restarted after Antigravity errors) merged and wired: first-person weapon in view (sway, kick, wall pull), gun bash when out of ammo, car trunk (E at the back), zombies waiting in buildings (wake at 35 m, cap 16, cleared buildings saved as visited_pois, clear bounties), zombie groans and snarls (25 m), Settings FOV / render scale / V-Sync applied live, car headlights (renderer has 3 spot lights). Leftover: headlights light only a short patch (low lamps, flat beam, Godot numbers); gun bash and trunk not yet tried in a real run.
 
+- R10 (11 Gemini 3.8 Flash lanes, write-only; Claude built once) merged and wired: main.rs split into rotland/src/app/ (226-line main), model fixes (character hair/belt/arms/shoes, car parts; one bad normals step removed), two-handed swing (left hand IK on the handle, waist twist), HUD pack (hotbar pictures, crosshair hidden with melee, HUD scales, dog bar, safe zone label, key bar, compass camp/waypoint, scope picture), bag/crafting (materials have/need, item stats, same buttons), zombie extras (herd, screams heard by others, crawlers from leg hits, corpses, banging at ladders, camp safe zone), weapon sounds + data checks, no crash on missing files, saves (dropped items, weapons + mags, settlements/respawn camp, safe loading, slot checks), per-frame memory reuse, parity doc refreshed. 446 tests, clippy clean. Leftover: night horde not assigned at spawn, bag details picture not passed, key bar labels not from rebinds, car body 4 open edges, dirty water source + scrap/antler uses (owner to pick).
+
 ## Round now running
 - (none: waiting for the owner)
 

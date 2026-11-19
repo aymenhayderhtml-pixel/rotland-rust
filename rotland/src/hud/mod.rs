@@ -58,7 +58,7 @@ impl Default for KeyLabels {
         Self {
             attack: "LMB".to_string(),
             key_help: Some(
-                "[Tab] Bag   [K] Skills   [B] Bounties   [M] Map   [E] Use   [Esc] Menu".to_string(),
+                "[Tab] Bag   [L] Skills   [J] Bounties   [M] Map   [E] Use   [Esc] Menu".to_string(),
             ),
         }
     }
