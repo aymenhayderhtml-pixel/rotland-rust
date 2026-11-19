@@ -23,10 +23,11 @@ impl Default for Bank {
 }
 
 impl Bank {
-    /// Creates a bank with default 40 slots, BANK_MAX_WEIGHT, and repo item registry.
+    /// Creates a bank with default 40 slots, BANK_MAX_WEIGHT, and shared item registry.
+    ///
+    /// Note: Prefer `Bank::with_registry(registry)` to pass an explicit registry.
     pub fn new() -> Self {
-        let registry = ItemRegistry::from_repo().expect("data/items.json must load for Bank::new");
-        Self::with_registry(Arc::new(registry))
+        Self::with_registry(ItemRegistry::shared())
     }
 
     /// Creates a bank with the given ItemRegistry and default slot count.

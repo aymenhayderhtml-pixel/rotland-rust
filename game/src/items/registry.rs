@@ -1,8 +1,11 @@
 use std::collections::BTreeMap;
 use std::path::Path;
+use std::sync::{Arc, OnceLock};
 
 use crate::items::def::{ItemCategory, ItemDef};
 use crate::weapons::WeaponRegistry;
+
+static SHARED_REGISTRY: OnceLock<Arc<ItemRegistry>> = OnceLock::new();
 
 #[derive(Debug)]
 pub enum ItemLoadError {
@@ -31,6 +34,21 @@ pub struct ItemRegistry {
 }
 
 impl ItemRegistry {
+    /// Returns the process-wide cached `ItemRegistry`.
+    /// On first call, loads from repo (`data/items.json`).
+    /// If loading fails, logs an error and returns an empty registry so callers never panic.
+    pub fn shared() -> Arc<Self> {
+        SHARED_REGISTRY
+            .get_or_init(|| match Self::from_repo() {
+                Ok(reg) => Arc::new(reg),
+                Err(err) => {
+                    eprintln!("failed to load shared ItemRegistry: {err}; using empty fallback registry");
+                    Arc::new(Self::default())
+                }
+            })
+            .clone()
+    }
+
     /// Loads from the default repo path `data/items.json`.
     pub fn from_repo() -> Result<Self, ItemLoadError> {
         let path = paths::repo_path("data/items.json");
@@ -121,3 +139,18 @@ impl ItemRegistry {
         self.iter()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::items::Inventory;
+
+    #[test]
+    fn inventory_shared_registry_matches() {
+        let inv = Inventory::new();
+        let shared = ItemRegistry::shared();
+        assert_eq!(inv.registry().len(), shared.len());
+        assert_eq!(inv.slot_count(), crate::items::DEFAULT_SLOT_COUNT);
+    }
+}
+

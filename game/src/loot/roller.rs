@@ -56,6 +56,9 @@ pub fn scale_rolls(rolls: i32, amount: f32) -> i32 {
 
 /// Rolls a loot table deterministically from (world_seed, crate_id).
 pub fn roll(table: &LootTableData, world_seed: i32, crate_id: &str, amount: f32) -> Vec<ItemStack> {
+    if table.entries.is_empty() {
+        return Vec::new();
+    }
     let mut rng = DotnetRandom::new(crate_seed(world_seed, crate_id));
     let raw_rolls = rng.next_range(table.rolls[0], table.rolls[1] + 1);
     let rolls = scale_rolls(raw_rolls, amount);
@@ -69,13 +72,19 @@ pub fn roll(table: &LootTableData, world_seed: i32, crate_id: &str, amount: f32)
 
     for _ in 0..rolls {
         let pick_val = rng.next(total_weight);
-        let entry = pick_entry(table, pick_val);
+        let Some(entry) = pick_entry(table, pick_val) else {
+            continue;
+        };
         let count = rng.next_range(entry.count[0], entry.count[1] + 1) as u32;
-        if !counts.contains_key(&entry.id) {
-            counts.insert(entry.id.clone(), 0);
-            order.push(entry.id.clone());
+        match counts.entry(entry.id.clone()) {
+            std::collections::hash_map::Entry::Vacant(v) => {
+                order.push(entry.id.clone());
+                v.insert(count);
+            }
+            std::collections::hash_map::Entry::Occupied(mut o) => {
+                *o.get_mut() += count;
+            }
         }
-        *counts.get_mut(&entry.id).unwrap() += count;
     }
 
     order
@@ -87,15 +96,15 @@ pub fn roll(table: &LootTableData, world_seed: i32, crate_id: &str, amount: f32)
         .collect()
 }
 
-fn pick_entry(table: &LootTableData, pick: i32) -> &LootEntryData {
+fn pick_entry(table: &LootTableData, pick: i32) -> Option<&LootEntryData> {
     let mut acc = 0;
     for entry in &table.entries {
         acc += entry.weight;
         if pick < acc {
-            return entry;
+            return Some(entry);
         }
     }
-    table.entries.last().expect("table must have entries")
+    table.entries.last()
 }
 
 /// Dollars the crate holds, or 0 (port of LootRoller.RollCash).
@@ -111,3 +120,22 @@ pub fn roll_cash(table: &LootTableData, world_seed: i32, crate_id: &str) -> i32 
     }
     rng.next_range(cash.min, cash.max + 1)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_loot_table_rolls_nothing_without_panic() {
+        let table = LootTableData {
+            rolls: [1, 3],
+            entries: Vec::new(),
+            cash: None,
+        };
+        let items = roll(&table, 1234, "empty_crate", 1.0);
+        assert!(items.is_empty());
+        let cash = roll_cash(&table, 1234, "empty_crate");
+        assert_eq!(cash, 0);
+    }
+}
+

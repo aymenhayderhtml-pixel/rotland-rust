@@ -2,23 +2,8 @@ use glam::IVec2;
 use world::{BiomeId, SettlementConfig, SettlementConfigData, WorldGenerator};
 
 fn load_config() -> SettlementConfigData {
-    let candidates = [
-        "data/settlements.json",
-        "../data/settlements.json",
-    ];
-    for c in candidates {
-        let p = std::path::Path::new(c);
-        if p.exists() {
-            return SettlementConfig::load_from_file(p).expect("failed to load settlements.json");
-        }
-    }
-    if let Ok(dir) = std::env::var("CARGO_MANIFEST_DIR") {
-        let p = std::path::PathBuf::from(dir).join("../data/settlements.json");
-        if p.exists() {
-            return SettlementConfig::load_from_file(p).expect("failed to load settlements.json");
-        }
-    }
-    panic!("Could not find data/settlements.json");
+    let path = paths::repo_path("data/settlements.json");
+    SettlementConfig::load_from_file(&path).expect("failed to load settlements.json")
 }
 
 #[test]
