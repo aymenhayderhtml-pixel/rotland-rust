@@ -430,3 +430,373 @@ fn test_spawn_rules_deterministic_and_poi_parking() {
     assert_eq!(parking.x, 18.5);
     assert_eq!(parking.y, 20.0);
 }
+
+#[test]
+fn test_draw_state_wheels_stand_on_the_ground() {
+    let config = VehicleConfigData::from_repo().expect("data/vehicles.json must load");
+    let world = flat_world();
+    let mut cars = Cars::new(config);
+    cars.spawn_car("wheel_test", "red", Vec3::new(0.0, 0.6, 0.0), 0.0, 40.0, 300.0);
+
+    let idle = CarInput::default();
+    for _ in 0..180 {
+        cars.update(1.0 / 60.0, &idle, &world);
+    }
+
+    let draw = cars.get("wheel_test").unwrap().draw_state();
+    assert_eq!(draw.colour, "red");
+    assert_eq!(draw.model_name, "car_hatchback_red");
+
+    // 4x4 track 1.56 m (x +-0.78), wheelbase 2.52 m (z +-1.26), front is -Z
+    let expected = [(-0.78, -1.26), (0.78, -1.26), (-0.78, 1.26), (0.78, 1.26)];
+    for (i, (x, z)) in expected.iter().enumerate() {
+        let p = draw.wheel_matrices[i].transform_point3(Vec3::ZERO);
+        assert!(
+            (p.y - game::vehicles::VISUAL_WHEEL_RADIUS).abs() < 0.02,
+            "wheel {i} centre y {:.3} should sit at the tyre radius {:.2} above the ground",
+            p.y,
+            game::vehicles::VISUAL_WHEEL_RADIUS
+        );
+        assert!((p.x - x).abs() < 0.02, "wheel {i} x {:.3} should be {x}", p.x);
+        assert!((p.z - z).abs() < 0.02, "wheel {i} z {:.3} should be {z}", p.z);
+    }
+}
+
+#[test]
+fn test_4wd_climbs_steep_hill() {
+    let config = VehicleConfigData::from_repo().expect("data/vehicles.json must load");
+    // ~14 degree incline: height = 0.25 * (-z) for z < 0
+    let mut world = PhysicsWorld::new();
+    let mut heights = vec![0.0f32; CHUNK_SAMPLES * CHUNK_SAMPLES];
+    for cz in -3..=3 {
+        for cx in -3..=3 {
+            let oz = cz as f32 * physics::CHUNK_SIZE;
+            for j in 0..CHUNK_SAMPLES {
+                for i in 0..CHUNK_SAMPLES {
+                    let z = oz + j as f32 * physics::CHUNK_CELL;
+                    heights[j * CHUNK_SAMPLES + i] = (-z).max(0.0) * 0.25;
+                }
+            }
+            world.add_ground_chunk(IVec2::new(cx, cz), &heights);
+        }
+    }
+
+    let mut cars = Cars::new(config);
+    // Spawn on flat ground below the hill's foot, facing up it (-Z)
+    cars.spawn_car("hill_test", "red", Vec3::new(0.0, 0.6, 6.0), 0.0, 40.0, 300.0);
+    let car = cars.get_mut("hill_test").unwrap();
+    car.set_driven(true);
+    cars.driven_car_id = Some("hill_test".to_string());
+
+    let idle = CarInput::default();
+    for _ in 0..60 {
+        cars.update(1.0 / 60.0, &idle, &world);
+    }
+
+    let start = cars.get("hill_test").unwrap().body.position;
+    let full_throttle = CarInput {
+        throttle: 1.0,
+        ..Default::default()
+    };
+    for _ in 0..240 {
+        cars.update(1.0 / 60.0, &full_throttle, &world);
+    }
+
+    let end = cars.get("hill_test").unwrap().body.position;
+    let vertical = end.y - start.y;
+    let forward = start.z - end.z;
+    assert!(
+        vertical > 2.5,
+        "car should climb > 2.5 m vertically, climbed {:.2} m",
+        vertical
+    );
+    assert!(
+        forward > 10.0,
+        "car should move > 10.0 m forward, moved {:.2} m",
+        forward
+    );
+}
+
+#[test]
+fn test_parked_car_holds_on_hill() {
+    let config = VehicleConfigData::from_repo().expect("data/vehicles.json must load");
+    // ~12 degree incline: height = 0.21 * (-z) for z < 0
+    let mut world = PhysicsWorld::new();
+    let mut heights = vec![0.0f32; CHUNK_SAMPLES * CHUNK_SAMPLES];
+    for cz in -3..=3 {
+        for cx in -3..=3 {
+            let oz = cz as f32 * physics::CHUNK_SIZE;
+            for j in 0..CHUNK_SAMPLES {
+                for i in 0..CHUNK_SAMPLES {
+                    let z = oz + j as f32 * physics::CHUNK_CELL;
+                    heights[j * CHUNK_SAMPLES + i] = (-z).max(0.0) * 0.21;
+                }
+            }
+            world.add_ground_chunk(IVec2::new(cx, cz), &heights);
+        }
+    }
+
+    let mut cars = Cars::new(config);
+    // Not driven: parked on the slope, should not creep down it
+    cars.spawn_car("park_hill_test", "red", Vec3::new(0.0, 1.2, -3.0), 0.0, 40.0, 300.0);
+    let idle = CarInput::default();
+    let start_pos = cars.get("park_hill_test").unwrap().body.position;
+    for _ in 0..180 {
+        cars.update(1.0 / 60.0, &idle, &world);
+    }
+
+    let end = &cars.get("park_hill_test").unwrap().body;
+    let mut horizontal = end.position - start_pos;
+    horizontal.y = 0.0;
+    let drift = horizontal.length();
+    assert!(
+        drift < 0.6,
+        "parked car should not creep more than 0.6 m, drifted {:.2} m",
+        drift
+    );
+    assert!(
+        end.speed_kmh() < 0.5,
+        "parked car speed should stay under 0.5 km/h, is {:.2} km/h",
+        end.speed_kmh()
+    );
+}
+
+#[test]
+fn test_handbrake_turn_induces_drift() {
+    let config = VehicleConfigData::from_repo().expect("data/vehicles.json must load");
+    let world = flat_world();
+    let mut cars = Cars::new(config);
+    let car = cars.spawn_car("drift_test", "red", Vec3::new(0.0, 0.6, 0.0), 0.0, 40.0, 300.0);
+    car.set_driven(true);
+    cars.driven_car_id = Some("drift_test".to_string());
+
+    let idle = CarInput::default();
+    for _ in 0..30 {
+        cars.update(1.0 / 60.0, &idle, &world);
+    }
+
+    // Accelerate hard for 1.5 s
+    let throttle = CarInput {
+        throttle: 1.0,
+        ..Default::default()
+    };
+    for _ in 0..90 {
+        cars.update(1.0 / 60.0, &throttle, &world);
+    }
+
+    let yaw_of = |car: &game::vehicles::Car| {
+        let f = car.body.rotation * -Vec3::Z;
+        (-f.x).atan2(-f.z)
+    };
+    let before = yaw_of(cars.get("drift_test").unwrap());
+
+    // Steer right and pull the handbrake for 1 s: rear tires slide, car rotates harder
+    let drift = CarInput {
+        steer: 1.0,
+        handbrake: true,
+        ..Default::default()
+    };
+    for _ in 0..60 {
+        cars.update(1.0 / 60.0, &drift, &world);
+    }
+
+    let after = yaw_of(cars.get("drift_test").unwrap());
+    let yaw_change = (after - before).abs();
+    assert!(
+        yaw_change > 0.4,
+        "handbrake turn should rotate the car by > 0.4 rad, turned {:.3} rad",
+        yaw_change
+    );
+    assert!(
+        !cars.get("drift_test").unwrap().body.is_flipped(),
+        "the car should not flip over in a normal handbrake turn"
+    );
+}
+
+#[test]
+fn test_wall_crash_triggers_crash_event_and_damage() {
+    let config = VehicleConfigData::from_repo().expect("data/vehicles.json must load");
+    let mut world = flat_world();
+
+    // Static wall ahead: z in [-8, -7], x in [-4, 4], y in [0, 3]
+    let wall = [
+        [-4.0, 0.0, -0.5],
+        [4.0, 0.0, -0.5],
+        [-4.0, 0.0, 0.5],
+        [4.0, 0.0, 0.5],
+        [-4.0, 3.0, -0.5],
+        [4.0, 3.0, -0.5],
+        [-4.0, 3.0, 0.5],
+        [4.0, 3.0, 0.5],
+    ];
+    // Hull points given about the box's centre at y = 1.5
+    let hull: Vec<[f32; 3]> = wall
+        .iter()
+        .map(|p| [p[0], p[1] - 1.5, p[2]])
+        .collect();
+    world.add_static(&[hull], Vec3::new(0.0, 1.5, -7.5), 0.0, 1.0);
+
+    let mut cars = Cars::new(config);
+    let car = cars.spawn_car("crash_test", "red", Vec3::new(0.0, 0.6, 0.0), 0.0, 40.0, 300.0);
+    car.set_driven(true);
+    cars.driven_car_id = Some("crash_test".to_string());
+    // Drive straight into the wall at 18 m/s
+    cars.get_mut("crash_test").unwrap().body.linear_velocity = Vec3::new(0.0, 0.0, -18.0);
+
+    let idle = CarInput::default();
+    let mut saw_crash = false;
+    let mut saw_intensity = 0.0f32;
+    for _ in 0..90 {
+        let cf = cars.update(1.0 / 60.0, &idle, &world);
+        if cf.crash {
+            saw_crash = true;
+            saw_intensity = saw_intensity.max(cf.crash_intensity);
+        }
+    }
+
+    assert!(saw_crash, "ramming a wall at 18 m/s must emit a crash event");
+    assert!(
+        saw_intensity > 0.0,
+        "crash event must carry a positive intensity, got {:.2}",
+        saw_intensity
+    );
+    assert!(
+        cars.get("crash_test").unwrap().condition.current() < 300.0,
+        "a wall crash must damage the car, health is {:.2}",
+        cars.get("crash_test").unwrap().condition.current()
+    );
+}
+
+#[test]
+fn test_flip_recovery_rights_upside_down_car() {
+    let config = VehicleConfigData::from_repo().expect("data/vehicles.json must load");
+    let world = flat_world();
+    let mut cars = Cars::new(config);
+    let car = cars.spawn_car("flip_test", "red", Vec3::new(0.0, 1.2, 0.0), 0.0, 40.0, 300.0);
+    car.set_driven(true);
+    cars.driven_car_id = Some("flip_test".to_string());
+
+    // Roll the car onto its roof; assert it is seen as flipped
+    cars.get_mut("flip_test").unwrap().body.rotation = glam::Quat::from_rotation_z(std::f32::consts::PI);
+    assert!(cars.get("flip_test").unwrap().body.is_flipped());
+
+    let input = CarInput {
+        flip_recover: true,
+        ..Default::default()
+    };
+    let cf = cars.update(1.0 / 60.0, &input, &world);
+
+    assert!(
+        cf.flip_recovered,
+        "[R] on an upside-down car must emit flip_recovered"
+    );
+    assert!(
+        !cars.get("flip_test").unwrap().body.is_flipped(),
+        "the car must be righted after flip recovery"
+    );
+}
+
+#[test]
+fn test_repair_from_scrap_metal_restores_wrecked_car() {
+    let config = VehicleConfigData::from_repo().expect("data/vehicles.json must load");
+    let mut cars = Cars::new(config);
+    let car = cars.spawn_car("repair_test", "red", Vec3::new(0.0, 0.6, 0.0), 0.0, 40.0, 300.0);
+    car.condition.damage(300.0);
+    assert!(car.condition.is_wrecked());
+
+    // A wrecked car cannot be entered
+    let enter = cars.try_enter(Vec3::new(-1.5, 0.0, 0.0), Vec3::X);
+    assert_eq!(enter, None, "wrecked car must not be enterable");
+
+    let mut bag = Inventory::new();
+    bag.clear();
+    assert_eq!(bag.add("scrap_metal", 1), 0);
+
+    let success = cars.repair("repair_test", &mut bag);
+    assert!(success, "repairing a wrecked car with scrap metal must succeed");
+
+    let car = cars.get("repair_test").unwrap();
+    assert_eq!(car.condition.current(), 50.0);
+    assert!(!car.condition.is_wrecked());
+    assert_eq!(bag.count("scrap_metal"), 0, "the scrap metal was consumed");
+
+    // A now-drivable car can be entered again
+    let entered = cars.try_enter(Vec3::new(-1.5, 0.0, 0.0), Vec3::X);
+    assert_eq!(entered.as_deref(), Some("repair_test"));
+    // Get back out so the repair-to-full case is tested on a parked car
+    cars.exit("repair_test", &flat_world());
+
+    // Repairing a car at full health fails and does not consume scrap metal
+    cars.get_mut("repair_test").unwrap().condition.set(300.0);
+    assert_eq!(bag.add("scrap_metal", 1), 0);
+    let success2 = cars.repair("repair_test", &mut bag);
+    assert!(!success2, "repair must fail at full health");
+    assert_eq!(bag.count("scrap_metal"), 1, "scrap metal must not be consumed at full health");
+}
+
+#[test]
+fn test_door_swings_open_when_getting_in_and_trunk_swings_open() {
+    let config = VehicleConfigData::from_repo().expect("data/vehicles.json must load");
+    let world = flat_world();
+    let mut cars = Cars::new(config);
+    cars.spawn_car("door_test", "red", Vec3::ZERO, 0.0, 40.0, 300.0);
+
+    let idle = CarInput::default();
+    for _ in 0..60 {
+        cars.update(1.0 / 60.0, &idle, &world);
+    }
+    assert!(
+        cars.get("door_test").unwrap().door_open < 0.01,
+        "the door starts shut"
+    );
+
+    // Getting in swings the door open
+    assert!(cars.try_enter(Vec3::new(-1.5, 0.0, 0.0), Vec3::X).is_some());
+    for _ in 0..30 {
+        cars.update(1.0 / 60.0, &idle, &world);
+    }
+    assert!(
+        cars.get("door_test").unwrap().door_open > 0.5,
+        "the driver door should swing open when getting in"
+    );
+
+    // ...then shuts again while the car sits still
+    for _ in 0..150 {
+        cars.update(1.0 / 60.0, &idle, &world);
+    }
+    assert!(
+        cars.get("door_test").unwrap().door_open < 0.05,
+        "the driver door should shut again after the driver is in"
+    );
+
+    // The tailgate follows the trunk screen (parked cars only)
+    cars.get_mut("door_test").unwrap().set_driven(false);
+    let car = cars.get_mut("door_test").unwrap();
+    car.trunk_target_open = true;
+    for _ in 0..60 {
+        cars.update(1.0 / 60.0, &idle, &world);
+    }
+    assert!(
+        cars.get("door_test").unwrap().trunk_open > 0.9,
+        "the tailgate should swing open for the trunk"
+    );
+
+    cars.get_mut("door_test").unwrap().trunk_target_open = false;
+    for _ in 0..90 {
+        cars.update(1.0 / 60.0, &idle, &world);
+    }
+    assert!(
+        cars.get("door_test").unwrap().trunk_open < 0.05,
+        "the tailgate should swing shut again"
+    );
+
+    // A driven car never leaves the tailgate hanging open
+    cars.get_mut("door_test").unwrap().set_driven(true);
+    let car = cars.get_mut("door_test").unwrap();
+    car.trunk_target_open = true;
+    cars.update(1.0 / 60.0, &idle, &world);
+    assert!(
+        !cars.get("door_test").unwrap().trunk_target_open,
+        "the tailgate is forced shut while driving"
+    );
+}

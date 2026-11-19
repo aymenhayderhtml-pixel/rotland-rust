@@ -275,6 +275,7 @@ pub fn update_sim(
             car_ramming(
                 dt,
                 cars,
+                actors.open_trunk.as_deref(),
                 &actors.car_input,
                 &mut world.physics,
                 &mut actors.car_solids,
@@ -286,9 +287,11 @@ pub fn update_sim(
                 actors.wildlife.as_mut(),
                 actors.player,
                 play.hour,
-                session.time,
                 &mut audio.audio,
                 play.play.as_mut(),
+                &mut audio.car_horn_cooldown,
+                &mut actors.car_camera,
+                &mut audio.trunk_was_open,
             );
             actors.car_solids_scratch = car_solids_scratch;
             actors.car_targets_scratch = car_targets_scratch;
@@ -397,5 +400,10 @@ pub fn update_sim(
             }
         }
         actors.bites_scratch = bites;
+    }
+    // Exhaust and damage smoke ticks once per frame whenever cars exist (independent of the zombie sim)
+    if let Some(cars) = actors.cars.as_ref() {
+        let draw_states = cars.draw_states();
+        render.car_smoke.update(dt, &draw_states, &render.car_markers);
     }
 }

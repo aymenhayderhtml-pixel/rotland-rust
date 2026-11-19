@@ -171,6 +171,27 @@ pub fn draw_ui(
         if let Some(d) = actors.dogs.as_ref().and_then(|d| d.sim.dog()).filter(|d| !d.is_dead()) {
             state.dog = Some(hud::DogHudInfo::new(d.name().to_string(), d.health().current(), d.health().max()));
         }
+        // Driving dashboard: shown bottom-right while a car is driven
+        if let Some(car) = actors.cars.as_ref().and_then(|c| c.driven_car()) {
+            state.vehicle = Some(hud::VehicleHudInfo {
+                speed_kmh: car.speed_kmh(),
+                forward_speed: car.forward_speed(),
+                rpm: car.engine_rpm,
+                fuel_litres: car.tank.litres(),
+                fuel_fraction: car.tank.fraction(),
+                health: car.condition.current(),
+                max_health: car.condition.max(),
+                lights_on: car.lights_on,
+                handbrake: car.controls.handbrake,
+                is_wrecked: car.condition.is_wrecked(),
+                is_empty: car.tank.is_empty(),
+                is_flipped: car.body.is_flipped(),
+                camera_label: actors.car_camera.mode().label(),
+            });
+            state.key_labels.key_help = Some(
+                "[W/S] Drive [A/D] Steer [Space] Brake [L] Lights [H] Horn [V] Cam [E] Exit".to_string(),
+            );
+        }
         hud::draw_hud(ctx, &state, &mut ui.icons);
         if let (Some(t), false) = (&play.hint_text, c.is_dead()) {
             hud::hint::draw_hint(ctx, t);
@@ -311,7 +332,10 @@ pub fn draw_ui(
             hub_ui::draw(ctx, state, &view)
         };
         match action {
-            Some(hub_ui::HubAction::Close) => ui.hub = None,
+            Some(hub_ui::HubAction::Close) => {
+                ui.hub = None;
+                actors.open_trunk = None;
+            }
             Some(hub_ui::HubAction::TrunkMove { from_trunk, slot, count }) => {
                 if let (Some(id), Some(cars)) = (actors.open_trunk.as_deref(), actors.cars.as_mut())
                     && let Some(car) = cars.get_mut(id)
@@ -388,6 +412,9 @@ pub fn draw_ui(
     }
     if close_hub {
         ui.hub = None;
+        if actors.open_trunk.is_some() {
+            actors.open_trunk = None;
+        }
     }
     if let Some(change) = hand {
         apply_hand(change, render, play, actors, world);

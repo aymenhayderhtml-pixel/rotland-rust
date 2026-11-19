@@ -53,9 +53,11 @@ Use a campfire or stove with recipes. Cooked food restores more hunger and can g
 | Vehicle | Where | Needs |
 |---|---|---|
 | Horse | anywhere off-road | food. **Tame a wild one** (plains) **or buy one** at a settlement |
-| Car | roads best | fuel, repairs |
+| Car | 4x4 for roads and off-road travel; drive with throttle/steering, toggle lights `[L]`, handbrake `[Space]`, flip recovery `[R]`, camera modes `[V]`; `[T]` repairs with scrap metal | fuel, repairs |
 | Motorbike | fast, agile | fuel |
 | Small boat | water | fuel or rowing |
+
+While driving, a bottom-right dashboard shows speed, gear, RPM, fuel and hull condition, with light/brake/camera status and alerts for flipped, wrecked or empty-fuel states.
 
 ## Economy (NPC survivors)
 - **Settlements** are safe zones with NPC traders.

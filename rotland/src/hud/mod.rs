@@ -24,6 +24,7 @@ pub mod key_bar;
 pub mod safe_zone;
 pub mod scope;
 pub mod text;
+pub mod vehicle;
 pub mod vitals;
 
 #[path = "../icons.rs"]
@@ -32,6 +33,7 @@ pub mod icons;
 pub use compass::{CampHudInfo, WaypointHudInfo};
 pub use game::hud_math::HeldKind;
 pub use icons::IconCache;
+pub use vehicle::VehicleHudInfo;
 pub use vitals::DogHudInfo;
 
 use engine::egui::{self, pos2, Align2, Color32, FontId};
@@ -100,6 +102,8 @@ pub struct HudState {
     pub key_labels: KeyLabels,
     /// Optional explicit item IDs for hotbar slots, matching `assets/icons/<id>.png`.
     pub hotbar_item_ids: Option<Vec<Option<String>>>,
+    /// Driving dashboard data; hidden the moment the player leaves the car.
+    pub vehicle: Option<VehicleHudInfo>,
 }
 
 impl Default for HudState {
@@ -127,6 +131,7 @@ impl Default for HudState {
             scoped: false,
             key_labels: KeyLabels::default(),
             hotbar_item_ids: None,
+            vehicle: None,
         }
     }
 }
@@ -169,8 +174,8 @@ pub fn draw_hud(ctx: &egui::Context, s: &HudState, icons: &mut IconCache) {
             // 5. "Safe zone" label below compass when inside settlement
             safe_zone::draw_safe_zone(painter, &screen, s.in_safe_zone, scale);
 
-            // 6. Crosshair in screen center (hidden when holding melee, scoped, or dead)
-            if game::hud_math::is_crosshair_visible(s.dead, s.scoped, s.held) {
+            // 6. Crosshair in screen center (hidden when holding melee, scoped, driving, or dead)
+            if s.vehicle.is_none() && game::hud_math::is_crosshair_visible(s.dead, s.scoped, s.held) {
                 crosshair::draw_crosshair(painter, screen.center(), scale);
             }
 
@@ -202,8 +207,14 @@ pub fn draw_hud(ctx: &egui::Context, s: &HudState, icons: &mut IconCache) {
                 scale,
             );
 
-            // 11. Ammo readout bottom right (with dynamic key prompt)
-            ammo::draw_ammo(painter, &screen, s.ammo, &s.key_labels.attack, scale);
+            // 11. Ammo readout bottom right (with dynamic key prompt), or the driving dashboard
+            if let Some(info) = &s.vehicle {
+                if !s.dead {
+                    vehicle::draw_vehicle_hud(painter, &screen, time, info, scale);
+                }
+            } else {
+                ammo::draw_ammo(painter, &screen, s.ammo, &s.key_labels.attack, scale);
+            }
 
             // 12. Key help strip bottom right above ammo
             key_bar::draw_key_bar(painter, &screen, s.key_labels.key_help.as_deref(), scale);

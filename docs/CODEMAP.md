@@ -159,7 +159,7 @@ Sound effects library, 3D spatial audio math, and rodio mixer. (4 files)
 
 | File | What it does | Key pub items |
 |---|---|---|
-| `audio/src/lib.rs` | Audio crate root: exposes sound manager, one-shot playback, spatial sound positioning, and volume controls. | `Audio`, `EventDef`, `SoundData`, `SoundDef`, `distance_db`, `linear_to_db` (+1 more) |
+| `audio/src/lib.rs` | Audio crate root: exposes sound manager, one-shot playback, spatial sound positioning, volume controls, and a continuous RPM-pitched `car_engine_loop` handle. | `Audio`, `EventDef`, `SoundData`, `SoundDef`, `distance_db`, `linear_to_db` (+1 more) |
 | `audio/src/library.rs` | SoundLibrary registry parsing data/sounds.json and mapping sound IDs to audio file paths and playback options. | `SoundDef`, `EventDef`, `SoundData` |
 | `audio/src/mix.rs` | Pure math for 3D spatial audio: calculates volume attenuation and stereo panning based on listener distance and angle. | `distance_db()`, `pan()`, `linear_to_db()` |
 | `audio/tests/files_decode.rs` | Verifies that every audio file referenced in data/sounds.json exists on disk and decodes without errors. | `every_sound_file_decodes()` |
@@ -182,7 +182,7 @@ Custom wgpu rendering engine on Vulkan: winit windowing, frame targets, blit, ti
 | `engine/src/render/lit.rs` | Lit forward mesh renderer drawing static chunk geometry and prop instances with directional sun lighting. | `Lighting`, `SpotLight`, `SpotLightUniform`, `srgb_to_linear()`, `DrawItem`, `FrameCounts` (+1 more) |
 | `engine/src/render/mesh.rs` | GPU vertex and index buffer allocations, mesh uploading, and draw call batching primitives. | `COLOR_VERTEX_LAYOUT`, `GpuMesh`, `PackVertex as ColorVertex` |
 | `engine/src/render/mod.rs` | Renderer module root: re-exports camera, frustum, lighting, pipelines, shadows, and skinned meshes. | `Camera`, `DrawItem`, `FrameCounts`, `Lighting`, `LitRenderer`, `SpotLight` (+5 more) |
-| `engine/src/render/pipelines.rs` | WGPU render pipeline configurations, vertex layouts, bind group layouts, and shader module compilation. | `Layouts`, `Pipelines`, `depth_state()` |
+| `engine/src/render/pipelines.rs` | WGPU render pipelines: `mesh` uses CW fronts for terrain; `skinned` uses CCW fronts for glTF and procedural models. | `Layouts`, `Pipelines`, `depth_state()` |
 | `engine/src/render/shadow.rs` | Cascaded / directional sun shadow map renderer computing depth orthographic projection and shadow pass. | `SHADOW_FORMAT`, `ShadowSettings`, `ShadowMap`, `light_view_proj()` |
 | `engine/src/render/skinned.rs` | Skinned mesh renderer uploading bone matrix palettes and rendering animated humanoid/zombie models. | `SkinInstance`, `SkinnedBatch`, `GrowBuffer` |
 | `engine/src/stats.rs` | Frame-time statistical aggregator tracking frame times, average FPS, percentiles (p50/p95/p99), and worst 1%. | `FrameStats`, `StatsSummary` |
@@ -365,18 +365,18 @@ Pure, testable gameplay simulation systems: player, inventory, items, combat, zo
 | `game/src/trees/mod.rs` | Tree felling system: axe strikes, felling countdown, fall animation, and wood rewards. | `FallingTree`, `TREE_FALL_DURATION`, `TreeFelling`, `TreeStrikeResult`, `HIT_WOOD_SOUND`, `TREE_DROP_OFFSET` (+15 more) |
 | `game/src/trees/save.rs` | Persistence for fallen trees. | `TREE_WORLDSTATE_SAVE_ID`, `TREE_FALLEN_KEY`, `to_save_fallen_trees()`, `from_save_fallen_trees()` |
 | `game/src/trees/strike.rs` | Tree spatial query and identification. | `TreeHit`, `TreeCandidate`, `is_tree_kind()`, `tree_id()`, `parse_tree_id()`, `find_tree_strike()` |
-| `game/src/vehicles/body.rs` | Hub rest positions in car local space (FL, FR, RL, RR), matching VEHICLE_CONTRACT.md and CarModel.cs. | `HUB_REST`, `CarBody` |
-| `game/src/vehicles/camera.rs` | Driver camera follow math (port of scripts/Vehicles/CarCamera.cs). | `CHASE_DISTANCE`, `MIN_DISTANCE`, `PIVOT_HEIGHT`, `SMOOTHING`, `ORBIT_MOUSE_RAD_PER_PIXEL`, `ORBIT_KEY_RAD_PER_SECOND` (+3 more) |
-| `game/src/vehicles/car.rs` | Visual draw state of a car for the engine renderer. | `WHEEL_RADIUS`, `NOISE_INTERVAL`, `CarDrawState`, `CarStepEvents`, `Car`, `car_tag()` |
+| `game/src/vehicles/body.rs` | 4WD off-road body physics: suspension, anti-roll, hill-hold, dual-height crash sweeps, and flip recovery. | `HUB_REST`, `CarBody` |
+| `game/src/vehicles/camera.rs` | Multi-mode Chase/Close/Hood `CarCamera` with dynamic FOV, orbit, and shake. | `CHASE_DISTANCE`, `MIN_DISTANCE`, `PIVOT_HEIGHT`, `SMOOTHING`, `ORBIT_MOUSE_RAD_PER_PIXEL`, `ORBIT_KEY_RAD_PER_SECOND` (+3 more) |
+| `game/src/vehicles/car.rs` | Vehicle simulation and animated draw state for wheels, driver door, and tailgate. | `WHEEL_RADIUS`, `NOISE_INTERVAL`, `CarDrawState`, `CarStepEvents`, `Car`, `car_tag()` |
 | `game/src/vehicles/config.rs` | Shape of data/vehicles.json (port of scripts/Vehicles/VehicleConfigData.cs). | `VehicleConfigData` |
-| `game/src/vehicles/controls.rs` | What the driver asks the car to do this physics step (port of scripts/Vehicles/CarControls.cs). | `CarControls`, `CarInput` |
+| `game/src/vehicles/controls.rs` | Driver inputs for throttle, steering, braking, lights, horn, and `[R]` flip recovery. | `CarControls`, `CarInput` |
 | `game/src/vehicles/fuel.rs` | The petrol tank: litres in, litres out (port of scripts/Vehicles/CarFuel.cs). | `CarFuel` |
 | `game/src/vehicles/gauge.rs` | Formats the driving gauge text (port of scripts/Vehicles/CarGauge.cs). | `describe_gauge()` |
-| `game/src/vehicles/health.rs` | The car's hit points (port of scripts/Vehicles/CarHealth.cs). | `CarHealth` |
-| `game/src/vehicles/manager.rs` | Output frame data from Cars::update for driving audio and game events. | `CarFrame`, `Cars` |
+| `game/src/vehicles/health.rs` | Car condition, crash damage, wreck state, and repair health. | `CarHealth` |
+| `game/src/vehicles/manager.rs` | Vehicle lifecycle, driving frame events, and `[T]` scrap-metal repairs. | `CarFrame`, `Cars` |
 | `game/src/vehicles/mod.rs` | Module root and symbol re-exports for the vehicles subsystem. | `*`, `CAR_SYSTEM_ID` |
 | `game/src/vehicles/point.rs` | What an interaction point on a car does (port of scripts/Vehicles/CarPointKind.cs). | `CarPointKind`, `CarPoint` |
-| `game/src/vehicles/run_over.rs` | Hits targets in the car's path (port of scripts/Vehicles/CarRunOver.cs). | `CarRunOver` |
+| `game/src/vehicles/run_over.rs` | Dual-height swept vehicle collision against targets in the car's path. | `CarRunOver` |
 | `game/src/vehicles/save.rs` | Serializes cars data matching Godot CarManager.cs Save (system id "cars"). | `CAR_SYSTEM_ID`, `to_save()`, `from_save()` |
 | `game/src/vehicles/spawn_rules.rs` | Stable FNV-1a hash over text, matching Godot C# CarSpawnRules.cs. | `CAMP_CAR_ID`, `SPAWN_SALT`, `COLOUR_SALT`, `FUEL_SALT`, `PARKING_GAP`, `stable_hash()` (+9 more) |
 | `game/src/weapons.rs` | Melee weapons swing; guns fire. | `WeaponKind`, `WeaponAnim`, `WeaponHold`, `WeaponScope`, `WeaponDef`, `WeaponRegistry` (+1 more) |
@@ -455,7 +455,8 @@ Game executable and wiring: integrates engine, world, physics, game, humanoid, s
 | `rotland/src/camp_ui/tests.rs` | Unit tests for camp facility UI state transitions, bank transfers, trade transactions, and crafting. | `test_tab_switching()`, `test_selected_row()`, `test_count_stepper_basic()`, `test_count_stepper_clamp_to_stock()` |
 | `rotland/src/camp_ui/view.rs` | Read-only view struct providing data to camp screens. | `CampView` |
 | `rotland/src/campfire_mesh.rs` | The campfire's look, built in code like Godot's CampfireVisuals: a ring of grey stones, two crossed logs, and an orange/yellow flame cone that shows while the fire burns. | `CampfireMeshes` |
-| `rotland/src/car_lights.rs` | Car headlights: produces spot lights for vehicle headlights illuminating the road ahead. | `HEADLIGHT_RANGE`, `HEADLIGHT_CONE_DEG`, `HEADLIGHT_ENERGY`, `HEADLIGHT_COLOR`, `DEFAULT_HEADLIGHT_L`, `DEFAULT_HEADLIGHT_R` (+1 more) |
+| `rotland/src/car_lights.rs` | Car headlights: road-tilted off-road beams from the vehicle headlight markers. | `HEADLIGHT_RANGE`, `HEADLIGHT_CONE_DEG`, `HEADLIGHT_ENERGY`, `HEADLIGHT_COLOR`, `DEFAULT_HEADLIGHT_L`, `DEFAULT_HEADLIGHT_R` (+1 more) |
+| `rotland/src/car_visuals.rs` | Car marker loading, CCW emissive light lenses, and pooled exhaust/damage smoke and ember effects. | `CarMarkers`, `SmokeKind` (+ more) |
 | `rotland/src/car_solid.rs` | Static collision box management for parked cars. | `default_car_box()`, `ParkedCarSolids` |
 | `rotland/src/combat.rs` | The player's side of the fight: health, the melee swing on the left mouse button, being bitten, dying and coming back at the camp. | `Combat`, `CombatEvents`, `MeleeWorld` |
 | `rotland/src/crates.rs` | Loot crates and world items: placement and player interaction. | `CRATE_MODEL`, `INTERACT_RANGE`, `HALF_CONE_DEGREES`, `DROP_DISTANCE`, `DROP_LIFT`, `SEARCH_CRATE_PROMPT` (+8 more) |
@@ -478,6 +479,7 @@ Game executable and wiring: integrates engine, world, physics, game, humanoid, s
 | `rotland/src/hub_ui/tests.rs` | Unit tests for player hub menu tab navigation, inventory dragging, and bounty claiming. | `test_tab_order_and_wrap()`, `test_switch_tab_resets_drag_and_status()`, `test_selected_slot_and_moves()`, `test_drag_and_drop_state()` |
 | `rotland/src/hub_ui/view.rs` | Read-only view structures providing data to hub screens. | `DogView`, `HubView` |
 | `rotland/src/hud.rs` | Player HUD: health, stamina, crosshair, hotbar, compass, clock, FPS, ammo, and death overlay. | `HotbarSlot`, `HudState`, `draw()`, `draw_hint()` |
+| `rotland/src/hud/vehicle.rs` | Bottom-right driving dashboard: speed, gear, RPM, fuel/hull bars, status pills, and alerts. | `VehicleHudInfo`, `gear_label()`, `draw_vehicle_hud()` |
 | `rotland/src/keys_ui.rs` | egui 0.37 controls / key rebinding panel. | `KeysUiState`, `draw_keys()` |
 | `rotland/src/light.rs` | The light of the day, ported from Godot's DayNightPalette (sun path, sun colour, sky colours). | `flashlight()`, `at_hour()` |
 | `rotland/src/main.rs` | Rotland (Rust). R0: the real world with real trees and 25 zombies, for the go/no-go speed test. Options: --scene=forest\|camp... | `PlayerPose` |
@@ -653,5 +655,6 @@ When running with `--stats=PATH.json` or `--shot=PATH.png`, `engine/src/app.rs:3
   - Low-level wgpu pipelines, vertex layouts, bind groups, shadow passes, shaders -> `engine/src/render/` (e.g. `lit.rs`, `shadow.rs`, `pipelines.rs`).
 
 - **3D Models & Animations**:
+  - Vehicle geometry in `tools/blender/vehicles/car_parts.py` defines the multi-part 4x4 SUV; `tools/blender/vehicles/build_car.py` exports three body/door/tailgate colour variants and the shared wheel `.glb`.
   - Author or edit models with Blender empties/markers and collision boxes in `tools/blender`.
   - Re-bake assets into `assets/models.pack` using the baker tool (`cargo run --release -p baker`).

@@ -18,6 +18,10 @@ pub struct CarFrame {
     pub speed_kmh: f32,
     pub engine_rpm: f32,
     pub crash: bool,
+    /// How hard a crash was (0 = none, up to 1.0); only set when `crash` is true this frame.
+    pub crash_intensity: f32,
+    /// True when the driven car righted itself via [R] this frame.
+    pub flip_recovered: bool,
     pub horn: bool,
     pub noise_events: Vec<(Vec3, f32)>,
 }
@@ -154,6 +158,14 @@ impl Cars {
                 if step_events.honk {
                     frame.horn = true;
                 }
+                if step_events.flip_recovered {
+                    frame.flip_recovered = true;
+                }
+            }
+            if step_events.crash_intensity > 0.0 && self.last_crash_time <= 0.0 {
+                frame.crash = true;
+                frame.crash_intensity = frame.crash_intensity.max(step_events.crash_intensity);
+                self.last_crash_time = 0.35;
             }
             if let Some(noise) = step_events.noise_made {
                 frame.noise_events.push(noise);
@@ -246,10 +258,29 @@ impl Cars {
             );
             if !hits.is_empty() {
                 car.condition.damage(self.config.run_over_car_damage * hits.len() as f32);
+                // Plowing through zombies drags the hull a little
+                let slow = (1.0 - 0.035 * hits.len() as f32).max(0.75);
+                car.body.linear_velocity *= slow;
                 all_hits.extend(hits);
             }
         }
         all_hits
+    }
+
+    /// Repairs a car with one scrap_metal from the bag (+50 HP); revives wrecked cars.
+    pub fn repair(&mut self, car_id: &str, inventory: &mut Inventory) -> bool {
+        let Some(car) = self.live.get_mut(car_id) else {
+            return false;
+        };
+        if car.condition.fraction() >= 1.0 {
+            return false;
+        }
+        if inventory.remove("scrap_metal", 1) {
+            car.condition.repair(50.0);
+            true
+        } else {
+            false
+        }
     }
 
     /// Pours a fuel_can item into the car's tank.

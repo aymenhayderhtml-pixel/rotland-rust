@@ -32,6 +32,9 @@ pub struct Audio {
     night: Option<StaticSoundHandle>,
     /// 0 = full day, 1 = full night.
     night_mix: Option<f32>,
+    /// Continuous RPM-pitched engine loop (StaticSoundHandle + load-aware volume/rate).
+    car_engine: Option<StaticSoundHandle>,
+    car_engine_active: bool,
     rng: u64,
     /// How many sounds were started (stats for tests).
     pub played: u32,
@@ -85,6 +88,8 @@ impl Audio {
             day: None,
             night: None,
             night_mix: None,
+            car_engine: None,
+            car_engine_active: false,
             rng: 0x2545_F491_4F6C_DD1D,
             played: 0,
             last_played: String::new(),
@@ -195,8 +200,60 @@ impl Audio {
         }
     }
 
+    /// Drives the continuous RPM-pitched engine loop. `active = false` fades it out.
+    pub fn set_car_engine(&mut self, active: bool, rpm: f32) {
+        self.car_engine_active = active;
+        if self.manager.is_none() {
+            return;
+        }
+        if !active {
+            if let Some(mut h) = self.car_engine.take() {
+                h.stop(Tween {
+                    duration: Duration::from_millis(150),
+                    ..Default::default()
+                });
+            }
+            return;
+        }
+        let bus = self.bus_db("Sfx");
+        if self.car_engine.is_none() {
+            self.car_engine = self.start_loop("car_engine_loop");
+        }
+        if let Some(h) = self.car_engine.as_mut() {
+            let rpm = rpm.clamp(0.0, 1.0);
+            let base = self.data.sounds.get("car_engine_loop").map_or(0.0, |d| d.volume_db);
+            let load_db = -7.0 + rpm * 6.5;
+            let rate = 0.72 + rpm * 1.18;
+            let tween = Tween {
+                duration: Duration::from_millis(80),
+                ..Default::default()
+            };
+            h.set_volume(Decibels(base + bus + load_db), tween);
+            h.set_playback_rate(PlaybackRate(rate as f64), tween);
+        }
+    }
+
+    pub fn is_car_engine_active(&self) -> bool {
+        self.car_engine_active
+    }
+
     fn start_loop(&mut self, id: &str) -> Option<StaticSoundHandle> {
         let data = self.clips.get(id)?.first()?.loop_region(..).volume(Decibels::SILENCE);
         self.manager.as_mut()?.play(data).ok()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn muted_car_engine_toggle_is_safe() {
+        let mut audio = Audio::new(true);
+        audio.set_car_engine(true, 0.5);
+        assert!(audio.is_car_engine_active());
+        audio.set_car_engine(true, 1.0);
+        audio.set_car_engine(false, 0.0);
+        assert!(!audio.is_car_engine_active());
     }
 }

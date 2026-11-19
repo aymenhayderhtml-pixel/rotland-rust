@@ -44,5 +44,15 @@ pub fn update_audio(
         if let Some(p) = actors.player_ctrl.as_ref() {
             footsteps_tick(dt, a, &mut audio.step_timer, p, alive);
         }
+        // Continuous RPM-pitched engine loop while the 4x4 is driven (silent when dead / paused)
+        let paused = ui.menus.as_ref().is_some_and(|m| m.is_open());
+        let (engine_on, rpm) = match (alive, paused, actors.cars.as_ref().and_then(|c| c.driven_car())) {
+            (true, false, Some(car)) => (
+                car.is_engine_on(),
+                car.engine_rpm.clamp(0.0, 1.0),
+            ),
+            _ => (false, 0.0),
+        };
+        a.set_car_engine(engine_on, rpm);
     }
 }

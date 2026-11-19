@@ -7,6 +7,7 @@ use world::WorldGenerator;
 pub fn car_ramming(
     dt: f32,
     cars: &mut game::Cars,
+    open_trunk: Option<&str>,
     car_input: &game::CarInput,
     physics: &mut physics::PhysicsWorld,
     car_solids: &mut crate::car_solid::ParkedCarSolids,
@@ -18,11 +19,24 @@ pub fn car_ramming(
     mut wildlife: Option<&mut crate::wildlife::Wildlife>,
     player_pos: Vec3,
     hour: f32,
-    time: f32,
     audio: &mut Option<audio::Audio>,
     play: Option<&mut crate::play::PlayState>,
+    car_horn_cooldown: &mut f32,
+    car_camera: &mut game::CarCamera,
+    trunk_was_open: &mut bool,
 ) {
     cars.is_night = !(6.0..20.0).contains(&hour);
+
+    // The tailgate: swinging shut (trunk screen closed) gets the door thunk
+    let trunk_open_now = open_trunk.is_some();
+    if *trunk_was_open
+        && !trunk_open_now
+        && let Some(a) = audio.as_mut()
+    {
+        a.play_at("car_door", player_pos);
+    }
+    *trunk_was_open = trunk_open_now;
+
     if let Some(st) = streamer {
         for c in st.chunks.keys() {
             cars.respawn_chunk(*c);
@@ -37,6 +51,10 @@ pub fn car_ramming(
         for &k in gone_scratch.iter() {
             cars.store_chunk(k);
         }
+    }
+    // The tailgate swings open for the car whose trunk screen is open
+    for c in cars.live_cars_mut() {
+        c.trunk_target_open = !c.is_driven() && open_trunk == Some(c.id.as_str());
     }
     let cf = cars.update(dt, car_input, physics);
     let mut solid_count = 0;
@@ -73,7 +91,9 @@ pub fn car_ramming(
                 .map(|a| (a.id, a.position)),
         );
     }
+    let mut hits_this_frame = 0usize;
     for (id, dmg, kb) in cars.run_over(targets_scratch) {
+        hits_this_frame += 1;
         match wildlife.as_deref_mut() {
             Some(w) if id >= crate::wildlife::FIRST_ANIMAL_ID => {
                 w.sim.hit(id, dmg, kb);
@@ -86,25 +106,32 @@ pub fn car_ramming(
             a.play_at("car_impact", player_pos);
         }
     }
+    // Impact camera shake feeding off each event
+    if cf.crash {
+        car_camera.add_shake(0.35 + cf.crash_intensity * 0.65);
+    }
+    if hits_this_frame > 0 {
+        car_camera.add_shake(0.28);
+    }
     if let Some(a) = audio.as_mut() {
-        if cf.horn && ((time * 4.0) as u32).is_multiple_of(4) {
+        // A horn blips once per press, not every frame it is held
+        *car_horn_cooldown = (*car_horn_cooldown - dt).max(0.0);
+        if cf.horn && *car_horn_cooldown <= 0.0 {
             a.play_at("car_horn", player_pos);
+            *car_horn_cooldown = 0.45;
         }
         if cf.crash {
             a.play_at("car_impact", player_pos);
         }
     }
-    // The gauge (Godot CarGauge) sits where the E prompt goes while driving
-    if let (Some(car), Some(play_state)) = (cars.driven_car(), play) {
-        let cfg = &cars.config;
-        play_state.set_prompt(game::describe_gauge(
-            car.speed_kmh(),
-            car.tank.litres(),
-            car.tank.fraction(),
-            car.condition.current(),
-            cfg.health,
-            car.condition.is_wrecked(),
-            car.tank.is_empty(),
-        ));
+    // Righted the 4x4: audio + toast + a solid camera jolt
+    if cf.flip_recovered {
+        car_camera.add_shake(0.40);
+        if let Some(a) = audio.as_mut() {
+            a.play_at("car_impact", player_pos);
+        }
+        if let Some(play_state) = play {
+            play_state.show_toast("Righted the 4x4".into());
+        }
     }
 }

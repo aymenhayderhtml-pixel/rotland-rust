@@ -11,6 +11,7 @@ mod camp_ui;
 mod campfire_mesh;
 mod car_lights;
 mod car_solid;
+mod car_visuals;
 mod combat;
 mod crates;
 mod display;

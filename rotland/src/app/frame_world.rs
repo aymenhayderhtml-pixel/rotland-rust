@@ -66,12 +66,14 @@ pub fn update_world_interactions(
         && session.scene == "play"
     {
         let captured = ui.cursor_captured;
+        let in_car = actors.cars.as_ref().is_some_and(|c| c.driven_car_id.is_some());
         let shoot = shooting::ShootInput {
             // --autoattack clicks every other frame, so semi-automatic guns see a fresh press each time
             fire_pressed: (session.autoattack && ((session.time * 10.0) as u32).is_multiple_of(2))
                 || (captured && input.mouse_pressed(MouseButton::Left)),
             fire_held: captured && input.mouse_held(MouseButton::Left),
-            reload_pressed: input.pressed(ui.keys.reload),
+            // R reloads on foot, flip recovery in a car
+            reload_pressed: !in_car && input.pressed(ui.keys.reload),
             aiming: captured && input.mouse_held(MouseButton::Right),
         };
         let animal_bonus = play_state.camp.skills.get_bonus("animalDamage");
@@ -148,19 +150,23 @@ pub fn update_world_interactions(
         // The back of a parked car: E opens its trunk (Godot PlayerInteractor / TrunkScreen)
         if let (None, Some(cars)) = (&npc, actors.cars.as_ref())
             && cars.driven_car_id.is_none()
-            && let Some(id) = trunk_play::trunk_in_front(cars, p.position, facing, render.car_markers.0)
+            && let Some(id) = trunk_play::trunk_in_front(cars, p.position, facing, render.car_markers.trunk)
         {
             car_prompt = Some(trunk_play::OPEN_TRUNK_PROMPT.to_string());
             if pressed {
                 actors.open_trunk = Some(id);
                 ui.hub = Some(hub_ui::HubUiState::new(hub_ui::HubScreen::Trunk));
+                if let Some(a) = audio.as_mut() {
+                    a.play_at("car_door", p.position);
+                }
             }
         }
         if let (None, None, Some(cars)) = (&npc, &car_prompt, actors.cars.as_mut())
             && cars.driven_car_id.is_none()
+            // Parked-car interaction matches drivable and wrecked cars (repairs can revive a wreck)
             && let Some(id) = cars
                 .live_cars()
-                .filter(|c| !c.condition.is_wrecked() && c.body.position.distance(p.position) < 3.5)
+                .filter(|c| c.body.position.distance(p.position) < 3.5)
                 .min_by(|a, b| {
                     a.body
                         .position
@@ -169,20 +175,42 @@ pub fn update_world_interactions(
                 })
                 .map(|c| c.id.clone())
         {
-            let can = play_state.inventory.has("fuel_can", 1)
+            let can_drive = cars.get(&id).is_some_and(|c| !c.condition.is_wrecked());
+            let can_fuel = can_drive
+                && play_state.inventory.has("fuel_can", 1)
                 && cars.get(&id).is_some_and(|c| c.tank.fraction() < 1.0);
-            car_prompt = Some(if can {
-                "[E] Drive   [F] Pour in fuel".to_string()
+            let can_repair = play_state.inventory.has("scrap_metal", 1)
+                && cars.get(&id).is_some_and(|c| c.condition.fraction() < 1.0);
+            let mut prompt = String::new();
+            if can_drive {
+                prompt.push_str("[E] Drive");
+                if can_fuel {
+                    prompt.push_str("   [F] Pour in fuel");
+                }
+                if can_repair {
+                    prompt.push_str("   [T] Repair");
+                }
+            } else if can_repair {
+                prompt.push_str("Wrecked [T] Repair (scrap metal)");
             } else {
-                "[E] Drive".to_string()
-            });
-            if input.pressed(KeyCode::KeyF) && can && cars.refuel(&id, &mut play_state.inventory) {
+                prompt.push_str("Wrecked (needs scrap metal to repair)");
+            }
+            car_prompt = Some(prompt);
+            if input.pressed(KeyCode::KeyF) && can_fuel && cars.refuel(&id, &mut play_state.inventory) {
                 play_state.show_toast("Poured in 10 litres".into());
                 play_state.hotbar.on_inventory_changed(&play_state.inventory);
             }
-            if pressed && cars.try_enter(p.position, facing).is_some() {
+            if input.pressed(KeyCode::KeyT) && can_repair && cars.repair(&id, &mut play_state.inventory) {
+                play_state.show_toast("Repaired 4x4 (+50 HP)".into());
+                play_state.hotbar.on_inventory_changed(&play_state.inventory);
+            }
+            if pressed && can_drive && cars.try_enter(p.position, facing).is_some() {
+                actors.car_camera.activate();
+                if let Some(a) = audio.as_mut() {
+                    a.play_at("car_door", p.position);
+                }
                 play_state.show_toast(
-                    "W/S drive, A/D steer, Space handbrake, H horn, L lights, E get out".into(),
+                    "W/S drive, A/D steer, Space handbrake, L lights, H horn, V camera, E exit".into(),
                 );
                 car_prompt = None;
             }

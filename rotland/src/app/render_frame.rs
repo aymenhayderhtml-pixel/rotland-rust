@@ -60,17 +60,40 @@ pub fn render_frame(
             }
         }
     }
-    // Cars: the hatchback model at the body's place (its wheels are part of the model for now)
-    if let (Some(cars), Some(pack)) = (actors.cars.as_ref(), render.pack.as_ref()) {
-        for d in cars.draw_states() {
-            if let Some(slot) = render.library.get(&gpu.device, pack, &d.model_name, false) {
-                let mut placed = render.library.place(slot, Vec3::ZERO, 0.0, 1.0);
-                placed.centre = d.world_matrix.transform_point3(placed.centre);
-                placed.matrix = d.world_matrix;
-                beds.push(placed);
+    // Cars: the 4x4 body plus its four wheels, driver door and tailgate as separate parts.
+    // Also collects this frame's draw states for the emissive lamps and smoke VFX below.
+    let car_draw_states: Vec<game::CarDrawState> = if let (Some(cars), Some(pack)) = (actors.cars.as_ref(), render.pack.as_ref()) {
+        let door_hinge = render.car_markers.door_hinge_l;
+        let gate_hinge = render.car_markers.tailgate_hinge;
+        let states = cars.draw_states();
+        let mut parts: Vec<(String, Mat4, Vec3)> = Vec::with_capacity(7);
+        for d in &states {
+            parts.clear();
+            parts.push((d.model_name.clone(), d.world_matrix, Vec3::new(0.0, 0.85, 0.0)));
+            for wheel in d.wheel_matrices {
+                parts.push(("car_wheel".to_string(), wheel, Vec3::ZERO));
+            }
+            let door = d.world_matrix
+                * Mat4::from_translation(door_hinge)
+                * Mat4::from_rotation_y(-d.door_open * 1.10);
+            parts.push((format!("car_door_{}", d.colour), door, Vec3::new(0.0, 0.25, 0.45)));
+            let gate = d.world_matrix
+                * Mat4::from_translation(gate_hinge)
+                * Mat4::from_rotation_y(d.trunk_open * 1.35);
+            parts.push((format!("car_tailgate_{}", d.colour), gate, Vec3::new(-0.74, 0.15, 0.0)));
+            for (name, matrix, centre) in &parts {
+                if let Some(slot) = render.library.get(&gpu.device, pack, name, false) {
+                    let mut placed = render.library.place(slot, Vec3::ZERO, 0.0, 1.0);
+                    placed.centre = matrix.transform_point3(*centre);
+                    placed.matrix = *matrix;
+                    beds.push(placed);
+                }
             }
         }
-    }
+        states
+    } else {
+        Vec::new()
+    };
     let (Some(renderer), Some(streamer)) = (render.renderer.as_mut(), world.streamer.as_ref()) else {
         render.scratch_beds = beds;
         return;
@@ -215,6 +238,51 @@ pub fn render_frame(
             });
         }
     }
+    // Car emissives (self-lit lenses) and smoke VFX: non-shadow-casting batches in the main pass
+    if !car_draw_states.is_empty() || render.car_smoke.is_active() {
+        let markers = render.car_markers;
+        let emissives = render.car_emissives.get_or_insert_with(|| crate::car_visuals::CarEmissiveMeshes::new(&gpu.device, &markers));
+        let instance = |matrix: Mat4| engine::render::SkinInstance::new(matrix, 0);
+        let mut headlights = Vec::new();
+        let mut taillights = Vec::new();
+        let mut brakelights = Vec::new();
+        let mut reverselights = Vec::new();
+        for d in &car_draw_states {
+            if d.lights_on {
+                headlights.push(instance(d.world_matrix));
+                if !d.braking {
+                    taillights.push(instance(d.world_matrix));
+                }
+            }
+            if d.braking {
+                brakelights.push(instance(d.world_matrix));
+            }
+            if d.reversing {
+                reverselights.push(instance(d.world_matrix));
+            }
+        }
+        for (instances, mesh) in [
+            (headlights, &emissives.headlights),
+            (taillights, &emissives.taillights),
+            (brakelights, &emissives.brakelights),
+            (reverselights, &emissives.reverselights),
+        ] {
+            if !instances.is_empty() {
+                main.push(engine::render::SkinnedBatch { mesh, instances });
+            }
+        }
+        // Smoke and embers from the pooled system (grow, spin, fade over the puff's life)
+        let (light_puffs, dark_puffs, embers) = render.car_smoke.instances();
+        for (instances, mesh) in [
+            (light_puffs, &emissives.smoke_light),
+            (dark_puffs, &emissives.smoke_dark),
+            (embers, &emissives.ember),
+        ] {
+            if !instances.is_empty() {
+                main.push(engine::render::SkinnedBatch { mesh, instances });
+            }
+        }
+    }
     let mut lighting = light::at_hour(
         play.hour,
         render.flashlight_on.then(|| {
@@ -234,11 +302,10 @@ pub fn render_frame(
                     .total_cmp(&b.body.position.distance(actors.player))
             })
     {
-        let (_, left, right) = render.car_markers;
         let [l, r] = car_lights::headlight_spots(
             car.draw_state().world_matrix,
-            left,
-            right,
+            render.car_markers.headlight_l,
+            render.car_markers.headlight_r,
             true,
             &cars.config,
         );

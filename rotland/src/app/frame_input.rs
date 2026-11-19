@@ -105,6 +105,9 @@ pub fn process_input(
         .map(|m| KeyMap::from_bindings(&m.keys))
         .unwrap_or_default();
     let keys = ui.keys.clone();
+    // In a car, the L (headlights), R (flip recovery) and V (camera) keys belong to the vehicle,
+    // not to the on-foot hotkeys
+    let in_car = actors.cars.as_ref().is_some_and(|c| c.driven_car_id.is_some());
     if let Some(m) = ui.menus.as_mut() {
         m.pressed_key = if m.is_open() {
             input.pressed_keys().into_iter().next()
@@ -119,11 +122,18 @@ pub fn process_input(
         (keys.profile, HubTab::Profile),
         (keys.map, HubTab::Map),
     ] {
-        if input.pressed(key) && ui.camp_ui.is_none() && !ui.menus.as_ref().is_some_and(|m| m.is_open()) {
+        if input.pressed(key)
+            && ui.camp_ui.is_none()
+            && !ui.menus.as_ref().is_some_and(|m| m.is_open())
+            && !(in_car && key == keys.skills)
+        {
             ui.hub = match &ui.hub {
                 Some(h) if h.screen() == HubScreen::Tab(tab) => None,
                 _ => Some(hub_ui::HubUiState::new(HubScreen::Tab(tab))),
             };
+        if ui.hub.is_none() && actors.open_trunk.is_some() {
+            actors.open_trunk = None;
+        }
         }
     }
     // Esc closes an open camp or hub screen (the screen itself sees the key), otherwise the menus
@@ -154,6 +164,10 @@ pub fn process_input(
     session.play_time += dt as f64;
 
     let mut actions = Actions::from_input(input, &keys.movement);
+    // V cycles the car camera while driving; the on-foot camera toggle waits until you're out
+    if in_car {
+        actions.toggle_camera = false;
+    }
     if !ui.cursor_captured || ui.screen_open() {
         actions.look_delta = (0.0, 0.0);
     }

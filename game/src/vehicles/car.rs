@@ -9,16 +9,29 @@ use crate::vehicles::fuel::CarFuel;
 use crate::vehicles::health::CarHealth;
 
 pub const WHEEL_RADIUS: f32 = 0.30;
+/// Radius of the wheel `.glb` the renderer draws (the 4x4's chunky off-road tyre).
+pub const VISUAL_WHEEL_RADIUS: f32 = 0.34;
 pub const NOISE_INTERVAL: f32 = 0.5;
 
 /// Visual draw state of a car for the engine renderer.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CarDrawState {
     pub id: String,
+    pub colour: String,
     pub model_name: String,
     pub world_matrix: Mat4,
     pub wheel_matrices: [Mat4; 4],
+    /// Driver door swing, 0.0 shut .. 1.0 fully open.
+    pub door_open: f32,
+    /// Rear tailgate swing, 0.0 shut .. 1.0 fully open.
+    pub trunk_open: f32,
     pub lights_on: bool,
+    pub braking: bool,
+    pub reversing: bool,
+    pub engine_on: bool,
+    pub engine_rpm: f32,
+    pub health_fraction: f32,
+    pub is_wrecked: bool,
 }
 
 /// Events produced by a car step.
@@ -27,6 +40,10 @@ pub struct CarStepEvents {
     pub noise_made: Option<(Vec3, f32)>,
     pub honk: bool,
     pub engine_rpm: f32,
+    /// How hard the car hit something (0 = no crash, up to 1.0).
+    pub crash_intensity: f32,
+    /// True when a flip recovery was applied this step.
+    pub flip_recovered: bool,
 }
 
 /// A drivable car entity (port of scripts/Vehicles/Car.cs).
@@ -43,6 +60,22 @@ pub struct Car {
     pub spin: [f32; 4],
     pub driven: bool,
     pub driver_id: Option<u64>,
+    /// Driver door swing, 0.0 shut .. 1.0 open (animated towards `door_hold_timer`).
+    pub door_open: f32,
+    /// Seconds left keeping the door open (set when the driver gets in or out).
+    door_hold_timer: f32,
+    /// Rear tailgate swing, 0.0 shut .. 1.0 open.
+    pub trunk_open: f32,
+    /// Whether the tailgate should swing open (the trunk screen being open).
+    pub trunk_target_open: bool,
+    /// Lights: braking this frame (driven + brake input, opposing throttle, or handbrake at speed).
+    pub braking: bool,
+    /// Lights: reversing under power (moving backward, or throttle into reverse).
+    pub reversing: bool,
+    /// Engine is running (driven, fuel left, not wrecked).
+    pub engine_on: bool,
+    /// Engine load, smoothed toward the step's rpm event (0 when the engine is off).
+    pub engine_rpm: f32,
     noise_timer: f32,
     manual_lights: Option<bool>,
 }
@@ -64,6 +97,14 @@ impl Car {
             spin: [0.0; 4],
             driven: false,
             driver_id: None,
+            door_open: 0.0,
+            door_hold_timer: 0.0,
+            trunk_open: 0.0,
+            trunk_target_open: false,
+            braking: false,
+            reversing: false,
+            engine_on: false,
+            engine_rpm: 0.0,
             noise_timer: 0.0,
             manual_lights: None,
         }
@@ -74,6 +115,10 @@ impl Car {
     }
 
     pub fn set_driven(&mut self, driven: bool) {
+        // Getting in or out swings the driver door open for a moment
+        if self.driven != driven {
+            self.door_hold_timer = 0.65;
+        }
         self.driven = driven;
         if !driven {
             self.driver_id = None;
@@ -104,11 +149,11 @@ impl Car {
 
     /// Driver seat and left exit in car local space.
     pub fn seat_local(&self) -> Vec3 {
-        Vec3::new(-0.32, 0.50, -0.20)
+        Vec3::new(-0.36, 0.72, -0.12)
     }
 
     pub fn exit_left_local(&self) -> Vec3 {
-        Vec3::new(-2.00, 0.00, -0.50)
+        Vec3::new(-2.05, 0.00, -0.30)
     }
 
     /// Advance car logic and physics for one step.
@@ -135,6 +180,11 @@ impl Car {
                 events.honk = true;
                 events.noise_made = Some((self.body.position, cfg.horn_radius));
             }
+            // Flip recovery: right an overturned vehicle in place while barely moving
+            if inp.flip_recover && self.body.is_flipped() && self.speed_kmh() < 15.0 {
+                self.body.recover_flip();
+                events.flip_recovered = true;
+            }
         }
 
         let engine_on = self.is_engine_on();
@@ -144,10 +194,43 @@ impl Car {
 
         self.body.update(dt, &self.controls, engine_on, cfg, physics);
 
-        let speed = self.forward_speed();
-        for i in 0..4 {
-            self.spin[i] += speed * dt / WHEEL_RADIUS;
+        // Crash: a hard obstacle impact (from the obstacle sweep) damages the car and is heard
+        let impact = self.body.last_impact_speed;
+        if impact > 4.5 {
+            events.crash_intensity = ((impact - 4.5) / 14.0).clamp(0.15, 1.0);
+            self.condition.damage((impact - 4.5) * 4.5);
+            events.noise_made = Some((self.body.position, cfg.horn_radius));
         }
+
+        let fwd_speed = self.forward_speed();
+        let opposing = (self.controls.throttle > 0.0 && fwd_speed < -0.4)
+            || (self.controls.throttle < 0.0 && fwd_speed > 0.4);
+        self.braking = self.driven
+            && (self.controls.brake > 0.05 || opposing || (self.controls.handbrake && fwd_speed.abs() > 0.8));
+        self.reversing = engine_on
+            && (fwd_speed < -0.35 || (self.controls.throttle < -0.1 && fwd_speed <= 0.2));
+        for i in 0..4 {
+            self.spin[i] += fwd_speed * dt / VISUAL_WHEEL_RADIUS;
+        }
+
+        // Driver door: swings open when getting in/out, then shuts (closes early once driving off)
+        if self.door_hold_timer > 0.0 {
+            if self.driven && fwd_speed.abs() > 1.5 {
+                self.door_hold_timer = 0.0;
+            } else {
+                self.door_hold_timer = (self.door_hold_timer - dt).max(0.0);
+            }
+        }
+        let door_target = if self.door_hold_timer > 0.0 { 1.0 } else { 0.0 };
+        let door_rate = if door_target > self.door_open { 6.5 } else { 4.5 };
+        self.door_open += (door_target - self.door_open) * (dt * door_rate).min(1.0);
+
+        // Tailgate: opens for the trunk screen, and can never be open while driving
+        if self.driven {
+            self.trunk_target_open = false;
+        }
+        let trunk_target = if self.trunk_target_open { 1.0 } else { 0.0 };
+        self.trunk_open += (trunk_target - self.trunk_open) * (dt * 5.0).min(1.0);
 
         if engine_on {
             self.noise_timer -= dt;
@@ -162,6 +245,10 @@ impl Car {
             let load = self.controls.throttle.abs();
             events.engine_rpm = (0.5 * (self.speed_kmh() / cfg.top_speed_kmh).clamp(0.0, 1.0) + 0.5 * load).clamp(0.0, 1.0);
         }
+
+        self.engine_on = engine_on;
+        let rpm_target = if engine_on { events.engine_rpm } else { 0.0 };
+        self.engine_rpm += (rpm_target - self.engine_rpm) * (dt * 8.0).min(1.0);
 
         self.lights_on = match self.manual_lights {
             Some(manual) => manual,
@@ -234,17 +321,42 @@ impl Car {
         for i in 0..4 {
             let hub = HUB_REST[i];
             let steer = if i <= 1 { self.body.steer_angle } else { 0.0 };
-            let local_trans = Mat4::from_translation(Vec3::new(hub.x, hub.y + self.body.compression[i], hub.z));
-            let local_rot = Mat4::from_rotation_y(steer) * Mat4::from_rotation_x(self.spin[i]);
+            let is_right = i == 1 || i == 3;
+            // At rest the body sits `-compression` under the ground plane, so a wheel centred at
+            // VISUAL_WHEEL_RADIUS + compression touches the ground exactly (and follows bumps).
+            let local_trans = Mat4::from_translation(Vec3::new(
+                hub.x,
+                VISUAL_WHEEL_RADIUS + self.body.compression[i],
+                hub.z,
+            ));
+            // The wheel's outer face points -X; mirror the right-hand wheels so it faces +X
+            let side_flip = if is_right {
+                Mat4::from_rotation_y(std::f32::consts::PI)
+            } else {
+                Mat4::IDENTITY
+            };
+            // Forward is -Z, so a forward roll turns the wheel by -spin around +X
+            let local_rot = Mat4::from_rotation_y(steer)
+                * Mat4::from_rotation_x(-self.spin[i])
+                * side_flip;
             wheel_matrices[i] = world_matrix * (local_trans * local_rot);
         }
 
         CarDrawState {
             id: self.id.clone(),
+            colour: self.colour.clone(),
             model_name: format!("car_hatchback_{}", self.colour),
             world_matrix,
             wheel_matrices,
+            door_open: self.door_open,
+            trunk_open: self.trunk_open,
             lights_on: self.lights_on,
+            braking: self.braking,
+            reversing: self.reversing,
+            engine_on: self.engine_on,
+            engine_rpm: self.engine_rpm,
+            health_fraction: self.condition.fraction(),
+            is_wrecked: self.condition.is_wrecked(),
         }
     }
 }

@@ -11,8 +11,7 @@ use super::frame_actors::camera_follow;
 use super::frame_input::apply_hand;
 use super::state::{ActorsState, AudioState, PlaySide, RenderState, SessionState, UiState, WorldState};
 use crate::{
-    camp_npcs, campfire_mesh, car_solid, combat, dog_view, play, player_visual, trunk_play,
-    wildlife, zombies,
+    camp_npcs, campfire_mesh, car_solid, combat, dog_view, play, player_visual, wildlife, zombies,
 };
 
 /// Builds the world for `session.seed` (and restores a save): ground, props, zombies, player, backpack.
@@ -25,8 +24,15 @@ pub fn start_world(
     play: &mut PlaySide,
     _ui: &mut UiState,
     session: &mut SessionState,
-    _audio: &mut AudioState,
+    audio: &mut AudioState,
 ) {
+    actors.car_camera.deactivate();
+    actors.open_trunk = None;
+    audio.car_horn_cooldown = 0.0;
+    audio.trunk_was_open = false;
+    if let Some(a) = audio.audio.as_mut() {
+        a.set_car_engine(false, 0.0);
+    }
     world.physics = physics::PhysicsWorld::default();
     world.streamer = None;
     actors.zombies = None;
@@ -104,16 +110,9 @@ pub fn start_world(
                     c.seed = session.seed;
                     actors.cars = Some(c);
                     actors.car_solids = car_solid::ParkedCarSolids::from_pack(pack);
-                    let marker = |name: &str, fallback: Vec3| {
-                        pack.find("car_hatchback_red")
-                            .and_then(|m| m.markers.iter().find(|k| k.name == name))
-                            .map_or(fallback, |k| Vec3::from(k.translation))
-                    };
-                    render.car_markers = (
-                        marker("trunk", trunk_play::DEFAULT_TRUNK_LOCAL),
-                        marker("headlight_L", Vec3::new(-0.55, 0.66, -1.93)),
-                        marker("headlight_R", Vec3::new(0.55, 0.66, -1.93)),
-                    );
+                    render.car_markers = crate::car_visuals::CarMarkers::from_pack(pack);
+                    render.car_emissives = None;
+                    render.car_smoke.clear();
                 }
                 Err(e) => log::warn!("data/vehicles.json: {e}"),
             }

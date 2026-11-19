@@ -63,7 +63,10 @@ impl CarRunOver {
             } else {
                 away.normalize()
             };
-            let knockback = away * cfg.run_over_knockback_mps + Vec3::Y * 1.5;
+            // Knockback scales with speed, preserving the old minimums
+            let kb_speed = cfg.run_over_knockback_mps.max(speed_kmh * 0.16);
+            let kb_up = (1.5 + speed_kmh * 0.025).min(3.5);
+            let knockback = away * kb_speed + Vec3::Y * kb_up;
             let damage_amount = speed_kmh * cfg.run_over_damage_per_kmh;
 
             let info = DamageInfo {

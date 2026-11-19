@@ -39,4 +39,13 @@ impl CarHealth {
     pub fn set(&mut self, value: f32) {
         self.current = value.clamp(0.0, self.max);
     }
+
+    pub fn repair(&mut self, amount: f32) -> f32 {
+        if amount <= 0.0 {
+            return 0.0;
+        }
+        let before = self.current;
+        self.current = (self.current + amount).min(self.max);
+        self.current - before
+    }
 }

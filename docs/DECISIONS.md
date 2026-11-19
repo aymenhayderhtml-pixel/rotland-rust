@@ -20,6 +20,8 @@ Note: The game is now built in Rust (custom wgpu engine, see docs/RUST_PLAN.md) 
 | 2026-11-11 | FPS: 30 minimum, 60 nice to have | Owner's choice |
 | 2026-11-11 | Working title "Rotland"; GitHub repo aymenhayderhtml-pixel/rotland | Name can change later |
 | 2026-11-11 | Dog death is permanent | Owner's choice |
+| 2026-11-19 | `mesh` uses CW terrain fronts; `skinned` uses CCW glTF/procedural model fronts | Terrain winding differs from baked model winding; baker tests guard CCW outward geometry |
+| 2026-11-19 | Export vehicles as separate body, wheel, driver-door, and tailgate `.glb` parts | Rust can instance wheels and animate wheels, door, and tailgate without skeletal skinning |
 
 ## Open questions (ask the owner)
 - Final game name

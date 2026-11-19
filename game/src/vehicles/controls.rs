@@ -27,6 +27,8 @@ pub struct CarInput {
     pub handbrake: bool,
     pub horn: bool,
     pub lights_toggle: bool,
+    /// Request to right an overturned vehicle in place ([R]).
+    pub flip_recover: bool,
 }
 
 impl CarInput {

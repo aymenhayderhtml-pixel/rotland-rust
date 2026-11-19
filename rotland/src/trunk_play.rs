@@ -15,7 +15,8 @@ pub const INTERACT_RANGE: f32 = 2.5;
 /// Half-cone angle in degrees for interaction targeting (scripts/Player/PlayerInteractor.cs:18).
 pub const HALF_CONE_DEGREES: f32 = 35.0;
 
-/// Default local position of the car's trunk marker in Godot coordinates (Blender empty: 0.0, -2.20, 0.60).
+/// Default local position of the car's trunk marker in Godot coordinates (test fallback).
+#[cfg(test)]
 pub const DEFAULT_TRUNK_LOCAL: Vec3 = Vec3::new(0.0, 0.60, 2.20);
 
 /// Prompt text for opening a car trunk (scripts/Vehicles/CarPoint.cs:33).

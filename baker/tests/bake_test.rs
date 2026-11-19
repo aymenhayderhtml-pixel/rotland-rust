@@ -147,3 +147,142 @@ fn test_pack_saves_and_loads_back_identically() {
 
     let _ = std::fs::remove_file(temp_file);
 }
+
+fn cross3(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
+fn sub3(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+
+fn dot3(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+/// Bakes `assets/models/<rel>` and asserts every non-degenerate triangle is wound
+/// counter-clockwise when seen from outside, i.e. its geometric normal agrees with
+/// the averaged vertex normal. This is what the `skinned` pipeline's
+/// `FrontFace::Ccw` assumes; a CW model would be culled and vanish.
+fn assert_ccw_outward(rel: &str) -> pack::Model {
+    let root = repo_root();
+    let models_dir = root.join("assets/models");
+    let path = models_dir.join(rel);
+    let name = path.file_stem().unwrap().to_str().unwrap().to_string();
+    let folder = path
+        .parent()
+        .unwrap()
+        .strip_prefix(&models_dir)
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
+
+    let model = bake_glb(&path, name.clone(), folder)
+        .unwrap_or_else(|e| panic!("failed to bake {rel}: {e}"));
+
+    assert!(!model.vertices.is_empty(), "{rel} has no drawable vertices");
+    assert_eq!(
+        model.vertices.len() % 3,
+        0,
+        "{rel} vertex count is not a triangle list"
+    );
+
+    let mut checked = 0_usize;
+    let mut degenerate = 0_usize;
+    let mut flipped = Vec::new();
+
+    for (tri, chunk) in model.vertices.as_chunks::<3>().0.iter().enumerate() {
+        let p: Vec<[f64; 3]> = chunk
+            .iter()
+            .map(|v| v.position.map(f64::from))
+            .collect();
+        let n: Vec<[f64; 3]> = chunk.iter().map(|v| v.normal.map(f64::from)).collect();
+
+        let g = cross3(sub3(p[1], p[0]), sub3(p[2], p[0]));
+        if dot3(g, g) < 1e-18 {
+            degenerate += 1;
+            continue;
+        }
+        let sum = [
+            n[0][0] + n[1][0] + n[2][0],
+            n[0][1] + n[1][1] + n[2][1],
+            n[0][2] + n[1][2] + n[2][2],
+        ];
+
+        checked += 1;
+        if dot3(g, sum) <= 0.0 {
+            flipped.push(tri);
+        }
+    }
+
+    assert!(
+        checked > 0,
+        "{rel} has no non-degenerate triangles ({degenerate} degenerate)"
+    );
+    assert!(
+        flipped.is_empty(),
+        "{rel}: {} of {checked} triangles are CW (inside-out) instead of CCW; \
+         first offenders (triangle index): {:?}",
+        flipped.len(),
+        &flipped[..flipped.len().min(10)]
+    );
+
+    model
+}
+
+/// The renderer draws glTF/Blender models (all props, cars, zombies) plus hand-built
+/// prop meshes through the `skinned` pipeline with `FrontFace::Ccw`. Guard that the
+/// baked vehicle parts and a representative prop really are CCW-outward, and that the
+/// 4x4 body still carries every marker the game code looks up by name.
+#[test]
+fn baked_vehicle_and_props_have_ccw_outward_winding() {
+    assert_ccw_outward("vehicles/car_hatchback_red.glb");
+    assert_ccw_outward("vehicles/car_wheel.glb");
+    assert_ccw_outward("vehicles/car_door_red.glb");
+    assert_ccw_outward("vehicles/car_tailgate_red.glb");
+    assert_ccw_outward("nature/tree_pine_01.glb");
+
+    let body = assert_ccw_outward("vehicles/car_hatchback_red.glb");
+    let present: HashSet<&str> = body.markers.iter().map(|m| m.name.as_str()).collect();
+    for required in [
+        "seat_driver",
+        "exit_L",
+        "trunk",
+        "headlight_L",
+        "headlight_R",
+        "taillight_L",
+        "taillight_R",
+        "lightbar",
+        "exhaust",
+        "hood_smoke",
+        "door_hinge_L",
+        "tailgate_hinge",
+        "wheel_FL",
+        "wheel_FR",
+        "wheel_RL",
+        "wheel_RR",
+    ] {
+        assert!(
+            present.contains(required),
+            "car_hatchback_red is missing marker {required}; found {present:?}"
+        );
+    }
+
+    // The wheels sit on the ground: their markers are at wheel-centre height (0.34 m).
+    for name in ["wheel_FL", "wheel_FR", "wheel_RL", "wheel_RR"] {
+        let marker = body
+            .markers
+            .iter()
+            .find(|m| m.name == name)
+            .expect("wheel marker checked above");
+        assert!(
+            (marker.translation[1] - 0.34).abs() < 0.01,
+            "{name} should be at wheel-centre height 0.34 m, got {}",
+            marker.translation[1]
+        );
+    }
+}

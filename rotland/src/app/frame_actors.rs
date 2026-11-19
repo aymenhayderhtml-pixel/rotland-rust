@@ -86,6 +86,23 @@ pub fn update_actors(
     session: &mut SessionState,
     audio: &mut Option<audio::Audio>,
 ) {
+    // Death while driving must park the car and restore the on-foot camera.
+    if dead {
+        if let Some(cars) = actors.cars.as_mut()
+            && let Some(id) = cars.driven_car_id.clone()
+        {
+            let spot = cars.exit(&id, &world.physics);
+            if let Some(p) = actors.player_ctrl.as_mut() {
+                p.position = spot + Vec3::Y * 0.1;
+                p.velocity = Vec3::ZERO;
+            }
+        }
+        actors.car_camera.deactivate();
+        actors.car_input = game::CarInput::default();
+        if let Some(a) = audio.as_mut() {
+            a.set_car_engine(false, 0.0);
+        }
+    }
     if let (Some(p), Some(rig)) = (actors.player_ctrl.as_mut(), actors.camera_rig.as_mut()) {
         rig.update(actions, p.crouching, dt);
         p.first_person = rig.is_first_person;
@@ -95,18 +112,37 @@ pub fn update_actors(
         let driven = actors.cars.as_ref().and_then(|c| c.driven_car_id.clone());
         if let (Some(id), Some(cars)) = (driven, actors.cars.as_mut()) {
             use winit::keyboard::KeyCode as K;
+            let mut exited = false;
             if input.pressed(ui.keys.interact) && ui.hub.is_none() && ui.camp_ui.is_none() {
-                let spot = cars.exit(&id, &world.physics);
-                p.position = spot + Vec3::Y * 0.1;
-                p.velocity = Vec3::ZERO;
-                ui.e_used = true;
-            } else if let Some(car) = cars.get(&id) {
+                // The car must be slow (or flipped) before the driver can climb out
+                let can_exit = cars.get(&id).is_some_and(|car| {
+                    car.speed_kmh() <= cars.config.exit_max_kmh || car.body.is_flipped()
+                });
+                if can_exit {
+                    let spot = cars.exit(&id, &world.physics);
+                    p.position = spot + Vec3::Y * 0.1;
+                    p.velocity = Vec3::ZERO;
+                    ui.e_used = true;
+                    exited = true;
+                    actors.car_camera.deactivate();
+                    if let Some(a) = audio.as_mut() {
+                        a.play_at("car_door", spot);
+                    }
+                } else if let Some(play_state) = play.play.as_mut() {
+                    play_state.show_toast("Slow down to exit".into());
+                    ui.e_used = true;
+                }
+            }
+            if !exited
+                && let Some(car) = cars.get(&id)
+            {
                 actors.car_input = game::CarInput {
                     throttle: -actions.move_vec.y,
                     steer: actions.move_vec.x,
                     handbrake: input.held(K::Space),
                     horn: input.held(K::KeyH),
                     lights_toggle: input.pressed(K::KeyL),
+                    flip_recover: input.pressed(K::KeyR),
                     ..Default::default()
                 };
                 let f = car.body.rotation * Vec3::NEG_Z;
@@ -114,6 +150,19 @@ pub fn update_actors(
                 p.position = car.body.position + Vec3::Y * 0.3;
                 p.velocity = Vec3::ZERO;
                 p.yaw = car_yaw;
+                // Activate the car camera the first frame we drive, feed it the mouse, and let V pick the mode
+                if !actors.car_camera.is_active() {
+                    actors.car_camera.activate();
+                }
+                if ui.cursor_captured && !ui.screen_open() {
+                    actors.car_camera.orbit(glam::Vec2::new(actions.look_delta.0, actions.look_delta.1));
+                }
+                if input.pressed(K::KeyV) && ui.hub.is_none() && ui.camp_ui.is_none() {
+                    let mode = actors.car_camera.cycle_mode();
+                    if let Some(play_state) = play.play.as_mut() {
+                        play_state.show_toast(format!("Camera: {}", mode.label()));
+                    }
+                }
                 // The camera swings back behind the car unless the mouse turns it
                 if actions.look_delta.0.abs() < 0.01 {
                     let diff = (car_yaw - rig.yaw + std::f32::consts::PI)
@@ -121,7 +170,7 @@ pub fn update_actors(
                         - std::f32::consts::PI;
                     rig.yaw += diff * (dt * 2.5).min(1.0);
                 }
-                ui.e_used = input.pressed(ui.keys.interact);
+                ui.e_used = input.pressed(ui.keys.interact) || ui.e_used;
             }
         }
         let in_car = actors.cars.as_ref().is_some_and(|c| c.driven_car_id.is_some());
@@ -261,23 +310,30 @@ pub fn update_actors(
 
         actors.player = p.position;
         render.camera = rig.camera(&actors.player, &world.physics);
-        // Driving: a chase camera further back and higher than on foot (Godot CarCamera)
-        if actors.cars.as_ref().is_some_and(|c| c.driven_car_id.is_some()) {
-            render.camera.pitch = render.camera.pitch.clamp(-0.35, 0.15);
-            let f = render.camera.forward();
-            let mut at = actors.player + Vec3::Y * 2.2 - f * 7.0;
-            // Never under a hill behind the car
-            if let Some(h) = world.physics.ground_height(at.x, at.z) {
-                at.y = at.y.max(h + 1.2);
-            }
-            render.camera.position = at;
+        // Driving: the multi-mode car camera (Chase / Close / Hood) with speed pullback and shake
+        if actors.cars.as_ref().is_some_and(|c| c.driven_car_id.is_some())
+            && let Some((car_pos, car_rot, car_speed, car_tag)) = actors
+                .cars
+                .as_ref()
+                .and_then(|c| c.driven_car())
+                .map(|car| (car.body.position, car.body.rotation, car.speed_kmh(), car.body.self_tag))
+        {
+            let out = actors
+                .car_camera
+                .step_drive(dt, car_pos, car_rot, car_speed, car_tag, &world.physics);
+            render.camera.position = out.eye;
+            render.camera.look_at(out.target);
+            render.camera.fov_y_deg = out.fov_y_deg;
         }
-        // The player's field of view (Settings), before a gun's aim zoom
-        if let Some(m) = &ui.menus {
+        // The player's field of view (Settings) applies on foot; the car camera owns its own FOV
+        let driving = actors.cars.as_ref().is_some_and(|c| c.driven_car_id.is_some());
+        if let Some(m) = &ui.menus
+            && !driving
+        {
             render.camera.fov_y_deg = display::apply_fov(render.camera.fov_y_deg, &m.settings);
         }
-        // A gun's aim zoom (the rifle scope zooms much further, CameraRig/GunHandler)
-        let aiming = ui.cursor_captured && input.mouse_held(MouseButton::Right);
+        // A gun's aim zoom (the rifle scope zooms much further, CameraRig/GunHandler); moot while driving
+        let aiming = !driving && ui.cursor_captured && input.mouse_held(MouseButton::Right);
         ui.right_held = aiming;
         if let (true, Some(gun)) = (aiming, play.play.as_ref().and_then(|pl| pl.gun.as_ref()))
             && let Some(fov) = shooting::aim_fov(gun, rig.is_first_person)

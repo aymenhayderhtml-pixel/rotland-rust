@@ -91,7 +91,9 @@ pub struct RenderState {
     pub pack: Option<pack::ModelPack>,
     pub campfire_meshes: Option<campfire_mesh::CampfireMeshes>,
     pub pending_weapon_model: Option<Option<String>>,
-    pub car_markers: (Vec3, Vec3, Vec3),
+    pub car_markers: crate::car_visuals::CarMarkers,
+    pub car_emissives: Option<crate::car_visuals::CarEmissiveMeshes>,
+    pub car_smoke: crate::car_visuals::CarSmokeSystem,
     pub fps: f32,
     pub flashlight_on: bool,
     pub scratch_beds: Vec<props::Placed>,
@@ -135,6 +137,7 @@ pub struct ActorsState {
     pub dogs: Option<dog_view::DogView>,
     pub cars: Option<game::Cars>,
     pub car_input: game::CarInput,
+    pub car_camera: game::CarCamera,
     pub car_solids: car_solid::ParkedCarSolids,
     pub fp_sway: fp_weapon::FpSway,
     pub open_trunk: Option<String>,
@@ -304,6 +307,8 @@ impl Default for SessionState {
 pub struct AudioState {
     pub audio: Option<audio::Audio>,
     pub step_timer: f32,
+    pub car_horn_cooldown: f32,
+    pub trunk_was_open: bool,
 }
 
 /// The top-level Rotland game instance grouping all subsystem states.
