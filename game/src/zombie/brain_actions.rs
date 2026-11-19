@@ -16,7 +16,7 @@ const MAX_WANDER_TIME: f32 = 15.0;
 
 impl ZombieBrain {
     pub(super) fn think_idle(&mut self, ctx: &BrainInput<'_>, dt: f32) -> Step {
-        if self.senses.can_see() {
+        if !ctx.player_in_safe_zone && self.senses.can_see() {
             self.spot_player(ctx.target);
             return Step::default();
         }
@@ -35,7 +35,7 @@ impl ZombieBrain {
     }
 
     pub(super) fn think_wander(&mut self, ctx: &BrainInput<'_>, dt: f32) -> Step {
-        if self.senses.can_see() {
+        if !ctx.player_in_safe_zone && self.senses.can_see() {
             self.spot_player(ctx.target);
             return Step::default();
         }
@@ -60,7 +60,7 @@ impl ZombieBrain {
     }
 
     pub(super) fn think_investigate(&mut self, ctx: &BrainInput<'_>, dt: f32) -> Step {
-        if self.senses.can_see() && !self.bang_on_arrive && !ctx.target_unreachable {
+        if !ctx.player_in_safe_zone && self.senses.can_see() && !self.bang_on_arrive && !ctx.target_unreachable {
             self.spot_player(ctx.target);
             return Step::default();
         }
@@ -94,15 +94,27 @@ impl ZombieBrain {
     }
 
     pub(super) fn think_chase(&mut self, ctx: &BrainInput<'_>, dt: f32) -> Step {
+        if ctx.player_in_safe_zone {
+            self.enter_wander(ctx.position);
+            return Step::default();
+        }
         let Some(target) = ctx.target else {
             return Step::default();
         };
         let tracking = self.senses.can_see() && !ctx.target_unreachable;
-        if !tracking && self.senses.memory_expired() {
+        if ctx.target_unreachable || (!tracking && self.senses.memory_expired()) {
             let hidden = self.hideout_override.unwrap_or_else(|| {
                 ctx.target_unreachable || is_under_roof(target, ctx.world)
             });
-            let spot = self.senses.last_seen();
+            let spot = if self.senses.last_seen() != Vec3::ZERO {
+                self.senses.last_seen()
+            } else {
+                target
+            };
+            if ctx.target_unreachable && horizontal_distance(ctx.position, spot) <= 1.5 {
+                self.enter_bang();
+                return Step::default();
+            }
             self.enter_investigate(spot, hidden);
             return Step::default();
         }
@@ -154,7 +166,7 @@ impl ZombieBrain {
     }
 
     pub(super) fn think_eat(&mut self, ctx: &BrainInput<'_>, dt: f32) -> Step {
-        if self.senses.can_see() {
+        if !ctx.player_in_safe_zone && self.senses.can_see() {
             self.spot_player(ctx.target);
             return Step::default();
         }
@@ -166,7 +178,7 @@ impl ZombieBrain {
     }
 
     pub(super) fn think_bang(&mut self, ctx: &BrainInput<'_>, dt: f32) -> Step {
-        if self.senses.can_see() && !ctx.target_unreachable {
+        if !ctx.player_in_safe_zone && self.senses.can_see() && !ctx.target_unreachable {
             self.spot_player(ctx.target);
             return Step::default();
         }
@@ -241,6 +253,9 @@ impl ZombieBrain {
     }
 
     fn check_herd(&mut self, ctx: &BrainInput<'_>, dt: f32) -> bool {
+        if ctx.player_in_safe_zone {
+            return false;
+        }
         self.herd_timer -= dt;
         if self.herd_timer > 0.0 {
             return false;

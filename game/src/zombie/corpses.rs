@@ -41,4 +41,14 @@ impl ZombieCorpses {
     pub fn clear(&mut self) {
         self.spots.clear();
     }
+
+    /// Fills `out` with all corpse positions recorded within `seconds` of `now`.
+    pub fn recent_positions(&self, seconds: f32, now: f64, out: &mut Vec<Vec3>) {
+        out.clear();
+        for &(spot, time) in &self.spots {
+            if now - time <= seconds as f64 {
+                out.push(spot);
+            }
+        }
+    }
 }
