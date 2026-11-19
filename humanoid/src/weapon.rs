@@ -42,6 +42,41 @@ pub fn weapon_hold_for(weapon: &str) -> (Vec3, Vec3) {
     }
 }
 
+/// Two-handed weapon identifiers from Godot's `WeaponGripConvention.cs:19`.
+pub const TWO_HANDED_WEAPONS: &[&str] = &[
+    "bat", "axe", "crowbar", "katana", "shotgun", "rifle", "ak47", "smg",
+];
+
+/// Returns true if the weapon is two-handed according to Godot `WeaponGripConvention.cs:19`.
+pub fn is_two_handed(weapon: &str) -> bool {
+    TWO_HANDED_WEAPONS.iter().any(|&w| w == weapon)
+}
+
+/// Returns the model-space off-hand grip offset (`grip_L`) for a two-handed weapon.
+///
+/// Ported from the `grip_L` marker empties exported in each weapon's `.glb` model:
+/// - bat: (0, 0, 0.10) from `tools/blender/weapons/bat.py:27`
+/// - axe: (0, 0, 0.20) from `tools/blender/weapons/axe.py:38`
+/// - crowbar: (0, 0, 0.20) from `tools/blender/weapons/crowbar.py:26`
+/// - katana: (0, 0, 0.05) from `tools/blender/weapons/katana.py:36`
+/// - shotgun: (0, 0, -0.47) from `tools/blender/weapons/shotgun.py:35`
+/// - rifle: (0, 0.03, -0.39) from `tools/blender/weapons/rifle.py:40`
+/// - ak47: (0, -0.01, -0.30) from `tools/blender/weapons/ak47.py:53`
+/// - smg: (0, -0.01, -0.18) from `tools/blender/weapons/smg.py:39`
+pub fn off_hand_grip_for(weapon: &str) -> Option<Vec3> {
+    match weapon {
+        "bat" => Some(Vec3::new(0.0, 0.0, 0.10)),
+        "axe" => Some(Vec3::new(0.0, 0.0, 0.20)),
+        "crowbar" => Some(Vec3::new(0.0, 0.0, 0.20)),
+        "katana" => Some(Vec3::new(0.0, 0.0, 0.05)),
+        "shotgun" => Some(Vec3::new(0.0, 0.0, -0.47)),
+        "rifle" => Some(Vec3::new(0.0, 0.03, -0.39)),
+        "ak47" => Some(Vec3::new(0.0, -0.01, -0.30)),
+        "smg" => Some(Vec3::new(0.0, -0.01, -0.18)),
+        _ => None,
+    }
+}
+
 /// Computes the world-space transform of a weapon model held in hand_R.
 pub fn weapon_world_matrix(
     char_world: Mat4,
@@ -90,4 +125,26 @@ mod tests {
         assert_eq!(pos_gun, Vec3::ZERO);
         assert_eq!(rot_gun, Vec3::new(90.0, 0.0, 0.0));
     }
+
+    #[test]
+    fn two_handed_weapons_and_off_hand_grip_points() {
+        assert!(is_two_handed("bat"));
+        assert!(is_two_handed("axe"));
+        assert!(is_two_handed("crowbar"));
+        assert!(is_two_handed("katana"));
+        assert!(is_two_handed("shotgun"));
+        assert!(is_two_handed("rifle"));
+        assert!(is_two_handed("ak47"));
+        assert!(is_two_handed("smg"));
+
+        assert!(!is_two_handed("knife"));
+        assert!(!is_two_handed("machete"));
+        assert!(!is_two_handed("pistol"));
+
+        assert_eq!(off_hand_grip_for("bat"), Some(Vec3::new(0.0, 0.0, 0.10)));
+        assert_eq!(off_hand_grip_for("axe"), Some(Vec3::new(0.0, 0.0, 0.20)));
+        assert_eq!(off_hand_grip_for("knife"), None);
+        assert_eq!(off_hand_grip_for("pistol"), None);
+    }
 }
+

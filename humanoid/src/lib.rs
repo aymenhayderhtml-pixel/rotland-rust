@@ -6,6 +6,8 @@
 pub mod action;
 pub mod animator;
 pub mod blend;
+pub mod ik;
+pub mod swing;
 pub mod weapon;
 
 pub use action::ActionState;
@@ -14,9 +16,15 @@ pub use blend::{
     locomotion_weights, tempo_for, Locomotion, LocomotionWeights, ACTION_FADE_IN, ACTION_FADE_OUT,
     BLEND_RATE, RUN_BLEND, RUN_CLIP_SPEED, UPPER_BONES, WALK_BLEND, WALK_CLIP_SPEED,
 };
+pub use ik::{apply_two_hand_left_grip_ik, solve_two_bone_ik, LEFT_ELBOW_POLE};
+pub use swing::{
+    apply_two_hand_swing_pose, evaluate_two_hand_swing, swing_head_roll_deg, swing_spine_pitch_deg,
+    swing_spine_yaw_deg, SwingPose,
+};
 pub use weapon::{
-    weapon_hand_offset, weapon_hold_for, weapon_world_matrix, weapon_world_matrix_named,
-    HAND_GRIP_OFFSET, HAND_GRIP_ROT_DEG, REST_POSE_DEG,
+    is_two_handed, off_hand_grip_for, weapon_hand_offset, weapon_hold_for, weapon_world_matrix,
+    weapon_world_matrix_named, HAND_GRIP_OFFSET, HAND_GRIP_ROT_DEG, REST_POSE_DEG,
+    TWO_HANDED_WEAPONS,
 };
 
 #[cfg(test)]
