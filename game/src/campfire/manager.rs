@@ -70,7 +70,18 @@ impl CampfireManager {
     }
 
     pub fn add(&mut self, fire: Campfire) {
+        // BUG-003: If a permanent campfire is already within 1m, don't add a duplicate
+        if fire.permanent && self.has_permanent_near(fire.position, 1.0) {
+            return;
+        }
         self.campfires.push(fire);
+    }
+
+    /// Checks if a permanent campfire already exists within `range` flat distance of `pos`.
+    pub fn has_permanent_near(&self, pos: Vec3, range: f32) -> bool {
+        self.campfires
+            .iter()
+            .any(|f| f.permanent && f.distance_flat(pos) <= range)
     }
 
     pub fn clear(&mut self) {
@@ -120,3 +131,31 @@ impl CampfireManager {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn permanent_campfire_not_duplicated_within_1m() {
+        let mut mgr = CampfireManager::new();
+        let fire = Campfire::create_permanent(Vec3::new(10.0, 0.0, 10.0));
+        mgr.add(fire.clone());
+        assert_eq!(mgr.campfires().len(), 1);
+
+        // Exact duplicate addition skipped
+        mgr.add(fire.clone());
+        assert_eq!(mgr.campfires().len(), 1);
+
+        // Within 1m flat distance skipped
+        let nearby = Campfire::create_permanent(Vec3::new(10.5, 0.0, 10.5));
+        mgr.add(nearby);
+        assert_eq!(mgr.campfires().len(), 1);
+
+        // Outside 1m is added
+        let far = Campfire::create_permanent(Vec3::new(20.0, 0.0, 20.0));
+        mgr.add(far);
+        assert_eq!(mgr.campfires().len(), 2);
+    }
+}
+

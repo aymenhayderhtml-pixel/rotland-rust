@@ -148,4 +148,82 @@ impl WorldItems {
     pub fn iter(&self) -> impl Iterator<Item = &WorldItem> {
         self.items.iter()
     }
+
+    /// Converts world position to 64m chunk coordinate key ("{chunk_x}_{chunk_z}").
+    // Godot: WorldState.cs KeyOf / WorldToChunk
+    pub fn chunk_key(pos: Vec3) -> String {
+        let cx = (pos.x / 64.0).floor() as i32;
+        let cz = (pos.z / 64.0).floor() as i32;
+        format!("{cx}_{cz}")
+    }
+
+    /// Serializes dropped items to a Godot-compatible JSON Value mapping chunk keys to item lists.
+    // Godot: WorldState.cs Save (dropped)
+    pub fn to_save_json(&self) -> serde_json::Value {
+        let mut map: std::collections::HashMap<String, Vec<serde_json::Value>> = std::collections::HashMap::new();
+        for item in &self.items {
+            let key = Self::chunk_key(item.position);
+            map.entry(key).or_default().push(serde_json::json!({
+                "id": item.item_id,
+                "count": item.count,
+                "x": item.position.x,
+                "y": item.position.y,
+                "z": item.position.z,
+            }));
+        }
+        serde_json::to_value(map).unwrap_or_default()
+    }
+
+    /// Deserializes dropped items from a Godot-compatible JSON Value mapping chunk keys to item lists.
+    // Godot: WorldState.cs Load (dropped)
+    pub fn from_save_json(&mut self, data: &serde_json::Value) {
+        self.clear();
+        let Some(obj) = data.as_object() else { return };
+        for (_key, val) in obj {
+            let Some(list) = val.as_array() else { continue };
+            for entry in list {
+                let Some(item_obj) = entry.as_object() else { continue };
+                let id = item_obj.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+                let count = item_obj.get("count").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                let x = item_obj.get("x").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32;
+                let y = item_obj.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32;
+                let z = item_obj.get("z").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32;
+                if !id.is_empty() && count > 0 && x.is_finite() && y.is_finite() && z.is_finite() {
+                    self.add(id, count, Vec3::new(x, y, z));
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn chunk_key_64m_grid() {
+        assert_eq!(WorldItems::chunk_key(Vec3::new(0.0, 0.0, 0.0)), "0_0");
+        assert_eq!(WorldItems::chunk_key(Vec3::new(63.9, 0.0, 63.9)), "0_0");
+        assert_eq!(WorldItems::chunk_key(Vec3::new(64.0, 0.0, 0.0)), "1_0");
+        assert_eq!(WorldItems::chunk_key(Vec3::new(-1.0, 0.0, -1.0)), "-1_-1");
+    }
+
+    #[test]
+    fn dropped_items_round_trip_json() {
+        let mut items = WorldItems::new();
+        items.add("canned_beans", 2, Vec3::new(10.0, 0.5, 15.0));
+        items.add("bandage", 1, Vec3::new(70.0, 1.0, 5.0));
+
+        let json = items.to_save_json();
+        let mut loaded = WorldItems::new();
+        loaded.from_save_json(&json);
+
+        assert_eq!(loaded.len(), 2);
+        assert_eq!(loaded.items()[0].item_id, "canned_beans");
+        assert_eq!(loaded.items()[0].count, 2);
+        assert_eq!(loaded.items()[0].position, Vec3::new(10.0, 0.5, 15.0));
+        assert_eq!(loaded.items()[1].item_id, "bandage");
+        assert_eq!(loaded.items()[1].count, 1);
+        assert_eq!(loaded.items()[1].position, Vec3::new(70.0, 1.0, 5.0));
+    }
 }

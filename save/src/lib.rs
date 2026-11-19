@@ -11,6 +11,7 @@ pub use slots::{
 };
 pub use systems::{
     CampfireData, DeathRule, DifficultySaveData, DroppedItemData, InventorySaveData, PlayerSaveData,
-    SavedSlot, StatsSaveData, TimeSaveData, Vec3Data, WalletSaveData, WorldSaveData,
-    WorldStateSaveData,
+    SavedSlot, SettlementsSaveData, StatsSaveData, TimeSaveData, Vec3Data, WalletSaveData,
+    WeaponsSaveData, WorldSaveData, WorldStateSaveData,
 };
+

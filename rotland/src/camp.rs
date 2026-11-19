@@ -26,6 +26,8 @@ pub struct Camp {
     pub farm: FarmManager,
     /// The camp's fire and the ones the player placed (Godot WorldState "campfires").
     pub campfires: game::CampfireManager,
+    /// Settlements visited and respawn camp tracking (Godot: SettlementWatcher).
+    pub settlements: game::SettlementWatcher,
     /// Where the player stands (set each frame): campfire recipes need a lit fire near.
     pub player_at: Vec3,
 }
@@ -45,6 +47,7 @@ impl Camp {
             crafting: CraftingSystem::new(),
             farm: FarmManager::from_repo().map_err(|e| format!("data/farming.json: {e:?}"))?,
             campfires: game::CampfireManager::new(),
+            settlements: game::SettlementWatcher::new(),
             player_at: Vec3::ZERO,
             difficulty_config,
             economy,
@@ -203,16 +206,22 @@ impl Camp {
         }
         sys.extra.insert("bank".into(), self.bank.to_save());
         sys.extra.insert("farm".into(), self.farm.to_save());
-        let mut ws = sys.worldstate.clone().unwrap_or_default();
-        ws.campfires = serde_json::from_value(self.campfires.to_save()).unwrap_or_default();
-        sys.worldstate = Some(ws);
+        // NOTE(R10-09): ws.campfires is now captured in session::capture (SAVE-001 / ARCH-002)
         sys.extra.insert("trader".into(), self.trader.to_save());
         sys.extra.insert("skills".into(), self.skills.to_save());
         sys.extra.insert("bounties".into(), self.bounties.to_save());
+        let mut visited: Vec<String> = self.settlements.visited().iter().cloned().collect();
+        visited.sort();
+        sys.settlements = Some(save::SettlementsSaveData {
+            visited,
+            respawn: self.settlements.respawn_id().map(|s| s.to_string()),
+        });
     }
 
     /// Reads back whatever a save has (Godot saves have all of them).
-    pub fn load_from(&mut self, sys: &save::Systems) {
+    /// Returns warning messages for any damaged data that was reset (SAVE-004).
+    pub fn load_from(&mut self, sys: &save::Systems) -> Vec<String> {
+        let mut warnings = Vec::new();
         if let Some(w) = &sys.wallet {
             self.wallet.set(w.dollars);
         }
@@ -226,11 +235,13 @@ impl Camp {
             && let Err(e) = self.campfires.from_save(&v)
         {
             log::warn!("campfires not loaded: {e}");
+            warnings.push("Campfire data was damaged and was reset".to_string());
         }
         if let Some(v) = sys.extra.get("farm")
             && let Err(e) = self.farm.from_save(v)
         {
             log::warn!("farm not loaded: {e}");
+            warnings.push("Farm data was damaged and was reset".to_string());
         }
         if let Some(v) = sys.extra.get("bank") {
             self.bank.from_save(v);
@@ -245,7 +256,16 @@ impl Camp {
             && let Err(e) = self.bounties.from_save(v)
         {
             log::warn!("bounties not loaded: {e:?}");
+            warnings.push("Bounty data was damaged and was reset".to_string());
         }
+        if let Some(st) = &sys.settlements {
+            if let Ok(v) = serde_json::to_value(st) {
+                self.settlements.from_save(&v);
+            }
+        } else if let Some(v) = sys.extra.get("settlements") {
+            self.settlements.from_save(v);
+        }
+        warnings
     }
 }
 
