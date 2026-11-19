@@ -37,7 +37,7 @@ EMPTIES = [
 ]
 
 
-def _loft(bm, bottom, top, side_colors, top_color):
+def _loft(bm, bottom, top, side_colors, top_color, bottom_color=None):
     """Closed shape between a bottom and a top quad (4 corners each, same order)."""
     centre = Vector((0.0, 0.0, 0.0))
     for p in bottom + top:
@@ -48,6 +48,8 @@ def _loft(bm, bottom, top, side_colors, top_color):
         mid = sum((Vector(p) for p in quad), Vector((0.0, 0.0, 0.0))) / 4.0
         common.add_quad(bm, quad, outward=mid - centre, color=side_colors[i])
     common.add_quad(bm, top, outward=(0.0, 0.0, 1.0), color=top_color)
+    if bottom_color:
+        common.add_quad(bm, bottom, outward=(0.0, 0.0, -1.0), color=bottom_color)
 
 
 def _body(body_color):
@@ -63,19 +65,20 @@ def _body(body_color):
                for s in (1, -1)]
     lights = [common.make_box((0.22, 0.02, 0.12), loc=(x, 1.915, 0.66), color="white") for x in (-0.55, 0.55)]
     lights += [common.make_box((0.20, 0.02, 0.12), loc=(x, -1.915, 0.66), color="red_paint") for x in (-0.60, 0.60)]
-    rust = common.new_bm()
-    common.add_quad(rust, [(0.81, -1.30, 0.32), (0.81, -0.80, 0.32), (0.81, -0.80, 0.50), (0.81, -1.30, 0.50)],
-                    outward=(1.0, 0.0, 0.0), color="rust")
+    # Rust decal sits on the right side: make it a thin closed box so no open boundary edges exist,
+    # offset by ~3 mm outside body surface (x=0.80) to x=0.803 to eliminate z-fighting (REND-003)
+    rust = common.make_box((0.006, 0.50, 0.18), loc=(0.803, -1.05, 0.41), color="rust")
     # Detail (visual plan step 7/8): grille, plates, mirrors, wheel arches, door seams, handle,
-    # side trim and roof rails
+    # side trim and roof rails - ensure all parts touch and sit flush on the body without floating
     extra = [common.make_box((0.9, 0.03, 0.2), loc=(0.0, 1.905, 0.55), color="gun_black")]
     for x in (-0.3, -0.15, 0.0, 0.15, 0.3):
         extra.append(common.make_box((0.02, 0.035, 0.18), loc=(x, 1.91, 0.55), color="chrome"))
     extra += [common.make_box((0.34, 0.02, 0.11), loc=(0.0, s * 1.965, 0.38), color="white") for s in (1, -1)]
     for sx in (-1, 1):
-        extra.append(common.make_box((0.1, 0.06, 0.08), loc=(sx * (BODY_HALF_WIDTH + 0.05), 0.82, 0.92),
+        # Mirror mount and mirror glass: sits flush on the cabin side
+        extra.append(common.make_box((0.08, 0.06, 0.08), loc=(sx * (BODY_HALF_WIDTH + 0.03), 0.82, 0.92),
                                      color=body_color))
-        extra.append(common.make_box((0.02, 0.05, 0.06), loc=(sx * (BODY_HALF_WIDTH + 0.1), 0.82, 0.92),
+        extra.append(common.make_box((0.015, 0.05, 0.06), loc=(sx * (BODY_HALF_WIDTH + 0.07), 0.82, 0.92),
                                      color="glass_tint"))
         for wy in (WHEEL_Y, -WHEEL_Y):
             # Kept above the ground line: the car's lowest point must stay at its origin (ModelsOriginAtGround)
@@ -83,12 +86,15 @@ def _body(body_color):
                                        color="tire_black")
             common.transform(arch, rot=(0.0, math.pi / 2, 0.0), loc=(sx * (BODY_HALF_WIDTH - 0.02), wy, WHEEL_RADIUS + 0.06))
             extra.append(arch)
-        extra.append(common.make_box((0.012, 3.0, 0.04), loc=(sx * (BODY_HALF_WIDTH + 0.006), 0.0, 0.5), color="chrome"))
+        # Side trim strip: sits touching the body surface (width 0.012, centered at BODY_HALF_WIDTH + 0.004)
+        extra.append(common.make_box((0.012, 3.0, 0.04), loc=(sx * (BODY_HALF_WIDTH + 0.004), 0.0, 0.5), color="chrome"))
         for y in (0.95, -0.05, -0.95):
-            extra.append(common.make_box((0.012, 0.015, BELT_Z - SILL_Z - 0.04), loc=(sx * (BODY_HALF_WIDTH + 0.006), y,
+            extra.append(common.make_box((0.012, 0.015, BELT_Z - SILL_Z - 0.04), loc=(sx * (BODY_HALF_WIDTH + 0.004), y,
                                                                                      (SILL_Z + BELT_Z) / 2), color="gun_black"))
-        extra.append(common.make_box((0.02, 0.12, 0.03), loc=(sx * (BODY_HALF_WIDTH + 0.01), 0.2, 0.72), color="chrome"))
-        extra.append(common.make_box((0.04, 1.3, 0.04), loc=(sx * 0.5, -0.45, ROOF_Z + 0.025), color="gun_black"))
+        # Door handle
+        extra.append(common.make_box((0.016, 0.12, 0.03), loc=(sx * (BODY_HALF_WIDTH + 0.006), 0.2, 0.72), color="chrome"))
+        # Roof rails: resting solidly on the roof surface
+        extra.append(common.make_box((0.04, 1.3, 0.04), loc=(sx * 0.5, -0.45, ROOF_Z + 0.02), color="gun_black"))
     return common.combine([lower, cabin, rust] + bumpers + lights + extra)
 
 
@@ -109,7 +115,8 @@ def _wheel():
     parts = [tyre, lip, hub, centre]
     for k in range(5):
         a = 2.0 * math.pi * k / 5
-        parts.append(common.make_box((0.025, 0.025, 2 * WHEEL_HALF_WIDTH + 0.05),
+        # Lug nuts sit proudly outside hub cap (half-width WHEEL_HALF_WIDTH + 0.012 vs hub 0.010, REND-003)
+        parts.append(common.make_box((0.025, 0.025, 2 * (WHEEL_HALF_WIDTH + 0.012)),
                                      loc=(math.cos(a) * 0.1, math.sin(a) * 0.1, 0.0), color="gun_black"))
     for bm in parts:
         common.transform(bm, rot=(0.0, math.pi / 2, 0.0))  # cylinder axis Z -> X

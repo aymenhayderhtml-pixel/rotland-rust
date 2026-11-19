@@ -183,10 +183,9 @@ class MeshBuilder:
 
     def finalize(self, name, scale=(1.0, 1.0, 1.0)):
         mesh = bpy.data.meshes.new(name)
-        # Proportions scale the whole body; the armature gets the same scale in create_armature
         bmesh.ops.scale(self.bm, vec=Vector(scale), verts=list(self.bm.verts))
-        # Every part is a closed shell, so this makes all faces point outward
-        bmesh.ops.recalc_face_normals(self.bm, faces=list(self.bm.faces))
+        # Each part is built with outward-facing faces; avoid global recalc_face_normals
+        # which inverts faces on overlapping shells (pelvis/torso, knees/shins, laces/shoes - REND-002)
         bmesh.ops.triangulate(self.bm, faces=list(self.bm.faces))
         self.bm.normal_update()
 
