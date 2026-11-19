@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use engine::anim::Rig;
-use glam::Mat4;
+use glam::{Mat4, Vec3};
 use pack::{Clip, Skeleton};
 
 use crate::action::ActionState;
@@ -19,6 +19,11 @@ use crate::blend::{
 pub struct HumanoidAnimator {
     clips: HashMap<String, Clip>,
     is_upper: Vec<bool>,
+    parents: Vec<Option<usize>>,
+    order: Vec<usize>,
+    weapon_name: Option<String>,
+    two_handed: bool,
+    off_hand_grip: Option<Vec3>,
     blend_pos: f32,
     air_amount: f32,
     crouch_amount: f32,
@@ -50,35 +55,57 @@ impl HumanoidAnimator {
             .iter()
             .map(|j| UPPER_BONES.iter().any(|&b| b == j.name))
             .collect();
+        let parents: Vec<Option<usize>> = skeleton
+            .joints
+            .iter()
+            .map(|j| j.parent.map(|p| p as usize))
+            .collect();
+        let order = crate::ik::parent_first_order(&parents);
         let mut map = HashMap::new();
         for c in clips {
             map.insert(c.name.clone(), c.clone());
         }
         Self {
-            clips: map,
-            is_upper,
-            blend_pos: 0.0,
-            air_amount: 0.0,
-            crouch_amount: 0.0,
-            aim_amount: 0.0,
-            aim_target: 0.0,
-            aim_clip: None,
-            tempo_scale: 1.0,
-            time_loco: 0.0,
-            time_idle: 0.0,
-            time_air: 0.0,
-            time_crouch: 0.0,
-            time_aim: 0.0,
-            action: None,
-            dying: false,
-            die_time: 0.0,
-            held_pose: None,
-            pose_time: 0.0,
-            update_interval: 0.0,
-            accumulated_dt: 0.0,
-            dirty: true,
-            cached_skin: vec![Mat4::IDENTITY; n],
+            clips: map, is_upper, parents, order,
+            weapon_name: None, two_handed: false, off_hand_grip: None,
+            blend_pos: 0.0, air_amount: 0.0, crouch_amount: 0.0,
+            aim_amount: 0.0, aim_target: 0.0, aim_clip: None,
+            tempo_scale: 1.0, time_loco: 0.0, time_idle: 0.0,
+            time_air: 0.0, time_crouch: 0.0, time_aim: 0.0,
+            action: None, dying: false, die_time: 0.0,
+            held_pose: None, pose_time: 0.0,
+            update_interval: 0.0, accumulated_dt: 0.0,
+            dirty: true, cached_skin: vec![Mat4::IDENTITY; n],
         }
+    }
+
+    /// Sets the equipped weapon model name (e.g. "bat", "knife", "pistol").
+    pub fn set_weapon(&mut self, weapon: Option<&str>) {
+        if let Some(name) = weapon {
+            self.weapon_name = Some(name.to_string());
+            self.two_handed = crate::weapon::is_two_handed(name);
+            self.off_hand_grip = crate::weapon::off_hand_grip_for(name);
+        } else {
+            self.weapon_name = None;
+            self.two_handed = false;
+            self.off_hand_grip = None;
+        }
+        self.dirty = true;
+    }
+
+    /// Explicitly sets two-handed mode and off-hand grip offset.
+    pub fn set_two_handed(&mut self, two_handed: bool, off_hand_grip: Option<Vec3>) {
+        self.two_handed = two_handed;
+        self.off_hand_grip = off_hand_grip;
+        self.dirty = true;
+    }
+
+    pub fn is_two_handed(&self) -> bool {
+        self.two_handed
+    }
+
+    pub fn off_hand_grip(&self) -> Option<Vec3> {
+        self.off_hand_grip
     }
 
     /// Advance blends, one-shots and animation clocks by `dt` seconds.
@@ -152,31 +179,11 @@ impl HumanoidAnimator {
         self.dirty = true;
     }
 
-    pub fn play_die(&mut self) {
-        self.dying = true;
-        self.die_time = 0.0;
-        self.dirty = true;
-    }
-
-    pub fn reset_alive(&mut self) {
-        self.dying = false;
-        self.dirty = true;
-    }
-
-    pub fn hold_pose(&mut self, clip_name: &str) {
-        self.held_pose = Some(clip_name.to_string());
-        self.pose_time = 0.0;
-        self.dirty = true;
-    }
-
-    pub fn release_pose(&mut self) {
-        self.held_pose = None;
-        self.dirty = true;
-    }
-
-    pub fn set_tempo_scale(&mut self, scale: f32) {
-        self.tempo_scale = scale.max(0.05);
-    }
+    pub fn play_die(&mut self) { self.dying = true; self.die_time = 0.0; self.dirty = true; }
+    pub fn reset_alive(&mut self) { self.dying = false; self.dirty = true; }
+    pub fn hold_pose(&mut self, clip_name: &str) { self.held_pose = Some(clip_name.to_string()); self.pose_time = 0.0; self.dirty = true; }
+    pub fn release_pose(&mut self) { self.held_pose = None; self.dirty = true; }
+    pub fn set_tempo_scale(&mut self, scale: f32) { self.tempo_scale = scale.max(0.05); }
 
     /// Multi-tiered LOD update throttling from `HumanoidVisual.SetLod`.
     pub fn set_lod(&mut self, distance: f32, on_screen: bool) {
@@ -190,29 +197,12 @@ impl HumanoidAnimator {
         }
     }
 
-    pub fn update_interval(&self) -> f32 {
-        self.update_interval
-    }
-
-    pub fn blend_position(&self) -> f32 {
-        self.blend_pos
-    }
-
-    pub fn is_action_active(&self) -> bool {
-        self.action.as_ref().is_some_and(|a| !a.is_finished())
-    }
-
-    pub fn current_action(&self) -> Option<&str> {
-        self.action.as_ref().map(|a| a.clip_name.as_str())
-    }
-
-    pub fn action_state(&self) -> Option<&ActionState> {
-        self.action.as_ref()
-    }
-
-    pub fn is_dying(&self) -> bool {
-        self.dying
-    }
+    pub fn update_interval(&self) -> f32 { self.update_interval }
+    pub fn blend_position(&self) -> f32 { self.blend_pos }
+    pub fn is_action_active(&self) -> bool { self.action.as_ref().is_some_and(|a| !a.is_finished()) }
+    pub fn current_action(&self) -> Option<&str> { self.action.as_ref().map(|a| a.clip_name.as_str()) }
+    pub fn action_state(&self) -> Option<&ActionState> { self.action.as_ref() }
+    pub fn is_dying(&self) -> bool { self.dying }
 
     /// Writes character skin matrices into `out`.
     pub fn write_skin(&mut self, rig: &Rig, out: &mut [Mat4]) {
@@ -270,10 +260,35 @@ impl HumanoidAnimator {
 
         if let Some(act) = &self.action {
             let w = act.weight();
-            if w > 0.001 && let Some(ac) = self.clips.get(&act.clip_name) {
-                let ap = rig.local_pose(ac, act.time * act.speed);
-                blend_local_poses(&mut local, &ap, w, Some(&self.is_upper));
+            if act.clip_name == "melee_2h" {
+                let t = (act.time * act.speed).clamp(0.0, 0.70);
+                let swing_w = if act.time < act.fade_in { 1.0 } else { w };
+                if swing_w > 0.001 {
+                    crate::swing::apply_two_hand_swing_pose(rig, &mut local, t, swing_w);
+                }
+            } else if w > 0.001 {
+                if let Some(ac) = self.clips.get(&act.clip_name) {
+                    let ap = rig.local_pose(ac, act.time * act.speed);
+                    blend_local_poses(&mut local, &ap, w, Some(&self.is_upper));
+                }
             }
+        }
+
+        let is_swinging = self.action.as_ref().is_some_and(|a| a.clip_name == "melee_2h");
+        let is_two_handed_active = self.two_handed || (self.weapon_name.is_none() && is_swinging);
+        if is_two_handed_active && (is_swinging || self.aim_amount > 0.001) {
+            let grip_offset = self.off_hand_grip.unwrap_or(Vec3::new(0.0, 0.0, 0.10));
+            let wname = self.weapon_name.as_deref().unwrap_or("bat");
+            let (hold_pos, hold_rot) = crate::weapon::weapon_hold_for(wname);
+            crate::ik::apply_two_hand_left_grip_ik(
+                &self.parents,
+                &self.order,
+                &mut local,
+                rig,
+                hold_pos,
+                hold_rot,
+                grip_offset,
+            );
         }
 
         rig.skin(&local, &mut self.cached_skin);
