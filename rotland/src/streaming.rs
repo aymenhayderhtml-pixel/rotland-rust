@@ -7,6 +7,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 
 use engine::render::{ColorVertex, GpuMesh};
+use physics::{ColliderHandle, PhysicsWorld};
 use game::{DogPoiSite, LadderRail};
 use glam::{IVec2, Vec3};
 use world::{LootSpot, PoiInstance, PropInstance, WorldGenerator};
@@ -187,7 +188,8 @@ impl Streamer {
                 break;
             }
         }
-        for built in self.rx_scratch.drain(..) {
+        let mut rx_scratch = std::mem::take(&mut self.rx_scratch);
+        for built in rx_scratch.drain(..) {
             self.in_flight.remove(&built.coord);
             let c = built.coord;
             if (c.x - center.x).abs().max((c.y - center.y).abs()) > UNLOAD_RADIUS {
@@ -197,6 +199,7 @@ impl Streamer {
             self.chunks.insert(c, chunk);
             applied = true;
         }
+        self.rx_scratch = rx_scratch;
         if changed || applied {
             self.generation = self.generation.wrapping_add(1);
             self.rebuild_dog_sites();

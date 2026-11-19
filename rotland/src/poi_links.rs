@@ -13,11 +13,6 @@ pub fn build_dog_poi_site(poi: &PoiInstance, poi_config: &PoiConfigData) -> DogP
     DogPoiSite::new(&poi.id, &poi.building_id, poi.position, poi.yaw, half_depth)
 }
 
-/// Converts a slice of PoiInstances into a list of DogPoiSites.
-pub fn build_dog_poi_sites(pois: &[PoiInstance], poi_config: &PoiConfigData) -> Vec<DogPoiSite> {
-    pois.iter().map(|p| build_dog_poi_site(p, poi_config)).collect()
-}
-
 /// Notes nearby buildings directly from a slice of POI instances and loot spots.
 pub fn note_nearby_pois(
     map_state: &mut MapState,

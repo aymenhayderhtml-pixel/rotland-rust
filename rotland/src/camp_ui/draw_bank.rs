@@ -2,7 +2,7 @@
 
 use engine::egui::{self, vec2, Color32, CornerRadius, Frame, Margin, RichText, ScrollArea, Stroke};
 
-use crate::hub_ui::draw_bag::item_text::format_bank_row;
+use crate::hub_ui::item_text::format_bank_row;
 
 use super::action::CampAction;
 use super::state::CampUiState;

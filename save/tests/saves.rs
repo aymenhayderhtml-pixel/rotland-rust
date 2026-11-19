@@ -259,7 +259,7 @@ fn slot_info_empty_damaged_filled() {
     compared += 1;
 
     assert!(compared > 0, "comparison test compared 0 items");
-    assert_eq!(compared, 20);
+    assert_eq!(compared, 22);
 }
 
 #[test]

@@ -1,17 +1,13 @@
 //! egui 0.37 rendering for the Bag (inventory) tab in the player hub.
 
 use engine::egui::{
-    self, pos2, vec2, Align2, Color32, CornerRadius, FontId, Grid, ProgressBar,
-    Rect, RichText, ScrollArea, Sense, Stroke,
+    self, pos2, vec2, Align2, Color32, CornerRadius, FontId, Grid,
+    Rect, RichText, Sense, Stroke,
 };
-use game::{CAMPFIRE_STATION, DEFAULT_SLOT_COUNT, HAND_STATION, HOTBAR_SIZE};
+use game::{DEFAULT_SLOT_COUNT, HOTBAR_SIZE};
 
-#[path = "draw_crafting.rs"]
-pub mod draw_crafting;
-#[path = "item_text.rs"]
-pub mod item_text;
 
-use draw_crafting::draw_crafting_subpanel;
+use super::draw_crafting::draw_crafting_subpanel;
 use super::action::HubAction;
 use super::draw::parse_hex_color;
 use super::draw_bag_details::draw_details_panel;

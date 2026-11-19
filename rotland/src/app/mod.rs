@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)] // each frame step takes the state groups it touches as separate borrows
 //! Application orchestration and frame pipeline modules.
 
 pub mod frame_actors;

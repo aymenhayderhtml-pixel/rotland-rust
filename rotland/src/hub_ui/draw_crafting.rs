@@ -107,11 +107,10 @@ pub fn draw_crafting_subpanel(ui: &mut egui::Ui, view: &HubView) -> Option<HubAc
                         // Craft button
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             let mut craft_btn = ui.add_enabled(can_craft, egui::Button::new("Craft"));
-                            if !can_craft {
-                                if let Some(reason) = &blocker_reason {
+                            if !can_craft
+                                && let Some(reason) = &blocker_reason {
                                     craft_btn = craft_btn.on_disabled_hover_text(reason);
                                 }
-                            }
                             if craft_btn.clicked() {
                                 action = Some(HubAction::Craft {
                                     recipe: recipe.id.clone(),

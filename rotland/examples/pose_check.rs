@@ -1,6 +1,7 @@
 //! Verifies that `PlayerVisual` poses correctly and weapon stays attached to hand_R without NaNs.
 
 #[path = "../src/player_visual.rs"]
+#[allow(dead_code)]
 mod player_visual;
 
 use glam::{Mat4, Vec3};

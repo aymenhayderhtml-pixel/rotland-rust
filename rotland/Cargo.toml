@@ -4,6 +4,7 @@ edition.workspace = true
 version.workspace = true
 
 [dependencies]
+image.workspace = true
 paths = { path = "../paths" }
 engine = { path = "../engine" }
 glam.workspace = true

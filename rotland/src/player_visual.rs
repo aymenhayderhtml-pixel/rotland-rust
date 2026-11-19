@@ -9,6 +9,7 @@ use pack::{Joint, ModelPack, PackVertex, Skeleton};
 
 /// Pure helper: returns the requested model from `pack`, or falls back to `fallback_name` if missing.
 /// Logs an error message if the primary model is missing.
+#[cfg(test)]
 pub fn pick_model_or_fallback<'a>(
     pack: &'a ModelPack,
     name: &str,
@@ -18,12 +19,11 @@ pub fn pick_model_or_fallback<'a>(
         return Some(m);
     }
     eprintln!("player_visual: model '{name}' not found in pack");
-    if let Some(fb) = fallback_name {
-        if let Some(m) = pack.find(fb) {
+    if let Some(fb) = fallback_name
+        && let Some(m) = pack.find(fb) {
             eprintln!("player_visual: using fallback model '{fb}' for '{name}'");
             return Some(m);
         }
-    }
     None
 }
 
@@ -199,6 +199,8 @@ impl PlayerVisual {
         if weapon_model == self.weapon_name.as_deref() {
             return;
         }
+        // Two-handed weapons put the left hand on the handle (R10-03)
+        self.animator.set_weapon(weapon_model);
         match weapon_model {
             Some(wname) => match pack.find(wname) {
                 Some(model) => {

@@ -2,12 +2,12 @@
 
 use std::sync::{Arc, Mutex};
 
-use game::zombie::{ZombieBehaviourDef, ZombieBrain, ZombieDef, ZombieDefs, ZombieHorde};
+use game::zombie::{ZombieBehaviourDef, ZombieBrain, ZombieDef, ZombieHorde};
 use game::Health;
 use glam::Vec3;
 use physics::PhysicsWorld;
 
-use super::types::{Look, Zombie, FIRST_ID};
+use super::types::Zombie;
 use super::Zombies;
 
 impl Zombies {

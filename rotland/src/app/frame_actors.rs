@@ -245,7 +245,11 @@ pub fn update_actors(
                 }
                 // Wake up at the camp (Godot respawns at the last settlement visited)
                 if let Some(w) = world.world_gen.as_ref() {
-                    let spawn = w.settlements()[0].respawn_point(w.config());
+                    let spawn = play
+                        .play
+                        .as_ref()
+                        .and_then(|pl| pl.camp.settlements.try_respawn_point(w.settlements(), w.config()))
+                        .unwrap_or_else(|| w.settlements()[0].respawn_point(w.config()));
                     *p = Player::new(spawn);
                     // Face where the camera looks, not the default direction
                     p.yaw = rig.yaw;
@@ -274,6 +278,7 @@ pub fn update_actors(
         }
         // A gun's aim zoom (the rifle scope zooms much further, CameraRig/GunHandler)
         let aiming = ui.cursor_captured && input.mouse_held(MouseButton::Right);
+        ui.right_held = aiming;
         if let (true, Some(gun)) = (aiming, play.play.as_ref().and_then(|pl| pl.gun.as_ref()))
             && let Some(fov) = shooting::aim_fov(gun, rig.is_first_person)
         {

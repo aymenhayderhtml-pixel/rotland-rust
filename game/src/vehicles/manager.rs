@@ -86,6 +86,7 @@ impl Cars {
         let rec = spawn_rules::new_record(id, colour, at, yaw, fuel, health);
         self.records.insert(id.to_string(), rec.clone());
         let mut car = Car::new(id, colour, &self.config);
+        car.apply_record(&rec);
         match self.live.entry(id.to_string()) {
             std::collections::hash_map::Entry::Occupied(mut occ) => {
                 occ.insert(car);

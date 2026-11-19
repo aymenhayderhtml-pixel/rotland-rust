@@ -54,7 +54,7 @@ pub fn save_now(
     };
     let mut magazines = std::collections::HashMap::new();
     if let Some(gun) = &play_state.gun {
-        magazines.insert(gun.id.clone(), play_state.last_shot.ammo as i32);
+        magazines.insert(gun.id.clone(), play_state.last_shot.ammo.0 as i32);
     }
     file.systems.weapons = Some(save::WeaponsSaveData {
         equipped,
@@ -72,7 +72,7 @@ pub fn save_now(
             log::info!(
                 "saved slot {} to {}",
                 session.active_slot,
-                slots.path_for(session.active_slot as usize).map_or_else(|_| std::path::PathBuf::new(), |p| p).display()
+                slots.path_for(session.active_slot as usize).unwrap_or_else(|_| std::path::PathBuf::new()).display()
             );
             session.slot_cards = session::summaries(slots);
             session.loaded_save = Some(file);

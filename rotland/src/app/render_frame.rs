@@ -1,12 +1,13 @@
 //! 3D world and scene rendering, skeletal animation poses, batching, and lighting.
 
-use engine::render::{DrawItem, FrameTarget};
+use engine::render::DrawItem;
+use engine::FrameTarget;
 use engine::Gpu;
 use glam::{Mat4, Vec3};
 
 use super::start_world::start_world;
 use super::state::{ActorsState, AudioState, PlaySide, RenderState, SessionState, UiState, WorldState};
-use crate::{car_lights, fp_weapon, light, props};
+use crate::{car_lights, fp_weapon, light};
 
 /// Renders the 3D scene: updates streamed chunks, prepares skeletal instances, sets lighting, and draws passes.
 pub fn render_frame(
@@ -92,7 +93,6 @@ pub fn render_frame(
         target.aspect(),
         renderer.shadows.distance,
     );
-    render.scratch_beds = beds;
     let driving = actors.cars.as_ref().is_some_and(|c| c.driven_car_id.is_some());
     if let (Some(pv), Some(pose), false) = (actors.player_visual.as_mut(), player_pose, driving) {
         let loco = humanoid::Locomotion {
@@ -256,4 +256,6 @@ pub fn render_frame(
         &shadow,
         &render.bones,
     );
+    drop((main, shadow, items));
+    render.scratch_beds = beds;
 }

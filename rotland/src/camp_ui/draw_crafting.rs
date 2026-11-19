@@ -3,7 +3,7 @@
 use engine::egui::{self, vec2, Color32, CornerRadius, Frame, Margin, ProgressBar, RichText, ScrollArea, Stroke};
 use game::{CAMPFIRE_STATION, HAND_STATION};
 
-use crate::hub_ui::draw_bag::item_text::craft_blocker_reason;
+use crate::hub_ui::item_text::craft_blocker_reason;
 
 use super::action::CampAction;
 use super::state::CampUiState;
@@ -153,11 +153,10 @@ pub fn draw_crafting(ui: &mut egui::Ui, _state: &mut CampUiState, view: &CampVie
                                 // Craft button
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                     let mut craft_btn = ui.add_enabled(can_craft, egui::Button::new("Craft"));
-                                    if !can_craft {
-                                        if let Some(reason) = &blocker_reason {
+                                    if !can_craft
+                                        && let Some(reason) = &blocker_reason {
                                             craft_btn = craft_btn.on_disabled_hover_text(reason);
                                         }
-                                    }
                                     if craft_btn.clicked() {
                                         action = Some(CampAction::Craft {
                                             recipe: recipe.id.clone(),

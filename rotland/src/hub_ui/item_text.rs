@@ -180,12 +180,11 @@ pub fn craft_blocker_reason(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use game::{Inventory, ItemCategory, RecipeItem, WeaponKind};
+    use game::{Inventory, RecipeItem, WeaponKind};
 
     #[test]
     fn test_format_item_name() {
-        let mut def = ItemDef::default();
-        def.name = "Cooked Meat".to_string();
+        let def = ItemDef { name: "Cooked Meat".to_string(), ..Default::default() };
         assert_eq!(format_item_name("cooked_meat", Some(&def)), "Cooked Meat");
         assert_eq!(format_item_name("wood", None), "wood");
     }
@@ -285,14 +284,14 @@ mod tests {
 
     #[test]
     fn test_craft_blocker_reason() {
-        let mut recipe = RecipeDef {
+        let recipe = RecipeDef {
             id: "cooked_meat".to_string(),
             station: CAMPFIRE_STATION.to_string(),
             inputs: vec![RecipeItem::new("raw_meat", 1)],
             ..Default::default()
         };
 
-        let mut inv = Inventory::new(10, 50.0);
+        let mut inv = Inventory::with_capacity(10, 50.0);
         // Not near campfire, missing raw meat
         let reason = craft_blocker_reason(
             &recipe,

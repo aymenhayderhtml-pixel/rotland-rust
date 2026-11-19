@@ -24,15 +24,37 @@ pub fn update_sim(
         noises_scratch.extend(c.noises.iter().map(|n| (n.position, n.radius)));
     }
 
+    // Zombies can't reach a player on a ladder (they bang instead), and the camp seals the player off
+    let player_unreachable = actors.climb.is_active();
+    let player_in_safe_zone = world.world_gen.as_ref().is_some_and(|g| {
+        g.settlements().iter().any(|s| s.contains(actors.player, 0.0, g.config()))
+    });
+    // The last camp entered becomes the respawn camp (SettlementWatcher.cs)
+    if let (Some(g), Some(pl)) = (world.world_gen.as_ref(), play.play.as_mut()) {
+        pl.camp.settlements.update(actors.player, g.settlements(), g.config());
+    }
     if let Some(z) = actors.zombies.as_mut() {
-        let frame = {
-            let combat_noises: &[crate::combat::Noise] = actors
-                .combat
-                .as_ref()
-                .map(|c| c.noises.as_slice())
-                .unwrap_or(&[]);
-            z.update(dt, alive.then_some(actors.player), combat_noises, &world.physics)
-        };
+        let mut heard = std::mem::take(&mut actors.heard_scratch);
+        heard.clear();
+        if let Some(c) = actors.combat.as_ref() {
+            heard.extend(c.noises.iter().cloned());
+        }
+        heard.append(&mut actors.scream_noises);
+        let frame = z.update_full(
+            dt,
+            alive.then_some(actors.player),
+            &heard,
+            &world.physics,
+            player_unreachable,
+            player_in_safe_zone,
+        );
+        actors.heard_scratch = heard;
+        actors.scream_noises.extend(frame.noises.iter().cloned());
+        if let Some(a) = audio.audio.as_mut() {
+            for at in &frame.screams {
+                a.play_at("zombie_groan", *at);
+            }
+        }
         let mut bites = std::mem::take(&mut actors.bites_scratch);
         bites.clear();
         bites.extend(frame.bites.iter().map(|b| b.damage));

@@ -21,10 +21,6 @@ pub struct Restore {
     pub play_time: f64,
 }
 
-fn v3(v: &Vec3Data) -> Vec3 {
-    Vec3::new(v.x, v.y, v.z)
-}
-
 fn d3(v: Vec3) -> Vec3Data {
     Vec3Data { x: v.x, y: v.y, z: v.z }
 }
@@ -147,7 +143,7 @@ pub fn restore_play(file: &SaveFile, play: &mut PlayState) -> Vec<String> {
     // SAVE-002: Restore dropped items into play.world_items
     if let Some(ws) = &file.systems.worldstate {
         play.world_items.clear();
-        for (_chunk, items) in &ws.dropped {
+        for items in ws.dropped.values() {
             for d in items {
                 if !d.id.is_empty() && d.count > 0 && d.x.is_finite() && d.y.is_finite() && d.z.is_finite() {
                     play.world_items.add(&d.id, d.count, Vec3::new(d.x, d.y, d.z));

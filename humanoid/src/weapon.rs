@@ -49,7 +49,7 @@ pub const TWO_HANDED_WEAPONS: &[&str] = &[
 
 /// Returns true if the weapon is two-handed according to Godot `WeaponGripConvention.cs:19`.
 pub fn is_two_handed(weapon: &str) -> bool {
-    TWO_HANDED_WEAPONS.iter().any(|&w| w == weapon)
+    TWO_HANDED_WEAPONS.contains(&weapon)
 }
 
 /// Returns the model-space off-hand grip offset (`grip_L`) for a two-handed weapon.

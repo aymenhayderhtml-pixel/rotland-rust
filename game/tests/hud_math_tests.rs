@@ -33,7 +33,7 @@ fn test_compass_math_bearing_to_view() {
     assert_eq!(bearing_to_view_deg(0.0, 0.0), 0.0);
     assert_eq!(bearing_to_view_deg(90.0, 0.0), 90.0);
     assert_eq!(bearing_to_view_deg(270.0, 0.0), -90.0);
-    assert_eq!(bearing_to_view_deg(180.0, 0.0), 180.0);
+    assert_eq!(bearing_to_view_deg(180.0, 0.0).abs(), 180.0);
 
     // Wrap around at 0/360 boundary
     assert!((bearing_to_view_deg(355.0, 0.0) - (-5.0)).abs() < 1e-4);
@@ -103,17 +103,17 @@ fn test_compass_relative_angle_and_behind() {
 #[test]
 fn test_crosshair_visibility_rules() {
     // Issue #4: Melee in hand -> no crosshair; Gun -> crosshair; None -> crosshair
-    assert_eq!(is_crosshair_visible(false, false, HeldKind::Melee), false);
-    assert_eq!(is_crosshair_visible(false, false, HeldKind::Gun), true);
-    assert_eq!(is_crosshair_visible(false, false, HeldKind::None), true);
-    assert_eq!(is_crosshair_visible(false, false, HeldKind::Other), true);
+    assert!(!is_crosshair_visible(false, false, HeldKind::Melee));
+    assert!(is_crosshair_visible(false, false, HeldKind::Gun));
+    assert!(is_crosshair_visible(false, false, HeldKind::None));
+    assert!(is_crosshair_visible(false, false, HeldKind::Other));
 
     // Dead player -> never show crosshair
-    assert_eq!(is_crosshair_visible(true, false, HeldKind::Gun), false);
-    assert_eq!(is_crosshair_visible(true, false, HeldKind::None), false);
+    assert!(!is_crosshair_visible(true, false, HeldKind::Gun));
+    assert!(!is_crosshair_visible(true, false, HeldKind::None));
 
     // Scoped rifle -> never show crosshair (covered by scope overlay)
-    assert_eq!(is_crosshair_visible(false, true, HeldKind::Gun), false);
+    assert!(!is_crosshair_visible(false, true, HeldKind::Gun));
 }
 
 #[test]

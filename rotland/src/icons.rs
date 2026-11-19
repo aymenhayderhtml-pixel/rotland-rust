@@ -33,7 +33,7 @@ impl IconCache {
             return cached.as_ref().map(|h| h.id());
         }
 
-        let path = paths::repo_path(format!("assets/icons/{item_id}.png"));
+        let path = paths::repo_path(&format!("assets/icons/{item_id}.png"));
         let handle = if path.is_file() {
             if let Ok(bytes) = std::fs::read(&path) {
                 if let Ok(img) = image::load_from_memory(&bytes) {

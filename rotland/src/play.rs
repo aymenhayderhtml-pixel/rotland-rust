@@ -34,7 +34,7 @@ pub struct PlayState {
     spawner: Spawner,
     loot_tables: LootTableRegistry,
     loot_state: LootState,
-    world_items: WorldItems,
+    pub world_items: WorldItems,
     loot_multiplier: f32,
     world_seed: i32,
     shooting: Shooting,
@@ -383,6 +383,9 @@ impl PlayState {
                 None => HotbarSlot { label: String::new(), count: 0, selected: false },
             })
             .collect();
+        let hotbar_item_ids = (1..=self.hotbar.slot_count())
+            .map(|key| self.hotbar.slot_entry(key, &self.inventory).map(|st| st.item_id.clone()))
+            .collect();
         HudState {
             health,
             max_health,
@@ -398,6 +401,8 @@ impl PlayState {
             water: Some((self.thirst.current() / self.thirst.max().max(1.0), self.thirst.is_low())),
             message: self.toast.as_ref().map(|(t, _)| t.clone()).or_else(|| self.prompt.clone()),
             dead,
+            hotbar_item_ids: Some(hotbar_item_ids),
+            ..Default::default()
         }
     }
 }

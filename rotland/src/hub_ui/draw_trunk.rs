@@ -5,7 +5,7 @@ use engine::egui::{
 };
 
 use super::action::HubAction;
-use super::draw_bag::item_text::format_trunk_row;
+use super::item_text::format_trunk_row;
 use super::state::HubUiState;
 use super::view::HubView;
 

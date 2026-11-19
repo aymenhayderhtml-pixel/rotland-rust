@@ -88,7 +88,7 @@ pub fn move_stack(
 pub fn draw_ui(
     ctx: &egui::Context,
     render: &mut RenderState,
-    world: &WorldState,
+    world: &mut WorldState,
     actors: &mut ActorsState,
     play: &mut PlaySide,
     ui: &mut UiState,
@@ -138,9 +138,42 @@ pub fn draw_ui(
             fps,
             c.is_dead(),
         );
-        hud::draw(ctx, &state);
+        let mut state = state;
+        // R10-04 inputs: what is in the hand, the scope, the camp / waypoint on the compass, the dog
+        state.held = if play_state.gun.is_some() {
+            hud::HeldKind::Gun
+        } else if c.weapon_id().is_some() {
+            hud::HeldKind::Melee
+        } else {
+            hud::HeldKind::None
+        };
+        state.scoped = ui.cursor_captured
+            && ui.right_held
+            && play_state.gun.as_ref().is_some_and(|g| g.scope.is_some());
+        let at = p.position;
+        if let Some(g) = world.world_gen.as_ref() {
+            state.in_safe_zone = g.settlements().iter().any(|s| s.contains(at, 0.0, g.config()));
+            if let Some(s) = g.settlements().first() {
+                let dist = glam::Vec2::new(s.center.x - at.x, s.center.z - at.z).length();
+                state.camp = Some(hud::CampHudInfo::new(
+                    game::hud_math::relative_angle_deg(at.x, at.z, s.center.x, s.center.z, p.yaw),
+                    dist,
+                ));
+            }
+        }
+        if let Some(wp) = play_state.map.waypoint {
+            let dist = glam::Vec2::new(wp.x - at.x, wp.y - at.z).length();
+            state.waypoint = Some(hud::WaypointHudInfo::new(
+                game::hud_math::relative_angle_deg(at.x, at.z, wp.x, wp.y, p.yaw),
+                dist,
+            ));
+        }
+        if let Some(d) = actors.dogs.as_ref().and_then(|d| d.sim.dog()).filter(|d| !d.is_dead()) {
+            state.dog = Some(hud::DogHudInfo::new(d.name().to_string(), d.health().current(), d.health().max()));
+        }
+        hud::draw_hud(ctx, &state, &mut ui.icons);
         if let (Some(t), false) = (&play.hint_text, c.is_dead()) {
-            hud::draw_hint(ctx, t);
+            hud::hint::draw_hint(ctx, t);
         }
     }
 
@@ -264,7 +297,7 @@ pub fn draw_ui(
                     player_yaw: yaw,
                     map_state: &play_state.map,
                     generator: world.world_gen.as_deref(),
-                    camps: &camps,
+                    camps,
                     bounties: play_state.camp.bounties.active(),
                 }),
                 health: actors

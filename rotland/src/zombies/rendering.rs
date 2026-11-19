@@ -2,7 +2,7 @@
 
 use engine::render::{SkinInstance, SkinnedBatch};
 use game::zombie::AnimClip;
-use glam::{Mat4, Vec3};
+use glam::Mat4;
 
 use super::types::clip_name;
 use super::Zombies;

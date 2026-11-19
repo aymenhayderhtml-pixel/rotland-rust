@@ -7,7 +7,7 @@ mod spawning;
 pub mod types;
 
 use game::zombie::{
-    AnimClip, BrainInput, BrainOutput, HerdZombie, Noise, SpatialGrid, ZombieBrain,
+    AnimClip, BrainInput, BrainOutput, HerdZombie, Noise, SpatialGrid,
     ZombieCorpses, ZombieDefs,
 };
 use game::FlowField;
@@ -15,7 +15,7 @@ use glam::Vec3;
 use physics::{CharacterMover, PhysicsWorld};
 
 pub use types::{
-    clip_name, Look, Zombie, ZombieFrame, BODY_RADIUS, CORPSE_SECONDS, FAR_DISTANCE,
+    Look, Zombie, ZombieFrame, BODY_RADIUS, CORPSE_SECONDS, FAR_DISTANCE,
     FAR_THINK_INTERVAL, FIRST_ID, FLOW_EVERY, GRAVITY,
 };
 
@@ -163,7 +163,7 @@ impl Zombies {
                 self.spatial_grid.query_nearby(z.position, &mut nearby_buf);
 
                 let took_hit = z.pending_hit.take();
-                let is_leg_hit = took_hit.as_ref().map_or(false, |h| h.leg_hit);
+                let is_leg_hit = took_hit.as_ref().is_some_and(|h| h.leg_hit);
 
                 let input = BrainInput {
                     position: z.position,

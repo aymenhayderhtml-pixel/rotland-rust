@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use engine::render::{Camera, LitRenderer};
 use game::{
-    CameraRig, DogPoiSite, GuardPost, GuardTarget, HintContext, LadderRail, Player, PoiZombieSite,
+    CameraRig, GuardPost, GuardTarget, HintContext, Player, PoiZombieSite,
     VoiceZombie,
 };
 use glam::{Mat4, Vec3};
@@ -150,6 +150,10 @@ pub struct ActorsState {
     pub guard_targets_scratch: Vec<GuardTarget>,
     pub zombie_status_scratch: Vec<(u64, Vec3, bool)>,
     pub noises_scratch: Vec<(Vec3, f32)>,
+    /// What the zombies hear this frame: the player's noises plus last frame's screams (reused buffer).
+    pub heard_scratch: Vec<game::zombie::Noise>,
+    /// Screams from last frame, heard by the other zombies this frame (ZombieAI.Actions SpotPlayer).
+    pub scream_noises: Vec<game::zombie::Noise>,
     pub animal_status_scratch: Vec<(u64, Vec3, bool)>,
     pub car_solids_scratch: Vec<(String, Mat4, bool)>,
     pub car_targets_scratch: Vec<(u64, Vec3)>,
@@ -215,6 +219,10 @@ pub struct UiState {
     pub keys: KeyMap,
     pub cursor_captured: bool,
     pub e_used: bool,
+    /// Right mouse held this frame (aiming); the HUD shows the scope picture with a scoped gun.
+    pub right_held: bool,
+    /// Item pictures for the hotbar and bag, loaded once (R10-04).
+    pub icons: crate::hud::IconCache,
 }
 
 impl UiState {

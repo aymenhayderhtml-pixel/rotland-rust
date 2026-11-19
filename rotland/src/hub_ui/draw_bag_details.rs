@@ -5,7 +5,7 @@ use game::ItemCategory;
 
 use super::action::HubAction;
 use super::item_text::{
-    self, action_button, format_item_category, format_item_effects, format_item_weight,
+    action_button, format_item_category, format_item_effects, format_item_weight,
     format_weapon_stats, get_weapon_def,
 };
 use super::state::HubUiState;
@@ -127,8 +127,8 @@ pub fn draw_details_panel(
         }
 
         if is_weapon {
-            if let Some(d) = def {
-                if let Some(weapon) = get_weapon_def(&d.weapon_id) {
+            if let Some(d) = def
+                && let Some(weapon) = get_weapon_def(&d.weapon_id) {
                     let ammo_name = if weapon.is_gun() && !weapon.ammo_item.is_empty() {
                         Some(view.item_name(&weapon.ammo_item))
                     } else {
@@ -143,7 +143,6 @@ pub fn draw_details_panel(
                         );
                     }
                 }
-            }
         } else if let Some(d) = def {
             let effects_str = format_item_effects(&d.effects);
             if !effects_str.is_empty() {

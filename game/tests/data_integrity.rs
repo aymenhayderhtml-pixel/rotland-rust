@@ -4,7 +4,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use game::animals::{AnimalConfigData, AnimalLoot};
+use game::animals::AnimalConfigData;
 use game::bounties::{BountyConfig, DELIVER_ITEMS};
 use game::crafting::RecipeRegistry;
 use game::economy::EconomyConfigData;
@@ -66,13 +66,13 @@ fn every_recipe_input_bounty_delivery_and_ammo_is_obtainable() {
     let animal_config = AnimalConfigData::from_repo().expect("data/animals.json");
     for species in animal_config.species.values() {
         if species.meat > 0 {
-            obtainable_items.insert(AnimalLoot::MEAT_ITEM.to_string());
+            obtainable_items.insert(game::animals::MEAT_ITEM.to_string());
         }
         if species.hide > 0 {
-            obtainable_items.insert(AnimalLoot::HIDE_ITEM.to_string());
+            obtainable_items.insert(game::animals::HIDE_ITEM.to_string());
         }
         if species.antler > 0 {
-            obtainable_items.insert(AnimalLoot::ANTLER_ITEM.to_string());
+            obtainable_items.insert(game::animals::ANTLER_ITEM.to_string());
         }
     }
 
@@ -214,7 +214,7 @@ fn every_referenced_item_id_exists_in_items_json() {
     }
 
     // 8. Animal loot constants
-    for animal_loot in [AnimalLoot::MEAT_ITEM, AnimalLoot::HIDE_ITEM, AnimalLoot::ANTLER_ITEM] {
+    for animal_loot in [game::animals::MEAT_ITEM, game::animals::HIDE_ITEM, game::animals::ANTLER_ITEM] {
         if !items.contains(animal_loot) {
             missing_references.push(format!("Animal yield constant '{}'", animal_loot));
         }
@@ -235,7 +235,7 @@ fn every_item_has_icon_png() {
 
     for def in items.iter() {
         total_items += 1;
-        let icon_path = paths::repo_path(format!("assets/icons/{}.png", def.id));
+        let icon_path = paths::repo_path(&format!("assets/icons/{}.png", def.id));
         if !icon_path.exists() {
             missing_icons.push(def.id.clone());
         }

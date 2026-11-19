@@ -121,7 +121,7 @@ impl Game for R0 {
             input,
             dt,
             &self.render,
-            &self.world,
+            &mut self.world,
             &mut self.actors,
             &mut self.play,
             &mut self.ui,
@@ -180,7 +180,7 @@ impl Game for R0 {
         app::frame_ui::draw_ui(
             ctx,
             &mut self.render,
-            &self.world,
+            &mut self.world,
             &mut self.actors,
             &mut self.play,
             &mut self.ui,

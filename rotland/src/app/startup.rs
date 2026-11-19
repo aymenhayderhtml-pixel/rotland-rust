@@ -94,7 +94,7 @@ pub fn init(
             Ok(f) => {
                 log::info!(
                     "imported Godot slot {n} into {}",
-                    slots.path_for(n).display()
+                    slots.path_for(n).map(|p| p.display().to_string()).unwrap_or_default()
                 );
                 session.active_slot = n as u8;
                 save_file = Some(f);

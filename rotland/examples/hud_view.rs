@@ -1,7 +1,8 @@
 //! Visual test example for the Rotland HUD over a plain sky-blue background.
 //! Run with `--shot=shots/hud.png` to take a screenshot.
 
-#[path = "../src/hud.rs"]
+#[path = "../src/hud/mod.rs"]
+#[allow(dead_code)]
 mod hud;
 
 use engine::egui;
@@ -10,6 +11,7 @@ use hud::{HotbarSlot, HudState};
 
 struct HudView {
     state: HudState,
+    icons: hud::IconCache,
 }
 
 impl Game for HudView {
@@ -54,7 +56,7 @@ impl Game for HudView {
     }
 
     fn ui(&mut self, ctx: &egui::Context) {
-        hud::draw(ctx, &self.state);
+        hud::draw_hud(ctx, &self.state, &mut self.icons);
     }
 }
 
@@ -105,10 +107,11 @@ fn main() {
         fps: 60.0,
         message: Some("Press [E] to talk".into()),
         dead: false,
+        ..Default::default()
     };
 
     engine::run(
-        HudView { state },
+        HudView { state, icons: hud::IconCache::new() },
         "Rotland - HUD View",
         EngineArgs::from_env(),
     );

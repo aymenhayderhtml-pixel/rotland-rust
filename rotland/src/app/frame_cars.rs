@@ -15,7 +15,7 @@ pub fn car_ramming(
     gone_scratch: &mut Vec<glam::IVec2>,
     streamer: Option<&crate::streaming::Streamer>,
     zombies: &mut crate::zombies::Zombies,
-    wildlife: Option<&mut crate::wildlife::Wildlife>,
+    mut wildlife: Option<&mut crate::wildlife::Wildlife>,
     player_pos: Vec3,
     hour: f32,
     time: f32,
@@ -74,8 +74,8 @@ pub fn car_ramming(
         );
     }
     for (id, dmg, kb) in cars.run_over(targets_scratch) {
-        match wildlife {
-            Some(ref mut w) if id >= crate::wildlife::FIRST_ANIMAL_ID => {
+        match wildlife.as_deref_mut() {
+            Some(w) if id >= crate::wildlife::FIRST_ANIMAL_ID => {
                 w.sim.hit(id, dmg, kb);
             }
             _ => {

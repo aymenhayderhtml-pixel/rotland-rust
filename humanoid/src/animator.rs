@@ -266,12 +266,11 @@ impl HumanoidAnimator {
                 if swing_w > 0.001 {
                     crate::swing::apply_two_hand_swing_pose(rig, &mut local, t, swing_w);
                 }
-            } else if w > 0.001 {
-                if let Some(ac) = self.clips.get(&act.clip_name) {
+            } else if w > 0.001
+                && let Some(ac) = self.clips.get(&act.clip_name) {
                     let ap = rig.local_pose(ac, act.time * act.speed);
                     blend_local_poses(&mut local, &ap, w, Some(&self.is_upper));
                 }
-            }
         }
 
         let is_swinging = self.action.as_ref().is_some_and(|a| a.clip_name == "melee_2h");

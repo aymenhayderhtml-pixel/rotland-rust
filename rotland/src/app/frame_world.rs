@@ -53,7 +53,7 @@ pub fn update_world_interactions(
     input: &Input,
     dt: f32,
     render: &RenderState,
-    world: &WorldState,
+    world: &mut WorldState,
     actors: &mut ActorsState,
     play: &mut PlaySide,
     ui: &mut UiState,

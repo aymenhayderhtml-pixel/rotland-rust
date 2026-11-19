@@ -255,6 +255,7 @@ impl Default for AnimalButcherData {
 /// Root data shape of data/animals.json.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[derive(Default)]
 pub struct AnimalConfigData {
     #[serde(default)]
     pub spawn: AnimalSpawnData,
@@ -335,14 +336,4 @@ impl AnimalConfigData {
     }
 }
 
-impl Default for AnimalConfigData {
-    fn default() -> Self {
-        Self {
-            spawn: AnimalSpawnData::default(),
-            behaviour: AnimalBehaviourData::default(),
-            butcher: AnimalButcherData::default(),
-            species: HashMap::new(),
-        }
-    }
-}
 

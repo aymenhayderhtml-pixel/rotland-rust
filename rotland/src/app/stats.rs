@@ -34,7 +34,7 @@ pub fn get_stats(
     world: &WorldState,
     actors: &ActorsState,
     play: &PlaySide,
-    ui: &UiState,
+    _ui: &UiState,
     session: &SessionState,
     audio: &AudioState,
 ) -> GameStats {

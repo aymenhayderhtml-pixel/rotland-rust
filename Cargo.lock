@@ -2972,6 +2972,7 @@ dependencies = [
  "game",
  "glam 0.34.3",
  "humanoid",
+ "image",
  "log",
  "pack",
  "paths",

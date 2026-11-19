@@ -91,11 +91,7 @@ pub fn parent_first_order(parents: &[Option<usize>]) -> Vec<usize> {
             }
         }
         if order.len() == before {
-            for i in 0..n {
-                if !placed[i] {
-                    order.push(i);
-                }
-            }
+            order.extend((0..n).filter(|&i| !placed[i]));
             break;
         }
     }

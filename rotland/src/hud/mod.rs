@@ -31,8 +31,7 @@ pub mod icons;
 
 pub use compass::{CampHudInfo, WaypointHudInfo};
 pub use game::hud_math::HeldKind;
-pub use hint::draw_hint;
-pub use icons::{label_to_item_id, IconCache};
+pub use icons::IconCache;
 pub use vitals::DogHudInfo;
 
 use engine::egui::{self, pos2, Align2, Color32, FontId};
@@ -132,8 +131,6 @@ impl Default for HudState {
     }
 }
 
-/// Alias for `HudState` as input specification struct.
-pub type HudView = HudState;
 
 /// Draws the HUD overlay using egui painter with explicit IconCache.
 pub fn draw_hud(ctx: &egui::Context, s: &HudState, icons: &mut IconCache) {
@@ -232,12 +229,3 @@ pub fn draw_hud(ctx: &egui::Context, s: &HudState, icons: &mut IconCache) {
         });
 }
 
-/// Backwards-compatible entry point for callers that do not supply an explicit IconCache.
-/// Textures are cached persistently across frames using a global cache so no disk I/O occurs during draw.
-pub fn draw(ctx: &egui::Context, s: &HudState) {
-    static FALLBACK_ICONS: std::sync::Mutex<Option<IconCache>> = std::sync::Mutex::new(None);
-    if let Ok(mut lock) = FALLBACK_ICONS.lock() {
-        let cache = lock.get_or_insert_with(IconCache::new);
-        draw_hud(ctx, s, cache);
-    }
-}

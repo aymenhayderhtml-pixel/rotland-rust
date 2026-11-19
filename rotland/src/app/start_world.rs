@@ -14,7 +14,6 @@ use crate::{
     camp_npcs, campfire_mesh, car_solid, combat, dog_view, play, player_visual, trunk_play,
     wildlife, zombies,
 };
-use serde_json::json;
 
 /// Builds the world for `session.seed` (and restores a save): ground, props, zombies, player, backpack.
 pub fn start_world(
@@ -54,8 +53,15 @@ pub fn start_world(
         play.hour = play.clock.hour;
     }
     let started = std::time::Instant::now();
-    let world_gen =
-        WorldGenerator::from_data_dir(session.seed, paths::repo_path("data")).expect("data files");
+    // A broken data file stops the game with a message naming the file, not a crash (CRASH-002)
+    let world_gen = match game::load_world_generator(session.seed, paths::repo_path("data")) {
+        Ok(g) => g,
+        Err(err) => {
+            log::error!("{err}");
+            eprintln!("Rotland can't start the world: {err}");
+            std::process::exit(1);
+        }
+    };
     let config = world_gen.config().clone();
     let camp = world_gen.settlements()[0].clone();
     let spawn = camp.respawn_point(&config);
@@ -188,8 +194,7 @@ pub fn start_world(
             if let Some(weapons) = &file.systems.weapons
                 && !weapons.equipped.is_empty()
                 && play_state.inventory.count(&weapons.equipped) > 0
-            {
-                if let Some(weapon_def) = play_state.weapons.get(&weapons.equipped).cloned() {
+                && let Some(weapon_def) = play_state.weapons.get(&weapons.equipped).cloned() {
                     apply_hand(
                         crate::play::HandChange::Weapon(Some(weapon_def)),
                         render,
@@ -198,7 +203,6 @@ pub fn start_world(
                         world,
                     );
                 }
-            }
         }
     }
     actors.climb = game::LadderClimb::default();
@@ -303,7 +307,7 @@ pub fn start_world(
     }
     session.loaded_save = save_file;
     let world_gen = Arc::new(world_gen);
-    let mut streamer = streaming::Streamer::new(world_gen.clone());
+    let mut streamer = crate::streaming::Streamer::new(world_gen.clone());
     streamer.felled = world
         .trees
         .fallen

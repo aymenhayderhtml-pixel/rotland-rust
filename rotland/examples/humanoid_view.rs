@@ -6,6 +6,7 @@
 #[path = "../src/light.rs"]
 mod light;
 #[path = "../src/player_visual.rs"]
+#[allow(dead_code)]
 mod player_visual;
 
 use engine::render::{Camera, DrawItem, GpuMesh, LitRenderer, SkinnedBatch};

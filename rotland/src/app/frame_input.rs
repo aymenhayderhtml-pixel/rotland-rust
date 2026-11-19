@@ -1,7 +1,7 @@
 //! Input gathering, key actions, hotbar selection, and hand equipment changes.
 
 use engine::Input;
-use game::{Actions, Player};
+use game::Actions;
 use glam::Vec3;
 use winit::event::MouseButton;
 use winit::keyboard::KeyCode;
@@ -10,7 +10,7 @@ use super::state::{
     weapon_model_name, ActorsState, KeyMap, PlaySide, RenderState, SessionState, UiState,
     WorldState,
 };
-use crate::{hub_ui, menus, play};
+use crate::{hub_ui, play};
 
 /// Result of input processing for the frame.
 pub enum InputOutcome {
