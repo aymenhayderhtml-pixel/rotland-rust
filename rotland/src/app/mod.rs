@@ -2,6 +2,7 @@
 //! Application orchestration and frame pipeline modules.
 
 pub mod minimap;
+mod minimap_cache;
 mod minimap_draw;
 
 pub mod frame_actors;
