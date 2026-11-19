@@ -54,6 +54,14 @@ The owner's laptop: Intel i5-10310U, **integrated Intel UHD graphics**, 14 GB RA
 - Do not edit `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or `docs/` files unless your task specifically instructs you to.
 - If something is ambiguous or unclear, write the question under `## Worker notes` instead of guessing.
 
+## Fast builds (keep it this way)
+The owner's PC is slow, so build time is the main bottleneck. Measured 2026-11-19 after a small edit: build ~5 s, full `cargo test` ~6 s, clippy ~4 s. A build from nothing takes ~6.5 min.
+- **Don't turn full debug info back on.** `Cargo.toml` `[profile.dev]` keeps only line numbers (`debug = "line-tables-only"`, dependencies `debug = false`). Full debug info made each test program ~550 MB and test builds ~4 min.
+- **One test program per crate.** `game` integration tests live in `game/tests/all/` (one program). Put new test files there and add `mod <name>;` to `game/tests/all/main.rs`. Never add new files directly under `game/tests/`; each one becomes a separate program that has to be linked.
+- **Helper / single-AI loops (e.g. AI Studio + helper):** if `git status` in the main checkout is clean and no other AI is working there, work on a branch in the main checkout (`git switch -c <name>`). Don't make a new worktree, because a new worktree builds everything from scratch (~6-9 min). If a separate worktree is really needed (another AI has uncommitted work in main), build it with `CARGO_TARGET_DIR=/home/aymen/Documents/rotland-rust/target` so the third-party crates are reused.
+- **Testing what you changed:** run the plain `cargo test` (whole workspace, ~6 s). To run only some tests, filter by name: `cargo test minimap`. Avoid `cargo test -p <crate>`, because it builds the dependencies a second time with different features (~1.5 min the first time) and doubles the build folder.
+- **Disk:** if `du -sh target` grows past ~30 GB, run `cargo clean` once (next build ~6.5 min). It was 79 GB before the 2026-11-19 cleanup.
+
 ## Useful commands
 Run heavy commands under the shared lock (`flock /tmp/rotland-heavy.lock`):
 ```bash
