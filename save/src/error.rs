@@ -6,6 +6,7 @@ pub enum SaveError {
     Json(serde_json::Error),
     ProtectedPath(PathBuf),
     SlotNotFound(usize),
+    InvalidSlot(usize),
     UnsupportedVersion(i32),
     Corrupted(String),
 }
@@ -19,6 +20,7 @@ impl std::fmt::Display for SaveError {
                 write!(f, "refusing to write or delete protected path: {}", p.display())
             }
             Self::SlotNotFound(slot) => write!(f, "save slot {slot} not found"),
+            Self::InvalidSlot(slot) => write!(f, "invalid save slot {slot} (expected 1..=3)"),
             Self::UnsupportedVersion(v) => write!(f, "unsupported save version: {v}"),
             Self::Corrupted(msg) => write!(f, "corrupted save: {msg}"),
         }

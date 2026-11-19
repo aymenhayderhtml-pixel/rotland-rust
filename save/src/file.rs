@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::SaveError;
 use crate::systems::{
-    DifficultySaveData, InventorySaveData, PlayerSaveData, StatsSaveData, TimeSaveData,
-    WalletSaveData, WorldSaveData, WorldStateSaveData,
+    DifficultySaveData, InventorySaveData, PlayerSaveData, SettlementsSaveData, StatsSaveData,
+    TimeSaveData, WalletSaveData, WeaponsSaveData, WorldSaveData, WorldStateSaveData,
 };
 
 pub const FORMAT_VERSION: i32 = 1;
@@ -59,6 +59,10 @@ pub struct Systems {
     pub difficulty: Option<DifficultySaveData>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wallet: Option<WalletSaveData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weapons: Option<WeaponsSaveData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settlements: Option<SettlementsSaveData>,
     #[serde(flatten)]
     pub extra: HashMap<String, serde_json::Value>,
 }
@@ -79,6 +83,8 @@ impl Systems {
             worldstate: Some(WorldStateSaveData::default()),
             difficulty: Some(DifficultySaveData::default()),
             wallet: Some(WalletSaveData::default()),
+            weapons: Some(WeaponsSaveData::default()),
+            settlements: Some(SettlementsSaveData::default()),
             extra: HashMap::new(),
         }
     }

@@ -68,17 +68,42 @@ pub fn normalize_path(path: &Path) -> PathBuf {
     out
 }
 
+/// Resolves symlinks in a path as far as possible (even for paths whose final file does not exist yet).
+pub fn resolve_symlinks(path: &Path) -> PathBuf {
+    if let Ok(c) = path.canonicalize() {
+        return c;
+    }
+    let mut stack = Vec::new();
+    let mut curr = path;
+    while !curr.exists() {
+        if let Some(name) = curr.file_name() {
+            stack.push(name);
+        }
+        if let Some(parent) = curr.parent() {
+            curr = parent;
+        } else {
+            break;
+        }
+    }
+    let mut resolved = curr.canonicalize().unwrap_or_else(|_| normalize_path(curr));
+    for comp in stack.into_iter().rev() {
+        resolved.push(comp);
+    }
+    normalize_path(&resolved)
+}
+
 /// Returns true if `path` is equal to or inside `base`.
 pub fn is_subpath_or_same(path: &Path, base: &Path) -> bool {
+    let canon_path = resolve_symlinks(path);
+    let canon_base = resolve_symlinks(base);
+    if canon_path.starts_with(&canon_base) {
+        return true;
+    }
     let norm_path = normalize_path(path);
     let norm_base = normalize_path(base);
     if norm_path.starts_with(&norm_base) {
         return true;
     }
-    if let (Ok(p_canon), Ok(b_canon)) = (path.canonicalize(), base.canonicalize())
-        && p_canon.starts_with(&b_canon) {
-            return true;
-        }
     let p_str = norm_path.to_string_lossy();
     let b_str = norm_base.to_string_lossy();
     if !b_str.is_empty() && (p_str == b_str || p_str.starts_with(&format!("{b_str}/"))) {
@@ -165,8 +190,11 @@ impl Slots {
         }
     }
 
-    pub fn path_for(&self, slot: usize) -> PathBuf {
-        self.base_dir.join(format!("slot{slot}.json"))
+    pub fn path_for(&self, slot: usize) -> Result<PathBuf, SaveError> {
+        if !(1..=Self::COUNT).contains(&slot) {
+            return Err(SaveError::InvalidSlot(slot));
+        }
+        Ok(self.base_dir.join(format!("slot{slot}.json")))
     }
 
     fn check_guard(&self, path: &Path) -> Result<(), SaveError> {
@@ -178,7 +206,10 @@ impl Slots {
 
     /// Slot summary info matching `SaveSlots.Info`.
     pub fn info(&self, slot: usize) -> SlotInfo {
-        let path = self.path_for(slot);
+        let path = match self.path_for(slot) {
+            Ok(p) => p,
+            Err(_) => return SlotInfo::damaged(slot),
+        };
         if !path.is_file() {
             return SlotInfo::empty(slot);
         }
@@ -223,7 +254,7 @@ impl Slots {
 
     /// Reads and parses the save file at `slot`.
     pub fn read(&self, slot: usize) -> Result<SaveFile, SaveError> {
-        let path = self.path_for(slot);
+        let path = self.path_for(slot)?;
         if !path.is_file() {
             return Err(SaveError::SlotNotFound(slot));
         }
@@ -233,7 +264,7 @@ impl Slots {
 
     /// Writes `save` to `slot` using a temp file then rename (matching `SaveFile.Write`).
     pub fn write(&self, slot: usize, save: &SaveFile) -> Result<(), SaveError> {
-        let path = self.path_for(slot);
+        let path = self.path_for(slot)?;
         self.check_guard(&path)?;
 
         if let Some(parent) = path.parent() {
@@ -258,7 +289,7 @@ impl Slots {
 
     /// Deletes the save file for `slot`.
     pub fn delete(&self, slot: usize) -> Result<(), SaveError> {
-        let path = self.path_for(slot);
+        let path = self.path_for(slot)?;
         self.check_guard(&path)?;
 
         if path.exists() {
@@ -273,7 +304,7 @@ impl Slots {
 
     /// True if any slot (1..=COUNT) has a save file.
     pub fn any_filled(&self) -> bool {
-        (1..=Self::COUNT).any(|s| self.path_for(s).is_file())
+        (1..=Self::COUNT).any(|s| self.path_for(s).map(|p| p.is_file()).unwrap_or(false))
     }
 
     /// Imports a Godot save slot into this Rust slot by READING the Godot file only.
@@ -295,6 +326,9 @@ pub fn import_godot(slot: usize, dest: &Slots) -> Result<SaveFile, SaveError> {
 
 /// Copies a slot from `godot_dir` into `dest` by READING only.
 pub fn import_godot_from(slot: usize, godot_dir: &Path, dest: &Slots) -> Result<SaveFile, SaveError> {
+    if !(1..=Slots::COUNT).contains(&slot) {
+        return Err(SaveError::InvalidSlot(slot));
+    }
     let src_path = godot_dir.join(format!("slot{slot}.json"));
     if !src_path.is_file() {
         return Err(SaveError::SlotNotFound(slot));
@@ -315,5 +349,36 @@ mod tests {
         let slots = Slots::new(default_base_dir());
         assert!(matches!(slots.write(1, &SaveFile::default()), Err(SaveError::ProtectedPath(_))));
         assert!(matches!(slots.delete(1), Err(SaveError::ProtectedPath(_))));
+    }
+
+    #[test]
+    fn slot_4_and_invalid_slots_rejected() {
+        let temp_dir = std::env::temp_dir().join("rotland_test_slot4_reject");
+        let slots = Slots::new(&temp_dir);
+        assert!(matches!(slots.path_for(0), Err(SaveError::InvalidSlot(0))));
+        assert!(matches!(slots.path_for(4), Err(SaveError::InvalidSlot(4))));
+        assert!(matches!(slots.path_for(99), Err(SaveError::InvalidSlot(99))));
+        assert!(matches!(slots.read(4), Err(SaveError::InvalidSlot(4))));
+        assert!(matches!(slots.write(4, &SaveFile::default()), Err(SaveError::InvalidSlot(4))));
+        assert!(matches!(slots.delete(4), Err(SaveError::InvalidSlot(4))));
+        assert_eq!(slots.info(4).state, SlotState::Damaged);
+    }
+
+    #[test]
+    fn guard_refuses_symlink_to_protected_dir() {
+        let temp_base = std::env::temp_dir().join(format!("rotland_symlink_test_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&temp_base);
+        let link_path = temp_base.join("symlink_to_godot");
+        let _ = std::fs::remove_file(&link_path);
+        #[cfg(unix)]
+        {
+            if std::os::unix::fs::symlink(godot_save_dir(), &link_path).is_ok() {
+                let slots = Slots::new(&link_path);
+                assert!(matches!(slots.write(1, &SaveFile::default()), Err(SaveError::ProtectedPath(_))));
+                assert!(matches!(slots.delete(1), Err(SaveError::ProtectedPath(_))));
+                let _ = std::fs::remove_file(&link_path);
+            }
+        }
+        let _ = std::fs::remove_dir_all(&temp_base);
     }
 }

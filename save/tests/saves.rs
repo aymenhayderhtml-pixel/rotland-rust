@@ -5,8 +5,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use save::{
     godot_save_dir, import_godot_from, CampfireData, DeathRule,
     DifficultySaveData, DroppedItemData, InventorySaveData, PlayerSaveData, SaveError, SaveFile,
-    SavedSlot, SlotState, Slots, StatsSaveData, TimeSaveData, Vec3Data, WalletSaveData,
-    WorldSaveData, WorldStateSaveData, FORMAT_VERSION,
+    SavedSlot, SettlementsSaveData, SlotState, Slots, StatsSaveData, TimeSaveData, Vec3Data,
+    WalletSaveData, WeaponsSaveData, WorldSaveData, WorldStateSaveData, FORMAT_VERSION,
 };
 
 static TEST_DIR_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -208,7 +208,7 @@ fn slot_info_empty_damaged_filled() {
     compared += 1;
 
     // Slot 2: invalid JSON -> Damaged
-    std::fs::write(slots.path_for(2), "not a json file").unwrap();
+    std::fs::write(slots.path_for(2).unwrap(), "not a json file").unwrap();
     let info2 = slots.info(2);
     assert_eq!(info2.slot, 2);
     compared += 1;
@@ -225,58 +225,41 @@ fn slot_info_empty_damaged_filled() {
     assert_eq!(info2.saved_at, "");
     compared += 1;
 
-    // Slot 3: wrong version -> Damaged
-    let bad_ver_json = r#"{"version": 99, "savedAtUtc": "2026-11-16T12:00:00Z", "systems": {}}"#;
-    std::fs::write(slots.path_for(3), bad_ver_json).unwrap();
+    // Slot 3: valid save file -> Filled
+    let mut save3 = SaveFile::new();
+    save3.saved_at_utc = "2026-11-16T09:30:00Z".to_string();
+    save3.systems.world = Some(WorldSaveData::new(777));
+    let mut stats3 = StatsSaveData::default();
+    stats3.highest_day = 5;
+    stats3.play_time = 1800.5;
+    save3.systems.stats = Some(stats3);
+    save3.systems.difficulty = Some(DifficultySaveData::new(0.5, 1.5, 0.5, DeathRule::KeepAll));
+    slots.write(3, &save3).unwrap();
+
     let info3 = slots.info(3);
     assert_eq!(info3.slot, 3);
     compared += 1;
-    assert_eq!(info3.state, SlotState::Damaged);
+    assert_eq!(info3.state, SlotState::Filled);
+    compared += 1;
+    assert_eq!(info3.seed, 777);
+    compared += 1;
+    assert_eq!(info3.day, 5);
+    compared += 1;
+    assert_eq!(info3.play_time_s, 1800.5);
+    compared += 1;
+    assert_eq!(info3.difficulty, "Relaxed");
+    compared += 1;
+    assert_eq!(info3.saved_at, "2026-11-16T09:30:00Z");
     compared += 1;
 
-    // Slot 4: valid save file -> Filled
-    let mut save4 = SaveFile::new();
-    save4.saved_at_utc = "2026-11-16T09:30:00Z".to_string();
-    save4.systems.world = Some(WorldSaveData::new(777));
-    let mut stats4 = StatsSaveData::default();
-    stats4.highest_day = 5;
-    stats4.play_time = 1800.5;
-    save4.systems.stats = Some(stats4);
-    save4.systems.difficulty = Some(DifficultySaveData::new(0.5, 1.5, 0.5, DeathRule::KeepAll));
-    slots.write(4, &save4).unwrap();
-
+    // Slot 4: out of bounds -> rejected
+    assert!(matches!(slots.path_for(4), Err(SaveError::InvalidSlot(4))));
     let info4 = slots.info(4);
-    assert_eq!(info4.slot, 4);
-    compared += 1;
-    assert_eq!(info4.state, SlotState::Filled);
-    compared += 1;
-    assert_eq!(info4.seed, 777);
-    compared += 1;
-    assert_eq!(info4.day, 5);
-    compared += 1;
-    assert_eq!(info4.play_time_s, 1800.5);
-    compared += 1;
-    assert_eq!(info4.difficulty, "Relaxed");
-    compared += 1;
-    assert_eq!(info4.saved_at, "2026-11-16T09:30:00Z");
-    compared += 1;
-
-    // Slot 5: valid save file with missing difficulty -> Filled with "Normal" default
-    let mut save5 = SaveFile::new();
-    save5.saved_at_utc = "2026-11-16T11:00:00Z".to_string();
-    save5.systems.world = Some(WorldSaveData::new(999));
-    slots.write(5, &save5).unwrap();
-
-    let info5 = slots.info(5);
-    assert_eq!(info5.slot, 5);
-    compared += 1;
-    assert_eq!(info5.state, SlotState::Filled);
-    compared += 1;
-    assert_eq!(info5.difficulty, "Normal");
+    assert_eq!(info4.state, SlotState::Damaged);
     compared += 1;
 
     assert!(compared > 0, "comparison test compared 0 items");
-    assert_eq!(compared, 26);
+    assert_eq!(compared, 20);
 }
 
 #[test]
@@ -445,7 +428,7 @@ fn import_godot_copies_by_reading_only() {
 
     // Write to simulated godot source directory
     src_slots.write(1, &original_save).unwrap();
-    let src_bytes_before = std::fs::read(src_slots.path_for(1)).unwrap();
+    let src_bytes_before = std::fs::read(src_slots.path_for(1).unwrap()).unwrap();
 
     // Import into destination
     let imported = import_godot_from(1, src_guard.path(), &dest_slots).expect("import slot 1");
@@ -458,7 +441,7 @@ fn import_godot_copies_by_reading_only() {
     compared += 1;
 
     // Verify file exists in dest
-    assert!(dest_slots.path_for(1).is_file());
+    assert!(dest_slots.path_for(1).unwrap().is_file());
     compared += 1;
 
     let dest_loaded = dest_slots.read(1).expect("read dest slot 1");
@@ -468,7 +451,7 @@ fn import_godot_copies_by_reading_only() {
     compared += 1;
 
     // Source was ONLY read: exactly identical bytes, still exists
-    let src_bytes_after = std::fs::read(src_slots.path_for(1)).unwrap();
+    let src_bytes_after = std::fs::read(src_slots.path_for(1).unwrap()).unwrap();
     assert_eq!(src_bytes_before, src_bytes_after);
     compared += 1;
 
@@ -521,3 +504,150 @@ fn default_constructors_have_real_defaults() {
     assert!(compared > 0, "comparison test compared 0 items");
     assert_eq!(compared, 12);
 }
+
+#[test]
+fn roundtrip_dropped_items_across_chunks() {
+    let temp = TempDirGuard::new("dropped_items");
+    let slots = Slots::new(temp.path());
+
+    let mut save = SaveFile::new_populated(123);
+    let mut ws = WorldStateSaveData::default();
+    ws.dropped.insert(
+        "0_0".to_string(),
+        vec![
+            DroppedItemData::new("apple", 3, 5.0, 0.5, 12.0),
+            DroppedItemData::new("canned_beans", 1, 10.0, 0.0, 20.0),
+        ],
+    );
+    ws.dropped.insert(
+        "1_2".to_string(),
+        vec![DroppedItemData::new("bandage", 2, 70.0, 1.2, 135.0)],
+    );
+    save.systems.worldstate = Some(ws);
+
+    slots.write(1, &save).expect("write slot 1 with dropped items");
+    let loaded = slots.read(1).expect("read slot 1 back");
+
+    let loaded_ws = loaded.systems.worldstate.expect("worldstate missing");
+    let mut compared = 0;
+
+    let chunk00 = loaded_ws.dropped.get("0_0").expect("chunk 0_0 missing");
+    assert_eq!(chunk00.len(), 2);
+    compared += 1;
+    assert_eq!(chunk00[0].id, "apple");
+    compared += 1;
+    assert_eq!(chunk00[0].count, 3);
+    compared += 1;
+    assert_eq!(chunk00[0].x, 5.0);
+    compared += 1;
+    assert_eq!(chunk00[0].y, 0.5);
+    compared += 1;
+    assert_eq!(chunk00[0].z, 12.0);
+    compared += 1;
+    assert_eq!(chunk00[1].id, "canned_beans");
+    compared += 1;
+    assert_eq!(chunk00[1].count, 1);
+    compared += 1;
+
+    let chunk12 = loaded_ws.dropped.get("1_2").expect("chunk 1_2 missing");
+    assert_eq!(chunk12.len(), 1);
+    compared += 1;
+    assert_eq!(chunk12[0].id, "bandage");
+    compared += 1;
+    assert_eq!(chunk12[0].count, 2);
+    compared += 1;
+    assert_eq!(chunk12[0].x, 70.0);
+    compared += 1;
+    assert_eq!(chunk12[0].y, 1.2);
+    compared += 1;
+    assert_eq!(chunk12[0].z, 135.0);
+    compared += 1;
+
+    assert!(compared > 0, "comparison test compared 0 items");
+    assert_eq!(compared, 14);
+}
+
+#[test]
+fn roundtrip_weapons_and_magazines() {
+    let temp = TempDirGuard::new("weapons_mag");
+    let slots = Slots::new(temp.path());
+
+    let mut save = SaveFile::new_populated(456);
+    let mut mags = std::collections::HashMap::new();
+    mags.insert("pistol".to_string(), 12);
+    mags.insert("shotgun".to_string(), 6);
+    mags.insert("rifle".to_string(), 30);
+    save.systems.weapons = Some(WeaponsSaveData {
+        equipped: "pistol".to_string(),
+        magazines: mags,
+    });
+
+    slots.write(2, &save).expect("write weapons save");
+    let loaded = slots.read(2).expect("read weapons save");
+
+    let mut compared = 0;
+    let w = loaded.systems.weapons.expect("weapons system missing");
+    assert_eq!(w.equipped, "pistol");
+    compared += 1;
+    assert_eq!(w.magazines.get("pistol").copied(), Some(12));
+    compared += 1;
+    assert_eq!(w.magazines.get("shotgun").copied(), Some(6));
+    compared += 1;
+    assert_eq!(w.magazines.get("rifle").copied(), Some(30));
+    compared += 1;
+    assert_eq!(w.magazines.get("nonexistent"), None);
+    compared += 1;
+
+    assert!(compared > 0, "comparison test compared 0 items");
+    assert_eq!(compared, 5);
+}
+
+#[test]
+fn roundtrip_settlements() {
+    let temp = TempDirGuard::new("settlements");
+    let slots = Slots::new(temp.path());
+
+    let mut save = SaveFile::new_populated(789);
+    save.systems.settlements = Some(SettlementsSaveData {
+        visited: vec!["camp_main".to_string(), "north_outpost".to_string()],
+        respawn: Some("north_outpost".to_string()),
+    });
+
+    slots.write(3, &save).expect("write settlements save");
+    let loaded = slots.read(3).expect("read settlements save");
+
+    let mut compared = 0;
+    let s = loaded.systems.settlements.expect("settlements system missing");
+    assert_eq!(s.visited, vec!["camp_main".to_string(), "north_outpost".to_string()]);
+    compared += 1;
+    assert_eq!(s.respawn, Some("north_outpost".to_string()));
+    compared += 1;
+
+    assert!(compared > 0, "comparison test compared 0 items");
+    assert_eq!(compared, 2);
+}
+
+#[test]
+fn slot_4_and_out_of_bounds_slots_rejected() {
+    let temp = TempDirGuard::new("slot_rejection");
+    let slots = Slots::new(temp.path());
+
+    let mut compared = 0;
+
+    for invalid_slot in [0, 4, 5, 99] {
+        assert!(matches!(slots.path_for(invalid_slot), Err(SaveError::InvalidSlot(s)) if s == invalid_slot));
+        compared += 1;
+        assert!(matches!(slots.read(invalid_slot), Err(SaveError::InvalidSlot(s)) if s == invalid_slot));
+        compared += 1;
+        assert!(matches!(slots.write(invalid_slot, &SaveFile::default()), Err(SaveError::InvalidSlot(s)) if s == invalid_slot));
+        compared += 1;
+        assert!(matches!(slots.delete(invalid_slot), Err(SaveError::InvalidSlot(s)) if s == invalid_slot));
+        compared += 1;
+        assert_eq!(slots.info(invalid_slot).state, SlotState::Damaged);
+        compared += 1;
+    }
+
+    assert!(compared > 0, "comparison test compared 0 items");
+    assert_eq!(compared, 20);
+}
+

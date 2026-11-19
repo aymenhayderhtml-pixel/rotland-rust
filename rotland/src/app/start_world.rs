@@ -180,7 +180,25 @@ pub fn start_world(
             d.sim.from_save(v);
         }
         if let Some(play_state) = play.play.as_mut() {
-            crate::session::restore_play(file, play_state);
+            let warnings = crate::session::restore_play(file, play_state);
+            for w in warnings {
+                play_state.show_toast(w);
+            }
+            // Parity: restore saved weapon if still carried in inventory
+            if let Some(weapons) = &file.systems.weapons
+                && !weapons.equipped.is_empty()
+                && play_state.inventory.count(&weapons.equipped) > 0
+            {
+                if let Some(weapon_def) = play_state.weapons.get(&weapons.equipped).cloned() {
+                    apply_hand(
+                        crate::play::HandChange::Weapon(Some(weapon_def)),
+                        render,
+                        play,
+                        actors,
+                        world,
+                    );
+                }
+            }
         }
     }
     actors.climb = game::LadderClimb::default();
@@ -318,7 +336,11 @@ pub fn start_world(
         let count = ring;
         z.spawn_ring("walker", actors.player, count, 15.0, 40.0, &world.physics);
     }
-    if let Some(change) = play.play.as_mut().and_then(|p| p.equip_first()) {
+    let has_weapon = play.play.as_ref().is_some_and(|p| p.gun.is_some())
+        || actors.combat.as_ref().is_some_and(|c| c.weapon_id().is_some());
+    if !has_weapon
+        && let Some(change) = play.play.as_mut().and_then(|p| p.equip_first())
+    {
         apply_hand(change, render, play, actors, world);
     }
     log::info!(

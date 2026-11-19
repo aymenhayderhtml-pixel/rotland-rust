@@ -20,15 +20,22 @@ pub fn save_now(
     ) else {
         return;
     };
+    let spawn = play_state
+        .camp
+        .settlements
+        .try_respawn_point(w.settlements(), w.config())
+        .unwrap_or_else(|| w.settlements()[0].respawn_point(w.config()));
     let snap = session::Snapshot {
         seed: session.seed,
         player: p,
         rig,
         health: c.health.current(),
-        spawn: w.settlements()[0].respawn_point(w.config()),
+        spawn,
         clock: &play.clock,
         play: play_state,
         play_time: session.play_time,
+        trees: Some(&world.trees),
+        poi_zombies: world.poi_zombies.as_ref(),
     };
     let mut file = session::capture(session.loaded_save.as_ref(), &snap);
     if let Some(d) = &actors.dogs {
@@ -37,18 +44,35 @@ pub fn save_now(
     if let Some(c) = &actors.cars {
         file.systems.extra.insert("cars".into(), c.to_save());
     }
-    let mut ws = file.systems.worldstate.clone().unwrap_or_default();
-    ws.fallen_trees = serde_json::from_value(world.trees.to_save()["fallen_trees"].clone()).unwrap_or_default();
-    if let Some(pz) = &world.poi_zombies {
-        ws.visited_pois = pz.visited_ids();
+    // Weapons saving: equipped weapon in hand and loaded magazine rounds
+    let equipped = if let Some(gun) = &play_state.gun {
+        gun.id.clone()
+    } else if let Some(wid) = c.weapon_id() {
+        wid.to_string()
+    } else {
+        String::new()
+    };
+    let mut magazines = std::collections::HashMap::new();
+    if let Some(gun) = &play_state.gun {
+        magazines.insert(gun.id.clone(), play_state.last_shot.ammo as i32);
     }
-    file.systems.worldstate = Some(ws);
+    file.systems.weapons = Some(save::WeaponsSaveData {
+        equipped,
+        magazines,
+    });
+    // Settlements saving: visited safe zones and respawn camp
+    let mut visited: Vec<String> = play_state.camp.settlements.visited().iter().cloned().collect();
+    visited.sort();
+    file.systems.settlements = Some(save::SettlementsSaveData {
+        visited,
+        respawn: play_state.camp.settlements.respawn_id().map(|s| s.to_string()),
+    });
     match slots.write(session.active_slot as usize, &file) {
         Ok(()) => {
             log::info!(
                 "saved slot {} to {}",
                 session.active_slot,
-                slots.path_for(session.active_slot as usize).display()
+                slots.path_for(session.active_slot as usize).map_or_else(|_| std::path::PathBuf::new(), |p| p).display()
             );
             session.slot_cards = session::summaries(slots);
             session.loaded_save = Some(file);
