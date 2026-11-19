@@ -30,7 +30,13 @@ The owner is asleep. Claude keeps working in a loop: when a round's workers fini
 - R10 (11 Gemini 3.8 Flash lanes, write-only; Claude built once) merged and wired: main.rs split into rotland/src/app/ (226-line main), model fixes (character hair/belt/arms/shoes, car parts; one bad normals step removed), two-handed swing (left hand IK on the handle, waist twist), HUD pack (hotbar pictures, crosshair hidden with melee, HUD scales, dog bar, safe zone label, key bar, compass camp/waypoint, scope picture), bag/crafting (materials have/need, item stats, same buttons), zombie extras (herd, screams heard by others, crawlers from leg hits, corpses, banging at ladders, camp safe zone), weapon sounds + data checks, no crash on missing files, saves (dropped items, weapons + mags, settlements/respawn camp, safe loading, slot checks), per-frame memory reuse, parity doc refreshed. 446 tests, clippy clean. Leftover: night horde not assigned at spawn, bag details picture not passed, key bar labels not from rebinds, car body 4 open edges, dirty water source + scrap/antler uses (owner to pick).
 
 ## Round now running
-- (none: waiting for the owner)
+- (none: stopped 2026-11-19 by the owner; next session starts here)
+
+## Next session: start here
+- GitHub open: #1 / #12 (models mostly fixed; car body has 4 open edges, check other models with tools/blender/check_normals.py), #17 (owner picks a dirty_water source and uses for scrap_metal / antler), #19 (move tree strike / footsteps / car ramming from rotland/src/app/ into game/ with tests, files over ~300 lines), #5 more weapons, #6 guild, #7 mini-map, #8 profile portrait.
+- Quick wins already built but not wired (docs/RUST_PARITY.md): dog naming dialog on purchase, Shift+G dog go home, POI car spawning; plus R10 leftovers: night horde assignment at spawn (`Zombies::spawn_horde`), bag details picture (`draw_details_panel` icon), key help bar labels from rebinds.
+- Questions for the owner: dirty water (fill at water vs house loot)? scrap metal / antler uses? guild = building or camp tab, how to pay teammates, permanent death? which new weapon first? mini-map on/off setting?
+- Workflow that worked in R10: Gemini 3.8 Flash workers via T3 delegate_task (antigravity, worktree), write-only (the owner's CPU is weak), Claude builds/tests/clippy once after merging. docs/RUST_PARITY.md "Top 15" predates R10: items 1-4, 6-8 are now done.
 
 ## Next rounds (in order)
 1. ~~Guns in hand~~ (running as R3-08): wire game::guns into play (fire on left click when a gun is selected, reload R, ammo from the inventory, hit zombies, noise, muzzle flash light later), gun models in hand from the pack, aim (right mouse) with the rifle scope zoom. Claude can wire; or Gemini writes rotland/src/guns_play.rs.

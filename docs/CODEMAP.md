@@ -24,8 +24,12 @@ Comprehensive architecture and codebase map for the Rotland Rust workspace (`/ho
    - `fn should_quit(&self) -> bool`: Game exit flag.
    - `fn stats(&self) -> GameStats`: Custom telemetry metrics serialized to stats JSON.
    - `fn screenshot_request(&mut self) -> Option<PathBuf>`: Frame capture request path.
-4. **Rotland `R0` Implementation (`rotland/src/main.rs`)**:
-   - Implements `Game` for `R0`: `init` (loads `models.pack`, props, generator, physics, streamer), `update` (ticks input, mover, zombies, wildlife, combat, vehicles, ladders), `render` (culls frustum, draws shadows, chunks, props, skinned meshes), `ui` (renders HUD, hub overlays, menus), `display`, `cursor_grab`, `should_quit`, and `stats`.
+4. **Rotland `R0` Implementation (`rotland/src/main.rs` + `rotland/src/app/`, split in R10)**:
+   - `main.rs` (~230 lines) keeps `main()`, the `Game` impl and a short `update()` that calls the frame steps in this order. `R0` holds one field per state group, defined in `app/state.rs`: `RenderState`, `WorldState`, `ActorsState`, `PlaySide`, `UiState`, `SessionState`, `AudioState` (each step takes the groups it needs as separate borrows).
+   - Frame steps: `app/frame_input.rs` (keys, actions) -> `app/frame_actors.rs` (player, camera, ladders, melee, tree strikes) -> `app/frame_world.rs` (needs, crafting timers, shooting, E interactions, spawner, clock) -> `app/frame_audio.rs` (listener, footsteps) -> `app/frame_camp.rs` (hints, stats, bounties, map reveal, farm) -> `app/frame_sim.rs` (zombies, POI zombies, voices, guards, wildlife, dogs; `app/frame_cars.rs` car ramming) -> `app/render_frame.rs` (chunk streaming, scene, skinned batches) -> `app/frame_ui.rs` (HUD, bubbles, camp screens, hub, menus).
+   - Start and saves: `app/startup.rs` (init, flags), `app/start_world.rs` (build the world, restore a save), `app/save_load.rs` (save now), `app/stats.rs` (stats JSON, display request).
+   - Other folders split in R10: `rotland/src/hud/` (one file per HUD widget; `icons.rs` = item picture cache), `rotland/src/zombies/` (types, spawning, combat glue, rendering). New pure helpers: `game/src/dir.rs` (yaw forward/right), `game/src/hud_math.rs`, `game/src/zombie/grid.rs`, `humanoid/src/ik.rs` + `swing.rs`, `save/src/systems/{weapons,settlements}.rs`, `rotland/src/hub_ui/{item_text,draw_crafting}.rs`.
+   - Note: the per-file tables in section 2 were written before R10 and do not list these new files yet.
 
 ### Crate Dependency Order
 
@@ -642,7 +646,7 @@ When running with `--stats=PATH.json` or `--shot=PATH.png`, `engine/src/app.rs:3
   - Verify generator determinism with golden tests in `world/tests/`.
 
 - **Wiring & Visual Presentation**:
-  - Connect gameplay systems to the engine in `rotland/src/main.rs` accompanied by a small focused helper `rotland/src/<topic>.rs` (e.g. `rotland/src/wildlife.rs`, `rotland/src/camp_npcs.rs`).
+  - Connect gameplay systems to the engine in the matching `rotland/src/app/frame_*.rs` step (see section 1) accompanied by a small focused helper `rotland/src/<topic>.rs` (e.g. `rotland/src/wildlife.rs`, `rotland/src/camp_npcs.rs`).
   - Add egui interface panels under `rotland/src/<feature>_ui/` (e.g. `camp_ui`, `hub_ui`, `map_ui`).
 
 - **Rendering & GPU Pipelines**:
