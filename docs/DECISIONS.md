@@ -1,6 +1,6 @@
 # Decisions log
 
-Note: The game is now built in Rust (custom wgpu engine, see docs/RUST_PLAN.md) and Godot-specific tech notes are history.
+Note: The game is now built in Rust (custom wgpu engine, see docs/archive/RUST_PLAN.md) and Godot-specific tech notes are history.
 
 ## Locked
 | Date | Decision | Why |
@@ -22,6 +22,11 @@ Note: The game is now built in Rust (custom wgpu engine, see docs/RUST_PLAN.md) 
 | 2026-11-11 | Dog death is permanent | Owner's choice |
 | 2026-11-19 | `mesh` uses CW terrain fronts; `skinned` uses CCW glTF/procedural model fronts | Terrain winding differs from baked model winding; baker tests guard CCW outward geometry |
 | 2026-11-19 | Export vehicles as separate body, wheel, driver-door, and tailgate `.glb` parts | Rust can instance wheels and animate wheels, door, and tailgate without skeletal skinning |
+| 2026-11-20 | 0.2 starts with new places; the ruined city comes first | Owner's choice (see docs/PLAN_0.2.md) |
+| 2026-11-20 | Places are big regions: travel between them is a real trip and the car matters | Owner's choice |
+| 2026-11-20 | Base: camp upgrades first, player-built base later in 0.2 | Owner's choice |
+| 2026-11-20 | Spare frame time (~3x over the 30 FPS minimum) goes to better-looking models | Owner's choice |
+| 2026-11-20 | Workers run `tools/gate.sh` (checks + tests + scope + number sources) and loop until PASS; max 4 workers at once | Write-only workers produced ~35 compile errors that Opus fixed (JESTER #35) |
 
 ## Open questions (ask the owner)
 - Final game name

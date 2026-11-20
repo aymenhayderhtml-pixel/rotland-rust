@@ -1,3 +1,5 @@
+> Workflow v2 (gate, AI roles, Neon flow) is in `docs/PLAN_0.2.md` and replaces the write-only rule below once `tools/gate.sh` is merged.
+
 # AI Workflow: Rotland Rust Development
 
 ```
@@ -14,7 +16,7 @@
 Work proceeds in discrete, structured rounds (e.g. R7, R8, R9, R10). Each round follows an end-to-end cycle:
 
 ### 1. Plan & Task Creation (Claude Opus)
-- Review `docs/RUST_QUEUE.md`, `docs/RUST_PARITY.md`, and `docs/DECISIONS.md`.
+- Read `docs/STATUS.md`; open `docs/PLAN_0.2.md` / `docs/PARITY_OPEN.md` / `docs/DECISIONS.md` as needed.
 - Formulate the round's milestone tasks.
 - Create `tasks/R<N>-common.md` containing common rules, shared crate dependencies, coordinate rules, and recent lessons from `docs/JESTER.md`.
 - Create individual worker task specifications `tasks/R<N>-01.md`, `tasks/R<N>-02.md`, etc., defining exact files, Godot C# reference files to port, data files, and expected public APIs.
@@ -53,8 +55,8 @@ Work proceeds in discrete, structured rounds (e.g. R7, R8, R9, R10). Each round 
 - Once compilation, tests, clippy, wiring, and visual checks pass, Claude commits the unified round to git and pushes to `main`.
 
 ### 8. Documentation & Accounting Update (Claude Opus)
-- Update `docs/RUST_QUEUE.md` marking the round completed and outlining the next round.
-- Update `docs/RUST_PARITY.md` reflecting completed features and reducing the gap against Godot.
+- Update `docs/STATUS.md` (round done, next round, latest numbers).
+- Remove closed rows from `docs/PARITY_OPEN.md`.
 - Log any worker compilation, borrow, logic, or clippy mistakes into `docs/JESTER.md`.
 
 ### 9. Worktree & Branch Clean-up (Claude Opus)

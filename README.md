@@ -136,7 +136,7 @@ Example: `flock /tmp/rotland-heavy.lock target/debug/rotland --shot=/tmp/x/fores
 | `golden/` | Deterministic golden reference files (`golden/world.json`) for parity verification against Godot |
 | `tools/blender/` | Blender 5.3 model generation scripts; run via `blender -b --python tools/blender/<script>.py` |
 | `tools/audio/synth.py` | Procedural sound synthesizer generating retro game sound effects |
-| `docs/` | Project documentation and architecture specs (`RUST_PLAN.md`, `RUST_PARITY.md`, `RUST_QUEUE.md`, `JESTER.md`, `GAME_DESIGN.md`, `DECISIONS.md`, `ART_PIPELINE.md`, `*_CONTRACT.md`, `CODEMAP.md`) |
+| `docs/` | Project documentation and architecture specs (`STATUS.md`, `PLAN_0.2.md`, `PARITY_OPEN.md`, `JESTER.md`, `GAME_DESIGN.md`, `DECISIONS.md`, `ART_PIPELINE.md`, `*_CONTRACT.md`, `CODEMAP.md`) |
 | `tasks/` | Development task specifications and notes from previous implementation slices |
 
 ## Reference

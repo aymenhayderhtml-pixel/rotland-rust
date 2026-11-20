@@ -13,15 +13,12 @@ The main Claude Opus session is the **orchestrator** of the project:
 - **Accounting:** Logs any worker errors in `docs/JESTER.md`.
 
 ## Workers
-- **Gemini 3.8 Flash:** Dispatched via T3 `delegate_task` (provider `antigravity`) in isolated worktrees for feature code, data ports, and model/logic tasks.
-- **Haiku:** Invoked via the `Agent` tool for quick checks, file inspections, or small tasks.
+- **Routing:** see `docs/PLAN_0.2.md` "AI roles" (DeepSeek = main repo worker, Gemini Flash = script/render-verifiable work, Neon = chat-only via `tools/neon_pack.py`). All dispatched via T3 `delegate_task` in worktrees; at most 4 at once.
+- **Haiku:** shares Opus's limit; tiny lookups only.
 - Every mistake made by a worker is logged as a row in `docs/JESTER.md` with date, task, mistake description, detection method, fix, and lesson learned.
 
 ## Before Starting Work
-Always read:
-1. `docs/RUST_QUEUE.md`: current migration status, completed milestones, and upcoming work.
-2. `docs/RUST_PARITY.md`: feature gap checklist comparing the Rust game against the reference Godot implementation.
-3. `docs/DECISIONS.md`: locked design choices, performance targets, and architectural conventions.
+Read `docs/STATUS.md` only (short). Open `docs/PLAN_0.2.md`, `docs/DECISIONS.md`, `docs/PARITY_OPEN.md` or `docs/JESTER.md` only when the task needs them. Keep STATUS.md current (under ~80 lines) at the end of each round.
 
 **User Interaction:**
 Ask the owner whenever an open choice or design decision changes how the game *feels*. Decide internal technical and implementation details yourself.
