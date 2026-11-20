@@ -55,8 +55,13 @@ For every file you write, output exactly this, with the **complete** file
 (never a diff, never a fragment):
 
 === FILE: <path> ===
+```rust
 <complete file content>
+```
 === END ===
+
+The code block fences are REQUIRED (the answer is copied from a chat window;
+text outside a code block gets re-wrapped and loses `*` characters).
 
 After all files, add one notes block:
 
