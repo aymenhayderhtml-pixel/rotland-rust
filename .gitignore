@@ -9,6 +9,8 @@ shots/
 *.blend2
 __pycache__/
 .DS_Store
+# Gemini Neon copy-paste files (prompts out, answers in)
+neon/
 .claude/worktrees/
 # Model preview pictures written by the Blender scripts (remade on every run)
 assets/models/_previews/

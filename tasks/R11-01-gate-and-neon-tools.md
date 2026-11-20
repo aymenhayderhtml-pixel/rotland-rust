@@ -48,4 +48,102 @@ Parses the `=== FILE: path === ... === END ===` blocks (strip a single surroundi
 - Test your work: run `tools/gate_checks.py --selftest`; run `tools/gate.sh --test minimap` on current main (must end `GATE: PASS`); make a tiny fake task file in /tmp with `Files:`/`Read:`/`API:` and run `neon_pack.py` and `neon_apply.py --dry-run` on a hand-written sample answer. Do not leave test files in the repo.
 
 ## Worker notes
-(files changed, how you tested with real output, known issues)
+
+**Files changed:** `tools/gate.sh`, `tools/gate_checks.py`, `tools/neon_pack.py`,
+`tools/neon_apply.py`, `tools/README_TOOLS.md`, `.gitignore` (adds `neon/`),
+`tasks/R11-01-gate-and-neon-tools.md`. No game code touched; nothing to wire
+into `rotland/`. The four scripts are standalone.
+
+**What they do**
+- `gate.sh`: re-execs itself under `flock /tmp/rotland-heavy.lock` (so every
+  heavy step is locked), defaults `CARGO_TARGET_DIR` to the shared folder, runs
+  clippy -> tests -> checks, stops at the first failing step, last line is
+  `GATE: PASS` / `GATE: FAIL (<step>)`. With `--task` it rewrites the
+  `## Gate report` block at the end of the task file (the only writer).
+- `gate_checks.py`: scope (vs the task's `Files:`, untracked files included),
+  number sources (godot/data/DECISIONS tags, test code skipped), unused new
+  `pub` items; `--selftest` needs no repo.
+- `neon_pack.py`: one paste-ready file with rules, task, Files, Read, API,
+  Data, Godot source and the answer format; warns over 400k chars.
+- `neon_apply.py`: writes only `=== FILE: ... ===` blocks whose path is in the
+  task `Files:` list, refuses `..`/absolute, nothing written if any path is
+  refused; `--dry-run` prints only; appends NOTES under `## Neon notes`.
+
+**Real test output (this worktree)**
+```
+$ python3 -I tools/gate_checks.py --selftest
+selftest: 22 ok
+
+# probe file with one tagged and one untagged number, plus an unused pub fn:
+$ python3 -I tools/gate_checks.py --base main --task tasks/R11-01-gate-and-neon-tools.md
+scope: FAIL (1 outside task Files:)
+  game/src/zz_gate_probe.rs
+numbers: FAIL (1 offenders)
+game/src/zz_gate_probe.rs:4  999.5  no source tag
+unused: FAIL (1)
+game/src/zz_gate_probe.rs:1  pub item `zz_probe_unused` is never used
+
+$ tools/gate.sh --test minimap
+clippy: PASS
+test: PASS (10 passed, filter minimap)
+scope: PASS (7 changed paths)
+numbers: PASS (0 checked)
+unused: PASS
+GATE: PASS
+
+$ tools/gate.sh            # whole workspace
+clippy: PASS
+test: PASS (473 passed)
+...
+GATE: PASS
+
+$ tools/gate.sh --test zzznothing      # filter with no matches
+test: FAIL (filter matched no tests: zzznothing)
+GATE: FAIL (test)                       # exit 1
+```
+
+Fake Neon round trip (task in `/tmp`, nothing left in the repo):
+```
+$ python3 -I tools/neon_pack.py /tmp/opencode/fake-task.md --out /tmp/opencode/fake.prompt.md
+wrote /tmp/opencode/fake.prompt.md: 8440 chars (~2110 tokens)
+
+$ python3 -I tools/neon_apply.py /tmp/opencode/fake_answer.md --task /tmp/opencode/fake-task.md --dry-run
+would write game/src/zz_neon_probe.rs (2 lines)     # surrounding ``` fence stripped
+would write data/zz_neon.json (1 lines)
+would append 1 note line(s) to /tmp/opencode/fake-task.md
+
+$ ... bad_answer.md (rotland/src/main.rs and ../evil.rs)
+refused: rotland/src/main.rs  (not in task Files: list)
+refused: ../evil.rs  (contains ..)
+neon_apply: 2 refused path(s); nothing written        # exit 1
+```
+The real (non-dry-run) apply wrote both files and appended notes; the probe
+files were deleted afterwards.
+
+**Wiring notes for Claude**
+- `docs/PLAN_0.2.md` says `tools/neon_pack.sh`; the task specifies the Python
+  tool, so use `python3 -I tools/neon_pack.py`.
+- AGENTS.md still says "workers do not build or test". Swapping that paragraph
+  for "workers run `tools/gate.sh` until PASS" is a docs change outside this
+  task's `Files:` list.
+- The gate report is written by `gate.sh`, not by hand.
+
+**Known issues**
+- The `// new: DECISIONS <date>` check reads `docs/DECISIONS.md` as committed in
+  the current worktree. The 2026-11-20 rows live only in the main checkout's
+  uncommitted copy right now, so tagged code fails there until Opus commits it.
+  Verified with 2026-11-19 (committed date): passes.
+- `gate_checks.py` checks only *added* lines, so running it against an old base
+  reports the old untagged numbers (`--base HEAD~30`: 305 offenders). Normal
+  use (`--base main` for the branch) only sees new code.
+- `tools/gate_checks.py` is 322 lines, slightly over the ~300 target.
+
+## Gate report
+- date: 2026-11-20
+- base: main
+- files changed (7): .gitignore, tasks/R11-01-gate-and-neon-tools.md, tools/gate_checks.py, tools/gate.sh, tools/neon_apply.py, tools/neon_pack.py, tools/README_TOOLS.md
+- tests passed: 10
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS
