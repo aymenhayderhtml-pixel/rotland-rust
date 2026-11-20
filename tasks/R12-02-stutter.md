@@ -1,7 +1,7 @@
 # R12-02: find and fix the frame-time spikes (stutters)
 
 Read first: `AGENTS.md`, `docs/STATUS.md`, `tools/README_TOOLS.md`.
-Files: engine/src/timing.rs, engine/src/stats.rs, engine/src/app.rs, engine/src/cli.rs, engine/src/render/*, rotland/src/app/frame_*.rs, rotland/src/app/spikes.rs, rotland/src/app/mod.rs, rotland/src/app/startup.rs, rotland/src/app/state.rs, world/src/*, game/src/*, docs/STUTTER.md, tasks/R12-02-stutter.md
+Files: tools/gate_checks.py, tools/README_TOOLS.md, engine/src/timing.rs, engine/src/stats.rs, engine/src/app.rs, engine/src/cli.rs, engine/src/render/*, rotland/src/app/frame_*.rs, rotland/src/app/spikes.rs, rotland/src/app/mod.rs, rotland/src/app/startup.rs, rotland/src/app/state.rs, world/src/*, game/src/*, docs/STUTTER.md, tasks/R12-02-stutter.md
 Test: spike
 
 Problem (debug build, camp, 2026-11-20): median 8.9 ms but p99 27 ms, worst 1% = 29 FPS. The hard rule is never under 30 FPS. Target after the fix, **release build**: p99 under 20 ms and worst 1% over 50 FPS, both standing at camp and with `--autowalk` (walking through new chunks).
@@ -25,5 +25,6 @@ Re-run both release runs; put before/after avg FPS, p99 ms, worst 1% FPS and spi
 - Another worker (R12-01) is adding a `--bench` mode in `rotland/src/app/bench.rs` and touching `engine/src/cli.rs`, `startup.rs`, `state.rs`, `mod.rs`: add your lines without reordering theirs; small merge conflicts are fine.
 - Run `tools/gate.sh --task tasks/R12-02-stutter.md` and loop until `GATE: PASS`. Then commit once to your branch.
 - Ground stays green.
+- Moving existing code makes the gate number check flag the moved numbers. Add a fourth tag to `tools/gate_checks.py`: `// moved: <path>` passes only if that number appears in `git show <base>:<path>` (plus a selftest case and one README line). Use it only for lines you really moved.
 
 ## Worker notes
