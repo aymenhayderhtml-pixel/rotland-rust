@@ -28,3 +28,13 @@ Goal: find how many triangles / draw calls the owner's laptop (Intel UHD CML GT2
 - Ground stays green. Don't change rendering itself.
 
 ## Worker notes
+
+## Gate report
+- date: 2026-11-20
+- base: main
+- files changed (13): baker/src/budget.rs, baker/src/lib.rs, baker/src/main.rs, data/budgets.json, docs/BUDGETS.md, engine/src/cli.rs, rotland/src/app/bench.rs, rotland/src/app/mod.rs, rotland/src/app/render_frame.rs, rotland/src/app/startup.rs, rotland/src/app/state.rs, rotland/src/app/stats.rs, tasks/R12-01-bench-budgets.md
+- tests passed: 10
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS

@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use baker::bake_glb;
+use baker::budget::{check_model_budget, Budgets};
 use pack::ModelPack;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -10,10 +11,62 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let models_dir = repo_root.join("assets/models");
     let out_pack = repo_root.join("assets/models.pack");
+    let budgets_path = repo_root.join("data/budgets.json");
+
+    let report_budgets = std::env::args().any(|a| a == "--report-budgets");
 
     let mut glb_files = Vec::new();
     find_glb_files(&models_dir, &mut glb_files)?;
     glb_files.sort();
+
+    let budgets = if budgets_path.exists() {
+        match Budgets::load(&budgets_path) {
+            Ok(b) => Some(b),
+            Err(e) => {
+                log::warn!("Could not load budgets from {}: {e}", budgets_path.display());
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    if report_budgets {
+        println!("{:<14} {:<24} {:>8} {:>8}  Status", "Folder", "Model", "Tris", "Cap");
+        println!("{:-<14} {:-<24} {:-<8} {:-<8}  ------", "", "", "", "");
+        let mut over_count = 0;
+        for path in &glb_files {
+            let rel_path = path.strip_prefix(&models_dir)?;
+            let folder = rel_path
+                .parent()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let name = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string();
+
+            let model = bake_glb(path, name, folder)?;
+            let tris = model.vertices.len() / 3;
+            let cap = budgets.as_ref().and_then(|b| b.models.get(&model.folder).copied());
+            let report = check_model_budget(&model.folder, &model.name, tris, cap);
+            let status = if report.over_budget {
+                over_count += 1;
+                "OVER BUDGET"
+            } else {
+                "OK"
+            };
+            let cap_str = if report.cap == u32::MAX { "None".to_string() } else { report.cap.to_string() };
+            println!("{:<14} {:<24} {:>8} {:>8}  {}", report.folder, report.model, report.tris, cap_str, status);
+        }
+        if over_count > 0 {
+            println!("\n{over_count} model(s) exceeded budget caps.");
+        } else {
+            println!("\nAll models within budget caps.");
+        }
+        return Ok(());
+    }
 
     println!(
         "Baking {} models from {}...",
@@ -22,6 +75,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let mut models = Vec::with_capacity(glb_files.len());
+    let mut over_budget = Vec::new();
+
     for path in &glb_files {
         let rel_path = path.strip_prefix(&models_dir)?;
         let folder = rel_path
@@ -46,7 +101,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             model.name, tris, markers, colliders, joints, clips
         );
 
+        if let Some(b) = budgets.as_ref() {
+            let cap = b.models.get(&model.folder).copied().unwrap_or(u32::MAX);
+            if tris as u32 > cap {
+                eprintln!("BUDGET: {} {} > {}", model.name, tris, cap);
+                over_budget.push((model.name.clone(), tris, cap));
+            }
+        }
+
         models.push(model);
+    }
+
+    if !over_budget.is_empty() {
+        return Err(format!("{} model(s) exceeded triangle budget", over_budget.len()).into());
     }
 
     let pack = ModelPack::new(models);

@@ -12,6 +12,9 @@ pub fn display(ui: &UiState) -> Option<engine::DisplayRequest> {
 
 /// Returns whether the mouse cursor should be captured by the window.
 pub fn cursor_grab(ui: &UiState, session: &SessionState) -> Option<bool> {
+    if session.bench.is_some() {
+        return Some(false);
+    }
     if session.scene == "play" && !session.free_cam {
         Some(
             ui.cursor_captured

@@ -27,6 +27,22 @@ pub fn render_frame(
         session.seed = seed;
         start_world(gpu, file, render, world, actors, play, ui, session, audio);
     }
+    if let Some(bench) = session.bench.as_mut() {
+        if bench.fixed_camera.is_none() {
+            bench.init_fixed(render.camera, actors.player);
+        }
+        if let Some(cam) = bench.fixed_camera {
+            render.camera = cam;
+        }
+        if let Some(pos) = bench.fixed_player_pos {
+            actors.player = pos;
+            if let Some(p) = actors.player_ctrl.as_mut() {
+                p.position = pos;
+                p.velocity = Vec3::ZERO;
+            }
+        }
+        bench.update_instances(gpu, &mut render.library, render.pack.as_ref(), world);
+    }
     let player_pose = actors.player_pose();
     if let (Some(model), Some(pv), Some(pack)) = (
         render.pending_weapon_model.take(),
@@ -109,7 +125,18 @@ pub fn render_frame(
     // Joint 0 is the identity: static instanced props use it
     render.bones.clear();
     render.bones.push(Mat4::IDENTITY);
-    let placed = streamer.chunks.values().flat_map(|c| c.placed.iter()).chain(beds.iter());
+    let empty_bench = [];
+    let bench_placed: &[crate::props::Placed] = session
+        .bench
+        .as_ref()
+        .map(|b| b.placed_instances.as_slice())
+        .unwrap_or(&empty_bench);
+    let placed = streamer
+        .chunks
+        .values()
+        .flat_map(|c| c.placed.iter())
+        .chain(beds.iter())
+        .chain(bench_placed.iter());
     let (mut main, mut shadow) = render.library.batches(
         placed,
         &render.camera,
@@ -324,5 +351,8 @@ pub fn render_frame(
         &render.bones,
     );
     drop((main, shadow, items));
+    if let (Some(bench), Some(r)) = (session.bench.as_mut(), render.renderer.as_ref()) {
+        bench.step_frame(session.last_dt, &r.last, &mut session.quit);
+    }
     render.scratch_beds = beds;
 }
