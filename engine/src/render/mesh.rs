@@ -22,6 +22,7 @@ pub struct GpuMesh {
 
 impl GpuMesh {
     pub fn new(device: &wgpu::Device, label: &str, vertices: &[ColorVertex]) -> Self {
+        crate::timing::count_new_mesh();
         let mut min = glam::Vec3::splat(f32::MAX);
         let mut max = glam::Vec3::splat(f32::MIN);
         for v in vertices {

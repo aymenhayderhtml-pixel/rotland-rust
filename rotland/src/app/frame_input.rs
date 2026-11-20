@@ -96,6 +96,7 @@ pub fn process_input(
     ui: &mut UiState,
     session: &mut SessionState,
 ) -> InputOutcome {
+    let _phase = engine::timing::PhaseScope::new("input");
     use hub_ui::{HubScreen, HubTab};
 
     // The player's own keys (Settings > Controls)

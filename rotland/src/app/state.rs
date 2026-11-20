@@ -115,6 +115,7 @@ pub struct WorldState {
     pub tracked_zombie_scratch: Vec<u64>,
     pub cleared_poi_scratch: Vec<String>,
     pub camps: Vec<glam::Vec2>,
+    pub last_chunk_count: usize,
 }
 
 impl WorldState {

@@ -32,6 +32,7 @@ Needs a source tag on the same line (or the line above) for each new number in
 - `// godot: <file>.cs:<line>` — the number is really in that Godot file.
 - `// data: <file>.json <key>` — the key is really in `data/<file>.json`.
 - `// new: DECISIONS <date>` — `docs/DECISIONS.md` has a row with that date.
+- `// moved: <path>` — the number was moved from that file and exists in `<base>:<path>`.
 
 ## `tools/neon_pack.py` — make one file to paste into Gemini Neon
 

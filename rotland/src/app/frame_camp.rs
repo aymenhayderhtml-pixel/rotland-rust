@@ -17,6 +17,7 @@ pub fn update_camp_and_stats(
     _session: &SessionState,
     audio: &mut AudioState,
 ) {
+    let _phase = engine::timing::PhaseScope::new("camp");
     let alive = !actors.combat.as_ref().is_some_and(|c| c.is_dead());
     let night = !(6.0..20.0).contains(&play.hour);
     let menu_open = ui.camp_ui.is_some() || ui.hub.is_some() || ui.menus.as_ref().is_some_and(|m| m.is_open());

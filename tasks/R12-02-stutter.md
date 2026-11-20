@@ -28,3 +28,13 @@ Re-run both release runs; put before/after avg FPS, p99 ms, worst 1% FPS and spi
 - Moving existing code makes the gate number check flag the moved numbers. Add a fourth tag to `tools/gate_checks.py`: `// moved: <path>` passes only if that number appears in `git show <base>:<path>` (plus a selftest case and one README line). Use it only for lines you really moved.
 
 ## Worker notes
+
+## Gate report
+- date: 2026-11-20
+- base: main
+- files changed (18): docs/STUTTER.md, engine/src/app.rs, engine/src/cli.rs, engine/src/render/lit.rs, engine/src/render/mesh.rs, engine/src/render/pipelines.rs, engine/src/timing.rs, rotland/src/app/frame_actors.rs, rotland/src/app/frame_camp.rs, rotland/src/app/frame_input.rs, rotland/src/app/frame_sim.rs, rotland/src/app/frame_world.rs, rotland/src/app/mod.rs, rotland/src/app/spikes.rs, rotland/src/app/state.rs, tasks/R12-02-stutter.md, tools/gate_checks.py, tools/README_TOOLS.md
+- tests passed: 4
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS

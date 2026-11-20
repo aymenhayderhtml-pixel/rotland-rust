@@ -86,6 +86,7 @@ pub fn update_actors(
     session: &mut SessionState,
     audio: &mut Option<audio::Audio>,
 ) {
+    let _phase = engine::timing::PhaseScope::new("zombies/actors");
     // Death while driving must park the car and restore the on-foot camera.
     if dead {
         if let Some(cars) = actors.cars.as_mut()
@@ -352,6 +353,7 @@ pub fn update_walk_or_free(
     actors: &mut ActorsState,
     session: &mut SessionState,
 ) {
+    let _phase = engine::timing::PhaseScope::new("zombies/actors");
     if session.walk {
         session.walk_time += dt;
         let yaw = bench::yaw_at(session.walk_time);
@@ -400,5 +402,6 @@ pub fn check_scripted_timers(
     {
         session.save_at = None;
         save_now(session, world, actors, play);
+        engine::timing::count_save_written();
     }
 }

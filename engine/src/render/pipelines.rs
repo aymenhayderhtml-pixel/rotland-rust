@@ -78,6 +78,7 @@ pub fn depth_state(format: wgpu::TextureFormat, write: bool, compare: wgpu::Comp
 
 impl Pipelines {
     pub fn new(device: &wgpu::Device, module: &wgpu::ShaderModule, l: &Layouts) -> Self {
+        crate::timing::count_new_pipeline();
         let pl = |label, groups: &[Option<&wgpu::BindGroupLayout>]| {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { label: Some(label), bind_group_layouts: groups, immediate_size: 0 })
         };

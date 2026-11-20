@@ -207,6 +207,8 @@ impl LitRenderer {
         shadow_instanced: &[SkinnedBatch],
         bones: &[Mat4],
     ) {
+        crate::timing::mark_render_draw();
+        let t_draw_start = std::time::Instant::now();
         let items = &items[..items.len().min(MAX_DRAWS)];
         let view_proj = camera.view_proj(target.aspect());
         let shadows_on = self.shadows.enabled && light.sun_energy > 0.01;
@@ -280,6 +282,7 @@ impl LitRenderer {
         counts.draws = d + 1;
         counts.triangles = t;
         self.last = counts;
+        crate::timing::record_phase("render", t_draw_start.elapsed().as_secs_f64() * 1000.0);
     }
 
     /// Records static items then instanced batches into a pass. Returns (draw calls, triangles).
