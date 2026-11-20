@@ -4,7 +4,7 @@ Read and follow **`AGENTS.md`** first. It contains all mandatory project rules.
 Next, read your assigned task file in `tasks/`.
 
 You are a **worker agent**. You receive one task file (e.g. `tasks/R<N>-0X.md`) and must implement only that task.
-- **Do NOT run `cargo build`, `cargo test`, `cargo clippy`, or the game.** (Claude runs a single build/test pass per round).
+- **Run only `tools/gate.sh --task <your task file>`; loop until `GATE: PASS`.** Never run cargo directly or the game. The gate report is the only proof of work; it ignores what you claim.
 - In a git worktree, commit your finished work to your branch in one commit (never push, never touch `main`).
 - Fill in your report under `## Worker notes` in your task file: files changed, how to test, wiring notes for Claude, and known issues.
 - Never edit `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or docs files unless your task specifies.

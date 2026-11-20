@@ -1,4 +1,4 @@
-> Workflow v2 (gate, AI roles, Neon flow) is in `docs/PLAN_0.2.md` and replaces the write-only rule below once `tools/gate.sh` is merged.
+> Workflow v2 (gate, AI roles, Neon flow) is in `docs/PLAN_0.2.md` and replaces the write-only rule below (gate merged 2026-11-20: workers run `tools/gate.sh` until PASS).
 
 # AI Workflow: Rotland Rust Development
 

@@ -2,7 +2,7 @@
 
 Read this file first. Every AI agent working on this repo follows it.
 
-**File map:** Read `docs/CODEMAP.md` once to understand the layout and modules. After that, open **only** the files your task needs. Don't browse unrelated parts of the repo.
+**File map:** Read `docs/STATUS.md` for where the project is. Read `docs/CODEMAP.md` once to understand the layout and modules. After that, open **only** the files your task needs. Don't browse unrelated parts of the repo.
 
 ## The project in one line
 **Rotland** is a solo, offline, 3D open-world zombie survival game built with a custom wgpu engine in Rust.
@@ -47,8 +47,8 @@ The owner's laptop: Intel i5-10310U, **integrated Intel UHD graphics**, 14 GB RA
 
 ## Worker task rules
 - You get one task file from `tasks/`. Work **only** on that task. Do not edit unrelated files.
-- **Workers do NOT build or test.** Do not run `cargo build`, `cargo test`, `cargo clippy`, or the game. Claude merges each round and runs the single unified build and test pass.
-- Fill in `## Worker notes` in your task file: list files changed, how to test, wiring notes for Claude, and known issues.
+- **Workers run only `tools/gate.sh --task tasks/<your task>.md`** (it queues on the lock, uses the shared build folder, runs clippy + tests + scope/number/unused checks). Fix and re-run until the last line is `GATE: PASS`. Never run `cargo` directly or the game. Every new number in game code needs a source tag (`// godot: File.cs:line`, `// data: file.json key`, `// new: DECISIONS <date>`); see `tools/README_TOOLS.md`.
+- Fill in `## Worker notes` in your task file: wiring notes for Claude and known issues. The gate writes the `## Gate report` itself; don't write your own claims of passing.
 - **In a git worktree:** Commit once to your own task branch when done. Never push to remote, never touch `main`.
 - **In the shared main checkout:** Never run `git commit`.
 - Do not edit `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or `docs/` files unless your task specifically instructs you to.

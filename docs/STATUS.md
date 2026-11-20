@@ -11,8 +11,8 @@ Updated: 2026-11-20 by Claude.
 avg 106 FPS, median 8.9 ms, p99 27 ms, worst 1% 29 FPS (below the 30 minimum: stutters to fix),
 116k triangles + 88k shadow triangles, 51 + 28 draw calls. Build ~5 s, `cargo test` ~6 s.
 
-## Round now running: R11 (0.2 week 1, day 1: tools)
-- R11-01 gate + Neon tools (DeepSeek V4.1 Flash Free, worktree): `tools/gate.sh`, `gate_checks.py`, `neon_pack.py`, `neon_apply.py`.
+## Last round: R11 (0.2 week 1, day 1: tools) DONE
+- R11-01 gate + Neon tools: DONE (merged 43f9ee3; gate catches made-up numbers and unused pub items, tested).
 - Docs cleanup (Claude): done. Old tasks in `tasks/archive/`, history in `docs/archive/`.
 
 ## Next (from PLAN_0.2.md)
@@ -23,7 +23,7 @@ avg 106 FPS, median 8.9 ms, p99 27 ms, worst 1% 29 FPS (below the 30 minimum: st
 - DeepSeek: `opencode` / `opencode/deepseek-v4.1-flash-free` (main repo worker).
 - Gemini 3.8 Flash: `antigravity` / `gemini-3.8-flash` (only work a script or render can verify).
 - Neon: chat only. A subagent builds `neon/out/<task>.prompt.md` with `tools/neon_pack.py`, the owner pastes it into AI Studio and saves the answer as `neon/in/<task>.md`, then a worker runs `tools/neon_apply.py` + the gate.
-- Once `tools/gate.sh` is merged, workers run it and loop until `GATE: PASS`. Until then, workers stay write-only.
+- Workers run `tools/gate.sh --task <file>` and loop until `GATE: PASS` (usage: `tools/README_TOOLS.md`).
 
 ## Open questions for the owner
 - Final game name.
