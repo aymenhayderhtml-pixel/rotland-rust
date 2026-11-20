@@ -24,7 +24,7 @@ fastnoise-lite = "1.1"
 rayon = "1.12"
 egui = { version = "0.37", features = ["default_fonts"] }  # 0.37 ships no font unless asked
 egui-wgpu = "0.37"
-egui-winit = "0.37"
+egui-winit = { version = "0.37", default-features = false, features = ["wayland", "x11"] }  # no clipboard: its Wayland thread crashed on quit (smithay-clipboard)
 
 # Fast builds while working: our code lightly optimised, libraries fully optimised
 [profile.dev]
