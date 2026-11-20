@@ -128,6 +128,8 @@ pub fn init(
     }
     session.slot_cards = crate::session::summaries(&slots);
     session.slots = Some(slots);
+    ui.dev_panel.open = args.flag("--dev-panel");
+    session.start_at = args.value("--at").and_then(game::dev_panel::parse_at_flag);
     session.forced_zombies = args.value("--zombies").and_then(|s| s.parse::<usize>().ok());
     session.test_climb = args.flag("--climb");
     session.test_chop = args.flag("--chop");

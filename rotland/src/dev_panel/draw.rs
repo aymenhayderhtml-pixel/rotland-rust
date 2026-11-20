@@ -40,6 +40,7 @@ pub fn draw_dev_panel(
         .open(&mut open)
         .resizable(true)
         .default_width(PANEL_DEFAULT_WIDTH)
+        .anchor(egui::Align2::RIGHT_TOP, egui::vec2(-12.0, 56.0))
         .show(ctx, |ui| {
             draw_perf_section(ui, &state.history, view);
             ui.separator();

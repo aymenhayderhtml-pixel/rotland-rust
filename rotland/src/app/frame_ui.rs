@@ -424,4 +424,18 @@ pub fn draw_ui(
     if let Some(action) = m.ui(ctx, &session.slot_cards) {
         menu_action(action, session, world, actors, play, ui);
     }
+    // F1 developer panel (R12-03)
+    if !on_main
+        && crate::dev_panel::update_dev_panel(
+            ctx,
+            &mut ui.dev_panel,
+            render,
+            world,
+            actors,
+            play,
+            session,
+        )
+    {
+        ui.cursor_captured = false;
+    }
 }

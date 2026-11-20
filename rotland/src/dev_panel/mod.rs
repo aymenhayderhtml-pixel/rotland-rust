@@ -3,7 +3,7 @@
 pub mod actions;
 pub mod draw;
 
-pub use actions::{apply_dev_actions, maintain_god_mode, DevAction};
+pub use actions::{apply_dev_actions, maintain_god_mode};
 pub use draw::draw_dev_panel;
 
 use std::sync::OnceLock;

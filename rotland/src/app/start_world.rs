@@ -79,6 +79,8 @@ pub fn start_world(
             (c.y as f32 + 0.5) * WorldGenerator::CHUNK_SIZE,
         );
         Vec3::new(x, world_gen.height(x, z), z)
+    } else if let Some((x, z)) = session.start_at {
+        Vec3::new(x, world_gen.height(x, z) + game::dev_panel::DEV_TELEPORT_GROUND_OFFSET, z)
     } else {
         spawn
     };

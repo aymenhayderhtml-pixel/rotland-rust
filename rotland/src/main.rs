@@ -15,6 +15,7 @@ mod car_visuals;
 mod combat;
 mod crates;
 mod display;
+mod dev_panel;
 mod dog_view;
 mod fp_weapon;
 mod hub_ui;

@@ -65,7 +65,9 @@ pub fn maintain_god_mode(god_mode: bool, actors: &mut ActorsState, play: &mut Pl
         player.stamina.current = player.stamina.max;
     }
     if let Some(play_state) = play.play.as_mut() {
-        play_state.needs_respawn();
+        let (h, t) = (play_state.hunger.max(), play_state.thirst.max());
+        play_state.hunger.set(h);
+        play_state.thirst.set(t);
     }
 }
 

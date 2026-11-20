@@ -228,12 +228,14 @@ pub struct UiState {
     pub icons: crate::hud::IconCache,
     /// HUD mini-map config and cached local terrain tiles.
     pub minimap: crate::app::minimap::MinimapState,
+    /// F1 developer panel (R12-03).
+    pub dev_panel: crate::dev_panel::DevPanelState,
 }
 
 impl UiState {
     /// A camp screen or the hub is open: the mouse is free and the player's hands are busy.
     pub fn screen_open(&self) -> bool {
-        self.camp_ui.is_some() || self.hub.is_some()
+        self.camp_ui.is_some() || self.hub.is_some() || self.dev_panel.open
     }
 }
 
@@ -258,6 +260,8 @@ pub struct SessionState {
     pub die_at: Option<f32>,
     pub save_at: Option<f32>,
     pub forced_zombies: Option<usize>,
+    /// --at=X,Z: start the player there (screenshots, dev).
+    pub start_at: Option<(f32, f32)>,
     pub start_yaw: Option<f32>,
     pub give: Vec<(String, u32)>,
     pub near_animals: Vec<String>,
@@ -293,6 +297,7 @@ impl Default for SessionState {
             die_at: None,
             save_at: None,
             forced_zombies: None,
+            start_at: None,
             start_yaw: None,
             give: Vec::new(),
             near_animals: Vec::new(),

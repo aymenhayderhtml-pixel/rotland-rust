@@ -136,6 +136,11 @@ pub fn process_input(
         }
         }
     }
+    // F1 toggles the developer panel (not while a menu is open)
+    if input.pressed(KeyCode::F1) && !ui.menus.as_ref().is_some_and(|m| m.is_open()) {
+        ui.dev_panel.open = !ui.dev_panel.open;
+        ui.cursor_captured = !ui.dev_panel.open;
+    }
     // Esc closes an open camp or hub screen (the screen itself sees the key), otherwise the menus
     if input.pressed(KeyCode::Escape)
         && !ui.screen_open()
@@ -158,7 +163,7 @@ pub fn process_input(
         }
         return InputOutcome::MenuOpen;
     }
-    if !ui.cursor_captured && input.mouse_pressed(MouseButton::Left) {
+    if !ui.cursor_captured && !ui.dev_panel.open && input.mouse_pressed(MouseButton::Left) {
         ui.cursor_captured = true;
     }
     session.play_time += dt as f64;
