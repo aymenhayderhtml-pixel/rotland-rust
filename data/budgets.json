@@ -2,7 +2,7 @@
   "frame": {
     "triangles": 228000,
     "shadowTriangles": 121000,
-    "drawCalls": 36
+    "drawCalls": 120
   },
   "models": {
     "animals": 4000,

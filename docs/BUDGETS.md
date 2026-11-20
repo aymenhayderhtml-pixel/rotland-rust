@@ -25,8 +25,8 @@ Copies double every 3 s from 50. Median frame ms per step:
 ## Formula
 - frame.triangles = 60% of 379,849 = 227,909, rounded to 228,000.
 - frame.shadowTriangles = 60% of the shadow triangles at the crossing (200,737), rounded to 121,000.
-- frame.drawCalls = 60% of the draws at the crossing (59.3), rounded to 36.
-  Caveat: draw calls stay 58-62 whatever the copy count, so 36 is below the 53 the normal camp uses. Re-derive it.
+- frame.drawCalls = 120 (provisional, Claude 2026-11-20): the bench uses instancing, so draws stayed 58-62 and don't measure the draw limit. Set to about 2x the camp's 53 until a draw-call bench exists.
+- Bench runs 1 and 2 differ ~2x (698k vs 380k at 60 FPS). Run 2 likely overlapped a release build by the other helper. The frame budget uses the lower run; re-run on a quiet, plugged-in laptop to confirm.
 - Model cap = max(2 x biggest in folder, biggest + 2000), rounded up to the next 1000. All 9 current caps match.
 
 ## Reading `--report-budgets`
