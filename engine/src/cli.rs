@@ -22,6 +22,7 @@ pub struct EngineArgs {
     pub seconds: Option<f32>,
     pub warmup: f32,
     pub stats: Option<PathBuf>,
+    pub bench: Option<PathBuf>,
     pub width: u32,
     pub height: u32,
     pub scale: f32,
@@ -43,6 +44,7 @@ impl EngineArgs {
             seconds: None,
             warmup: 2.0,
             stats: None,
+            bench: None,
             width: 1920,
             height: 1080,
             scale: 1.0,
@@ -58,6 +60,7 @@ impl EngineArgs {
                 "--seconds" => a.seconds = value.parse().ok(),
                 "--warmup" => a.warmup = value.parse().unwrap_or(a.warmup),
                 "--stats" => a.stats = Some(value.into()),
+                "--bench" => a.bench = Some(value.into()),
                 "--scale" => a.scale = value.parse::<f32>().unwrap_or(1.0).clamp(0.5, 1.0),
                 "--vsync" => a.vsync = true,
                 "--size" => {
@@ -89,8 +92,15 @@ mod tests {
 
     #[test]
     fn parses_engine_and_game_options() {
-        let a = EngineArgs::parse(vec!["--shot=out/a.png".into(), "--size=1280x720".into(), "--scene=forest".into(), "--scale=0.3".into()]);
+        let a = EngineArgs::parse(vec![
+            "--shot=out/a.png".into(),
+            "--size=1280x720".into(),
+            "--scene=forest".into(),
+            "--scale=0.3".into(),
+            "--bench=out/bench.json".into(),
+        ]);
         assert_eq!(a.shot, Some("out/a.png".into()));
+        assert_eq!(a.bench, Some("out/bench.json".into()));
         assert_eq!((a.width, a.height), (1280, 720));
         assert_eq!(a.scale, 0.5);
         assert_eq!(a.value("--scene"), Some("forest"));

@@ -25,6 +25,15 @@ pub fn init(
         .and_then(|s| s.parse().ok())
         .unwrap_or(42);
     session.scene = args.value("--scene").unwrap_or("play").to_string();
+
+    let bench_arg = args.bench.clone().or_else(|| args.value("--bench").map(std::path::PathBuf::from));
+    if let Some(path) = bench_arg {
+        session.scene = "play".to_string();
+        session.seed = 42;
+        session.forced_zombies = Some(0);
+        session.bench = Some(super::bench::BenchState::new(path));
+    }
+
     // --hour=H fixes the time (screenshots, benchmarks); play mode otherwise starts at 08:00 and runs
     let forced_hour: Option<f32> = args.value("--hour").and_then(|s| s.parse().ok());
     let start = forced_hour.unwrap_or(if session.scene == "play" {
@@ -46,7 +55,9 @@ pub fn init(
     let muted = args.flag("--mute")
         || ["--shot", "--seconds", "--frames", "--stats"]
             .iter()
-            .any(|f| args.value(f).is_some());
+            .any(|f| args.value(f).is_some())
+        || args.bench.is_some()
+        || args.value("--bench").is_some();
     if session.scene == "play" {
         audio.audio = Some(audio::Audio::new(muted));
     }
@@ -128,7 +139,11 @@ pub fn init(
     }
     session.slot_cards = crate::session::summaries(&slots);
     session.slots = Some(slots);
-    session.forced_zombies = args.value("--zombies").and_then(|s| s.parse::<usize>().ok());
+    if session.bench.is_some() {
+        session.forced_zombies = Some(0);
+    } else {
+        session.forced_zombies = args.value("--zombies").and_then(|s| s.parse::<usize>().ok());
+    }
     session.test_climb = args.flag("--climb");
     session.test_chop = args.flag("--chop");
     session.test_first_person = args.flag("--first-person");
@@ -164,6 +179,13 @@ pub fn init(
         Err(e) => log::warn!("no model pack ({e}); run `cargo run --release -p baker`"),
     }
     start_world(gpu, save_file, render, world, actors, play, ui, session, audio);
+
+    if session.bench.is_some() {
+        if let Some(z) = actors.zombies.as_mut() {
+            z.list.clear();
+        }
+        world.poi_zombies = None;
+    }
 
     // Test option: take out hotbar slot N at the start (e.g. --slot=2 for the pistol)
     // Test option --chop: the axe in hand

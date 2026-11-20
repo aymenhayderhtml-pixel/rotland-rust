@@ -265,6 +265,7 @@ pub struct SessionState {
     pub test_chop: bool,
     pub test_first_person: bool,
     pub test_poi: bool,
+    pub bench: Option<super::bench::BenchState>,
 }
 
 impl Default for SessionState {
@@ -300,6 +301,7 @@ impl Default for SessionState {
             test_chop: false,
             test_first_person: false,
             test_poi: false,
+            bench: None,
         }
     }
 }
