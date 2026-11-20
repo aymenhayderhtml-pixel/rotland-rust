@@ -130,6 +130,7 @@ pub trait Game: 'static {
 
 /// Opens the window and runs the game until it quits, the window is closed, or a command-line limit is hit.
 pub fn run<G: Game>(game: G, title: &str, args: EngineArgs) {
+    crate::timing::init_spike_recorder(args.spikes.as_deref());
     let event_loop = EventLoop::new().expect("could not start the event loop");
     event_loop.set_control_flow(ControlFlow::Poll);
     let mut app = App {
@@ -181,6 +182,7 @@ impl<G: Game> App<G> {
         }
         let (dt, fps_ready) = self.timer.tick();
         self.frame += 1;
+        crate::timing::start_frame(self.frame);
         let elapsed = self.started.elapsed().as_secs_f32();
         if elapsed >= self.args.warmup {
             self.stats.push(dt as f64 * 1000.0);
@@ -191,7 +193,9 @@ impl<G: Game> App<G> {
             }
 
         let f12 = self.input.pressed(KeyCode::F12);
+        let t_upd = Instant::now();
         self.game.update(&self.input, dt);
+        crate::timing::record_phase("game update (all)", t_upd.elapsed().as_secs_f64() * 1000.0);
         self.input.end_frame();
 
         if let Some(grab) = self.game.cursor_grab()
@@ -226,7 +230,10 @@ impl<G: Game> App<G> {
             return;
         };
 
-        let texture = match gpu.surface.get_current_texture() {
+        let t_acq = Instant::now();
+        let acquired = gpu.surface.get_current_texture();
+        crate::timing::record_phase("surface acquire", t_acq.elapsed().as_secs_f64() * 1000.0);
+        let texture = match acquired {
             wgpu::CurrentSurfaceTexture::Success(t)
             | wgpu::CurrentSurfaceTexture::Suboptimal(t) => t,
             wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
@@ -247,10 +254,12 @@ impl<G: Game> App<G> {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("frame"),
             });
+        crate::timing::mark_render_start();
         self.game.render(gpu, target, &mut encoder);
         let cursor_grabbed = self.last_cursor_grab == Some(true);
         let mut user_cmd_bufs = Vec::new();
         if let Some(ui) = self.ui.as_mut() {
+            let t_ui = Instant::now();
             let cmd_bufs = ui.draw(
                 gpu,
                 target,
@@ -260,12 +269,18 @@ impl<G: Game> App<G> {
                 |ctx| self.game.ui(ctx),
             );
             user_cmd_bufs.extend(cmd_bufs);
+            crate::timing::record_phase("ui/egui", t_ui.elapsed().as_secs_f64() * 1000.0);
         }
         blit.draw(&mut encoder, &view);
+        let t_submit = Instant::now();
         gpu.queue
             .submit(user_cmd_bufs.into_iter().chain(std::iter::once(encoder.finish())));
+        crate::timing::record_phase("render submit", t_submit.elapsed().as_secs_f64() * 1000.0);
+        let t_present = Instant::now();
         window.pre_present_notify();
         gpu.queue.present(texture);
+        crate::timing::record_phase("GPU wait/present", t_present.elapsed().as_secs_f64() * 1000.0);
+        crate::timing::finish_frame(self.frame, dt as f64 * 1000.0);
 
         // Screenshots: scripted (--shot or the game asks) and F12
         let mut shot: Option<(PathBuf, bool)> = self.game.screenshot_request().map(|p| (p, false));

@@ -22,6 +22,7 @@ pub struct EngineArgs {
     pub seconds: Option<f32>,
     pub warmup: f32,
     pub stats: Option<PathBuf>,
+    pub spikes: Option<PathBuf>,
     pub width: u32,
     pub height: u32,
     pub scale: f32,
@@ -43,6 +44,7 @@ impl EngineArgs {
             seconds: None,
             warmup: 2.0,
             stats: None,
+            spikes: None,
             width: 1920,
             height: 1080,
             scale: 1.0,
@@ -58,6 +60,7 @@ impl EngineArgs {
                 "--seconds" => a.seconds = value.parse().ok(),
                 "--warmup" => a.warmup = value.parse().unwrap_or(a.warmup),
                 "--stats" => a.stats = Some(value.into()),
+                "--spikes" => a.spikes = Some(value.into()),
                 "--scale" => a.scale = value.parse::<f32>().unwrap_or(1.0).clamp(0.5, 1.0),
                 "--vsync" => a.vsync = true,
                 "--size" => {

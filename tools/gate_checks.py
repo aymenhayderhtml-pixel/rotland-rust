@@ -5,8 +5,8 @@
   python3 -I tools/gate_checks.py --selftest
 
 New numbers in non-test game/, world/, humanoid/ code need a source tag on the
-same line or the line above: `// godot: <file>.cs:<line>`, `// data: <f>.json <key>`
-or `// new: DECISIONS <YYYY-MM-DD>`. See docs/PLAN_0.2.md ("Workflow v2").
+same line or the line above: `// godot: <file>.cs:<line>`, `// data: <f>.json <key>`,
+`// new: DECISIONS <YYYY-MM-DD>` or `// moved: <path>`. See docs/PLAN_0.2.md ("Workflow v2").
 """
 
 import argparse, fnmatch, os, re, subprocess, sys
@@ -175,7 +175,7 @@ def godot_numbers(path, line_no):
     return nums
 
 def parse_tag(text):
-    """Return ('godot', path, line) / ('data', file, key) / ('new', date) or None."""
+    """Return ('godot', path, line) / ('data', file, key) / ('new', date) / ('moved', path) or None."""
     m = re.search(r"//\s*godot:\s*([^\s:]+\.cs):(\d+)", text)
     if m:
         return ("godot", m.group(1), int(m.group(2)))
@@ -183,12 +183,32 @@ def parse_tag(text):
     if m:
         return ("data", m.group(1), m.group(2))
     m = re.search(r"//\s*new:\s*DECISIONS\s+(\d{4}-\d{2}-\d{2})", text)
-    return ("new", m.group(1)) if m else None
+    if m:
+        return ("new", m.group(1))
+    m = re.search(r"//\s*moved:\s*(\S+)", text)
+    return ("moved", m.group(1)) if m else None
 
 def has_decisions_row(text, date):
     return re.search(r"^\|\s*" + re.escape(date) + r"\s*\|", text, re.M) is not None
 
-def tag_ok(num, text):
+MOVED_CACHE = {}
+
+def moved_numbers(base, path):
+    key = (base, path)
+    if key in MOVED_CACHE:
+        return MOVED_CACHE[key]
+    res = git("show", f"{base}:{path}")
+    if res.returncode != 0:
+        MOVED_CACHE[key] = None
+        return None
+    nums = []
+    for line in res.stdout.splitlines():
+        for n in numbers_in(line):
+            nums.append(n)
+    MOVED_CACHE[key] = nums
+    return nums
+
+def tag_ok(num, text, base="main"):
     """(ok, reason) for the source tag found in `text` (or no tag)."""
     tag = parse_tag(text)
     if tag is None:
@@ -207,11 +227,18 @@ def tag_ok(num, text):
         if tag[2] in text_json:
             return True, ""
         return False, f"key {tag[2]} not in data/{tag[1]}"
+    if tag[0] == "moved":
+        nums = moved_numbers(base, tag[1])
+        if nums is None:
+            return False, f"base file missing: {base}:{tag[1]}"
+        if any(abs(n - num) < 1e-9 for n in nums):
+            return True, ""
+        return False, f"number {num:g} not in {base}:{tag[1]}"
     if has_decisions_row(read_text("docs/DECISIONS.md"), tag[1]):
         return True, ""
     return False, f"no DECISIONS row dated {tag[1]}"
 
-def check_numbers(adds):
+def check_numbers(adds, base="main"):
     offenders, checked = [], 0
     for path in sorted(adds):
         if not path.startswith(NUM_BASES) or not path.endswith(".rs") or is_test_path(path):
@@ -231,7 +258,7 @@ def check_numbers(adds):
                 for text in (line, prev):
                     if parse_tag(text) is None:
                         continue
-                    ok, why = tag_ok(num, text)
+                    ok, why = tag_ok(num, text, base)
                     if ok:
                         reason = None
                         break
@@ -284,8 +311,9 @@ def selftest():
     assert parse_tag("// godot: Player.cs:120") == ("godot", "Player.cs", 120)
     assert parse_tag("// data: zombies.json walker_speed") == ("data", "zombies.json", "walker_speed")
     assert parse_tag("// new: DECISIONS 2026-11-20") == ("new", "2026-11-20")
+    assert parse_tag("// moved: game/src/combat.rs") == ("moved", "game/src/combat.rs")
     assert parse_tag("// plain comment") is None
-    n += 4
+    n += 5
     assert has_decisions_row("| 2026-11-20 | x | y |", "2026-11-20")
     assert not has_decisions_row("| 2026-11-19 | x | y |", "2026-11-20")
     n += 2
@@ -307,7 +335,7 @@ def main():
     mb = merge_base(args.base)
     adds = added_lines(mb)
     results = [check_scope(args.task, changed_paths(mb)),
-               check_numbers(adds),
+               check_numbers(adds, args.base),
                check_unused(adds)]
     for ok, line in results:
         print(line)

@@ -17,6 +17,7 @@ pub fn update_sim(
     session: &SessionState,
     audio: &mut AudioState,
 ) {
+    let _phase = engine::timing::PhaseScope::new("physics");
     let alive = !actors.combat.as_ref().is_some_and(|c| c.is_dead());
     let mut noises_scratch = std::mem::take(&mut actors.noises_scratch);
     noises_scratch.clear();

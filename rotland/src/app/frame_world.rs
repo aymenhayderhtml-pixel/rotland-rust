@@ -15,6 +15,7 @@ pub fn update_needs(
     actors: &mut ActorsState,
     audio: &mut Option<audio::Audio>,
 ) {
+    let _phase = engine::timing::PhaseScope::new("world streaming");
     if let (Some(play_state), Some(p), Some(c)) = (
         play.play.as_mut(),
         actors.player_ctrl.as_mut(),
@@ -60,6 +61,16 @@ pub fn update_world_interactions(
     session: &SessionState,
     audio: &mut Option<audio::Audio>,
 ) {
+    let _phase = engine::timing::PhaseScope::new("world streaming");
+    if let Some(st) = world.streamer.as_ref() {
+        let current = st.chunks.len();
+        if current > world.last_chunk_count {
+            for _ in 0..(current - world.last_chunk_count) {
+                engine::timing::count_new_chunk();
+            }
+        }
+        world.last_chunk_count = current;
+    }
     let alive_now = !actors.combat.as_ref().is_some_and(|c| c.is_dead());
     if let (Some(play_state), Some(p)) = (play.play.as_mut(), actors.player_ctrl.as_mut())
         && alive_now
