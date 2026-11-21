@@ -43,6 +43,27 @@ pub struct LakeConfigData {
     pub beach_blend: f32,
     pub shore_samples: usize,
     pub region_margin: f32,
+    #[serde(default = "default_sand")]
+    pub sand: [u8; 3],
+    #[serde(default = "default_wet_sand")]
+    pub wet_sand: [u8; 3],
+    #[serde(default = "default_lake_bed")]
+    pub lake_bed: [u8; 3],
+}
+
+fn default_sand() -> [u8; 3] {
+    // data: lake.json sand
+    [214, 196, 156]
+}
+
+fn default_wet_sand() -> [u8; 3] {
+    // data: lake.json wetSand
+    [148, 128, 94]
+}
+
+fn default_lake_bed() -> [u8; 3] {
+    // data: lake.json lakeBed
+    [58, 56, 38]
 }
 
 pub type LakeConfig = LakeConfigData;
@@ -104,6 +125,12 @@ impl Default for LakeConfigData {
             shore_samples: 128,
             // data: lake.json regionMargin
             region_margin: 32.0,
+            // data: lake.json sand
+            sand: default_sand(),
+            // data: lake.json wetSand
+            wet_sand: default_wet_sand(),
+            // data: lake.json lakeBed
+            lake_bed: default_lake_bed(),
         }
     }
 }

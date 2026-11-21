@@ -1,6 +1,7 @@
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
+use crate::color::Color;
 use crate::lake::config::{LakeConfigData, VillageConfig};
 use crate::math::{lerp, smooth_step};
 use crate::noise::GodotNoise;
@@ -39,6 +40,7 @@ pub struct VillageLot {
     pub center: Vec2,
     pub size: Vec2,
     pub yaw: f32,
+    pub building_id: String,
 }
 
 impl VillageLot {
@@ -339,6 +341,78 @@ impl LakeLayout {
             lerp(beach_edge_height, raw, t)
         }
     }
+
+    /// Axis-aligned bounding box of the lake water surface.
+    pub fn water_bounds(&self) -> (Vec2, Vec2) {
+        // data: lake.json shoreNoise
+        let margin = self.config.shore_noise.amplitude + 4.0;
+        let max_extent = self.radius + Vec2::splat(margin);
+        (self.center - max_extent, self.center + max_extent)
+    }
+
+    // data: lake.json sand
+    const COLOR_SCALE: f32 = 1.0 / 255.0;
+
+    pub fn sand_color(&self) -> Color {
+        Color::new(
+            self.config.sand[0] as f32 * Self::COLOR_SCALE,
+            self.config.sand[1] as f32 * Self::COLOR_SCALE,
+            self.config.sand[2] as f32 * Self::COLOR_SCALE,
+            1.0,
+        )
+    }
+
+    pub fn wet_sand_color(&self) -> Color {
+        Color::new(
+            self.config.wet_sand[0] as f32 * Self::COLOR_SCALE,
+            self.config.wet_sand[1] as f32 * Self::COLOR_SCALE,
+            self.config.wet_sand[2] as f32 * Self::COLOR_SCALE,
+            1.0,
+        )
+    }
+
+    pub fn lake_bed_color(&self) -> Color {
+        Color::new(
+            self.config.lake_bed[0] as f32 * Self::COLOR_SCALE,
+            self.config.lake_bed[1] as f32 * Self::COLOR_SCALE,
+            self.config.lake_bed[2] as f32 * Self::COLOR_SCALE,
+            1.0,
+        )
+    }
+
+    /// Paints the terrain inside the lake region (lake bed, wet sand, dry sand beach).
+    pub fn paint(&self, base_color: Color, wx: f32, wz: f32) -> Color {
+        let p = Vec2::new(wx, wz);
+        if !self.contains_region(p) {
+            return base_color;
+        }
+        let d = self.shore_distance(p);
+        let blend_end = self.config.beach_width + self.config.beach_blend;
+        if d >= blend_end {
+            return base_color;
+        }
+
+        if d < 0.0 {
+            let t = if self.config.shallow_width > 1e-4 {
+                (1.0 + d / self.config.shallow_width).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            self.lake_bed_color().lerp(self.wet_sand_color(), t)
+        } else if d <= self.config.beach_width {
+            // data: lake.json beachWidth
+            let wet_width = (self.config.beach_width * 0.25).max(2.0);
+            if d < wet_width {
+                let t = d / wet_width;
+                self.wet_sand_color().lerp(self.sand_color(), t)
+            } else {
+                self.sand_color()
+            }
+        } else {
+            let t = smooth_step(self.config.beach_width, blend_end, d);
+            self.sand_color().lerp(base_color, t)
+        }
+    }
 }
 
 fn generate_village_lots(
@@ -373,10 +447,38 @@ fn generate_village_lots(
         let forward = -u;
         let yaw = (-forward.x).atan2(-forward.y);
 
+        let touches_water = {
+            let right = Vec2::new(-forward.y, forward.x);
+            let hx = right * (size.x * 0.5);
+            let hy = forward * (size.y * 0.5);
+            let corners = [
+                lot_center - hx - hy,
+                lot_center + hx - hy,
+                lot_center + hx + hy,
+                lot_center - hx + hy,
+            ];
+            corners.iter().any(|&c| {
+                let d = c - center;
+                let dist = d.length();
+                let dir_u = if dist > 1e-5 { d / dist } else { Vec2::new(1.0, 0.0) };
+                let r_b = ellipse_radius(dir_u, radius);
+                let n_val = noise.get_noise_2d(center.x + dir_u.x * r_b, center.y + dir_u.y * r_b);
+                dist <= r_b + n_val * noise_amp
+            })
+        };
+
+        const INLAND_BUILDINGS: [&str; 4] = ["fish_shack", "house_small", "cabin", "shed"];
+        let building_id = if touches_water {
+            "boathouse".to_string()
+        } else {
+            INLAND_BUILDINGS[i % INLAND_BUILDINGS.len()].to_string()
+        };
+
         lots.push(VillageLot {
             center: lot_center,
             size,
             yaw,
+            building_id,
         });
     }
     lots

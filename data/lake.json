@@ -30,5 +30,8 @@
   "angleFromCity": 180.0,
   "beachBlend": 16.0,
   "shoreSamples": 128,
-  "regionMargin": 32.0
+  "regionMargin": 32.0,
+  "sand": [214, 196, 156],
+  "wetSand": [148, 128, 94],
+  "lakeBed": [58, 56, 38]
 }
