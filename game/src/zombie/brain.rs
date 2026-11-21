@@ -169,10 +169,15 @@ pub struct ZombieBrain {
     pub(super) horde: Option<Arc<Mutex<ZombieHorde>>>,
     pub(super) just_screamed: bool,
     pub(super) eat_chance_override: Option<f32>,
+    pub(super) is_screamer: bool,
+    pub(super) has_screamed: bool,
+    pub(super) horde_steer: Option<Vec3>,
 }
 
 impl ZombieBrain {
     pub fn new(def: &ZombieDef, tuning: &ZombieBehaviourDef, home: Vec3, seed: u64) -> Self {
+        let is_screamer = def.models.iter().any(|m| m.contains("screamer"));
+        let is_crawler = def.models.iter().any(|m| m.contains("crawler"));
         let numbers = Numbers {
             wander_speed: def.wander_speed,
             chase_speed: def.chase_speed,
@@ -219,7 +224,7 @@ impl ZombieBrain {
             look_point: None,
             walk_velocity: Vec3::ZERO,
             stagger_timer: 0.0,
-            crawler: false,
+            crawler: is_crawler,
             leg_hits: 0,
             scream_chance: tuning.scream_chance,
             hideout_override: None,
@@ -228,6 +233,9 @@ impl ZombieBrain {
             horde: None,
             just_screamed: false,
             eat_chance_override: None,
+            is_screamer,
+            has_screamed: false,
+            horde_steer: None,
         };
         brain.enter_idle();
         brain

@@ -128,12 +128,16 @@ impl ZombieBrain {
         } else {
             self.numbers.chase_speed
         };
-        let wish = match (tracking, ctx.flow_dir) {
-            (true, Some(dir)) => Vec3::new(dir.x, 0.0, dir.z).normalize_or_zero() * speed,
-            (true, None) => self.walk_to(ctx.position, target, speed, ctx.world, dt).0,
-            (false, _) => {
-                let spot = self.senses.last_seen();
-                self.walk_to(ctx.position, spot, speed, ctx.world, dt).0
+        let wish = if let Some(dir) = self.horde_steer {
+            dir
+        } else {
+            match (tracking, ctx.flow_dir) {
+                (true, Some(dir)) => Vec3::new(dir.x, 0.0, dir.z).normalize_or_zero() * speed,
+                (true, None) => self.walk_to(ctx.position, target, speed, ctx.world, dt).0,
+                (false, _) => {
+                    let spot = self.senses.last_seen();
+                    self.walk_to(ctx.position, spot, speed, ctx.world, dt).0
+                }
             }
         };
         Step { wish, hit: None }
@@ -245,7 +249,10 @@ impl ZombieBrain {
     }
 
     fn spot_player(&mut self, target: Option<Vec3>) {
-        if self.rng.range(0.0, 1.0) < self.scream_chance {
+        if self.is_screamer && !self.has_screamed {
+            self.has_screamed = true;
+            self.enter_scream(target);
+        } else if self.rng.range(0.0, 1.0) < self.scream_chance {
             self.enter_scream(target);
         } else {
             self.enter_chase();

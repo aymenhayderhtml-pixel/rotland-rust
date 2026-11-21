@@ -19,7 +19,17 @@
     "crawler": { "maxHealth": 35, "wanderSpeed": 0.5, "chaseSpeed": 1.2, "sightRange": 14, "sightFovDeg": 100,
                 "hearingMultiplier": 0.8, "attackRange": 1.0, "attackDamage": 8, "attackWindup": 0.35,
                 "attackCooldown": 1.0, "loseTargetTime": 6, "xp": 20, "color": "#4a5a35",
-                "models": ["zombie_crawler"] }
+                "models": ["zombie_crawler"],
+                "clips": {
+                  "idle": "zombie_crawler_idle",
+                  "walk": "zombie_crawler_crawl",
+                  "run": "zombie_crawler_sprint",
+                  "attack": "zombie_crawler_attack",
+                  "hit": "zombie_crawler_hit",
+                  "die": "zombie_crawler_die",
+                  "scream": "zombie_crawler_scream",
+                  "crawl": "zombie_crawler_crawl"
+                } }
   },
   "behaviour": {
     "gaits": ["zombie_shamble", "zombie_lurch"],

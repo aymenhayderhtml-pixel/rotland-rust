@@ -31,6 +31,9 @@ pub struct SpawnContext<'a> {
     pub biome_name: Option<&'a str>,
     pub in_city: bool,
     pub in_city_core: bool,
+    pub spawn_rate_multiplier: f32,
+    pub max_active_multiplier: f32,
+    pub special_chance: f32,
 }
 
 impl<'a> SpawnContext<'a> {
@@ -53,7 +56,17 @@ impl<'a> SpawnContext<'a> {
             biome_name: None,
             in_city: false,
             in_city_core: false,
+            spawn_rate_multiplier: 1.0,
+            max_active_multiplier: 1.0,
+            special_chance: 0.0,
         }
+    }
+
+    pub fn with_multipliers(mut self, rate: f32, max_active: f32, special: f32) -> Self {
+        self.spawn_rate_multiplier = rate;
+        self.max_active_multiplier = max_active;
+        self.special_chance = special;
+        self
     }
 
     pub fn with_in_city(mut self, in_city: bool) -> Self {
@@ -215,7 +228,11 @@ impl Spawner {
             1.0
         };
 
-        (day_cap * night_factor).floor().max(0.0) as usize
+        let base_cap = (day_cap * night_factor).floor().max(0.0);
+        let mult = if ctx.max_active_multiplier <= 0.0 { 1.0 } else { ctx.max_active_multiplier };
+        let cap = (base_cap * mult).floor().max(0.0) as usize;
+        let hard = if self.config.hard_cap > 0 { self.config.hard_cap } else { 60 }; // data: spawning.json hardCap
+        cap.min(hard)
     }
 
     /// Advances time, issues despawns for out-of-range zombies, and attempts spawning up to the cap.
@@ -243,7 +260,7 @@ impl Spawner {
             return orders;
         }
 
-        self.spawn_timer -= dt;
+        self.spawn_timer -= dt * ctx.spawn_rate_multiplier.max(0.001);
         if self.spawn_timer > 0.0 {
             return orders;
         }
@@ -295,7 +312,16 @@ impl Spawner {
                 },
             };
 
-            let type_id = self.config.pick_type_id_core(&mut self.rng, ctx.is_night, ctx.in_city_core);
+            let type_id = if (ctx.is_night || ctx.in_city)
+                && ctx.special_chance > 0.0
+                && self.rng.range(0.0, 1.0) < ctx.special_chance
+            {
+                let specials = ["brute", "screamer", "crawler"];
+                let idx = (self.rng.next_f32() * specials.len() as f32).min(specials.len() as f32 - 1.0) as usize;
+                specials[idx]
+            } else {
+                self.config.pick_type_id_core(&mut self.rng, ctx.is_night, ctx.in_city_core)
+            };
             return Some(SpawnOrder {
                 type_id: type_id.to_string(),
                 position: feet,

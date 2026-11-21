@@ -1,5 +1,6 @@
 {
   "maxActive": 20,
+  "hardCap": 60,
   "minSpawnDist": 40,
   "maxSpawnDist": 90,
   "despawnDist": 120,

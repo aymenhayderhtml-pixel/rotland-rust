@@ -22,6 +22,7 @@ pub const FAR_THINK_INTERVAL: f32 = 0.5;
 
 /// One zombie look: mesh, skeleton and clips.
 pub struct Look {
+    pub name: String,
     pub mesh: GpuMesh,
     pub rig: Rig,
     pub clips: Vec<pack::Clip>,
@@ -69,7 +70,22 @@ pub struct ZombieFrame {
 
 /// The clip name for a zombie's current animation (ZombieVisual: gait for walking, the type's run clip).
 pub fn clip_name(z: &Zombie) -> &str {
-    match z.anim {
+    let anim_key = match z.anim {
+        AnimClip::Idle => "idle",
+        AnimClip::Walk => "walk",
+        AnimClip::Run => "run",
+        AnimClip::Attack => "attack",
+        AnimClip::Hit => "hit",
+        AnimClip::Die => "die",
+        AnimClip::Scream => "scream",
+        AnimClip::Eat => "eat",
+        AnimClip::Bang => "bang",
+        AnimClip::Crawl => "crawl",
+    };
+    if let Some(c) = z.def.clips.get(anim_key) {
+        return c.as_str();
+    }
+    let default_name = match z.anim {
         AnimClip::Idle => "idle",
         AnimClip::Walk => z.gait.as_str(),
         AnimClip::Run => z.def.run_clip.as_deref().unwrap_or(z.gait.as_str()),
@@ -80,5 +96,9 @@ pub fn clip_name(z: &Zombie) -> &str {
         AnimClip::Eat => "zombie_eat",
         AnimClip::Bang => "zombie_bang",
         AnimClip::Crawl => "zombie_crawl",
+    };
+    if let Some(c) = z.def.clips.get(default_name) {
+        return c.as_str();
     }
+    default_name
 }

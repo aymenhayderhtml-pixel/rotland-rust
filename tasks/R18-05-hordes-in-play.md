@@ -12,4 +12,50 @@ Test: horde
 - Startup flag idea: `--horde-test` spawns a 12-zombie horde 60 m away at start (note it for Claude if you can't add it in your files).
 
 ## Worker notes
+- Files changed:
+  - `data/spawning.json`: added `"hardCap": 60`
+  - `data/zombies.json`: added data-driven `"clips"` map for crawler type
+  - `game/src/director/state.rs`: exposed `HordeEvent` enum (`HordeIncoming { size }`, `CampAttack { size }`)
+  - `game/src/director/system.rs`: populated `horde_events` on `DirectorOutput`
+  - `game/src/spawner_config.rs`: added `hard_cap: usize` to `SpawnConfig` (default 60 from data)
+  - `game/src/spawner.rs`: scaled spawn rate and cap by director multipliers, enforced hard cap of 60, added special zombie spawn rolls
+  - `game/src/zombie/defs.rs`: added optional `clips` map to `ZombieDef`
+  - `game/src/zombie/brain.rs`: added `is_screamer`, `has_screamed`, and `horde_steer` to `ZombieBrain`
+  - `game/src/zombie/brain_actions.rs`: implemented screamer first-sight scream, and horde boids steering in `think_chase`
+  - `game/src/zombie/brain_extras.rs`: added `is_screamer`, `set_screamer`, `has_screamed`, `set_horde_steer`, `alert_chase`
+  - `rotland/src/zombies/types.rs`: added `name` to `Look`, data-driven animation clip resolution in `clip_name` from `z.def.clips`
+  - `rotland/src/zombies/mod.rs`: loaded all zombie models dynamically from `defs` (including `zombie_brute`, `zombie_screamer`, `zombie_crawler`), added `hordes: HordeSet`, `total_kills`, updated active hordes with boids steering, handled screamer call radius (60m) alerting nearby zombies to player
+  - `rotland/src/zombies/spawning.rs`: matched model look dynamically, initialized crawler and screamer brains
+  - `rotland/src/zombies/combat_glue.rs`: tracked `total_kills`
+  - `rotland/src/play.rs`: wired `Director` into `PlayState`, updated `spawn_tick` to tick director every frame with live inputs, scaled spawner, handled horde wave spawns (70-90m out of view, grouped, boids formation toward player or camp gate), exposed `Vec<HordeEvent>` return value and `pending_horde_events`, supported `--horde-test` startup flag
+  - `game/tests/all/horde_tests.rs`: added unit tests for director multipliers scaling cap/rate, hard cap at 60, screamer/crawler special behavior, crawler clips loading, and horde events emission
 
+- How to test:
+  - `tools/gate.sh --task tasks/R18-05-hordes-in-play.md` (passes all 12 horde tests, clippy, scope, numbers, unused)
+  - Startup flag `--horde-test` spawns a 12-zombie horde 60m away moving in formation toward player
+
+- Wiring notes for Claude:
+  - `spawn_tick` signature and call:
+    `let horde_events: Vec<HordeEvent> = play_state.spawn_tick(dt, actors.player, forward, night, z, &world.physics, w);`
+    `play_state.pending_horde_events` also preserves any unhandled events.
+    Events emitted are:
+    - `HordeEvent::HordeIncoming { size }`: Wave event triggered, horde spawned heading toward player.
+    - `HordeEvent::CampAttack { size }`: Night camp attack wave triggered, horde spawned heading toward camp gate.
+  - Startup flag `--horde-test`:
+    Already handled internally in `spawn_tick` if `--horde-test` is in `std::env::args()`, or Claude can explicitly call `play_state.spawn_test_horde(player, forward, zombies, physics)`.
+
+- FPS / Performance notes:
+  - Hordes reuse the shared player `FlowField`. Followers use O(1) leader-offset boids steering calculations without per-zombie flow field or pathfinding calls, keeping frame times low.
+  - Total active zombies are strictly bounded by `cap * multiplier` and never exceed 60.
+
+- Known issues: none.
+
+## Gate report
+- date: 2026-11-21
+- base: main
+- files changed (17): data/spawning.json, data/zombies.json, game/src/director/state.rs, game/src/director/system.rs, game/src/spawner_config.rs, game/src/spawner.rs, game/src/zombie/brain_actions.rs, game/src/zombie/brain_extras.rs, game/src/zombie/brain.rs, game/src/zombie/defs.rs, game/tests/all/horde_tests.rs, rotland/src/play.rs, rotland/src/zombies/combat_glue.rs, rotland/src/zombies/mod.rs, rotland/src/zombies/spawning.rs, rotland/src/zombies/types.rs, tasks/R18-05-hordes-in-play.md
+- tests passed: 12
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS

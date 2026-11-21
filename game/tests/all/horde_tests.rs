@@ -224,6 +224,81 @@ fn specials_load_from_zombies_json() {
     assert_eq!(crawler.max_health, 35.0);
     assert_eq!(crawler.chase_speed, 1.2);
     assert_eq!(crawler.models, vec!["zombie_crawler".to_string()]);
+    assert_eq!(crawler.clips.get("crawl"), Some(&"zombie_crawler_crawl".to_string()));
+    assert_eq!(crawler.clips.get("idle"), Some(&"zombie_crawler_idle".to_string()));
+}
+
+#[test]
+fn director_multipliers_scale_spawner_cap_and_rate() {
+    use physics::PhysicsWorld;
+    use game::spawner::*;
+    let cfg = SpawnConfig::load_default().expect("data/spawning.json must load");
+    let mut spawner = Spawner::new(cfg, 42);
+
+    let physics = PhysicsWorld::new();
+    let ctx_normal = SpawnContext::new(Vec3::ZERO, &physics, &[], &[])
+        .with_multipliers(1.0, 1.0, 0.0);
+    let normal_cap = spawner.calculate_cap(&ctx_normal);
+
+    // Multiplier 1.5 scales cap
+    let ctx_boosted = SpawnContext::new(Vec3::ZERO, &physics, &[], &[])
+        .with_multipliers(2.0, 1.5, 0.25);
+    let boosted_cap = spawner.calculate_cap(&ctx_boosted);
+    assert!(boosted_cap > normal_cap, "Boosted cap {boosted_cap} should exceed normal {normal_cap}");
+
+    // Hard cap at 60
+    let ctx_extreme = SpawnContext::new(Vec3::ZERO, &physics, &[], &[])
+        .with_multipliers(1.0, 10.0, 0.0);
+    let extreme_cap = spawner.calculate_cap(&ctx_extreme);
+    assert_eq!(extreme_cap, 60, "Cap must never exceed hard cap of 60");
+
+    // Spawn rate multiplier advances timer faster
+    spawner.play_time = 100.0; // past start delay
+    spawner.spawn_timer = 1.0;
+    let _ = spawner.update(0.25, &ctx_boosted); // dt=0.25 with rate_mult=2.0 advances by 0.5
+    assert!((spawner.spawn_timer - 0.5).abs() < 1e-4);
+}
+
+#[test]
+fn screamer_and_crawler_special_behavior_tests() {
+    use game::zombie::{ZombieBrain, ZombieState};
+    let defs = ZombieDefs::load_default().expect("data/zombies.json must load");
+
+    // Crawler brain initializes as crawler
+    let crawler_def = defs.types.get("crawler").unwrap();
+    let crawler_brain = ZombieBrain::new(crawler_def, &defs.behaviour, Vec3::ZERO, 100);
+    assert!(crawler_brain.is_crawler(), "Crawler brain must initialize with crawler = true");
+
+    // Screamer brain initializes as screamer and screams on first seeing player
+    let screamer_def = defs.types.get("screamer").unwrap();
+    let screamer_brain = ZombieBrain::new(screamer_def, &defs.behaviour, Vec3::ZERO, 200);
+    assert!(screamer_brain.is_screamer(), "Screamer brain must initialize with is_screamer = true");
+    assert!(!screamer_brain.has_screamed());
+
+    // Other zombie alerted to chase
+    let walker_def = defs.types.get("walker").unwrap();
+    let mut bystander = ZombieBrain::new(walker_def, &defs.behaviour, Vec3::new(10.0, 0.0, 0.0), 300);
+    assert_eq!(bystander.state(), ZombieState::Idle);
+
+    bystander.alert_chase(Vec3::new(5.0, 0.0, 5.0));
+    assert_eq!(bystander.state(), ZombieState::Chase, "Bystander must switch to Chase on alert");
+    assert_eq!(bystander.last_seen(), Vec3::new(5.0, 0.0, 5.0));
+}
+
+#[test]
+fn director_horde_events_emitted() {
+    use game::director::*;
+    let cfg = DirectorConfig::load_default().expect("data/director.json must load");
+    let mut director = Director::new(cfg);
+
+    // Fast forward into Building and then Wave
+    let mut input = DirectorInput::new(41.0);
+    let out1 = director.update(&input);
+    assert!(out1.horde_events.is_empty());
+
+    input.dt = 26.0;
+    let out2 = director.update(&input);
+    assert!(out2.horde_events.iter().any(|e| matches!(e, HordeEvent::HordeIncoming { .. })));
 }
 
 #[test]

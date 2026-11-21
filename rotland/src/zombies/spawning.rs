@@ -49,10 +49,8 @@ impl Zombies {
     ) {
         let look_names: Vec<&str> = def.models.iter().map(String::as_str).collect();
         let pick = (self.rand() * look_names.len() as f32) as usize;
-        let look = ["zombie_01", "zombie_02", "zombie_03"]
-            .iter()
-            .position(|n| Some(n) == look_names.get(pick))
-            .unwrap_or(0);
+        let chosen_name = look_names.get(pick).copied().unwrap_or("zombie_01");
+        let look = self.looks.iter().position(|l| l.name == chosen_name).unwrap_or(0);
         let roll = self.rand();
         let gaits = &self.defs.behaviour.gaits;
         let gait = gaits
@@ -65,6 +63,12 @@ impl Zombies {
         self.next_id += 1;
         let tuning: &ZombieBehaviourDef = &self.defs.behaviour;
         let mut brain = ZombieBrain::new(def, tuning, at, id);
+        if kind == "crawler" {
+            brain.set_crawler(true);
+        }
+        if kind == "screamer" {
+            brain.set_screamer(true);
+        }
         if let Some(h) = horde {
             brain.set_horde(Some(h));
         }

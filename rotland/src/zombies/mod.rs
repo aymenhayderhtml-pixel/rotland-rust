@@ -40,16 +40,34 @@ pub struct Zombies {
     pub player_in_safe_zone: bool,
     /// Unreachable input: true when player is on a ladder or roof (Godot ZombieHideouts).
     pub player_unreachable: bool,
+    /// Active zombie hordes moving in formation.
+    pub hordes: game::horde::HordeSet,
+    /// Lifetime kills counter for director input.
+    pub total_kills: u64,
 }
 
 impl Zombies {
     pub fn new(device: &wgpu::Device, pack: &pack::ModelPack, defs: ZombieDefs) -> Self {
-        let looks = ["zombie_01", "zombie_02", "zombie_03"]
+        let mut look_names = Vec::new();
+        for def in defs.types.values() {
+            for m in &def.models {
+                if !look_names.contains(m) {
+                    look_names.push(m.clone());
+                }
+            }
+        }
+        for fallback in ["zombie_01", "zombie_02", "zombie_03"] {
+            if !look_names.iter().any(|n| n == fallback) {
+                look_names.push(fallback.to_string());
+            }
+        }
+        let looks = look_names
             .iter()
             .filter_map(|name| {
                 let m = pack.find(name)?;
                 let skel = m.skeleton.as_ref()?;
                 Some(Look {
+                    name: name.clone(),
                     mesh: engine::render::GpuMesh::new(device, name, &m.vertices),
                     rig: engine::anim::Rig::new(skel),
                     clips: m.clips.clone(),
@@ -79,6 +97,8 @@ impl Zombies {
             game_time: 0.0,
             player_in_safe_zone: false,
             player_unreachable: false,
+            hordes: game::horde::HordeSet::new(),
+            total_kills: 0,
         }
     }
 
@@ -118,6 +138,17 @@ impl Zombies {
             self.flow_timer = FLOW_EVERY;
         }
 
+        // 0. Update active hordes
+        self.hordes.remove_dead_with(|id| {
+            self.list.iter().any(|z| z.id == id && !z.health.is_dead())
+        });
+        for horde in self.hordes.hordes_mut() {
+            if let Some(leader) = self.list.iter().find(|z| z.id == horde.leader && !z.health.is_dead()) {
+                horde.set_leader_pos(leader.position);
+            }
+        }
+        self.hordes.merge_meeting(self.defs.behaviour.horde_spacing * 4.0);
+
         // 1. Rebuild spatial grid of active zombies once per frame into reused buffer
         self.spatial_grid.clear();
         for z in &self.list {
@@ -138,6 +169,7 @@ impl Zombies {
         );
 
         let mut nearby_buf = std::mem::take(&mut self.nearby_buf);
+        let mut screamer_calls = Vec::new();
 
         for z in &mut self.list {
             let dead = z.health.is_dead();
@@ -164,6 +196,12 @@ impl Zombies {
 
                 let took_hit = z.pending_hit.take();
                 let is_leg_hit = took_hit.as_ref().is_some_and(|h| h.leg_hit);
+
+                // Compute horde steering if member of a horde
+                let horde_steer = self.hordes.hordes().iter()
+                    .find(|h| h.contains(z.id))
+                    .map(|h| h.steer_member(z.id, z.position, |pos| self.flow.direction(pos)));
+                z.brain.set_horde_steer(horde_steer);
 
                 let input = BrainInput {
                     position: z.position,
@@ -195,6 +233,10 @@ impl Zombies {
                     radius: self.defs.behaviour.scream_alert_radius,
                 });
                 frame.screams.push(z.position);
+                if z.kind == "screamer" || z.brain.is_screamer() {
+                    let call_target = effective_player.unwrap_or(z.position);
+                    screamer_calls.push((call_target, z.position, 60.0));
+                }
             }
 
             let walk = if dead {
@@ -227,6 +269,15 @@ impl Zombies {
             z.anim_time += dt;
             if dead {
                 z.dead_for += dt;
+            }
+        }
+
+        for (target_spot, screamer_pos, radius) in screamer_calls {
+            let rad_sq = radius * radius;
+            for other in &mut self.list {
+                if !other.health.is_dead() && (other.position - screamer_pos).length_squared() <= rad_sq {
+                    other.brain.alert_chase(target_spot);
+                }
             }
         }
 
