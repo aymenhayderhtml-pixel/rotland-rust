@@ -6,6 +6,7 @@ use engine::egui::{self, pos2, vec2, Color32, FontId, Key, Pos2, Rect, Sense};
 use glam::Vec2;
 
 use super::action::MapAction;
+use super::draw_city::draw_city_and_road;
 use super::draw_icons::{
     draw_bounty_icon, draw_building_icon, draw_camp_icon, draw_death_icon, draw_player_icon,
     draw_waypoint_icon,
@@ -133,6 +134,9 @@ pub fn draw_map(
                 Color32::WHITE,
             );
         }
+
+        // Draw city streets, camp road, blocked street marks, and city/district labels
+        draw_city_and_road(&painter, state, view, rect, view_size);
 
         let to_screen_pos = |world: Vec2| -> Pos2 {
             let s = game::world_to_screen(world, state.centre, state.scale(), view_size);

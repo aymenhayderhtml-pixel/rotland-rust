@@ -1,6 +1,7 @@
 //! Map, compass markers, and exploration system (port of scripts/UI/ and scripts/World/ map logic).
 
 mod buildings;
+mod city;
 mod compass;
 mod explore;
 mod icons;
@@ -12,6 +13,12 @@ mod state;
 mod tiles;
 
 pub use buildings::*;
+pub use city::{
+    CITY_BLOCKED_COLOR, CITY_ROAD_COLOR, CITY_STREET_COLOR, CITY_STREET_MIN_PX, city_center,
+    district_center, explored_segment_spans, is_city_center_revealed, is_district_revealed,
+    is_road_discovered, is_segment_any_explored, is_segment_explored, map_visible_world_bounds,
+    segment_in_bounds,
+};
 pub use compass::{
     HALF_VIEW_DEG, bearing_to_view_deg, direction_name, marker_x, relative_angle_deg,
 };
