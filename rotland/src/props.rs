@@ -19,6 +19,8 @@ const GROUND: f32 = 35.0;
 const PROP: f32 = 120.0;
 /// Buildings stay visible to the fog line.
 const BUILDING: f32 = 220.0;
+/// Buildings switch to their simple model here (was the bush distance, 28 m, which popped up close).
+const BUILDING_LOD1: f32 = 70.0;
 
 pub struct PropModel {
     /// Full detail, then the simpler versions (if the model has them).
@@ -139,6 +141,7 @@ fn load_model(device: &wgpu::Device, pack: &pack::ModelPack, id: &str, building:
     let range = if building { BUILDING } else { range_for(id) };
     let ends = match lods.len() {
         3 => vec![TREE_LOD1, TREE_LOD2, range],
+        2 if building => vec![BUILDING_LOD1, range],
         2 => vec![BUSH_LOD1, range],
         _ => vec![range],
     };

@@ -125,7 +125,8 @@ pub fn place_street_props(
             let offset = side * (seg.width * 0.5 - LAMP_SIDEWALK_INSET);
             let p = seg.a + dir * t + perp * offset;
             if in_chunk(p, coord) {
-                let facing = if side > 0.0 { -perp } else { perp };
+                // The lamp model's arm points along its back, so turn it around to hang over the street
+                let facing = if side > 0.0 { perp } else { -perp };
                 let yaw = dir_yaw(facing);
                 let y = generator.height(p.x, p.y);
                 candidates.push(PropInstance::new("street_lamp", Vec3::new(p.x, y, p.y), yaw, 1.0));
@@ -199,7 +200,8 @@ pub fn place_street_props(
                 let offset = side * (seg.width * 0.5 - SIDEWALK_WIDTH * 0.5);
                 let p = seg.a + dir * t + perp * offset;
                 if in_chunk(p, coord) {
-                    let facing = if side > 0.0 { -perp } else { perp };
+                    // The shelter model opens to its back side: turn it around so the bench faces the road
+                    let facing = if side > 0.0 { perp } else { -perp };
                     let yaw = dir_yaw(facing);
                     let y = generator.height(p.x, p.y);
                     candidates.push(PropInstance::new("bus_stop", Vec3::new(p.x, y, p.y), yaw, 1.0));
