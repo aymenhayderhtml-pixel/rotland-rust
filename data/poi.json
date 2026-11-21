@@ -9,6 +9,14 @@
     { "id": "house_small", "lot": [9, 7], "biome": { "plains": 1.0 }, "chancePerChunk": 0.5, "minFlatness": 0.97, "minDistanceFromSpawn": 60, "lootTable": "house", "zombies": [1, 2] },
     { "id": "barn", "lot": [12, 8], "biome": { "plains": 1.0 }, "chancePerChunk": 0.4, "minFlatness": 0.98, "minDistanceFromSpawn": 80, "lootTable": "barn", "zombies": [1, 2] },
     { "id": "watchtower", "lot": [3, 3], "biome": { "plains": 1.0 }, "chancePerChunk": 0.3, "minFlatness": 0.97, "minDistanceFromSpawn": 60, "lootTable": "cabin", "zombies": [1, 1] },
-    { "id": "gas_station", "lot": [10, 8], "biome": { "plains": 1.0 }, "chancePerChunk": 0.35, "minFlatness": 0.98, "minDistanceFromSpawn": 80, "lootTable": "gas_station", "zombies": [1, 2] }
+    { "id": "gas_station", "lot": [10, 8], "biome": { "plains": 1.0 }, "chancePerChunk": 0.35, "minFlatness": 0.98, "minDistanceFromSpawn": 80, "lootTable": "gas_station", "zombies": [1, 2] },
+    { "id": "apartment", "lot": [20, 14], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "apartment", "zombies": [1, 3] },
+    { "id": "shop", "lot": [18, 10], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "shop", "zombies": [1, 3] },
+    { "id": "office", "lot": [18, 18], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "office", "zombies": [1, 3] },
+    { "id": "pharmacy", "lot": [12, 10], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "pharmacy", "zombies": [1, 3] },
+    { "id": "police", "lot": [24, 18], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "police", "zombies": [3, 5] },
+    { "id": "hospital", "lot": [30, 22], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "hospital", "zombies": [3, 5] },
+    { "id": "warehouse", "lot": [26, 16], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "warehouse", "zombies": [1, 3] },
+    { "id": "ruin", "lot": [16, 12], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "ruin", "zombies": [1, 3] }
   ]
 }
