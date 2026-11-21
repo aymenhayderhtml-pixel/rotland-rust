@@ -1,0 +1,65 @@
+{
+  "states": {
+    "calm": {
+      "durationDay": 40.0,
+      "durationNight": 20.0,
+      "durationCity": 15.0,
+      "spawnRateMultiplier": 0.5,
+      "maxActiveMultiplier": 0.8,
+      "specialChance": 0.0
+    },
+    "building": {
+      "durationDay": 25.0,
+      "durationNight": 15.0,
+      "durationCity": 12.0,
+      "spawnRateMultiplier": 1.2,
+      "maxActiveMultiplier": 1.1,
+      "specialChance": 0.1
+    },
+    "wave": {
+      "durationDay": 20.0,
+      "durationNight": 20.0,
+      "durationCity": 25.0,
+      "spawnRateMultiplier": 2.0,
+      "maxActiveMultiplier": 1.5,
+      "specialChance": 0.25
+    },
+    "relax": {
+      "durationDay": 25.0,
+      "durationNight": 15.0,
+      "durationCity": 15.0,
+      "spawnRateMultiplier": 0.3,
+      "maxActiveMultiplier": 0.6,
+      "specialChance": 0.05
+    }
+  },
+  "rules": {
+    "lowHealthThreshold": 0.3,
+    "nightHordeDelay": 30.0,
+    "nightHordeSize": 20,
+    "waveSizeDay": 6,
+    "waveSizeNight": 10,
+    "waveSizeCity": 14,
+    "waveSizeNoise": 8
+  },
+  "specialZombies": {
+    "brute": {
+      "structureDamage": 50.0
+    },
+    "screamer": {
+      "callRadius": 60.0
+    },
+    "crawler": {
+      "hitboxScale": 0.5
+    }
+  },
+  "horde": {
+    "speed": 2.2,
+    "spacing": 1.5,
+    "maxDistance": 12.0,
+    "mergeDistance": 6.0,
+    "cohesionWeight": 1.0,
+    "separationWeight": 1.5,
+    "alignmentWeight": 1.2
+  }
+}
