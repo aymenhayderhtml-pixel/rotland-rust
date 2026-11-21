@@ -350,6 +350,16 @@ pub fn render_frame(
         &shadow,
         &render.bones,
     );
+    crate::water_view::draw(
+        gpu,
+        target,
+        encoder,
+        &render.camera,
+        &lighting,
+        session.time,
+        world,
+        actors.player,
+    );
     drop((main, shadow, items));
     if let (Some(bench), Some(r)) = (session.bench.as_mut(), render.renderer.as_ref()) {
         bench.step_frame(session.last_dt, &r.last, &mut session.quit);

@@ -28,6 +28,7 @@ pub struct EngineArgs {
     pub height: u32,
     pub scale: f32,
     pub vsync: bool,
+    pub water_test: bool,
     /// Every argument, so the game can read its own options.
     pub all: Vec<String>,
 }
@@ -51,6 +52,7 @@ impl EngineArgs {
             height: 1080,
             scale: 1.0,
             vsync: false,
+            water_test: false,
             all: all.clone(),
         };
         for arg in &all {
@@ -66,6 +68,7 @@ impl EngineArgs {
                 "--spikes" => a.spikes = Some(value.into()),
                 "--scale" => a.scale = value.parse::<f32>().unwrap_or(1.0).clamp(0.5, 1.0),
                 "--vsync" => a.vsync = true,
+                "--water-test" => a.water_test = true,
                 "--size" => {
                     if let Some((w, h)) = value.split_once('x') {
                         a.width = w.parse().unwrap_or(a.width);
@@ -101,6 +104,7 @@ mod tests {
             "--scene=forest".into(),
             "--scale=0.3".into(),
             "--bench=out/bench.json".into(),
+            "--water-test".into(),
         ]);
         assert_eq!(a.shot, Some("out/a.png".into()));
         assert_eq!(a.bench, Some("out/bench.json".into()));
@@ -108,5 +112,6 @@ mod tests {
         assert_eq!(a.scale, 0.5);
         assert_eq!(a.value("--scene"), Some("forest"));
         assert!(!a.vsync);
+        assert!(a.water_test);
     }
 }
