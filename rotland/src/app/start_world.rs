@@ -68,6 +68,12 @@ pub fn start_world(
             std::process::exit(1);
         }
     };
+    if let Some(city) = world_gen.city() {
+        log::info!("city core at {:?}", city.origin + glam::Vec2::splat(city.size * 0.5));
+    }
+    if let Some(lake) = world_gen.lake() {
+        log::info!("lake center at {:?}, first dock at {:?}", lake.center, lake.docks.first().map(|d| d.start));
+    }
     let config = world_gen.config().clone();
     let camp = world_gen.settlements()[0].clone();
     let spawn = camp.respawn_point(&config);

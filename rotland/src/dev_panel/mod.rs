@@ -196,15 +196,22 @@ fn all_item_ids() -> &'static [String] {
     })
 }
 
-/// The city core, the street where the camp road enters, and the middle of the camp road.
+/// The city core, the street where the camp road enters, the middle of the camp road, and the lake shore.
 fn city_spots(world: &WorldState) -> Vec<(&'static str, Vec3)> {
-    let Some(city) = world.world_gen.as_ref().and_then(|g| g.city()) else { return Vec::new() };
+    let Some(generator) = world.world_gen.as_ref() else { return Vec::new() };
+    let mut extra = Vec::new();
+    if let Some(lake) = generator.lake() {
+        // The first dock starts on the beach: a dry spot looking over the water
+        let shore = lake.docks.first().map_or(lake.center, |d| d.start);
+        extra.push(("Lake", Vec3::new(shore.x, 0.0, shore.y)));
+    }
+    let Some(city) = generator.city() else { return extra };
     let core = city.origin + glam::Vec2::splat(city.size * 0.5);
     let mut spots = vec![("City core", core), ("City entry", city.entry)];
     if let (Some(a), Some(b)) = (city.road.first(), city.road.last()) {
         spots.push(("Camp road", (*a + *b) * 0.5));
     }
-    spots.into_iter().map(|(label, p)| (label, Vec3::new(p.x, 0.0, p.y))).collect()
+    spots.into_iter().map(|(label, p)| (label, Vec3::new(p.x, 0.0, p.y))).chain(extra).collect()
 }
 
 fn camp_spawn_pos(world: &WorldState) -> Option<Vec3> {
