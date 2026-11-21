@@ -339,4 +339,37 @@ mod tests {
     fn test_lod_fade_empty_ends() {
         assert!(lod_fade(10.0, &[], FADE).is_empty());
     }
+
+    #[test]
+    fn test_lod_batch_splitting() {
+        use engine::render::{split_batches, split_instances};
+
+        let dummy = std::mem::MaybeUninit::<GpuMesh>::uninit();
+        let mesh_ptr: &'static GpuMesh = unsafe { &*dummy.as_ptr() };
+
+        let s1 = SkinInstance::new(Mat4::IDENTITY, 0);
+        let s2 = SkinInstance::with_fade(Mat4::IDENTITY, 0, 1.0, false);
+        let f1 = SkinInstance::with_fade(Mat4::IDENTITY, 0, 0.7, false);
+        let f2 = SkinInstance::with_fade(Mat4::IDENTITY, 0, 0.3, true);
+
+        assert!(!s1.is_fading());
+        assert!(!s2.is_fading());
+        assert!(f1.is_fading());
+        assert!(f2.is_fading());
+
+        let (normal, fading) = split_instances(&[s1, f1, s2, f2]);
+        assert_eq!(normal.len(), 2);
+        assert_eq!(fading.len(), 2);
+        assert_eq!(normal[0].fade(), (1.0, false));
+        assert_eq!(normal[1].fade(), (1.0, false));
+        assert_eq!(fading[0].fade(), (0.7, false));
+        assert_eq!(fading[1].fade(), (0.3, true));
+
+        let batch = SkinnedBatch { mesh: mesh_ptr, instances: vec![s1, f1, s2, f2] };
+        let (n_batches, f_batches) = split_batches(&[batch]);
+        assert_eq!(n_batches.len(), 1);
+        assert_eq!(f_batches.len(), 1);
+        assert_eq!(n_batches[0].instances.len(), 2);
+        assert_eq!(f_batches[0].instances.len(), 2);
+    }
 }

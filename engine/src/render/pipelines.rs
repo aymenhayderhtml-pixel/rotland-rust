@@ -19,6 +19,7 @@ pub struct Pipelines {
     pub sky: wgpu::RenderPipeline,
     pub mesh: wgpu::RenderPipeline,
     pub skinned: wgpu::RenderPipeline,
+    pub skinned_fade: wgpu::RenderPipeline,
     pub shadow_mesh: wgpu::RenderPipeline,
     pub shadow_skinned: wgpu::RenderPipeline,
 }
@@ -124,6 +125,7 @@ impl Pipelines {
             sky: make("sky", &sky_layout, vertex("sky_vs", &[]), Default::default(), main_depth(false), fragment("sky_fs")),
             mesh: make("mesh", &mesh_layout, vertex("mesh_vs", &mesh_buffers), culled_cw, main_depth(true), fragment("mesh_fs")),
             skinned: make("skinned", &skinned_layout, vertex("skinned_vs", &skin_buffers), culled_ccw, main_depth(true), fragment("mesh_fs")),
+            skinned_fade: make("skinned fade", &skinned_layout, vertex("skinned_vs", &skin_buffers), culled_ccw, main_depth(true), fragment("mesh_fs_fade")),
             // Shadows drawn double-sided: thin parts (leaves, cloth) must cast from both sides
             shadow_mesh: make("shadow mesh", &shadow_mesh_layout, vertex("shadow_mesh_vs", &mesh_buffers), Default::default(), shadow_depth.clone(), None),
             shadow_skinned: make("shadow skinned", &shadow_skinned_layout, vertex("shadow_skinned_vs", &skin_buffers), Default::default(), shadow_depth, None),

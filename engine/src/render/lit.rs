@@ -6,7 +6,7 @@ use super::frustum::Frustum;
 use super::mesh::GpuMesh;
 use super::pipelines::{Layouts, Pipelines};
 use super::shadow::{light_view_proj, ShadowMap, ShadowSettings};
-use super::skinned::{GrowBuffer, SkinInstance, SkinnedBatch};
+use super::skinned::{split_batches, GrowBuffer, SkinInstance, SkinnedBatch};
 use crate::gpu::Gpu;
 use crate::target::FrameTarget;
 
@@ -227,9 +227,16 @@ impl LitRenderer {
         if self.bones.write(&gpu.device, &gpu.queue, bytemuck::cast_slice(bones)) {
             self.bones_bind = Self::bones_bind(&gpu.device, &self.layouts.bones, &self.bones.buffer);
         }
-        let main_count: u32 = instanced.iter().map(|b| b.instances.len() as u32).sum();
-        let all_instances: Vec<SkinInstance> =
-            instanced.iter().chain(shadow_instanced.iter()).flat_map(|b| b.instances.iter().copied()).collect();
+        let (normal_batches, fade_batches) = split_batches(instanced);
+        let normal_count: u32 = normal_batches.iter().map(|b| b.instances.len() as u32).sum();
+        let fade_count: u32 = fade_batches.iter().map(|b| b.instances.len() as u32).sum();
+        let main_count = normal_count + fade_count;
+        let all_instances: Vec<SkinInstance> = normal_batches
+            .iter()
+            .chain(fade_batches.iter())
+            .chain(shadow_instanced.iter())
+            .flat_map(|b| b.instances.iter().copied())
+            .collect();
         self.instances.write(&gpu.device, &gpu.queue, bytemuck::cast_slice(&all_instances));
 
         let mut counts = FrameCounts::default();
@@ -248,10 +255,10 @@ impl LitRenderer {
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
-            let (d, t) =
-                self.record(&mut pass, items, &visible, shadow_instanced, main_count, &self.pipes.shadow_mesh, &self.pipes.shadow_skinned, &self.scene_shadow_bind);
-            counts.shadow_draws = d;
-            counts.shadow_triangles = t;
+            let (d0, t0) = self.record_items(&mut pass, items, &visible, &self.pipes.shadow_mesh, &self.scene_shadow_bind);
+            let (d1, t1) = self.record_skinned(&mut pass, shadow_instanced, main_count, &self.pipes.shadow_skinned, &self.scene_shadow_bind);
+            counts.shadow_draws = d0 + d1;
+            counts.shadow_triangles = t0 + t1;
         }
 
         let frustum = Frustum::from_view_proj(&view_proj);
@@ -274,28 +281,26 @@ impl LitRenderer {
             occlusion_query_set: None,
             multiview_mask: None,
         });
-        let (d, t) = self.record(&mut pass, items, &visible, instanced, 0, &self.pipes.mesh, &self.pipes.skinned, &self.scene_bind);
+        let (d0, t0) = self.record_items(&mut pass, items, &visible, &self.pipes.mesh, &self.scene_bind);
+        let (d1, t1) = self.record_skinned(&mut pass, &normal_batches, 0, &self.pipes.skinned, &self.scene_bind);
+        let (d2, t2) = self.record_skinned(&mut pass, &fade_batches, normal_count, &self.pipes.skinned_fade, &self.scene_bind);
         // Sky last: it only fills pixels nothing else covered
         pass.set_pipeline(&self.pipes.sky);
         pass.set_bind_group(0, &self.scene_bind, &[]);
         pass.draw(0..3, 0..1);
-        counts.draws = d + 1;
-        counts.triangles = t;
+        counts.draws = d0 + d1 + d2 + 1;
+        counts.triangles = t0 + t1 + t2;
         self.last = counts;
         crate::timing::record_phase("render", t_draw_start.elapsed().as_secs_f64() * 1000.0);
     }
 
-    /// Records static items then instanced batches into a pass. Returns (draw calls, triangles).
-    #[allow(clippy::too_many_arguments)]
-    fn record(
+    /// Records static items into a pass. Returns (draw calls, triangles).
+    fn record_items(
         &self,
         pass: &mut wgpu::RenderPass,
         items: &[DrawItem],
         visible: &[usize],
-        skinned: &[SkinnedBatch],
-        first_instance: u32,
         mesh_pipe: &wgpu::RenderPipeline,
-        skin_pipe: &wgpu::RenderPipeline,
         scene: &wgpu::BindGroup,
     ) -> (u32, u64) {
         let (mut draws, mut triangles) = (0u32, 0u64);
@@ -309,6 +314,19 @@ impl LitRenderer {
             draws += 1;
             triangles += d.mesh.vertex_count as u64 / 3;
         }
+        (draws, triangles)
+    }
+
+    /// Records instanced batches into a pass. Returns (draw calls, triangles).
+    fn record_skinned(
+        &self,
+        pass: &mut wgpu::RenderPass,
+        skinned: &[SkinnedBatch],
+        first_instance: u32,
+        skin_pipe: &wgpu::RenderPipeline,
+        scene: &wgpu::BindGroup,
+    ) -> (u32, u64) {
+        let (mut draws, mut triangles) = (0u32, 0u64);
         if skinned.iter().any(|b| !b.instances.is_empty()) {
             pass.set_pipeline(skin_pipe);
             pass.set_bind_group(0, scene, &[]);

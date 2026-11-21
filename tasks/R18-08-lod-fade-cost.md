@@ -12,4 +12,26 @@ R16-07 put a `discard` (screen-door dither) into the main lit fragment shader th
 Claude measures FPS before/after at the city core with a quiet laptop.
 
 ## Worker notes
+- Files changed:
+  - `engine/src/render/lit.wgsl`: Extracted lighting logic into `shade_fragment(i: VsOut) -> vec4<f32>`. Split fragment stage into `mesh_fs` (NO discard, preserves early-Z) and `mesh_fs_fade` (dither discard using 4x4 Bayer matrix for fading instances).
+  - `engine/src/render/pipelines.rs`: Added `skinned_fade` pipeline to `Pipelines` using `mesh_fs_fade`.
+  - `engine/src/render/skinned.rs`: Added `SkinInstance::is_fading` and pure batch-splitting helpers `split_instances` and `split_batches`. Added unit tests for fade detection, instance splitting, and batch splitting.
+  - `engine/src/render/mod.rs`: Re-exported `split_batches` and `split_instances`.
+  - `engine/src/render/lit.rs`: Updated `LitRenderer::draw` to split instanced batches via `split_batches`, packing instances contiguously into the instance buffer, drawing solid instances with `pipes.skinned` and fading instances with `pipes.skinned_fade`. Factored draw recording into `record_items` and `record_skinned`.
+  - `rotland/src/props.rs`: Added unit test `test_lod_batch_splitting` verifying instance classification and batch splitting.
+- How to test:
+  - `tools/gate.sh --task tasks/R18-08-lod-fade-cost.md` (10 tests pass, filter `lod`).
+- Wiring notes for Claude:
+  - None needed. `LitRenderer::draw` and `PropLibrary::batches` preserved their exact public signatures, so `render_frame.rs` and examples work unchanged.
+- Known issues:
+  - None.
 
+## Gate report
+- date: 2026-11-21
+- base: main
+- files changed (7): engine/src/render/lit.rs, engine/src/render/lit.wgsl, engine/src/render/mod.rs, engine/src/render/pipelines.rs, engine/src/render/skinned.rs, rotland/src/props.rs, tasks/R18-08-lod-fade-cost.md
+- tests passed: 10
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS
