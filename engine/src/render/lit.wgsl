@@ -140,6 +140,7 @@ struct VsOut {
     @location(2) albedo: vec3<f32>,
     // Self-lit amount (flames): a vertex alpha below 1 glows by (1 - alpha); every baked model has alpha 1
     @location(3) glow: f32,
+    @location(4) @interpolate(flat) lod_fade: f32,
 };
 
 // Per-draw offset (chunk origin), so chunk meshes keep small local coordinates
@@ -155,11 +156,33 @@ fn mesh_vs(v: VsIn) -> VsOut {
     o.normal = v.normal;
     o.albedo = srgb_to_linear(v.color.rgb);
     o.glow = 1.0 - v.color.a;
+    o.lod_fade = 1.0;
     return o;
 }
 
 @fragment
 fn mesh_fs(i: VsOut) -> @location(0) vec4<f32> {
+    let fade_bits = bitcast<u32>(i.lod_fade);
+    let is_complementary = (fade_bits & 0x80000000u) != 0u;
+    let fade = abs(i.lod_fade);
+    if (fade < 1.0 || is_complementary) {
+        let bayer = array<f32, 16>(
+            0.0,  8.0,  2.0, 10.0,
+           12.0,  4.0, 14.0,  6.0,
+            3.0, 11.0,  1.0,  9.0,
+           15.0,  7.0, 13.0,  5.0,
+        );
+        let x = u32(i.pos.x) % 4u;
+        let y = u32(i.pos.y) % 4u;
+        let threshold = (bayer[y * 4u + x] + 0.5) / 16.0;
+        if (!is_complementary && fade <= threshold) {
+            discard;
+        }
+        if (is_complementary && fade < 1.0 - threshold) {
+            discard;
+        }
+    }
+
     let n = normalize(i.normal);
     let dist = distance(i.world, scene.camera_pos.xyz);
     let ndl = max(dot(n, scene.sun_dir.xyz), 0.0);
@@ -193,6 +216,7 @@ struct SkinIn {
     @location(6) m2: vec4<f32>,
     @location(7) m3: vec4<f32>,
     @location(8) bone_base: u32,
+    @location(9) lod_fade: f32,
 };
 
 @vertex
@@ -206,6 +230,7 @@ fn skinned_vs(v: SkinIn) -> VsOut {
     o.normal = (skin * vec4(v.normal, 0.0)).xyz;
     o.albedo = srgb_to_linear(v.color.rgb);
     o.glow = 1.0 - v.color.a;
+    o.lod_fade = v.lod_fade;
     return o;
 }
 
