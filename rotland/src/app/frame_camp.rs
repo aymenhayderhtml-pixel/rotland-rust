@@ -94,10 +94,11 @@ pub fn update_camp_and_stats(
             play.hint_ctx.is_menu_open = menu_open;
             play.hint_ctx.is_dead = !alive;
             if let Some(g) = world.world_gen.as_ref() {
+                let safe_bonus = play_state.camp.effects().safe_zone_half_bonus;
                 hints.on_safe_zone_changed(
                     g.settlements()
                         .iter()
-                        .any(|s| s.contains(at, 0.0, g.config())),
+                        .any(|s| s.contains(at, safe_bonus, g.config())),
                 );
             }
             if play_state.picked_up {
@@ -132,6 +133,16 @@ pub fn update_camp_and_stats(
             }
         }
         play_state.camp.tick(play.clock.day, play.hour);
+        if let Some((line, lvl)) = play_state.camp.tick_upgrades(play.elapsed_hours) {
+            let name = play_state.camp.upgrade_name(line, lvl);
+            ui.hud.notify(format!("Upgrade finished: {name}"), crate::hud::NotificationKind::Info);
+        }
+        if let Some(g) = actors.camp_guards.as_mut() {
+            let eff = play_state.camp.effects();
+            g.config.guard_damage = eff.guard_damage;
+            g.config.guard_range = eff.guard_range;
+            g.config.guard_fire_interval = eff.guard_fire_interval;
+        }
 
         // XP gains show as toasts, level-ups as a banner (Godot XpToastStack / LevelUpBanner)
         let overlays = ui

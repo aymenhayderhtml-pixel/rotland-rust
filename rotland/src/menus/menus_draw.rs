@@ -9,7 +9,7 @@ use super::{MenuAction, Menus, Screen, SlotSummary};
 mod menus_draw_settings;
 mod menus_draw_slots;
 #[path = "theme.rs"]
-mod theme;
+pub mod theme;
 
 #[cfg(test)]
 pub use menus_draw_slots::{format_play_time, format_saved_at};

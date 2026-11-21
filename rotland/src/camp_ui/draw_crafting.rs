@@ -9,6 +9,10 @@ use super::action::CampAction;
 use super::state::CampUiState;
 use super::view::CampView;
 
+fn recipe_tier(_recipe: &game::RecipeDef) -> u8 {
+    0 // data: recipes.json (default tier 0)
+}
+
 /// Draws the Crafting screen: recipe list, ingredient status, and active craft progress bar.
 pub fn draw_crafting(ui: &mut egui::Ui, _state: &mut CampUiState, view: &CampView) -> Option<CampAction> {
     let mut action = None;
@@ -33,6 +37,9 @@ pub fn draw_crafting(ui: &mut egui::Ui, _state: &mut CampUiState, view: &CampVie
         .show(ui, |ui| {
             if let (Some(registry), Some(inv)) = (view.recipe_registry, view.inventory) {
                 for recipe in registry.all() {
+                    if recipe_tier(recipe) > view.recipe_tier {
+                        continue;
+                    }
                     let station_ready = recipe.station == HAND_STATION || view.near_lit_campfire;
                     let can_craft = view.crafting.is_some_and(|c| {
                         c.can_craft(

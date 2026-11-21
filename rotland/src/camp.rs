@@ -9,6 +9,7 @@ use glam::Vec3;
 const BED_REACH: f32 = 2.5;
 
 use crate::camp_ui::CampAction;
+use game::camp_upgrades::{CampEffects, CampUpgradeState, CampUpgradesConfig, UpgradeLine};
 use game::{FarmManager, FarmRules, Bank, BountyManager, CancelReason, CraftUpdate, CraftingSystem, RecipeRegistry, DeathRule, DifficultyConfigData, DifficultySettings, EconomyConfigData, Inventory, ItemRegistry, SkillSystem, TraderStock, Wallet};
 
 pub struct Camp {
@@ -28,6 +29,9 @@ pub struct Camp {
     pub campfires: game::CampfireManager,
     /// Settlements visited and respawn camp tracking (Godot: SettlementWatcher).
     pub settlements: game::SettlementWatcher,
+    /// Camp upgrade progression (walls, guards, workshop, traders).
+    pub upgrades: CampUpgradeState,
+    pub upgrades_config: CampUpgradesConfig,
     /// Where the player stands (set each frame): campfire recipes need a lit fire near.
     pub player_at: Vec3,
 }
@@ -36,6 +40,7 @@ impl Camp {
     pub fn new(seed: i32, items: Arc<ItemRegistry>) -> Result<Self, String> {
         let economy = EconomyConfigData::from_repo().map_err(|e| format!("data/economy.json: {e:?}"))?;
         let difficulty_config = DifficultyConfigData::from_repo().map_err(|e| format!("data/difficulty.json: {e}"))?;
+        let upgrades_config = CampUpgradesConfig::load_default().map_err(|e| format!("data/camp_upgrades.json: {e}"))?;
         Ok(Self {
             wallet: Wallet::new(economy.start_dollars),
             bank: Bank::with_slots_and_registry(economy.bank_slots, items),
@@ -48,6 +53,8 @@ impl Camp {
             farm: FarmManager::from_repo().map_err(|e| format!("data/farming.json: {e:?}"))?,
             campfires: game::CampfireManager::new(),
             settlements: game::SettlementWatcher::new(),
+            upgrades: CampUpgradeState::default(),
+            upgrades_config,
             player_at: Vec3::ZERO,
             difficulty_config,
             economy,
@@ -119,6 +126,32 @@ impl Camp {
                 Err(e) => format!("Not done yet: {e:?}"),
             }),
             CampAction::Abandon { bounty } => self.bounties.abandon(&bounty).then(|| "Bounty dropped".into()),
+            CampAction::StartUpgrade(line) => {
+                match game::camp_upgrades::can_start(&self.upgrades, &self.upgrades_config, line, self.wallet.dollars(), |id, count| bag.has(id, count)) {
+                    Ok(cost) => {
+                        self.wallet.try_spend(cost.cash);
+                        for mat in &cost.materials {
+                            bag.remove(&mat.item_id, mat.count);
+                        }
+                        game::camp_upgrades::start(&mut self.upgrades, &self.upgrades_config, line);
+                        Some(format!("Started upgrade: {}", line.as_str()))
+                    }
+                    Err(e) => Some(format!("Cannot start: {e}")),
+                }
+            }
+            CampAction::CancelUpgrade => {
+                if let Some(refund) = game::camp_upgrades::cancel(&mut self.upgrades, &self.upgrades_config) {
+                    self.wallet.add(refund.cash);
+                    for mat in &refund.materials {
+                        bag.add(&mat.item_id, mat.count);
+                    }
+                    Some(format!("Upgrade cancelled (refunded ${})", refund.cash))
+                } else {
+                    Some("No upgrade in progress".into())
+                }
+            }
+            CampAction::DoctorHeal => None,
+            CampAction::MechanicRepair => None,
             CampAction::Close => None,
         }
     }
@@ -215,6 +248,7 @@ impl Camp {
         sys.settlements = Some(save::SettlementsSaveData {
             visited,
             respawn: self.settlements.respawn_id().map(|s| s.to_string()),
+            camp_upgrades: self.upgrades_to_save(),
         });
     }
 
@@ -259,6 +293,7 @@ impl Camp {
             warnings.push("Bounty data was damaged and was reset".to_string());
         }
         if let Some(st) = &sys.settlements {
+            self.load_upgrades_from_save(&st.camp_upgrades);
             if let Ok(v) = serde_json::to_value(st) {
                 self.settlements.from_save(&v);
             }
@@ -266,6 +301,170 @@ impl Camp {
             self.settlements.from_save(v);
         }
         warnings
+    }
+
+    pub fn effects(&self) -> CampEffects {
+        self.upgrades_config.effects(&self.upgrades)
+    }
+
+    pub fn camp_effects(&self) -> CampEffects {
+        self.effects()
+    }
+
+    pub fn tick_upgrades(&mut self, game_hours: f32) -> Option<(UpgradeLine, u8)> {
+        game::camp_upgrades::tick(&mut self.upgrades, &self.upgrades_config, game_hours)
+    }
+
+    pub fn upgrade_name(&self, line: UpgradeLine, level: u8) -> String {
+        match line {
+            UpgradeLine::Walls => self.upgrades_config.walls.get(level as usize).map_or_else(|| "Walls".into(), |d| d.name.clone()),
+            UpgradeLine::Guards => self.upgrades_config.guards.get(level as usize).map_or_else(|| "Guards".into(), |d| d.name.clone()),
+            UpgradeLine::Workshop => self.upgrades_config.workshop.get(level as usize).map_or_else(|| "Workshop".into(), |d| d.name.clone()),
+            UpgradeLine::Traders => self.upgrades_config.traders.get(level as usize).map_or_else(|| "Traders".into(), |d| d.name.clone()),
+        }
+    }
+
+    pub fn upgrades_to_save(&self) -> save::CampUpgradesSaveData {
+        save::CampUpgradesSaveData {
+            walls_level: self.upgrades.walls_level,
+            guards_level: self.upgrades.guards_level,
+            workshop_level: self.upgrades.workshop_level,
+            traders_level: self.upgrades.traders_level,
+            in_progress: self.upgrades.in_progress.as_ref().map(|p| save::UpgradeInProgressSaveData {
+                line: p.line.as_str().to_string(),
+                target_level: p.target_level,
+                hours_left: p.hours_left,
+            }),
+            wall_hp: self.upgrades.wall_hp,
+        }
+    }
+
+    pub fn load_upgrades_from_save(&mut self, data: &save::CampUpgradesSaveData) {
+        self.upgrades.walls_level = data.walls_level;
+        self.upgrades.guards_level = data.guards_level;
+        self.upgrades.workshop_level = data.workshop_level;
+        self.upgrades.traders_level = data.traders_level;
+        self.upgrades.wall_hp = data.wall_hp;
+        self.upgrades.in_progress = data.in_progress.as_ref().and_then(|p| {
+            let line = match p.line.as_str() {
+                "walls" => UpgradeLine::Walls,
+                "guards" => UpgradeLine::Guards,
+                "workshop" => UpgradeLine::Workshop,
+                "traders" => UpgradeLine::Traders,
+                _ => return None,
+            };
+            Some(game::camp_upgrades::UpgradeInProgress {
+                line,
+                target_level: p.target_level,
+                hours_left: p.hours_left,
+            })
+        });
+    }
+
+    pub fn upgrades_view(&self, bag: &Inventory, items: &ItemRegistry) -> Option<crate::camp_ui::CampUpgradesView> {
+        use crate::camp_ui::{CampUpgradesView, NextUpgradeView, UpgradeCostItem, UpgradeInProgressView, UpgradeLineView};
+
+        let eff = self.effects();
+        let make_line = |line: UpgradeLine| -> UpgradeLineView {
+            let cur = self.upgrades.level(line);
+            let max = self.upgrades_config.max_level(line);
+            let summary = if cur == 0 {
+                match line {
+                    UpgradeLine::Walls => "No perimeter walls".into(),
+                    UpgradeLine::Guards => "2 basic camp guards".into(),
+                    UpgradeLine::Workshop => "Basic hand crafting".into(),
+                    UpgradeLine::Traders => "Single trader stock".into(),
+                }
+            } else {
+                self.upgrade_name(line, cur)
+            };
+
+            let next = if cur >= max {
+                None
+            } else {
+                let target = cur + 1;
+                let (name, desc, cost) = match line {
+                    UpgradeLine::Walls => {
+                        let d = &self.upgrades_config.walls[target as usize];
+                        (d.name.clone(), format!("+{:.0} Wall HP, +{:.1}m safe zone", d.wall_hp, d.safe_zone_half_bonus), &d.cost)
+                    }
+                    UpgradeLine::Guards => {
+                        let d = &self.upgrades_config.guards[target as usize];
+                        (d.name.clone(), format!("{} guards ({:.0} dmg, {:.0}m)", d.guard_count, d.guard_damage, d.guard_range), &d.cost)
+                    }
+                    UpgradeLine::Workshop => {
+                        let d = &self.upgrades_config.workshop[target as usize];
+                        (d.name.clone(), format!("Unlocks tier {} crafting recipes", d.recipe_tier), &d.cost)
+                    }
+                    UpgradeLine::Traders => {
+                        let d = &self.upgrades_config.traders[target as usize];
+                        let mut perks = Vec::new();
+                        if d.has_doctor { perks.push("Doctor"); }
+                        if d.has_mechanic { perks.push("Mechanic"); }
+                        let perk_str = if perks.is_empty() { String::new() } else { format!(" ({})", perks.join(", ")) };
+                        (d.name.clone(), format!("+{} stock slots{}", d.trader_slots_bonus, perk_str), &d.cost)
+                    }
+                };
+                let cost_items = cost.materials.iter().map(|m| {
+                    UpgradeCostItem {
+                        name: label(items, &m.item_id),
+                        have: bag.count(&m.item_id),
+                        need: m.count,
+                    }
+                }).collect();
+                let cant_start_reason = game::camp_upgrades::can_start(
+                    &self.upgrades,
+                    &self.upgrades_config,
+                    line,
+                    self.wallet.dollars(),
+                    |id, count| bag.has(id, count),
+                ).err().map(|e| e.to_string());
+
+                Some(NextUpgradeView {
+                    name,
+                    description: desc,
+                    cash_cost: cost.cash,
+                    items: cost_items,
+                    build_hours: cost.build_hours,
+                    cant_start_reason,
+                })
+            };
+
+            UpgradeLineView {
+                line,
+                current_level: cur,
+                max_level: max,
+                current_summary: summary,
+                next,
+            }
+        };
+
+        let in_progress = self.upgrades.in_progress.as_ref().map(|p| {
+            let total_hours = self.upgrades_config.level_cost(p.line, p.target_level).map_or(0.0, |c| c.build_hours);
+            UpgradeInProgressView {
+                line: p.line,
+                target_level: p.target_level,
+                target_name: self.upgrade_name(p.line, p.target_level),
+                hours_left: p.hours_left,
+                total_hours,
+            }
+        });
+
+        Some(CampUpgradesView {
+            lines: [
+                make_line(UpgradeLine::Walls),
+                make_line(UpgradeLine::Guards),
+                make_line(UpgradeLine::Workshop),
+                make_line(UpgradeLine::Traders),
+            ],
+            in_progress,
+            wall_hp: self.upgrades.wall_hp,
+            wall_hp_max: eff.wall_hp_max,
+            player_cash: self.wallet.dollars(),
+            refund_ratio: self.upgrades_config.refund_ratio,
+            has_doctor: eff.has_doctor,
+            has_mechanic: eff.has_mechanic,
+        })
     }
 }
 
@@ -328,5 +527,39 @@ mod tests {
         again.load_from(&sys);
         assert_eq!(again.farm.plots().len(), 1);
         assert_eq!(again.farm.plots()[0].crop.as_deref(), Some("wheat"));
+    }
+
+    #[test]
+    fn upgrades_start_tick_save_roundtrip() {
+        let items = Arc::new(ItemRegistry::from_repo().unwrap());
+        let mut camp = Camp::new(42, items.clone()).unwrap();
+        let mut bag = Inventory::with_registry(items.clone());
+
+        // Fund wallet and bag with required items for walls level 1
+        camp.wallet.add(200);
+        bag.add("wood", 20);
+
+        let view = camp.upgrades_view(&bag, &items).expect("upgrades view");
+        assert_eq!(view.player_cash, 220);
+        assert_eq!(view.wall_hp, 0.0);
+
+        // Start walls upgrade
+        let res = camp.apply(CampAction::StartUpgrade(UpgradeLine::Walls), &mut bag, &items, false);
+        assert_eq!(res.as_deref(), Some("Started upgrade: walls"));
+        assert!(camp.upgrades.in_progress.is_some());
+
+        // Save roundtrip
+        let mut sys = save::Systems::default();
+        camp.save_into(&mut sys);
+
+        let mut loaded_camp = Camp::new(42, items.clone()).unwrap();
+        loaded_camp.load_from(&sys);
+        assert!(loaded_camp.upgrades.in_progress.is_some());
+
+        // Tick to completion
+        let finished = loaded_camp.tick_upgrades(10.0);
+        assert_eq!(finished, Some((UpgradeLine::Walls, 1)));
+        assert_eq!(loaded_camp.upgrades.walls_level, 1);
+        assert!(loaded_camp.upgrades.wall_hp > 0.0);
     }
 }

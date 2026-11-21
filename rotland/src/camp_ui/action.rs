@@ -32,6 +32,10 @@ pub enum CampAction {
     StartUpgrade(UpgradeLine),
     /// Cancel the currently running camp upgrade (refund handled by caller).
     CancelUpgrade,
+    /// Heal to full health for cash via the unlocked camp doctor.
+    DoctorHeal,
+    /// Repair car to full for cash via the unlocked camp mechanic.
+    MechanicRepair,
     /// Close the camp screen.
     Close,
 }

@@ -74,6 +74,8 @@ pub struct CampUpgradesView {
     pub wall_hp_max: f32,
     pub player_cash: i32,
     pub refund_ratio: f32,
+    pub has_doctor: bool,
+    pub has_mechanic: bool,
 }
 
 impl Default for CampUpgradesView {
@@ -114,6 +116,8 @@ impl Default for CampUpgradesView {
             wall_hp_max: 0.0,
             player_cash: 0,
             refund_ratio: DEFAULT_UPGRADE_REFUND_RATIO,
+            has_doctor: false,
+            has_mechanic: false,
         }
     }
 }
@@ -136,6 +140,7 @@ pub struct CampView<'a> {
     pub item_registry: Option<&'a ItemRegistry>,
     pub economy_config: Option<&'a EconomyConfigData>,
     pub upgrades: Option<CampUpgradesView>,
+    pub recipe_tier: u8,
     pub near_lit_campfire: bool,
     pub player_pos: Vec3,
     pub is_dead: bool,
@@ -154,6 +159,7 @@ impl<'a> Default for CampView<'a> {
             item_registry: None,
             economy_config: None,
             upgrades: None,
+            recipe_tier: 0,
             near_lit_campfire: false,
             player_pos: Vec3::ZERO,
             is_dead: false,

@@ -12,7 +12,7 @@ pub mod worldstate;
 pub use difficulty::{DeathRule, DifficultySaveData};
 pub use inventory::{InventorySaveData, SavedSlot};
 pub use player::{PlayerSaveData, Vec3Data};
-pub use settlements::SettlementsSaveData;
+pub use settlements::{CampUpgradesSaveData, SettlementsSaveData, UpgradeInProgressSaveData};
 pub use stats::StatsSaveData;
 pub use time::TimeSaveData;
 pub use wallet::WalletSaveData;

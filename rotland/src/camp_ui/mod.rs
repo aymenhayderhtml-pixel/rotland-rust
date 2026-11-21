@@ -1,5 +1,5 @@
 // Helper methods here (count steppers, view getters) are used by the tests and by screens still to come
-#![allow(dead_code)]
+#![allow(dead_code, unused_imports)]
 
 //! egui 0.37 UI for camp screens: Trader Shop, Bank, Crafting, Bounty Board, and Camp Board.
 //! Follows Godot layouts, colors, and styles from scripts/UI/ (Camp Board uses menus::theme).

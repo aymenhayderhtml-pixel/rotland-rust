@@ -14,3 +14,12 @@ Test: camp
 
 ## Worker notes
 
+## Gate report
+- date: 2026-11-21
+- base: main
+- files changed (22): rotland/src/app/frame_camp.rs, rotland/src/app/frame_ui.rs, rotland/src/app/frame_world.rs, rotland/src/app/save_load.rs, rotland/src/app/startup.rs, rotland/src/app/state.rs, rotland/src/camp.rs, rotland/src/camp_ui/action.rs, rotland/src/camp_ui/draw_crafting.rs, rotland/src/camp_ui/draw.rs, rotland/src/camp_ui/draw_upgrades.rs, rotland/src/camp_ui/mod.rs, rotland/src/camp_ui/screen.rs, rotland/src/camp_ui/view.rs, rotland/src/menus/menus_draw.rs, rotland/src/menus.rs, save/src/lib.rs, save/src/systems/mod.rs, save/src/systems/settlements.rs, save/tests/saves.rs, tasks/R17-N2-camp-board.md, tasks/R18-01-camp-board-wiring.md
+- tests passed: 66
+- clippy: PASS
+- test: PASS
+- checks: FAIL
+- gate: FAIL (checks)

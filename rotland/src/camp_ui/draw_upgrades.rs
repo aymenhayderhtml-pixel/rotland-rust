@@ -383,6 +383,37 @@ fn draw_board_contents(
                 action = Some(CampAction::Close);
             }
 
+            if let Some(upgrades) = &view.upgrades {
+                if upgrades.has_doctor {
+                    ui.add_space(8.0 * scale);
+                    let doc_btn = theme::menu_button(
+                        ui,
+                        "Doctor: Heal ($30)", // new: DECISIONS 2026-11-21
+                        vec2(160.0 * scale, FOOTER_H * scale), // new: DECISIONS 2026-11-21
+                        scale,
+                        ButtonTone::Safe,
+                        true,
+                    );
+                    if doc_btn.clicked() {
+                        action = Some(CampAction::DoctorHeal);
+                    }
+                }
+                if upgrades.has_mechanic {
+                    ui.add_space(8.0 * scale);
+                    let mech_btn = theme::menu_button(
+                        ui,
+                        "Mechanic: Repair ($50)", // new: DECISIONS 2026-11-21
+                        vec2(180.0 * scale, FOOTER_H * scale), // new: DECISIONS 2026-11-21
+                        scale,
+                        ButtonTone::Primary,
+                        true,
+                    );
+                    if mech_btn.clicked() {
+                        action = Some(CampAction::MechanicRepair);
+                    }
+                }
+            }
+
             if !state.status().is_empty() {
                 ui.add_space(14.0 * scale);
                 ui.label(
@@ -1400,8 +1431,10 @@ mod tests {
         assert_eq!(CampScreen::Upgrades.tab_name(), "Upgrades");
         assert_eq!(CampScreen::Upgrades.as_str(), "upgrades");
 
-        let mut upgrades = CampUpgradesView::default();
-        upgrades.player_cash = 325;
+        let upgrades = CampUpgradesView {
+            player_cash: 325,
+            ..Default::default()
+        };
         assert_eq!(upgrades.line(UpgradeLine::Walls).map(|l| l.max_level), Some(3));
         assert_eq!(upgrades.line(UpgradeLine::Traders).map(|l| l.max_level), Some(4));
         assert!(upgrades.line(UpgradeLine::Walls).is_some_and(UpgradeLineView::is_max_level));
