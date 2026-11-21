@@ -13,4 +13,29 @@ A pure function the game will call when the camp's levels change: `camp_upgrade_
 Tests (`camp_layout_` names): level 0 empty; wall ring closed except the gate gap; section count matches the perimeter; towers at the right corners per level; nothing overlaps; yaw rotates everything.
 
 ## Worker notes
+- **Files created / changed**:
+  - `data/camp_layout.json`: Configuration for wall radius, gate width, tower corners, and offsets for workshop, doctor, and mechanic.
+  - `world/src/camp_layout/types.rs`: `CampLevels`, `TowerCorner`, `CampLayoutConfigData` loader and data structures with source tags.
+  - `world/src/camp_layout/walls.rs`: Placement of 4 m wall sections and 6 m/8 m gate along the perimeter.
+  - `world/src/camp_layout/buildings.rs`: Placement of guard towers, workshop (tiers 1-3), doctor, and mechanic.
+  - `world/src/camp_layout/mod.rs`: `camp_upgrade_props` and `camp_upgrade_props_with_config` entry points.
+  - `world/src/camp_layout/tests.rs`: Tests covering level 0 empty, wall ring continuity, perimeter section count, tower corner placement, 2D footprint non-overlap vs all settlement fixtures, and yaw rotation.
+  - `world/src/lib.rs`: Module declaration and public re-exports.
+- **How to test**:
+  - Run `tools/gate.sh --task tasks/R18-02-camp-layout-models.md`
+  - All 9 unit tests pass under `camp_layout` filter.
+- **Wiring notes for Claude**:
+  - Game code can call `world::camp_upgrade_props(&site, CampLevels { walls, guards, workshop, traders })` to obtain `Vec<PropInstance>` for streaming / scene rendering.
+  - When `levels.walls == 0`, no replacement wall sections are returned, leaving the baseline fence.
+  - All positions are derived via `site.center + site.local(x, 0.0, z)` and `site.yaw + local_yaw`.
+- **Known issues**: None.
 
+## Gate report
+- date: 2026-11-21
+- base: main
+- files changed (8): data/camp_layout.json, tasks/R18-02-camp-layout-models.md, world/src/camp_layout/buildings.rs, world/src/camp_layout/mod.rs, world/src/camp_layout/tests.rs, world/src/camp_layout/types.rs, world/src/camp_layout/walls.rs, world/src/lib.rs
+- tests passed: 9
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS
