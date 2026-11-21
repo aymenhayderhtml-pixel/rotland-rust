@@ -1,6 +1,6 @@
 # STATUS (read this first; keep it under ~80 lines)
 
-Updated: 2026-11-20 by Claude.
+Updated: 2026-11-21 by Claude.
 
 ## Where we are
 - Version 0.1 = Godot parity in Rust, done (R0-R10). History: `docs/archive/RUST_QUEUE.md`.
@@ -19,7 +19,7 @@ avg 95-126 FPS, p99 16-29 ms, worst 1% 26-36 FPS (stutters still below the 30 mi
 
 ## Next (from PLAN_0.2.md)
 1. Stutter: re-measure on a quiet laptop (nothing else running), then find the between-frames stall (present mode / vsync, compositor, physics collider rebuild in `physics/src/world.rs`). Re-run `--bench` quietly too.
-2. Day 3: city spec (owner checks). Days 4-6: city lanes (at most 4). Day 7: owner play test.
+2. Day 3 DONE: city spec signed off (`docs/CITY_SPEC.md`). Days 4-6: city lanes a-d from its section 9 (at most 4). Day 7: owner play test.
 
 ## Workers (who does what: PLAN_0.2.md "AI roles")
 - DeepSeek: `opencode` / `opencode/deepseek-v4.1-flash-free`: free usage ran out on 2026-11-20.
@@ -30,4 +30,4 @@ avg 95-126 FPS, p99 16-29 ms, worst 1% 26-36 FPS (stutters still below the 30 mi
 
 ## Open questions for the owner
 - Final game name.
-- City spec numbers (region size, distance from camp): ask on day 3.
+- City name (working name "Ashford").
