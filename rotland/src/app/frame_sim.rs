@@ -417,4 +417,51 @@ pub fn update_sim(
         let draw_states = cars.draw_states();
         render.car_smoke.update(dt, &draw_states, &render.car_markers);
     }
+
+    // Lake water effects: swimming, floating, stamina drain, drowning
+    let lake_opt = world.world_gen.as_ref().and_then(|w| w.lake());
+    if let (Some(lake), Some(p)) = (lake_opt, actors.player_ctrl.as_mut()) {
+        let p_pos2 = glam::Vec2::new(p.position.x, p.position.z);
+        let zone = lake.zone_at(p_pos2);
+        let on_dock = game::swimming::is_on_dock(lake, p_pos2);
+        let swim_cfg = game::swimming::SwimmingConfig::default();
+        let water_res = game::swimming::evaluate_water(
+            p.position,
+            zone,
+            lake.water_level,
+            p.stamina.current,
+            on_dock,
+            &swim_cfg,
+            dt,
+        );
+        p.apply_water_movement(&water_res);
+
+        if water_res.disarm_weapons {
+            if let Some(c) = actors.combat.as_mut() {
+                c.set_weapon(None);
+            }
+            if let Some(pv) = actors.player_visual.as_mut() {
+                pv.animator.set_weapon(None);
+            }
+        }
+
+        if water_res.drowning_damage > 0.0 && alive
+            && let Some(c) = actors.combat.as_mut()
+        {
+            let ev = c.take_bites(&[water_res.drowning_damage]);
+            if ev.died {
+                if let Some(pv) = actors.player_visual.as_mut() {
+                    pv.animator.play_die();
+                }
+                if let Some(play_state) = play.play.as_mut() {
+                    let seed = (session.time * 1000.0) as u64 ^ session.seed as u64;
+                    play_state.camp.on_death(&mut play_state.inventory, seed);
+                    play_state.hotbar.on_inventory_changed(&play_state.inventory);
+                }
+                log::info!("the player drowned");
+            } else if let Some(a) = audio.audio.as_mut() {
+                a.event("playerHurt", None);
+            }
+        }
+    }
 }

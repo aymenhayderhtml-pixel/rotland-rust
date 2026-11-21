@@ -20,6 +20,7 @@ pub mod director;
 pub mod dogs;
 pub mod economy;
 pub mod farming;
+pub mod fishing;
 pub mod health;
 pub mod hints;
 pub mod horde;
@@ -44,6 +45,7 @@ pub mod skills;
 pub mod spawner;
 pub mod spawner_config;
 pub mod survival;
+pub mod swimming;
 pub mod trees;
 pub mod weapons;
 pub mod vehicles;
@@ -67,6 +69,7 @@ pub use director::*;
 pub use dogs::*;
 pub use economy::*;
 pub use farming::*;
+pub use fishing::{can_fish_at, FishingConfig, FishingMachine, FishingPhase};
 pub use health::{DamageResult, Health, HealthEvent, IgnoredReason};
 pub use hints::*;
 pub use horde::*;
@@ -88,6 +91,10 @@ pub use spawner::{
     SpawnOrders, SpawnTypeEntry, SpawnTypeTable, Spawner, SpawnerRng,
 };
 pub use survival::*;
+pub use swimming::{
+    evaluate_water, is_on_dock, speed_multiplier_for_zone, try_gather_dirty_water, SwimmingConfig,
+    WaterMovementResult,
+};
 pub use trees::*;
 pub use vehicles::*;
 pub use weapons::{WeaponAnim, WeaponDef, WeaponHold, WeaponKind, WeaponLoadError, WeaponRegistry, WeaponScope};

@@ -1,0 +1,8 @@
+{
+  "maxWaterDistance": 3.0,
+  "castWaitMin": 2.0,
+  "castWaitMax": 5.0,
+  "biteDuration": 2.0,
+  "sweetSpotMin": 0.35,
+  "sweetSpotMax": 0.65
+}

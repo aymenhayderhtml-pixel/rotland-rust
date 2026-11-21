@@ -100,5 +100,11 @@
   "arrow":          { "name": "Arrow", "category": "ammo", "weight": 0.02, "maxStack": 30, "value": 1,
                       "color": "#8b7355", "ammoType": "arrow", "description": "Wooden arrow with feather fletching." },
   "arrow_broken":   { "name": "Broken Arrow", "shortName": "Brk.Arrow", "category": "material", "weight": 0.01, "maxStack": 30, "value": 0,
-                      "color": "#5a4d41", "description": "Remains of an arrow that shattered on impact." }
+                      "color": "#5a4d41", "description": "Remains of an arrow that shattered on impact." },
+  "fishing_rod":    { "name": "Fishing Rod", "shortName": "Rod", "category": "tool", "weight": 0.8, "maxStack": 1, "value": 15,
+                      "color": "#8b5a2b", "description": "Equip near water and hold attack to cast." },
+  "fish_raw":       { "name": "Raw Fish", "shortName": "Raw Fish", "category": "food", "weight": 0.4, "maxStack": 10, "value": 5,
+                      "color": "#5b8a99", "effects": { "hunger": 8, "health": -3 }, "description": "Raw fish from the lake. Cook it at a campfire." },
+  "fish_cooked":    { "name": "Cooked Fish", "shortName": "Cooked Fish", "category": "food", "weight": 0.35, "maxStack": 10, "value": 14,
+                      "color": "#c48843", "effects": { "hunger": 35, "health": 5 }, "description": "Grilled fish. Good, hearty meal." }
 }
