@@ -48,21 +48,37 @@ pub fn draw(
     world: &WorldState,
     spawn: Vec3,
 ) {
-    if !is_enabled() {
+    let mut patches = Vec::new();
+
+    if is_enabled() {
+        let ground_y = world
+            .physics
+            .ground_height(spawn.x, spawn.z)
+            .unwrap_or_else(|| world.height(spawn.x, spawn.z));
+        patches.push(test_patch(spawn, ground_y));
+    }
+
+    if let Some(lake) = world.world_gen.as_ref().and_then(|w| w.lake()) {
+        let (min, max) = lake.water_bounds();
+        let cam_pos = glam::Vec2::new(camera.position.x, camera.position.z);
+        let dx = (min.x - cam_pos.x).max(0.0).max(cam_pos.x - max.x);
+        let dz = (min.y - cam_pos.y).max(0.0).max(cam_pos.y - max.y);
+        let dist_to_box = (dx * dx + dz * dz).sqrt();
+        if dist_to_box <= 600.0 {
+            patches.push(WaterPatch::new(min, max, lake.water_level));
+        }
+    }
+
+    if patches.is_empty() {
         return;
     }
-    let ground_y = world
-        .physics
-        .ground_height(spawn.x, spawn.z)
-        .unwrap_or_else(|| world.height(spawn.x, spawn.z));
-    let patch = test_patch(spawn, ground_y);
 
     let mut guard = match WATER_RENDERER.lock() {
         Ok(g) => g,
         Err(poisoned) => poisoned.into_inner(),
     };
     let renderer = guard.get_or_insert_with(|| WaterRenderer::new(gpu));
-    renderer.draw(gpu, target, encoder, camera, light, time, &[patch]);
+    renderer.draw(gpu, target, encoder, camera, light, time, &patches);
 }
 
 #[cfg(test)]

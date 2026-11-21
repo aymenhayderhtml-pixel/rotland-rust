@@ -24,8 +24,8 @@ pub use daynight::{DayNightLook, SkyColors};
 pub use generator::{ChunkGround, GroundTriangle, WorldGenerator};
 pub use ground_paint::GroundPaint;
 pub use lake::{
-    Dock, FishingSpot, FishingSpotKind, LakeConfig, LakeConfigData, LakeLayout, LakeZone,
-    VillageLot,
+    place_lake_props, Dock, FishingSpot, FishingSpotKind, LakeConfig, LakeConfigData, LakeLayout,
+    LakeZone, VillageLot,
 };
 pub use loot::{LootPlacer, LootSpot};
 pub use math::{lerp, smooth_step};

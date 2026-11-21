@@ -5,6 +5,7 @@ use crate::biome::BiomeId;
 use crate::city::{CityConfigData, CityGround, CityGroundData, CityLayout};
 use crate::color::Color;
 use crate::ground_paint::GroundPaint;
+use crate::lake::{LakeConfigData, LakeLayout};
 use crate::math::{lerp, smooth_step};
 use crate::noise::GodotNoise;
 use crate::poi::{PoiConfigData, PoiGeometry, PoiInstance, PoiPlacer};
@@ -41,6 +42,7 @@ pub struct WorldGenerator {
     settlements: Vec<SettlementSite>,
     city: Option<CityLayout>,
     city_ground: Option<CityGround>,
+    lake: Option<LakeLayout>,
 }
 
 impl WorldGenerator {
@@ -74,6 +76,11 @@ impl WorldGenerator {
             };
             generator.attach_city_with_ground(&city, ground_cfg.as_ref());
         }
+        let lake_path = read("lake.json");
+        if lake_path.exists() {
+            let lake = LakeConfigData::load_from_file(lake_path).map_err(|e| format!("lake.json: {e}"))?;
+            generator.attach_lake(&lake);
+        }
         Ok(generator)
     }
 
@@ -98,6 +105,17 @@ impl WorldGenerator {
     pub fn city(&self) -> Option<&CityLayout> { self.city.as_ref() }
 
     pub fn city_ground(&self) -> Option<&CityGround> { self.city_ground.as_ref() }
+
+    /// Attaches the lake & coast opposite the city (or camp if no city).
+    pub fn attach_lake(&mut self, cfg: &LakeConfigData) {
+        let camp = self.settlements.first().map_or(Vec2::ZERO, |s| Vec2::new(s.center.x, s.center.z));
+        let city_center = self.city.as_ref().map(|c| c.origin + Vec2::splat(c.size * 0.5));
+        let layout = LakeLayout::generate(self.seed, camp, city_center, cfg, |p| self.raw_height(p.x, p.y));
+        self.lake = Some(layout);
+    }
+
+    /// The lake and coast, if this world has one (worlds made with `from_data_dir`).
+    pub fn lake(&self) -> Option<&LakeLayout> { self.lake.as_ref() }
 
     /// Terrain only (empty scatter and POI data). Use `from_data_dir` for the real world.
     pub fn new(seed: i32, config: SettlementConfigData) -> Self {
@@ -128,6 +146,7 @@ impl WorldGenerator {
             settlements: Vec::new(),
             city: None,
             city_ground: None,
+            lake: None,
         };
         let site = SettlementPlacer::find(&world_gen, &config);
         world_gen.settlements = vec![site];
@@ -166,25 +185,57 @@ impl WorldGenerator {
                     ));
                 }
             }
+        }
 
-            // Inside city: drop scatter props except trees and ground cover in Park blocks off streets
-            let filtered_props: Vec<PropInstance> = placed_props
-                .into_iter()
-                .filter(|prop| {
-                    let p = Vec2::new(prop.position.x, prop.position.z);
-                    if city.contains(p) {
-                        let is_park = city.district_at(p) == Some(crate::city::District::Park);
-                        let on_street = city.street_at(p).is_some();
-                        is_park && !on_street && (prop.is_tree() || crate::city::place::is_ground_cover(&prop.model))
-                    } else {
-                        true
-                    }
-                })
-                .collect();
+        if let Some(lake) = self.lake() {
+            // Drop wild POIs inside the lake water or shore
+            pois.retain(|poi| {
+                let p = Vec2::new(poi.position.x, poi.position.z);
+                !lake.contains_region(p) || lake.shore_distance(p) > lake.config.beach_width + 10.0
+            });
 
-            let cleared_props = PoiGeometry::remove_cleared(&pois, filtered_props, &self.poi_config);
-            let mut props = SettlementGround::remove_props(&self.settlements, cleared_props, self.config.clear_radius);
+            // Add village lot POIs whose center is in this chunk
+            for (idx, lot) in lake.village_lots.iter().enumerate() {
+                let cx = (lot.center.x / Self::CHUNK_SIZE).floor() as i32;
+                let cy = (lot.center.y / Self::CHUNK_SIZE).floor() as i32;
+                if cx == coord.x && cy == coord.y {
+                    let y = self.height(lot.center.x, lot.center.y);
+                    pois.push(PoiInstance::new(
+                        format!("lake_village_{idx}"),
+                        &lot.building_id,
+                        Vec3::new(lot.center.x, y, lot.center.y),
+                        lot.yaw,
+                    ));
+                }
+            }
+        }
 
+        // Filter scatter props inside city and lake water
+        let filtered_props: Vec<PropInstance> = placed_props
+            .into_iter()
+            .filter(|prop| {
+                let p = Vec2::new(prop.position.x, prop.position.z);
+                if let Some(city) = self.city()
+                    && city.contains(p)
+                {
+                    let is_park = city.district_at(p) == Some(crate::city::District::Park);
+                    let on_street = city.street_at(p).is_some();
+                    return is_park && !on_street && (prop.is_tree() || crate::city::place::is_ground_cover(&prop.model));
+                }
+                if let Some(lake) = self.lake()
+                    && lake.contains_region(p)
+                    && lake.shore_distance(p) < 0.0
+                {
+                    return false;
+                }
+                true
+            })
+            .collect();
+
+        let cleared_props = PoiGeometry::remove_cleared(&pois, filtered_props, &self.poi_config);
+        let mut props = SettlementGround::remove_props(&self.settlements, cleared_props, self.config.clear_radius);
+
+        if let Some(city) = self.city() {
             // Add city street props and road wrecks
             let city_props = crate::city::place::place_street_props(self, city, coord);
             for cp in city_props {
@@ -197,13 +248,24 @@ impl WorldGenerator {
                     props.push(cp);
                 }
             }
-
-            (pois, props)
-        } else {
-            let cleared_props = PoiGeometry::remove_cleared(&pois, placed_props, &self.poi_config);
-            let props = SettlementGround::remove_props(&self.settlements, cleared_props, self.config.clear_radius);
-            (pois, props)
         }
+
+        if let Some(lake) = self.lake() {
+            // Add lake docks, boats, buoys, and beach props
+            let lake_props = crate::lake::place::place_lake_props(self, lake, coord);
+            for lp in lake_props {
+                let dx_dz_ok = !props.iter().any(|p| {
+                    let dx = p.position.x - lp.position.x;
+                    let dz = p.position.z - lp.position.z;
+                    dx * dx + dz * dz < 2.0 * 2.0 - 1e-4
+                });
+                if dx_dz_ok {
+                    props.push(lp);
+                }
+            }
+        }
+
+        (pois, props)
     }
 
     /// Loot crate spots for one chunk, following BuildChunk rules.
@@ -256,6 +318,12 @@ impl WorldGenerator {
         height = SettlementGround::flatten(height, x, z, &self.settlements, &self.config);
         if let Some(cg) = &self.city_ground {
             height = cg.flatten_city(height, x, z);
+        }
+        if let Some(lake) = &self.lake {
+            let p = Vec2::new(x, z);
+            if lake.contains_region(p) {
+                height = lake.ground_height(p, height);
+            }
         }
         (height, forest)
     }
@@ -322,6 +390,9 @@ impl WorldGenerator {
         let mut color = self.paint.paint(Self::PLAINS_GRASS.lerp(Self::FOREST_GRASS, forest), wx, wz, forest, normal.y, camp_distance);
         if let (Some(city), Some(cg)) = (&self.city, &self.city_ground) {
             color = cg.paint(color, wx, wz, city, &self.settlements, &self.config);
+        }
+        if let Some(lake) = &self.lake {
+            color = lake.paint(color, wx, wz);
         }
         color *= 1.0 + Self::BRIGHTNESS_JITTER * Self::jitter(coord, cell_x, cell_z, half);
         color = self.hue(color, coord, p[0], p[1], p[2]);

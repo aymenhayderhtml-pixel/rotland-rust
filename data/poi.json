@@ -17,6 +17,8 @@
     { "id": "police", "lot": [24, 18], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "police", "zombies": [3, 5] },
     { "id": "hospital", "lot": [30, 22], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "hospital", "zombies": [3, 5] },
     { "id": "warehouse", "lot": [26, 16], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "warehouse", "zombies": [1, 3] },
-    { "id": "ruin", "lot": [16, 12], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "ruin", "zombies": [1, 3] }
+    { "id": "ruin", "lot": [16, 12], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "ruin", "zombies": [1, 3] },
+    { "id": "fish_shack", "lot": [8, 6], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "house", "zombies": [1, 2] },
+    { "id": "boathouse", "lot": [14, 10], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "barn", "zombies": [1, 2] }
   ]
 }

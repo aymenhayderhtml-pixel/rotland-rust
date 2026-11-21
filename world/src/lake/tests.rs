@@ -29,6 +29,9 @@ fn lake_config_load() {
     assert_eq!(cfg.beach_blend, 16.0);
     assert_eq!(cfg.shore_samples, 128);
     assert_eq!(cfg.region_margin, 32.0);
+    assert_eq!(cfg.sand, [214, 196, 156]);
+    assert_eq!(cfg.wet_sand, [148, 128, 94]);
+    assert_eq!(cfg.lake_bed, [58, 56, 38]);
 
     assert!(cfg.validate().is_ok());
 
@@ -359,4 +362,147 @@ fn lake_contains_region() {
 
     assert!(!layout.contains_region(camp));
     assert!(!layout.contains_region(Vec2::new(5000.0, 5000.0)));
+}
+
+#[test]
+fn lake_attached_in_from_data_dir() {
+    let data_dir = repo_path("data");
+    let wgen = crate::generator::WorldGenerator::from_data_dir(42, &data_dir)
+        .expect("WorldGenerator::from_data_dir");
+    assert!(wgen.lake().is_some());
+    let lake = wgen.lake().unwrap();
+    assert!(lake.water_level > 0.0);
+    assert_eq!(lake.docks.len(), 3);
+    assert_eq!(lake.village_lots.len(), 8);
+}
+
+#[test]
+fn lake_far_from_city_and_camp() {
+    let data_dir = repo_path("data");
+    for seed in [1, 7, 42, 100, 999] {
+        let wgen = crate::generator::WorldGenerator::from_data_dir(seed, &data_dir).unwrap();
+        let lake = wgen.lake().expect("lake present");
+        let camp = wgen.settlements()[0].center;
+        let camp_p = Vec2::new(camp.x, camp.z);
+
+        assert!(!lake.contains_region(camp_p));
+        assert!(lake.center.distance(camp_p) > 1000.0);
+
+        if let Some(city) = wgen.city() {
+            let city_center = city.origin + Vec2::splat(city.size * 0.5);
+            assert!(!lake.contains_region(city_center));
+            assert!(!city.contains(lake.center));
+            assert!(lake.center.distance(city_center) > 2000.0);
+
+            // Bounding boxes do not overlap
+            let (lake_min, lake_max) = lake.water_bounds();
+            let city_half = city.size * 0.5;
+            let city_min = city_center - Vec2::splat(city_half);
+            let city_max = city_center + Vec2::splat(city_half);
+            let x_overlap = lake_min.x <= city_max.x && lake_max.x >= city_min.x;
+            let y_overlap = lake_min.y <= city_max.y && lake_max.y >= city_min.y;
+            assert!(!(x_overlap && y_overlap), "lake bounding box overlaps city box");
+        }
+    }
+}
+
+#[test]
+fn lake_ground_under_deep_water_is_below_water_level() {
+    let data_dir = repo_path("data");
+    let wgen = crate::generator::WorldGenerator::from_data_dir(42, &data_dir).unwrap();
+    let lake = wgen.lake().expect("lake present");
+
+    let (h_center, _) = wgen.sample(lake.center.x, lake.center.y);
+    assert!(h_center < lake.water_level, "lake center height {h_center} should be below water level {}", lake.water_level);
+    let depth = lake.water_level - h_center;
+    assert!(depth >= lake.config.max_depth - 0.5, "deep water depth {depth} should be near max_depth {}", lake.config.max_depth);
+}
+
+#[test]
+fn lake_beach_paint_is_sand_colored() {
+    let data_dir = repo_path("data");
+    let wgen = crate::generator::WorldGenerator::from_data_dir(42, &data_dir).unwrap();
+    let lake = wgen.lake().expect("lake present");
+
+    let shore_pt = lake.shore[0];
+    let u = (shore_pt - lake.center).normalize();
+    let beach_pt = shore_pt + u * (lake.config.beach_width * 0.5);
+
+    let painted = lake.paint(crate::generator::WorldGenerator::PLAINS_GRASS, beach_pt.x, beach_pt.y);
+    let expected_sand = lake.sand_color();
+    assert!((painted.r - expected_sand.r).abs() < 1e-3);
+    assert!((painted.g - expected_sand.g).abs() < 1e-3);
+    assert!((painted.b - expected_sand.b).abs() < 1e-3);
+
+    // Warm beige: red channel > green channel > blue channel
+    assert!(painted.r > painted.g);
+    assert!(painted.g > painted.b);
+}
+
+#[test]
+fn lake_chunk_in_water_has_no_trees() {
+    let data_dir = repo_path("data");
+    let wgen = crate::generator::WorldGenerator::from_data_dir(42, &data_dir).unwrap();
+    let lake = wgen.lake().expect("lake present");
+
+    let cx = (lake.center.x / crate::generator::WorldGenerator::CHUNK_SIZE).floor() as i32;
+    let cy = (lake.center.y / crate::generator::WorldGenerator::CHUNK_SIZE).floor() as i32;
+    let coord = glam::IVec2::new(cx, cy);
+
+    let (_, props) = wgen.chunk_contents(coord);
+    let tree_count = props.iter().filter(|p| p.is_tree() || p.model.starts_with("tree")).count();
+    assert_eq!(tree_count, 0, "chunk in deep water should have 0 trees");
+    assert!(props.is_empty(), "chunk in deep water should have no props");
+}
+
+#[test]
+fn lake_dock_props_line_up_with_docks() {
+    let data_dir = repo_path("data");
+    let wgen = crate::generator::WorldGenerator::from_data_dir(42, &data_dir).unwrap();
+    let lake = wgen.lake().expect("lake present");
+
+    for (dock_idx, dock) in lake.docks.iter().enumerate() {
+        let dir = dock.forward();
+        let chunk_size = crate::generator::WorldGenerator::CHUNK_SIZE;
+        let c_start = glam::IVec2::new((dock.start.x / chunk_size).floor() as i32, (dock.start.y / chunk_size).floor() as i32);
+        let c_end = glam::IVec2::new((dock.end.x / chunk_size).floor() as i32, (dock.end.y / chunk_size).floor() as i32);
+
+        let mut dock_props = Vec::new();
+        for cx in c_start.x.min(c_end.x)..=c_start.x.max(c_end.x) {
+            for cy in c_start.y.min(c_end.y)..=c_start.y.max(c_end.y) {
+                let (_, props) = wgen.chunk_contents(glam::IVec2::new(cx, cy));
+                for p in props {
+                    if p.model == "dock_section" || p.model == "dock_end" {
+                        let to_p = Vec2::new(p.position.x, p.position.z) - dock.start;
+                        let along = to_p.dot(dir);
+                        let perp_dist = (to_p - dir * along).length();
+                        if along >= -1.0 && along <= dock.length() + 1.0 && perp_dist < 0.1 {
+                            dock_props.push(p);
+                        }
+                    }
+                }
+            }
+        }
+
+        assert!(!dock_props.is_empty(), "dock {dock_idx} should have placed props");
+        for dp in &dock_props {
+            assert!((dp.yaw - dock.yaw).abs() < 1e-4, "dock prop yaw must match dock yaw");
+            assert!((dp.position.y - lake.water_level).abs() < 1e-4, "dock prop height must match water level");
+        }
+    }
+}
+
+#[test]
+fn lake_same_seed_same_lake() {
+    let data_dir = repo_path("data");
+    let wgen1 = crate::generator::WorldGenerator::from_data_dir(42, &data_dir).unwrap();
+    let wgen2 = crate::generator::WorldGenerator::from_data_dir(42, &data_dir).unwrap();
+    let wgen3 = crate::generator::WorldGenerator::from_data_dir(43, &data_dir).unwrap();
+
+    let lake1 = wgen1.lake().unwrap();
+    let lake2 = wgen2.lake().unwrap();
+    let lake3 = wgen3.lake().unwrap();
+
+    assert_eq!(lake1, lake2);
+    assert_ne!(lake1, lake3);
 }
