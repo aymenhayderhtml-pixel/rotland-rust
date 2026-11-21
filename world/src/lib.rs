@@ -1,4 +1,5 @@
 pub mod biome;
+pub mod city;
 pub mod color;
 pub mod daynight;
 pub mod generator;
@@ -13,6 +14,10 @@ pub mod settlement;
 pub mod time;
 
 pub use biome::BiomeId;
+pub use city::{
+    BuildingWeight, CityBlock, CityConfig, CityConfigData, CityDistrictsData, CityLayout, CityLot,
+    District, StreetSegment,
+};
 pub use color::Color;
 pub use daynight::{DayNightLook, SkyColors};
 pub use generator::{ChunkGround, GroundTriangle, WorldGenerator};

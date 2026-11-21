@@ -28,4 +28,32 @@ Keys (camelCase, like the other data files):
 Same seed gives the same layout; different seeds differ. The nearest city edge is `distanceFromCamp` (±64 m because of the snap) from the camp. No two lots overlap; every lot is inside its block and off the streets. Every present block is reachable through unblocked streets from `entry`. About `blockedChance` of the non-avenue segments are blocked over many seeds (within ±0.08). Direction avoids forest: with a `forest_at` that is 1.0 for x > 0, the city is placed at x < 0. Exactly one Core 2x2 area, one industrial strip.
 
 ## Worker notes
+- Files created/changed:
+  - `data/city.json`: city parameters, district tables, building lot dimensions, street widths and probabilities.
+  - `world/src/city/config.rs`: `CityConfigData` (`CityConfig`), `District`, `CityDistrictsData`, `BuildingWeight`, JSON loading and validation.
+  - `world/src/city/streets.rs`: `StreetSegment`, street grid placement along block boundaries, avenues, entry finding, and 0-1 BFS connectivity ensuring all present blocks are reachable.
+  - `world/src/city/lots.rs`: `CityLot`, lot placement along block perimeters with Godot yaw convention, non-overlap, and sidewalk clearance.
+  - `world/src/city/layout.rs`: `CityBlock`, `CityLayout::generate`, forest-avoidance direction scoring, 64 m chunk snapping, ragged corner drops, district distribution (Core, Outskirts, Downtown, Industrial, Park), and spatial queries (`contains`, `district_at`, `street_at`).
+  - `world/src/city/mod.rs`: module re-exports.
+  - `world/src/city/tests.rs`: 9 comprehensive unit tests verifying determinism, camp distance, lot separation/containment, street graph reachability, blocked street ratio, forest avoidance, districts, and queries.
+  - `world/src/lib.rs`: exported `city` module and public types.
+- How to test:
+  `tools/gate.sh --task tasks/R13-01-city-layout.md`
+- Wiring notes for Claude:
+  - Call `CityConfig::load_from_file(paths::repo_path("data/city.json"))` to load configuration.
+  - Generate the city using `CityLayout::generate(seed, camp_center.xz(), &city_cfg, |pos| generator.forest_weight(pos.x, pos.y))`.
+  - Blocks align with chunk boundaries (`coord: IVec2` gives the chunk coordinate).
+  - Lots provide `center: Vec2`, `size: Vec2` (width, depth), `yaw: f32` (facing street), `district: District`, and `building_id: String`.
+  - Streets provide `a`, `b`, `width`, `blocked`, and `avenue`. `entry: Vec2` provides the road hookup point nearest camp.
+- Known issues:
+  None. Clippy, test suite, scope, numbers, and unused items checks all pass clean.
 
+## Gate report
+- date: 2026-11-21
+- base: main
+- files changed (9): data/city.json, tasks/R13-01-city-layout.md, world/src/city/config.rs, world/src/city/layout.rs, world/src/city/lots.rs, world/src/city/mod.rs, world/src/city/streets.rs, world/src/city/tests.rs, world/src/lib.rs
+- tests passed: 9
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS
