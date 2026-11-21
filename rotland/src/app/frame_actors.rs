@@ -8,6 +8,7 @@ use winit::keyboard::KeyCode;
 
 use super::save_load::save_now;
 use super::state::{ActorsState, PlaySide, RenderState, SessionState, UiState, WorldState};
+use crate::shooting::TargetWorld;
 use crate::{bench, display, shooting, wildlife};
 
 /// Third-person camera like Godot's CameraRig: 4 m spring arm, 0.55 m right shoulder, looking slightly down.
@@ -308,6 +309,128 @@ pub fn update_actors(
         }
         // Tree felling helper
         strike_trees(swung, p.position, world, play, audio);
+
+        let captured = ui.cursor_captured && !ui.screen_open();
+        let right_pressed = captured && input.mouse_pressed(MouseButton::Right);
+        if let Some(c) = actors.combat.as_mut()
+            && !dead
+            && !in_car
+            && let Some(weapon) = c.weapon_def().cloned()
+            && weapon.throwable
+            && right_pressed
+        {
+            if let Some(play_state) = play.play.as_mut() {
+                play_state.inventory.remove(&weapon.id, 1);
+                play_state.hotbar.on_inventory_changed(&play_state.inventory);
+            }
+            c.set_weapon(None);
+            render.pending_weapon_model = Some(None);
+            let aim_origin = render.camera.position;
+            let aim_dir = render.camera.forward();
+            let proj = game::projectiles::spear_throw(aim_origin, aim_dir, &weapon);
+            c.projectiles.spawn(proj);
+            actors.fp_sway.trigger_swing();
+            if let Some(a) = audio.as_mut() {
+                a.event("throw", Some(p.position));
+            }
+        }
+
+        if let Some(c) = actors.combat.as_mut()
+            && !dead
+            && !in_car
+            && let Some(weapon) = c.weapon_def().cloned()
+            && weapon.is_bow()
+        {
+            let attack_held = captured && input.mouse_held(MouseButton::Left);
+            let released = c.bow.update(dt, attack_held, weapon.draw_time);
+            if c.bow.draw > 0.0 {
+                let target_fov = if rig.is_first_person {
+                    shooting::FIRST_PERSON_AIM_FOV
+                } else {
+                    shooting::THIRD_PERSON_AIM_FOV
+                };
+                render.camera.fov_y_deg = crate::combat::BowState::aim_fov(
+                    render.camera.fov_y_deg,
+                    c.bow.draw,
+                    target_fov,
+                );
+            }
+            if let Some(draw) = released
+                && let Some(play_state) = play.play.as_mut()
+                && play_state.inventory.count(&weapon.ammo_item) > 0
+            {
+                play_state.inventory.remove(&weapon.ammo_item, 1);
+                play_state.hotbar.on_inventory_changed(&play_state.inventory);
+                let aim_origin = render.camera.position;
+                let aim_dir = render.camera.forward();
+                let shot = game::projectiles::bow_shot(draw, aim_origin, aim_dir, &weapon);
+                c.projectiles.spawn(shot);
+                actors.fp_sway.trigger_shot();
+                c.noises.push(game::zombie::Noise {
+                    position: p.position,
+                    radius: weapon.noise_radius,
+                });
+                if let Some(a) = audio.as_mut() {
+                    a.event("bowRelease", Some(p.position));
+                }
+            }
+            if let Some(play_state) = play.play.as_mut() {
+                let arrows = play_state.inventory.count(&weapon.ammo_item);
+                play_state.last_shot.ammo = (arrows, u32::MAX);
+                play_state.gun = Some(weapon.clone());
+            }
+        }
+
+        if let (Some(c), Some(z)) = (actors.combat.as_mut(), actors.zombies.as_mut())
+            && !c.projectiles.is_empty()
+        {
+            let _projectile_draws = crate::combat::projectiles_view::projectile_instances(&c.projectiles);
+            let animal_bonus = play
+                .play
+                .as_ref()
+                .map_or(0.0, |pl| pl.camp.skills.get_bonus("animalDamage"));
+            let mut prey = wildlife::Prey {
+                zombies: z,
+                animals: actors.wildlife.as_mut().map(|w| &mut w.sim),
+                animal_bonus,
+            };
+            let targets = prey.gun_targets();
+            let events = c.projectiles.step(dt, |from, to| {
+                game::projectiles::raycast_projectile(from, to, &targets, &world.physics)
+            });
+            for ev in events {
+                match ev {
+                    game::projectiles::ProjectileEvent::HitZombie { id, damage, headshot } => {
+                        c.hits += 1;
+                        let dir = render.camera.forward();
+                        let knockback = Vec3::new(dir.x, 0.0, dir.z).normalize_or_zero() * 2.0;
+                        let dmg_info = game::DamageInfo {
+                            amount: damage,
+                            source: Some(1),
+                            hit_point: p.position,
+                            direction: dir,
+                            damage_type: "projectile".to_string(),
+                            headshot,
+                            leg_hit: false,
+                        };
+                        if prey.hit(id, dmg_info, knockback) {
+                            c.kills += 1;
+                        }
+                        if let Some(a) = audio.as_mut() {
+                            a.event("meleeHit", Some(p.position));
+                        }
+                    }
+                    game::projectiles::ProjectileEvent::HitWorld { point, pickup } => {
+                        if let Some(item_id) = pickup
+                            && let Some(play_state) = play.play.as_mut()
+                        {
+                            play_state.drop_on_ground(&item_id, 1, point);
+                        }
+                    }
+                    game::projectiles::ProjectileEvent::Expired => {}
+                }
+            }
+        }
 
         actors.player = p.position;
         render.camera = rig.camera(&actors.player, &world.physics);

@@ -1,7 +1,15 @@
 //! The player's side of the fight: health, the melee swing on the left mouse button, being bitten,
 //! dying and coming back at the camp. Zombies live in zombies.rs.
 
+#[path = "bow.rs"]
+pub mod bow;
+#[path = "projectiles_view.rs"]
+pub mod projectiles_view;
+
+pub use bow::BowState;
+
 use game::melee::{gun_bash, Attacker, MeleeSwing, SwingState};
+use game::projectiles::ProjectileSim;
 use game::zombie::Noise;
 use game::{DamageInfo, Health, Player, Stamina, WeaponDef, WeaponRegistry};
 use glam::Vec3;
@@ -29,6 +37,8 @@ pub struct Combat {
     pub noises: Vec<Noise>,
     /// Melee hits that landed this frame (for the hit sound).
     pub hits: u32,
+    pub projectiles: ProjectileSim,
+    pub bow: BowState,
 }
 
 /// What the game should do after a combat frame.
@@ -61,12 +71,15 @@ impl Combat {
             shots: 0,
             noises: Vec::new(),
             hits: 0,
+            projectiles: ProjectileSim::new(0x5052_4F4A_4543_5449),
+            bow: BowState::new(),
         }
     }
 
     /// The weapon in hand changes (hotbar). None: nothing to swing.
     pub fn set_weapon(&mut self, weapon: Option<WeaponDef>) {
         self.swing.cancel();
+        self.bow.cancel();
         self.bash_weapon = None;
         self.pending_swing_started = None;
         self.weapon = weapon;
@@ -133,6 +146,7 @@ impl Combat {
         }
 
         if let Some(weapon) = &self.weapon
+            && !weapon.is_bow()
             && attack_pressed
             && self.swing.try_start(weapon, &mut player.stamina)
         {
@@ -176,6 +190,7 @@ impl Combat {
         self.health.kill();
         self.dead_for = Some(0.0);
         self.swing.cancel();
+        self.bow.cancel();
         self.bash_weapon = None;
         self.pending_swing_started = None;
         true
@@ -194,6 +209,7 @@ impl Combat {
                 ev.died = true;
                 self.dead_for = Some(0.0);
                 self.swing.cancel();
+                self.bow.cancel();
                 self.bash_weapon = None;
                 self.pending_swing_started = None;
                 break;
@@ -488,5 +504,45 @@ mod tests {
         assert_eq!(full_stamina.current, 100.0);
         asserts += 1;
         assert!(asserts >= 5);
+    }
+
+    #[test]
+    fn bow_equipped_does_not_start_melee_swing() {
+        let registry = load_weapons();
+        let bow = registry.get("bow").expect("bow weapon def");
+
+        let mut combat = Combat::new("bow");
+        combat.set_weapon(Some(bow.clone()));
+        assert_eq!(combat.weapon_id(), Some("bow"));
+
+        let mut player = Player::new(Vec3::ZERO);
+        let physics = flat_world();
+        let mut world = MockMeleeWorld { zombies: Vec::new() };
+
+        let ev = combat.update(0.1, true, &mut player, &mut world, &physics);
+        assert_eq!(ev.swing_started, None);
+        assert_eq!(combat.swing_state(), SwingState::Idle);
+    }
+
+    #[test]
+    fn dagger_and_spear_swing_as_melee() {
+        let registry = load_weapons();
+        let dagger = registry.get("dagger").expect("dagger def");
+        let spear = registry.get("spear").expect("spear def");
+
+        let mut combat = Combat::new("dagger");
+        combat.set_weapon(Some(dagger.clone()));
+        let mut player = Player::new(Vec3::ZERO);
+        let physics = flat_world();
+        let mut world = MockMeleeWorld { zombies: Vec::new() };
+
+        let ev1 = combat.update(0.01, true, &mut player, &mut world, &physics);
+        assert_eq!(ev1.swing_started.as_deref(), dagger.anim.attack.as_deref());
+        assert_eq!(combat.swing_state(), SwingState::WindingUp);
+
+        combat.set_weapon(Some(spear.clone()));
+        let ev2 = combat.update(0.01, true, &mut player, &mut world, &physics);
+        assert_eq!(ev2.swing_started.as_deref(), spear.anim.attack.as_deref());
+        assert_eq!(combat.swing_state(), SwingState::WindingUp);
     }
 }

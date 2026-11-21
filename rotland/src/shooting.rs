@@ -126,6 +126,14 @@ impl Shooting {
         targets: &mut T,
         physics: &PhysicsWorld,
     ) -> ShootEvents {
+        if weapon.is_bow() {
+            let spare_in_bag = inventory.count(&weapon.ammo_item);
+            return ShootEvents {
+                ammo: (spare_in_bag, u32::MAX),
+                ..Default::default()
+            };
+        }
+
         if !weapon.is_gun() {
             return ShootEvents::default();
         }
@@ -757,5 +765,32 @@ mod tests {
         asserts += 1;
 
         assert!(asserts >= 13);
+    }
+
+    #[test]
+    fn bow_reports_arrows_in_bag_as_ammo() {
+        let registry = load_weapons();
+        let bow = registry.get("bow").expect("bow def");
+        let physics = flat_world();
+        let mut shooting = Shooting::default();
+        let mut inventory = Inventory::new();
+        inventory.add("arrow", 25);
+        let mut targets = MockWorld { zombies: Vec::new() };
+
+        let eye = Vec3::new(0.0, 1.65, 0.0);
+        let aim_dir = Vec3::new(0.0, 0.0, -1.0);
+
+        let ev = shooting.update_targets(
+            0.0,
+            ShootInput::default(),
+            bow,
+            eye,
+            aim_dir,
+            &mut inventory,
+            &mut targets,
+            &physics,
+        );
+        assert_eq!(ev.ammo, (25, u32::MAX));
+        assert_eq!(ev.shots_fired, 0);
     }
 }
