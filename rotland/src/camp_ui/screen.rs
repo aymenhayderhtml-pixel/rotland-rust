@@ -1,6 +1,6 @@
 //! Camp screen identifier enum.
 
-/// The active camp screen: Shop (trader), Bank, Crafting, or Bounties (bounty board).
+/// The active camp screen: Shop (trader), Bank, Crafting, Bounties, or Upgrades (camp board).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum CampScreen {
     #[default]
@@ -8,6 +8,7 @@ pub enum CampScreen {
     Bank,
     Crafting,
     Bounties,
+    Upgrades,
 }
 
 impl CampScreen {
@@ -18,6 +19,7 @@ impl CampScreen {
             Self::Bank => "Bank",
             Self::Crafting => "Crafting",
             Self::Bounties => "Bounty board",
+            Self::Upgrades => "Camp Board",
         }
     }
 
@@ -28,6 +30,7 @@ impl CampScreen {
             Self::Bank => "Bank",
             Self::Crafting => "Crafting",
             Self::Bounties => "Bounties",
+            Self::Upgrades => "Upgrades",
         }
     }
 
@@ -37,6 +40,7 @@ impl CampScreen {
             Self::Bank => "bank",
             Self::Crafting => "crafting",
             Self::Bounties => "bounties",
+            Self::Upgrades => "upgrades",
         }
     }
 }
