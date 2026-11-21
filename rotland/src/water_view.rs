@@ -37,6 +37,50 @@ pub fn test_patch(spawn: Vec3, ground_y: f32) -> WaterPatch {
 }
 
 /// Draws water surfaces if enabled or if test patches are active.
+/// Strips of water that only cover the lake itself: a single rectangle over the lake's bounding box
+/// also covered the low ground in its corners, so the shore looked flooded.
+/// Rows of `TILE` m cells; a cell is water when any corner is inside the shore line; each run of water
+/// cells in a row becomes one patch (about one or two per row, cached for the world's lifetime).
+fn lake_patches(lake: &world::LakeLayout) -> Vec<WaterPatch> {
+    const TILE: f32 = 8.0;
+    static CACHE: Mutex<Option<(u32, Vec<WaterPatch>)>> = Mutex::new(None);
+    let key = lake.water_level.to_bits() ^ lake.center.x.to_bits() ^ lake.center.y.to_bits();
+    let mut cache = match CACHE.lock() {
+        Ok(g) => g,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    if let Some((k, patches)) = cache.as_ref()
+        && *k == key
+    {
+        return patches.clone();
+    }
+    let (min, max) = lake.water_bounds();
+    let cols = ((max.x - min.x) / TILE).ceil() as i32;
+    let rows = ((max.y - min.y) / TILE).ceil() as i32;
+    let wet = |x: f32, z: f32| lake.depth_at(glam::Vec2::new(x, z)) > 0.0;
+    let mut patches = Vec::new();
+    for r in 0..rows {
+        let z0 = min.y + r as f32 * TILE;
+        let mut run_start: Option<i32> = None;
+        for c in 0..=cols {
+            let x0 = min.x + c as f32 * TILE;
+            let water = c < cols
+                && (wet(x0, z0) || wet(x0 + TILE, z0) || wet(x0, z0 + TILE) || wet(x0 + TILE, z0 + TILE));
+            match (water, run_start) {
+                (true, None) => run_start = Some(c),
+                (false, Some(start)) => {
+                    let a = glam::Vec2::new(min.x + start as f32 * TILE, z0);
+                    patches.push(WaterPatch::new(a, glam::Vec2::new(x0, z0 + TILE), lake.water_level));
+                    run_start = None;
+                }
+                _ => {}
+            }
+        }
+    }
+    *cache = Some((key, patches.clone()));
+    patches
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn draw(
     gpu: &Gpu,
@@ -65,7 +109,7 @@ pub fn draw(
         let dz = (min.y - cam_pos.y).max(0.0).max(cam_pos.y - max.y);
         let dist_to_box = (dx * dx + dz * dz).sqrt();
         if dist_to_box <= 600.0 {
-            patches.push(WaterPatch::new(min, max, lake.water_level));
+            patches.extend(lake_patches(lake));
         }
     }
 

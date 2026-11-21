@@ -11,12 +11,13 @@ Updated: 2026-11-21 by Claude (after R13).
 Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zombies): avg 90, p99 15 ms, worst 1% 49-55; 211k tris (budget 228k), 159k shadow tris (over the 121k budget, FPS still fine), 56 draw calls.
 60 FPS triangle limit (bench): 380k-700k (`data/budgets.json`, `docs/BUDGETS.md`).
 
-## Last round: R14 (day 5) DONE: Ashford is in the game (4 Gemini lanes + Claude prep)
-- Claude: city attached to `WorldGenerator::from_data_dir` (`city()`), straight camp road, max 4 lots per block (was ~11; 380 lots), models in build lists, baked (130 models).
-- R14-01 city buildings as POIs (poi.json, chancePerChunk 0) + street props (`world/src/city/place.rs`); R14-02 flat city ground + asphalt/sidewalk/lot paint + camp road (`city/ground.rs`, `data/city_ground.json`); R14-03 2x zombies, cap 32 by day, 60% runners in the core at night; R14-04 streets on the minimap.
-- Gate fix: scope check reads `Files:` from the merge-base task (JESTER 43).
-- Seen, not fixed: lot ground looks mostly green (paint blend weak); sidewalk edges zigzag (2 m ground cells); one `Aborted` on exit in 4 runs (intermittent, unknown).
-- R13 (day 4): 8 buildings + LOD, 12 street props, city layout, city loot tables.
+## Now: 0.2 push (docs/PLAN_0.2_PUSH.md), day 1 done 2026-11-21 (owner out of tokens; resume when told "continue")
+- MERGED in main: R16 foundations (camp upgrades core, build-mode core, weapons + projectiles, hordes + director + special zombie data, lake layout, water renderer, LOD fade, big map shows Ashford, HUD polish), R16-N1 Neon menus, R17 models (camp walls/gates, towers/workshop/doctor/mechanic, weapons + icons, brute/screamer/crawler, base parts + furniture, lake buildings/props), lake in the world, HUD wiring. 648 tests pass. 178 models baked.
+- NOT merged: branch `neon/camp-board` (Neon camp board screen, needs wiring: R18-01 merges it).
+- RUNNING when the session ended: R18-01..09 (camp board wiring, camp layout, build mode, weapons in play, hordes in play, lake gameplay, crawler fix, LOD fade cost, guild core). On resume: read each `tasks/R18-*.md` Worker notes + gate report, review, merge, apply their "Wiring notes for Claude", full gate, release build, screenshots, FPS quiet test, push, clean worktrees.
+- Known: water drawn as 8 m strips over the lake only (beach now dry), BUT docks sit at ground height under the water (dock y must be water_level + ~0.4, in `world/src/lake/place.rs`), the shore edge is blocky (8 m strips), and a thin white line shows across the screen at `--at=470,-1420` (probably a water strip edge seen from far; check); crawler pose wrong (R18-07); FPS worries: city core worst 1% 21, lake 17 under heavy load (R18-08 + a quiet re-measure first thing).
+- Tools fixed today: gate scope reads `Files:` from main; `tools/claim_target.sh` rebuilds our crates every gate (shared target mixed worktrees); gate never deadlocks inside an outer flock.
+- Seed 42 places: city core (-384, 1792), lake first dock (528, -1478). Dev panel: City core / City entry / Camp road / Lake teleports.
 
 ## Next (from PLAN_0.2.md)
 1. Stutter: re-measure on a quiet laptop (nothing else running), then find the between-frames stall (present mode / vsync, compositor, physics collider rebuild in `physics/src/world.rs`). Re-run `--bench` quietly too.
