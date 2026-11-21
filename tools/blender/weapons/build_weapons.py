@@ -10,7 +10,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, ".."))
 
-WEAPONS = ["bat", "machete", "pistol", "knife", "axe", "shotgun", "rifle", "ak47", "smg", "crowbar", "katana"]
+WEAPONS = [
+    "bat", "machete", "pistol", "knife", "axe", "shotgun", "rifle", "ak47", "smg", "crowbar", "katana",
+    "bow", "arrow", "spear", "dagger", "hammer", "pipe", "fire_axe",
+]
 
 
 def main():

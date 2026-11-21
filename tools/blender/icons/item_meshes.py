@@ -196,6 +196,8 @@ def antler():
 # Farming (V12-03): the tools reuse their farming model parts, the crops and food are simple shapes.
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "farming"))
 import farming_parts  # noqa: E402
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "weapons"))
+import arrow as arrow_weapon  # noqa: E402
 
 
 class _Bag:
@@ -275,7 +277,46 @@ def vegetable_stew():
             _box((0.03, 0.03, 0.03), (-0.03, -0.02, 0.09), "crop_green")]
 
 
+def arrow():
+    bag = _Bag()
+    arrow_weapon.build(bag)
+    return bag.bms
+
+
+def arrow_broken():
+    # An arrow snapped in two: the two halves meet at the jagged fracture vertex in an angled V
+    bag = _Bag()
+    arrow_weapon.build(bag)
+    # Front half: ferrule, blade, edge, sinew wrap (indices 0..3)
+    front_bms = bag.bms[:4]
+    # Broken front shaft from y = -0.260 to -0.075 with jagged splinters at the break
+    front_bms.append(arrow_weapon.cyl_y(0.0042, 0.0042, -0.260, -0.075, "wood_crate", segments=8))
+    front_bms.append(_box((0.003, 0.024, 0.002), (0.001, -0.268, 0.001), "wood_crate"))
+    front_bms.append(_box((0.002, 0.018, 0.002), (-0.002, -0.265, -0.001), "bark_light"))
+
+    # Rear half: feathers, bindings, nock, slit (indices 5..11; omit full shaft at index 4)
+    rear_bms = bag.bms[5:]
+    # Broken rear shaft from y = -0.710 to -0.440 with jagged splinters at the break
+    rear_bms.append(arrow_weapon.cyl_y(0.0042, 0.0042, -0.710, -0.440, "wood_crate", segments=8))
+    rear_bms.append(_box((0.003, 0.024, 0.002), (0.001, -0.432, 0.001), "wood_crate"))
+    rear_bms.append(_box((0.002, 0.018, 0.002), (-0.002, -0.435, -0.001), "bark_light"))
+
+    # Front piece: place break at origin, rotate arm up-right
+    for bm in front_bms:
+        common.transform(bm, loc=(0.0, 0.260, 0.0))
+        common.transform(bm, rot=(0.0, 0.0, -0.40))
+
+    # Rear piece: place break adjacent to origin, angle arm down-left
+    for bm in rear_bms:
+        common.transform(bm, loc=(0.018, 0.435, 0.005))
+        common.transform(bm, rot=(0.0, 0.0, 0.55))
+
+    return front_bms + rear_bms
+
+
 BUILDERS = {
+    "arrow": arrow,
+    "arrow_broken": arrow_broken,
     "hide": hide,
     "antler": antler,
     "campfire_kit": campfire_kit,
