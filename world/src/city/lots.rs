@@ -98,7 +98,7 @@ pub(crate) fn generate_lots(
         let mut block_lots: Vec<CityLot> = Vec::new();
         let mut failures = 0;
 
-        while failures < MAX_ATTEMPTS {
+        while failures < MAX_ATTEMPTS && block_lots.len() < cfg.max_lots_per_block {
             let mut pick = rng.next(total_weight as i32) as u32;
             let mut building_id = &weights[0].id;
             for bw in weights {

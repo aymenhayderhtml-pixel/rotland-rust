@@ -64,6 +64,8 @@ pub struct CityConfigData {
     pub districts: CityDistrictsData,
     pub buildings: HashMap<String, [f32; 2]>,
     pub lot_gap: f32,
+    /// At most this many buildings per block (keeps the frame within the triangle budget).
+    pub max_lots_per_block: usize,
 }
 
 pub type CityConfig = CityConfigData;
@@ -82,7 +84,8 @@ impl CityConfigData {
             && self.direction_tries > 0
             && self.core_blocks > 0
             && self.outskirts_rings >= 0
-            && self.lot_gap >= 0.0;
+            && self.lot_gap >= 0.0
+            && self.max_lots_per_block > 0;
         if !ok {
             return Err("CityConfigData has invalid values".to_string());
         }

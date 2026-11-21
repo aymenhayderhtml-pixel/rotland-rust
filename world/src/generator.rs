@@ -2,6 +2,7 @@ use glam::{IVec2, Vec2, Vec3};
 use serde::{Deserialize, Serialize};
 
 use crate::biome::BiomeId;
+use crate::city::{CityConfigData, CityLayout};
 use crate::color::Color;
 use crate::ground_paint::GroundPaint;
 use crate::math::{lerp, smooth_step};
@@ -38,6 +39,7 @@ pub struct WorldGenerator {
     hue: GodotNoise,
     paint: GroundPaint,
     settlements: Vec<SettlementSite>,
+    city: Option<CityLayout>,
 }
 
 impl WorldGenerator {
@@ -59,8 +61,26 @@ impl WorldGenerator {
         let settlements = crate::settlement::SettlementConfig::load_from_file(read("settlements.json")).map_err(|e| format!("settlements.json: {e}"))?;
         let scatter = crate::scatter::ScatterConfig::load_from_file(read("scatter.json")).map_err(|e| format!("scatter.json: {e}"))?;
         let poi = crate::poi::PoiConfig::load_from_file(read("poi.json")).map_err(|e| format!("poi.json: {e}"))?;
-        Ok(Self::with_configs(seed, settlements, scatter, poi))
+        let mut generator = Self::with_configs(seed, settlements, scatter, poi);
+        let city_path = read("city.json");
+        if city_path.exists() {
+            let city = CityConfigData::load_from_file(city_path).map_err(|e| format!("city.json: {e}"))?;
+            generator.attach_city(&city);
+        }
+        Ok(generator)
     }
+
+    /// Lays out the ruined city around the camp (call after the camp is placed).
+    /// `new`/`with_configs` worlds have no city, so terrain-only tests stay unchanged.
+    pub fn attach_city(&mut self, cfg: &CityConfigData) {
+        let camp = self.settlements.first().map_or(Vec2::ZERO, |s| Vec2::new(s.center.x, s.center.z));
+        let mut layout = CityLayout::generate(self.seed, camp, cfg, |p| self.forest_weight(p.x, p.y));
+        layout.road = vec![camp, layout.entry];
+        self.city = Some(layout);
+    }
+
+    /// The ruined city, if this world has one (worlds made with `from_data_dir`).
+    pub fn city(&self) -> Option<&CityLayout> { self.city.as_ref() }
 
     /// Terrain only (empty scatter and POI data). Use `from_data_dir` for the real world.
     pub fn new(seed: i32, config: SettlementConfigData) -> Self {
@@ -89,6 +109,7 @@ impl WorldGenerator {
             hue,
             paint,
             settlements: Vec::new(),
+            city: None,
         };
         let site = SettlementPlacer::find(&world_gen, &config);
         world_gen.settlements = vec![site];

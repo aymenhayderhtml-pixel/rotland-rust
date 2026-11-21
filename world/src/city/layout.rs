@@ -26,6 +26,8 @@ pub struct CityLayout {
     pub streets: Vec<StreetSegment>,
     pub lots: Vec<CityLot>,
     pub entry: Vec2,
+    /// The old road from the camp to `entry` (polyline, world x/z). Empty until `WorldGenerator::attach_city`.
+    pub road: Vec<Vec2>,
 }
 
 impl CityLayout {
@@ -187,6 +189,7 @@ impl CityLayout {
             streets,
             lots,
             entry,
+            road: Vec::new(),
         }
     }
 

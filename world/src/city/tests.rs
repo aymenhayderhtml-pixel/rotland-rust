@@ -338,3 +338,20 @@ fn city_queries() {
     assert!(layout.district_at(camp).is_none());
     assert!(layout.street_at(camp).is_none());
 }
+
+#[test]
+fn city_attached_to_real_world() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../data");
+    let generator = crate::WorldGenerator::from_data_dir(42, dir).unwrap();
+    let city = generator.city().expect("data/city.json gives the real world a city");
+    let camp = generator.settlements()[0].center;
+    let camp = glam::Vec2::new(camp.x, camp.z);
+    let core = city.origin + glam::Vec2::splat(city.size * 0.5);
+    println!("seed 42: camp {camp:?}, city origin {:?}, core {core:?}, lots {}", city.origin, city.lots.len());
+    let nearest = glam::Vec2::new(
+        camp.x.clamp(city.origin.x, city.origin.x + city.size),
+        camp.y.clamp(city.origin.y, city.origin.y + city.size),
+    );
+    let d = (nearest - camp).length();
+    assert!((d - 1500.0).abs() < 100.0, "camp to city edge is {d} m");
+}

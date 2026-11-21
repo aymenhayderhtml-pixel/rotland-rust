@@ -18,7 +18,9 @@ import build_all  # noqa: E402
 MODELS = ["tree_birch", "tree_oak_big", "tree_dead", "pine_tall", "tree_autumn",
           "grass_tuft_a", "grass_tuft_b", "flowers_white", "flowers_yellow", "fern", "mushrooms",
           "stump", "log_fallen",
-          "fence_wood_section", "car_wreck", "road_sign", "barrel_rusty", "tire_pile"]
+          "fence_wood_section", "car_wreck", "road_sign", "barrel_rusty", "tire_pile",
+          "street_lamp", "bus_stop", "mailbox", "dumpster", "trash_bags", "barricade",
+          "rubble_pile", "car_wreck_sedan", "car_wreck_van", "sign_fallen", "fence_broken", "jersey_barrier"]
 
 
 def main():

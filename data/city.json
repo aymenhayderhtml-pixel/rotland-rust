@@ -54,5 +54,6 @@
     "gas_station": [10.0, 8.0],
     "shed": [3.0, 3.0]
   },
+  "maxLotsPerBlock": 4,
   "lotGap": 2.0
 }
