@@ -1,0 +1,8 @@
+{
+  "shallowSpeedMultiplier": 0.6,
+  "deepSpeedMultiplier": 0.45,
+  "swimStaminaDrainPerSec": 8.0,
+  "drowningDamagePerSec": 10.0,
+  "chestHeight": 1.2,
+  "dirtyWaterCooldownSec": 2.0
+}

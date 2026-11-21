@@ -71,6 +71,7 @@
       { "id": "water_bottle", "weight": 20, "count": [1, 2] },
       { "id": "apple", "weight": 16, "count": [1, 3] },
       { "id": "cloth", "weight": 12, "count": [1, 2] },
+      { "id": "fishing_rod", "weight": 6, "count": [1, 1] },
       { "id": "pistol_ammo", "weight": 8, "count": [3, 8] },
       { "id": "flashlight", "weight": 6, "count": [1, 1] },
       { "id": "knife", "weight": 4, "count": [1, 1] }
@@ -103,6 +104,7 @@
     "entries": [
       { "id": "knife", "weight": 12, "count": [1, 1] },
       { "id": "axe", "weight": 8, "count": [1, 1] },
+      { "id": "fishing_rod", "weight": 6, "count": [1, 1] },
       { "id": "shells_12g", "weight": 14, "count": [2, 6] },
       { "id": "rifle_rounds", "weight": 14, "count": [3, 8] },
       { "id": "rifle", "weight": 1, "count": [1, 1] },

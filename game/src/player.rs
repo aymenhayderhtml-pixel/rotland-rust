@@ -105,6 +105,10 @@ pub struct Player {
     pub jump_buffer_timer: f32,
     pub speed_multiplier: f32,
     pub can_sprint: bool,
+    pub can_jump: bool,
+    pub water_float_y: Option<f32>,
+    pub in_deep_water: bool,
+    pub dirty_water_cooldown: f32,
     pub gravity: f32,
 }
 
@@ -124,7 +128,27 @@ impl Player {
             jump_buffer_timer: 0.0,
             speed_multiplier: 1.0,
             can_sprint: true,
+            can_jump: true,
+            water_float_y: None,
+            in_deep_water: false,
+            dirty_water_cooldown: 0.0,
             gravity: DEFAULT_GRAVITY,
+        }
+    }
+
+    /// Applies water movement effects (speed multiplier, jump/sprint restrictions, floating, stamina drain).
+    pub fn apply_water_movement(&mut self, res: &crate::swimming::WaterMovementResult) {
+        self.speed_multiplier = res.speed_multiplier;
+        self.can_sprint = res.can_sprint;
+        if !self.can_sprint {
+            self.is_sprinting = false;
+        }
+        self.can_jump = res.can_jump;
+        self.water_float_y = res.float_y;
+        self.in_deep_water = res.zone == world::LakeZone::Deep;
+        if res.stamina_drain > 0.0 {
+            self.stamina.current = (self.stamina.current - res.stamina_drain).max(0.0);
+            self.stamina.time_since_use = 0.0;
         }
     }
 
@@ -225,7 +249,7 @@ impl Player {
             self.jump_buffer_timer -= dt;
         }
 
-        if self.jump_buffer_timer > 0.0 && self.coyote_timer > 0.0 {
+        if self.can_jump && self.jump_buffer_timer > 0.0 && self.coyote_timer > 0.0 {
             self.jump_buffer_timer = 0.0;
             if self.stamina.try_jump() {
                 vel.y = JUMP_VELOCITY;
@@ -248,6 +272,17 @@ impl Player {
         self.position = res.position;
         self.velocity = res.velocity;
         self.on_floor = res.on_floor;
+        if let Some(float_y) = self.water_float_y
+            && self.position.y < float_y
+        {
+            self.position.y = float_y;
+            if self.velocity.y < 0.0 {
+                self.velocity.y = 0.0;
+            }
+        }
+        if self.dirty_water_cooldown > 0.0 {
+            self.dirty_water_cooldown = (self.dirty_water_cooldown - dt).max(0.0);
+        }
 
         // Body facing rotation: turns toward move direction in 3rd person, faces camera in 1st person or aiming
         self.update_facing(wish, has_input, camera_yaw, actions.aim, dt);

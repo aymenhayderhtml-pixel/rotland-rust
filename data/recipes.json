@@ -26,5 +26,9 @@
   { "id": "vegetable_stew", "name": "Make Vegetable Stew", "station": "campfire",
     "inputs": [ { "id": "potato", "count": 1 }, { "id": "carrot", "count": 1 }, { "id": "water_bottle", "count": 1 } ],
     "outputs": [ { "id": "vegetable_stew", "count": 1 } ],
-    "time": 12, "xp": { "skill": "cooking", "amount": 12 } }
+    "time": 12, "xp": { "skill": "cooking", "amount": 12 } },
+  { "id": "fish_cooked", "name": "Cook Fish", "station": "campfire",
+    "inputs": [ { "id": "fish_raw", "count": 1 } ],
+    "outputs": [ { "id": "fish_cooked", "count": 1 } ],
+    "time": 6, "xp": { "skill": "cooking", "amount": 8 } }
 ]
