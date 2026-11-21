@@ -61,17 +61,7 @@ impl<'a> SpawnContext<'a> {
         self
     }
 
-    pub fn with_city(mut self, in_city: bool) -> Self {
-        self.in_city = in_city;
-        self
-    }
-
     pub fn with_in_city_core(mut self, in_city_core: bool) -> Self {
-        self.in_city_core = in_city_core;
-        self
-    }
-
-    pub fn with_city_core(mut self, in_city_core: bool) -> Self {
         self.in_city_core = in_city_core;
         self
     }

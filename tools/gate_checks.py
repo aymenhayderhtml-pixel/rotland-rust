@@ -90,8 +90,22 @@ def failures(head, items):
         out.append(f"  ... {len(items) - 10} more")
     return False, "\n".join(out)
 
-def check_scope(task, paths):
-    files = list_field(task, "Files")
+def base_files(task, mb):
+    """The task's `Files:` list as committed at the merge-base, so a worker can't widen its own scope."""
+    rel = task_rel(task)
+    if not rel or not mb:
+        return None
+    r = git("show", f"{mb}:{rel}")
+    if r.returncode != 0:
+        return None
+    for line in r.stdout.splitlines():
+        m = re.match(r"^\s*Files:\s*(.*)$", line, re.I)
+        if m:
+            return [p.strip().strip("`").strip() for p in m.group(1).split(",") if p.strip()]
+    return None
+
+def check_scope(task, paths, mb=None):
+    files = base_files(task, mb) or list_field(task, "Files")
     if files is None:
         return True, "scope: SKIP (no task Files: line)"
     allowed = list(files)
@@ -334,7 +348,7 @@ def main():
         return 0
     mb = merge_base(args.base)
     adds = added_lines(mb)
-    results = [check_scope(args.task, changed_paths(mb)),
+    results = [check_scope(args.task, changed_paths(mb), mb),
                check_numbers(adds, args.base),
                check_unused(adds)]
     for ok, line in results:

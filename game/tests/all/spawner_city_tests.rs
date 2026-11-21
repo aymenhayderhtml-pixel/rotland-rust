@@ -56,12 +56,6 @@ fn spawner_city_cap_day_capped_at_32_and_night_multiplier() {
     let cap_day = spawner.calculate_cap(&ctx_city_day);
     assert_eq!(cap_day, 32, "city day cap must be capped at 32");
 
-    // Also verify with alias builder `with_city`:
-    let ctx_city_alias = SpawnContext::new(Vec3::ZERO, &world, &alive, &settlements)
-        .with_biome("plains")
-        .with_city(true);
-    assert_eq!(spawner.calculate_cap(&ctx_city_alias), 32);
-
     // In city at night:
     // day_cap = 32, night_multiplier = 1.6 -> 32 * 1.6 = 51.2 -> 51.
     let ctx_city_night = SpawnContext::new(Vec3::ZERO, &world, &alive, &settlements)
@@ -246,7 +240,7 @@ fn spawner_city_builder_methods_and_pick_slice() {
     assert!(ctx1.in_city);
     assert!(ctx1.in_city_core);
 
-    let ctx2 = ctx1.with_city(false).with_city_core(false);
+    let ctx2 = ctx1.with_in_city(false).with_in_city_core(false);
     assert!(!ctx2.in_city);
     assert!(!ctx2.in_city_core);
 
