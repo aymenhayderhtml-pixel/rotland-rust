@@ -165,19 +165,21 @@ VARIANTS = [
         "hunched": False,
         "proportions": {"width": 1.0, "depth": 1.0, "height": 1.0},
         "posture": {
-            "hips": {"rot": (0, 0, 0), "loc": (0, -0.65, 0)},
-            "spine": (-28, 0, 0),
-            "chest": (-6, 0, 0),
-            "neck": (0, 0, 0),
-            "head": (37, 0, 0),
-            "upper_arm_R": (92, 0, -8),
-            "forearm_R": (0, 0, 0),
-            "upper_arm_L": (92, 0, 8),
-            "forearm_L": (0, 0, 0),
-            "thigh_R": (-68, 0, 0),
-            "shin_R": (-22, 0, 0),
-            "thigh_L": (-66, 0, 0),
-            "shin_L": (-24, 0, 0),
+            "hips": {"rot": (0, 0, 0), "loc": (0, -0.75, 0)},
+            "spine": (-75, 0, 0),
+            "chest": (-15, 0, 0),
+            "neck": (20, 0, 0),
+            "head": (55, 0, 0),
+            "upper_arm_R": (35, 5, -28),
+            "forearm_R": (-15, 0, -32),
+            "hand_R": (-10, 0, 0),
+            "upper_arm_L": (35, -5, 28),
+            "forearm_L": (-15, 0, 32),
+            "hand_L": (-10, 0, 0),
+            "thigh_R": (-85, 0, 10),
+            "shin_R": (-10, 0, 0),
+            "thigh_L": (-85, 0, -10),
+            "shin_L": (-10, 0, 0),
         },
         "clips": {
             "idle": "zombie_crawler_idle",
@@ -185,7 +187,7 @@ VARIANTS = [
             "run": "zombie_crawler_sprint",
             "zombie_shamble": "zombie_crawler_crawl",
             "zombie_lurch": "zombie_crawler_crawl",
-            "zombie_crawl": "zombie_crawl",
+            "zombie_crawl": "zombie_crawler_crawl",
             "zombie_attack": "zombie_crawler_attack",
             "hit": "zombie_crawler_hit",
             "zombie_stagger": "zombie_crawler_hit",
@@ -193,7 +195,7 @@ VARIANTS = [
             "zombie_scream": "zombie_crawler_scream",
             "zombie_runner_sprint": "zombie_crawler_sprint",
             "zombie_bang": "zombie_crawler_crawl",
-            "zombie_eat": "zombie_eat",
+            "zombie_eat": "zombie_crawler_eat",
         },
     },
 ]
@@ -466,7 +468,7 @@ def build_one_character(variant):
 
     # Framing parameters
     if name == "zombie_crawler":
-        target_z, cam_dist_mult = 0.35, 0.85
+        target_z, cam_dist_mult = 0.24, 0.85
     elif name == "zombie_brute":
         target_z, cam_dist_mult = 1.10, 1.35
     else:
