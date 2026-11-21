@@ -1,7 +1,7 @@
 //! Director state machine and pressure pacing logic.
 
 use super::config::{DirectorConfig, DirectorStateConfig};
-use super::state::{DirectorEvent, DirectorSaveState, DirectorState, WaveKind};
+use super::state::{DirectorEvent, DirectorSaveState, DirectorState, HordeEvent, WaveKind};
 
 /// Input per frame/tick to drive the director state machine.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -36,6 +36,7 @@ pub struct DirectorOutput {
     pub max_active_multiplier: f32,
     pub special_chance: f32,
     pub events: Vec<DirectorEvent>,
+    pub horde_events: Vec<HordeEvent>,
 }
 
 /// Paces zombie pressure across Calm, Building, Wave, and Relax states.
@@ -109,6 +110,7 @@ impl Director {
     /// Advance the director simulation by dt and evaluate events.
     pub fn update(&mut self, input: &DirectorInput) -> DirectorOutput {
         let mut events = Vec::new();
+        let mut horde_events = Vec::new();
 
         // Track day-to-night transitions
         if input.is_night && !self.was_night {
@@ -126,6 +128,9 @@ impl Director {
             {
                 self.night_horde_triggered = true;
                 events.push(DirectorEvent::CampAttack {
+                    size: self.config.rules.night_horde_size,
+                });
+                horde_events.push(HordeEvent::CampAttack {
                     size: self.config.rules.night_horde_size,
                 });
             }
@@ -161,6 +166,7 @@ impl Director {
                             (WaveKind::Noise, self.config.rules.wave_size_day)
                         };
                         events.push(DirectorEvent::WaveStart { size, kind });
+                        horde_events.push(HordeEvent::HordeIncoming { size });
                     }
                 }
             }
@@ -184,6 +190,7 @@ impl Director {
             max_active_multiplier: st_cfg.max_active_multiplier,
             special_chance: st_cfg.special_chance,
             events,
+            horde_events,
         }
     }
 

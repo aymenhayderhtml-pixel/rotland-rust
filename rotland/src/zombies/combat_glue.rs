@@ -25,6 +25,7 @@ impl Zombies {
             z.pending_hit = Some(damage);
         }
         if result.died_now {
+            self.total_kills += 1;
             self.kills.push((z.kind.clone(), headshot));
             self.corpses.record(z.position, self.game_time);
         }
@@ -67,6 +68,7 @@ impl Zombies {
     pub fn hit_unclaimed(&mut self, id: u64, damage: DamageInfo, knockback: Vec3) -> bool {
         let killed = self.hit(id, damage, knockback);
         if killed {
+            self.total_kills = self.total_kills.saturating_sub(1);
             self.kills.pop();
         }
         killed

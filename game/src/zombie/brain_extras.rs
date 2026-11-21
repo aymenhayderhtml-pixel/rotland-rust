@@ -23,6 +23,30 @@ impl ZombieBrain {
         self.crawler = crawler;
     }
 
+    pub fn is_screamer(&self) -> bool {
+        self.is_screamer
+    }
+
+    pub fn set_screamer(&mut self, screamer: bool) {
+        self.is_screamer = screamer;
+    }
+
+    pub fn has_screamed(&self) -> bool {
+        self.has_screamed
+    }
+
+    pub fn set_horde_steer(&mut self, steer: Option<Vec3>) {
+        self.horde_steer = steer;
+    }
+
+    pub fn alert_chase(&mut self, target_pos: Vec3) {
+        if self.state == ZombieState::Dead {
+            return;
+        }
+        self.senses.notice_at(target_pos);
+        self.enter_chase();
+    }
+
     pub fn set_scream_chance(&mut self, chance: f32) {
         self.scream_chance = chance;
     }

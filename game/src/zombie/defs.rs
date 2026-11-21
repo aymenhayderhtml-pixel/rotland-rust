@@ -33,6 +33,9 @@ pub struct ZombieDef {
     /// Run clip for the fast chase blend (e.g. the runner's sprint). None keeps the default run clip.
     #[serde(default)]
     pub run_clip: Option<String>,
+    /// Optional animation clip mapping overrides (e.g. for crawler).
+    #[serde(default)]
+    pub clips: std::collections::HashMap<String, String>,
 }
 
 /// Shared tuning numbers for zombie behaviour (the `behaviour` block of the JSON).

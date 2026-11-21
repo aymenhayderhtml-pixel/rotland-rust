@@ -27,6 +27,13 @@ pub enum DirectorEvent {
     CampAttack { size: usize },
 }
 
+/// Events exposed to the HUD and camp systems.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HordeEvent {
+    HordeIncoming { size: usize },
+    CampAttack { size: usize },
+}
+
 /// Save state struct that preserves director pacing across game saves.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct DirectorSaveState {

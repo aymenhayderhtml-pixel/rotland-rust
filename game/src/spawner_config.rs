@@ -7,11 +7,17 @@ use std::path::Path;
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
+fn default_hard_cap() -> usize {
+    60 // data: spawning.json hardCap
+}
+
 /// Shape of data/spawning.json.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SpawnConfig {
     pub max_active: u32,
+    #[serde(default = "default_hard_cap")]
+    pub hard_cap: usize,
     pub min_spawn_dist: f32,
     pub max_spawn_dist: f32,
     pub despawn_dist: f32,
