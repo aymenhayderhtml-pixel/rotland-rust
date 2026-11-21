@@ -8,7 +8,7 @@ use game::items::{start_inventory, Hotbar, HotbarAction, Inventory, ItemRegistry
 use game::spawner::{SpawnContext, Spawner};
 use game::spawner_config::SpawnConfig;
 use game::{WeaponDef, WeaponRegistry};
-use glam::Vec3;
+use glam::{Vec2, Vec3};
 use physics::PhysicsWorld;
 use winit::keyboard::KeyCode;
 use world::WorldGenerator;
@@ -298,6 +298,9 @@ impl PlayState {
     #[allow(clippy::too_many_arguments)]
     pub fn spawn_tick(&mut self, dt: f32, player: Vec3, forward: Vec3, night: bool, zombies: &mut Zombies, physics: &PhysicsWorld, world_gen: &WorldGenerator) {
         let alive = zombies.active();
+        let p = Vec2::new(player.x, player.z);
+        let in_city = world_gen.city().is_some_and(|c| c.contains(p));
+        let in_city_core = world_gen.city().is_some_and(|c| c.district_at(p) == Some(world::District::Core));
         let ctx = SpawnContext {
             player_position: player,
             player_forward: forward,
@@ -309,6 +312,8 @@ impl PlayState {
             ground_check: None,
             zombie_amount: 1.0,
             biome_name: Some(if world_gen.forest_weight(player.x, player.z) > 0.5 { "forest" } else { "plains" }),
+            in_city,
+            in_city_core,
         };
         let orders = self.spawner.update(dt, &ctx);
         zombies.despawn(&orders.despawns);

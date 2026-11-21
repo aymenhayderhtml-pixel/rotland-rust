@@ -22,6 +22,16 @@ pub struct SpawnConfig {
     pub night_max_active_multiplier: f32,
     pub camp_density: CampDensityRule,
     pub types: SpawnTypeTable,
+    #[serde(default)]
+    pub city: Option<CitySpawnConfig>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CitySpawnConfig {
+    pub density: f32,
+    pub max_active: u32,
+    pub core_night_types: Vec<SpawnTypeEntry>,
 }
 
 pub type SpawnConfigData = SpawnConfig;
@@ -91,16 +101,42 @@ impl SpawnConfig {
                 ids.push(entry.id.clone());
             }
         }
+        if let Some(city) = &self.city {
+            for entry in &city.core_night_types {
+                if !ids.contains(&entry.id) {
+                    ids.push(entry.id.clone());
+                }
+            }
+        }
         ids
     }
 
     /// Picks a zombie type id by weight from the day or night table.
     pub fn pick_type_id<'a>(&'a self, rng: &mut SpawnerRng, night: bool) -> &'a str {
-        let table = if night {
-            &self.types.night
+        self.pick_type_id_core(rng, night, false)
+    }
+
+    /// Picks a zombie type id by weight taking day/night and city core into account.
+    pub fn pick_type_id_core<'a>(
+        &'a self,
+        rng: &mut SpawnerRng,
+        night: bool,
+        in_city_core: bool,
+    ) -> &'a str {
+        if night && in_city_core && let Some(city) = &self.city && !city.core_night_types.is_empty() {
+            Self::pick_from_slice(rng, &city.core_night_types)
         } else {
-            &self.types.day
-        };
+            let table = if night {
+                &self.types.night
+            } else {
+                &self.types.day
+            };
+            Self::pick_from_slice(rng, table)
+        }
+    }
+
+    /// Picks a zombie type id by weight from a slice of entries.
+    pub fn pick_from_slice<'a>(rng: &mut SpawnerRng, table: &'a [SpawnTypeEntry]) -> &'a str {
         let mut total = 0.0f32;
         for entry in table {
             total += entry.weight.max(0.0);
