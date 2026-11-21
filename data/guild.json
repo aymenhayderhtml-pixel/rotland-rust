@@ -1,0 +1,309 @@
+{
+  "reset_hour": 6.0,
+  "max_offered": 5,
+  "max_active": 3,
+  "ranks": [
+    {
+      "id": "rookie",
+      "name": "Rookie",
+      "min_rep": 0,
+      "max_recruits": 1,
+      "shop_tier": 1
+    },
+    {
+      "id": "veteran",
+      "name": "Veteran",
+      "min_rep": 100,
+      "max_recruits": 2,
+      "shop_tier": 2
+    },
+    {
+      "id": "elite",
+      "name": "Elite",
+      "min_rep": 250,
+      "max_recruits": 3,
+      "shop_tier": 3
+    },
+    {
+      "id": "master",
+      "name": "Master",
+      "min_rep": 500,
+      "max_recruits": 4,
+      "shop_tier": 4
+    },
+    {
+      "id": "legend",
+      "name": "Legend",
+      "min_rep": 1000,
+      "max_recruits": 5,
+      "shop_tier": 5
+    }
+  ],
+  "tasks": [
+    {
+      "id": "kill_walkers",
+      "kind": "kill",
+      "title": "Cull the Walkers",
+      "zombie_type": "walker",
+      "in_city": false,
+      "target_range": [5, 10],
+      "dollars_range": [20, 40],
+      "rep_range": [15, 25],
+      "item_reward": null
+    },
+    {
+      "id": "kill_runners",
+      "kind": "kill",
+      "title": "Speed Patrol",
+      "zombie_type": "runner",
+      "in_city": false,
+      "target_range": [3, 6],
+      "dollars_range": [30, 50],
+      "rep_range": [20, 35],
+      "item_reward": { "item_id": "pistol_ammo", "count": 12 }
+    },
+    {
+      "id": "city_cleansing",
+      "kind": "kill",
+      "title": "Ashford Zombie Purge",
+      "zombie_type": null,
+      "in_city": true,
+      "target_range": [8, 15],
+      "dollars_range": [45, 80],
+      "rep_range": [30, 50],
+      "item_reward": { "item_id": "bandage", "count": 2 }
+    },
+    {
+      "id": "fetch_wood",
+      "kind": "fetch",
+      "title": "Guild Timber Reserve",
+      "item_id": "wood",
+      "target_range": [4, 8],
+      "dollars_range": [15, 30],
+      "rep_range": [10, 20],
+      "item_reward": null
+    },
+    {
+      "id": "fetch_beans",
+      "kind": "fetch",
+      "title": "Rations Delivery",
+      "item_id": "canned_beans",
+      "target_range": [2, 4],
+      "dollars_range": [20, 35],
+      "rep_range": [15, 25],
+      "item_reward": null
+    },
+    {
+      "id": "fetch_bandages",
+      "kind": "fetch",
+      "title": "Field Medical Aid",
+      "item_id": "bandage",
+      "target_range": [2, 5],
+      "dollars_range": [25, 45],
+      "rep_range": [20, 30],
+      "item_reward": { "item_id": "water_bottle", "count": 2 }
+    },
+    {
+      "id": "explore_ashford",
+      "kind": "explore",
+      "title": "Scout Ashford Core",
+      "place_name": "Ashford core",
+      "target_range": [1, 1],
+      "dollars_range": [50, 80],
+      "rep_range": [35, 55],
+      "item_reward": { "item_id": "shells_12g", "count": 8 }
+    },
+    {
+      "id": "explore_lake",
+      "kind": "explore",
+      "title": "Survey The Lake",
+      "place_name": "the lake",
+      "target_range": [1, 1],
+      "dollars_range": [40, 70],
+      "rep_range": [30, 50],
+      "item_reward": { "item_id": "medkit", "count": 1 }
+    },
+    {
+      "id": "explore_watchtower",
+      "kind": "explore",
+      "title": "Recon Watchtower",
+      "place_name": "watchtower",
+      "target_range": [1, 1],
+      "dollars_range": [35, 60],
+      "rep_range": [25, 40],
+      "item_reward": null
+    },
+    {
+      "id": "clear_house",
+      "kind": "clear",
+      "title": "Clear Small House",
+      "poi_id": "house_small",
+      "target_range": [1, 1],
+      "dollars_range": [40, 65],
+      "rep_range": [25, 45],
+      "item_reward": null
+    },
+    {
+      "id": "clear_gas_station",
+      "kind": "clear",
+      "title": "Clear Abandoned Gas Station",
+      "poi_id": "gas_station",
+      "target_range": [1, 1],
+      "dollars_range": [50, 75],
+      "rep_range": [30, 50],
+      "item_reward": { "item_id": "pistol_ammo", "count": 16 }
+    },
+    {
+      "id": "clear_supermarket",
+      "kind": "clear",
+      "title": "Reclaim Grocery Mart",
+      "poi_id": "supermarket",
+      "target_range": [1, 1],
+      "dollars_range": [60, 90],
+      "rep_range": [35, 60],
+      "item_reward": { "item_id": "medkit", "count": 1 }
+    }
+  ],
+  "recruits": [
+    {
+      "id": "rec_mark",
+      "name": "Mark Vance",
+      "role": "fighter",
+      "level": 1,
+      "daily_wage": 15,
+      "health": 100,
+      "hire_cost": 30
+    },
+    {
+      "id": "rec_sarah",
+      "name": "Sarah Jenkins",
+      "role": "scavenger",
+      "level": 1,
+      "daily_wage": 12,
+      "health": 80,
+      "hire_cost": 25
+    },
+    {
+      "id": "rec_elena",
+      "name": "Elena Rostova",
+      "role": "guard",
+      "level": 2,
+      "daily_wage": 20,
+      "health": 120,
+      "hire_cost": 45
+    },
+    {
+      "id": "rec_jack",
+      "name": "Jack Miller",
+      "role": "fighter",
+      "level": 3,
+      "daily_wage": 28,
+      "health": 140,
+      "hire_cost": 65
+    },
+    {
+      "id": "rec_tanya",
+      "name": "Tanya Cross",
+      "role": "scavenger",
+      "level": 2,
+      "daily_wage": 18,
+      "health": 90,
+      "hire_cost": 40
+    },
+    {
+      "id": "rec_boris",
+      "name": "Boris Thorne",
+      "role": "guard",
+      "level": 3,
+      "daily_wage": 30,
+      "health": 150,
+      "hire_cost": 75
+    }
+  ],
+  "shop": [
+    {
+      "item_id": "bandage",
+      "tier": 1,
+      "price": 12,
+      "stock": 10
+    },
+    {
+      "item_id": "canned_beans",
+      "tier": 1,
+      "price": 8,
+      "stock": 10
+    },
+    {
+      "item_id": "water_bottle",
+      "tier": 1,
+      "price": 7,
+      "stock": 10
+    },
+    {
+      "item_id": "pistol_ammo",
+      "tier": 1,
+      "price": 2,
+      "stock": 60
+    },
+    {
+      "item_id": "medkit",
+      "tier": 2,
+      "price": 50,
+      "stock": 3
+    },
+    {
+      "item_id": "shells_12g",
+      "tier": 2,
+      "price": 3,
+      "stock": 30
+    },
+    {
+      "item_id": "machete",
+      "tier": 2,
+      "price": 35,
+      "stock": 1
+    },
+    {
+      "item_id": "rifle_rounds",
+      "tier": 3,
+      "price": 5,
+      "stock": 30
+    },
+    {
+      "item_id": "ammo_762",
+      "tier": 3,
+      "price": 7,
+      "stock": 30
+    },
+    {
+      "item_id": "shotgun",
+      "tier": 3,
+      "price": 160,
+      "stock": 1
+    },
+    {
+      "item_id": "rifle",
+      "tier": 4,
+      "price": 340,
+      "stock": 1
+    },
+    {
+      "item_id": "smg",
+      "tier": 4,
+      "price": 300,
+      "stock": 1
+    },
+    {
+      "item_id": "ak47",
+      "tier": 5,
+      "price": 480,
+      "stock": 1
+    },
+    {
+      "item_id": "katana",
+      "tier": 5,
+      "price": 420,
+      "stock": 1
+    }
+  ]
+}

@@ -16,6 +16,7 @@ mod dogs_tests;
 mod economy_tests;
 mod farming_tests;
 mod flowfield_tests;
+mod guild_tests;
 mod gun_tests;
 mod hints_tests;
 mod horde_tests;
