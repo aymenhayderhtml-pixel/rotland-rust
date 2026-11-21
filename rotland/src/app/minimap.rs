@@ -9,7 +9,9 @@ use crate::app::state::{ActorsState, UiState, WorldState};
 use crate::play::PlayState;
 
 pub use super::minimap_cache::MinimapState;
-use super::minimap_draw::{draw_camp_outlines, draw_marker, draw_player};
+use super::minimap_draw::{
+    draw_camp_outlines, draw_marker, draw_player, draw_streets_and_road,
+};
 
 const CIRCLE_SEGMENTS: usize = 48;
 const CAMP_GATE_HALF_METRES: f32 = 3.2;
@@ -68,11 +70,14 @@ pub fn draw_minimap_hud(
         }
     }
 
+    let city = world.world_gen.as_ref().and_then(|g| g.city());
+
     draw_minimap_overlay(
         ctx,
         &ui.minimap,
         &play_state.map,
         play_state.camp.bounties.active(),
+        city,
         player_xz,
         player_yaw,
     );
@@ -83,6 +88,7 @@ fn draw_minimap_overlay(
     state: &MinimapState,
     map: &game::MapState,
     bounties: &[game::BountyDef],
+    city: Option<&world::CityLayout>,
     player_xz: Vec2,
     yaw: f32,
 ) {
@@ -148,6 +154,18 @@ fn draw_minimap_overlay(
                 disk_r - 1.5 * scale,
             );
             draw_camp_outlines(painter, centre, &camp_outlines, scale);
+
+            draw_streets_and_road(
+                painter,
+                centre,
+                city,
+                player_xz,
+                cfg.radius_metres,
+                radius,
+                disk_r - 1.0 * scale,
+                scale,
+                &state.streets_cfg,
+            );
 
             let rim = (radius - 7.5 * scale).max(radius * 0.75);
             let markers = game::collect_minimap_markers(
