@@ -133,7 +133,13 @@
     "ak47": { "shot": "rifle_shot" },
     "smg": { "shot": "pistol_shot" },
     "crowbar": { "swing": "swing_heavy" },
-    "katana": { "swing": "swing_light" }
+    "katana": { "swing": "swing_light" },
+    "dagger": { "swing": "swing_light" },
+    "spear": { "swing": "swing_light" },
+    "hammer": { "swing": "swing_heavy" },
+    "pipe": { "swing": "swing_heavy" },
+    "fire_axe": { "swing": "swing_heavy" },
+    "bow": { "shot": "swing_light" }
   },
   "events": {
     "dryFire": { "sound": "dry_fire" },

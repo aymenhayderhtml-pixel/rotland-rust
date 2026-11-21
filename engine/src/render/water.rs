@@ -309,7 +309,7 @@ impl WaterRenderer {
         for &i in &visible_indices {
             let p = &patches[i];
             let key = PatchKey::from_patch(p);
-            if !self.cache.contains_key(&key) {
+            if let std::collections::hash_map::Entry::Vacant(slot) = self.cache.entry(key) {
                 let verts = build_water_grid(p);
                 let raw: Vec<[f32; 3]> = verts.iter().map(|v| v.to_array()).collect();
                 let buf = gpu.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -317,13 +317,10 @@ impl WaterRenderer {
                     contents: bytemuck::cast_slice(&raw),
                     usage: wgpu::BufferUsages::VERTEX,
                 });
-                self.cache.insert(
-                    key,
-                    CachedMesh {
-                        buffer: buf,
-                        vertex_count: verts.len() as u32,
-                    },
-                );
+                slot.insert(CachedMesh {
+                    buffer: buf,
+                    vertex_count: verts.len() as u32,
+                });
             }
         }
 

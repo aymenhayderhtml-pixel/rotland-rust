@@ -134,8 +134,8 @@ fn map_city_center_and_district_reveals() {
     assert!(!is_district_revealed(&city, District::Core, &explore));
     assert!(!is_city_center_revealed(&city, &explore));
 
-    // Reveal Core block center
-    explore.reveal(core_c, 20.0);
+    // Reveal around the Core: its center is the crossing between its 2x2 blocks, whose centers are ~45 m away
+    explore.reveal(core_c, 50.0);
     assert!(is_district_revealed(&city, District::Core, &explore));
     assert!(is_city_center_revealed(&city, &explore));
 }

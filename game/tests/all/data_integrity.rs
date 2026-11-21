@@ -241,15 +241,11 @@ fn every_item_has_icon_png() {
         }
     }
 
-    if !missing_icons.is_empty() {
-        eprintln!(
-            "WARNING: {} of {} items are missing icon PNGs in assets/icons/:\n{missing_icons:#?}",
-            missing_icons.len(),
-            total_items
-        );
-    } else {
-        println!("All {total_items} items have corresponding icon PNGs in assets/icons/");
-    }
-
-    assert_eq!(total_items, 43, "expected 43 items in data/items.json");
+    assert!(total_items > 0, "data/items.json has items");
+    assert!(
+        missing_icons.is_empty(),
+        "{} of {} items are missing icon PNGs in assets/icons/:\n{missing_icons:#?}",
+        missing_icons.len(),
+        total_items
+    );
 }

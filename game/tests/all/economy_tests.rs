@@ -49,8 +49,8 @@ fn price_math_on_real_data_counts_and_matches_all_items() {
         compared += 1;
     }
 
-    // 43 items in data/items.json
-    assert_eq!(compared, 43);
+    // every item in data/items.json is compared
+    assert_eq!(compared, items.all().count());
     assert!(compared > 0);
 
     // Verify key hand-calculated prices from items.json

@@ -18,7 +18,7 @@ fn every_weapon_id_has_sound_entry() {
     for (id, val) in &weapons_map {
         let kind = val.get("kind").and_then(|k| k.as_str()).unwrap_or("");
         let required_event = match kind {
-            "gun" => "shot",
+            "gun" | "bow" => "shot",
             "melee" => "swing",
             other => panic!("unknown weapon kind '{other}' for weapon '{id}'"),
         };
@@ -47,7 +47,7 @@ fn every_weapon_id_has_sound_entry() {
         missing.is_empty(),
         "weapons missing sound entries in data/sounds.json:\n{missing:#?}"
     );
-    assert_eq!(checked, 11, "expected 11 weapons in data/weapons.json, checked {checked}");
+    assert_eq!(checked, weapons_map.len(), "every weapon in data/weapons.json is checked");
 }
 
 #[test]
