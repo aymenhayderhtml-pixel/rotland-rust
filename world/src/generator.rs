@@ -2,7 +2,7 @@ use glam::{IVec2, Vec2, Vec3};
 use serde::{Deserialize, Serialize};
 
 use crate::biome::BiomeId;
-use crate::city::{CityConfigData, CityLayout};
+use crate::city::{CityConfigData, CityGround, CityGroundData, CityLayout};
 use crate::color::Color;
 use crate::ground_paint::GroundPaint;
 use crate::math::{lerp, smooth_step};
@@ -40,6 +40,7 @@ pub struct WorldGenerator {
     paint: GroundPaint,
     settlements: Vec<SettlementSite>,
     city: Option<CityLayout>,
+    city_ground: Option<CityGround>,
 }
 
 impl WorldGenerator {
@@ -65,7 +66,13 @@ impl WorldGenerator {
         let city_path = read("city.json");
         if city_path.exists() {
             let city = CityConfigData::load_from_file(city_path).map_err(|e| format!("city.json: {e}"))?;
-            generator.attach_city(&city);
+            let city_ground_path = read("city_ground.json");
+            let ground_cfg = if city_ground_path.exists() {
+                Some(CityGroundData::load_from_file(city_ground_path).map_err(|e| format!("city_ground.json: {e}"))?)
+            } else {
+                None
+            };
+            generator.attach_city_with_ground(&city, ground_cfg.as_ref());
         }
         Ok(generator)
     }
@@ -73,14 +80,24 @@ impl WorldGenerator {
     /// Lays out the ruined city around the camp (call after the camp is placed).
     /// `new`/`with_configs` worlds have no city, so terrain-only tests stay unchanged.
     pub fn attach_city(&mut self, cfg: &CityConfigData) {
+        self.attach_city_with_ground(cfg, None);
+    }
+
+    pub fn attach_city_with_ground(&mut self, cfg: &CityConfigData, ground_cfg: Option<&CityGroundData>) {
         let camp = self.settlements.first().map_or(Vec2::ZERO, |s| Vec2::new(s.center.x, s.center.z));
         let mut layout = CityLayout::generate(self.seed, camp, cfg, |p| self.forest_weight(p.x, p.y));
         layout.road = vec![camp, layout.entry];
+        if let Some(g_cfg) = ground_cfg {
+            let cg = CityGround::new(self.seed, &layout, &|x, z| self.raw_height(x, z), cfg.max_slope, g_cfg.clone());
+            self.city_ground = Some(cg);
+        }
         self.city = Some(layout);
     }
 
     /// The ruined city, if this world has one (worlds made with `from_data_dir`).
     pub fn city(&self) -> Option<&CityLayout> { self.city.as_ref() }
+
+    pub fn city_ground(&self) -> Option<&CityGround> { self.city_ground.as_ref() }
 
     /// Terrain only (empty scatter and POI data). Use `from_data_dir` for the real world.
     pub fn new(seed: i32, config: SettlementConfigData) -> Self {
@@ -110,6 +127,7 @@ impl WorldGenerator {
             paint,
             settlements: Vec::new(),
             city: None,
+            city_ground: None,
         };
         let site = SettlementPlacer::find(&world_gen, &config);
         world_gen.settlements = vec![site];
@@ -178,7 +196,13 @@ impl WorldGenerator {
         let forest = smooth_step(0.45, 0.6, b);
         let n = self.height.get_noise_2d(x, z);
         let mut height = lerp(n * 4.0 + 2.0, n * 16.0 + 6.0, forest) + self.detail.get_noise_2d(x, z) * 0.4;
+        if let (Some(cg), Some(city)) = (&self.city_ground, &self.city) {
+            height = cg.flatten_road(height, x, z, &city.road, &self.settlements, &self.config, &|rx, rz| self.raw_height(rx, rz));
+        }
         height = SettlementGround::flatten(height, x, z, &self.settlements, &self.config);
+        if let Some(cg) = &self.city_ground {
+            height = cg.flatten_city(height, x, z);
+        }
         (height, forest)
     }
 
@@ -242,6 +266,9 @@ impl WorldGenerator {
         let wz = coord.y as f32 * Self::CHUNK_SIZE + (p[0].z + p[1].z + p[2].z) / 3.0;
         let camp_distance = SettlementGround::nearest_box_distance(&self.settlements, wx, wz);
         let mut color = self.paint.paint(Self::PLAINS_GRASS.lerp(Self::FOREST_GRASS, forest), wx, wz, forest, normal.y, camp_distance);
+        if let (Some(city), Some(cg)) = (&self.city, &self.city_ground) {
+            color = cg.paint(color, wx, wz, city, &self.settlements, &self.config);
+        }
         color *= 1.0 + Self::BRIGHTNESS_JITTER * Self::jitter(coord, cell_x, cell_z, half);
         color = self.hue(color, coord, p[0], p[1], p[2]);
         GroundTriangle { positions: p, normal, color }

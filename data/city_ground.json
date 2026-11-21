@@ -1,0 +1,11 @@
+{
+  "edgeBlend": 48.0,
+  "roadWidth": 8.0,
+  "roadBlend": 6.0,
+  "roadSmoothDistance": 8.0,
+  "sidewalkWidth": 1.5,
+  "asphalt": [50, 50, 52],
+  "sidewalk": [140, 140, 140],
+  "lotGround": [112, 104, 94],
+  "dirt": [110, 86, 56]
+}
