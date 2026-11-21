@@ -5,6 +5,7 @@ mod bounties_tests;
 mod campfire_tests;
 mod camp_guards_tests;
 mod camp_tests;
+mod camp_upgrades_tests;
 mod combat_tests;
 mod crafting_tests;
 mod data_integrity;

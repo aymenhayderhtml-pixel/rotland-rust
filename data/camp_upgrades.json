@@ -1,0 +1,245 @@
+{
+  "refundRatio": 0.5,
+  "wallRepairHp": {
+    "wood": 25.0,
+    "scrap_metal": 50.0
+  },
+  "walls": [
+    {
+      "level": 0,
+      "name": "None",
+      "cost": { "cash": 0, "materials": [], "buildHours": 0.0 },
+      "wallHp": 0.0,
+      "gateCount": 0,
+      "safeZoneHalfBonus": 0.0
+    },
+    {
+      "level": 1,
+      "name": "Wood Palisade",
+      "cost": {
+        "cash": 50,
+        "materials": [
+          { "id": "wood", "count": 20 }
+        ],
+        "buildHours": 2.0
+      },
+      "wallHp": 500.0,
+      "gateCount": 1,
+      "safeZoneHalfBonus": 2.5
+    },
+    {
+      "level": 2,
+      "name": "Metal Sheet Walls",
+      "cost": {
+        "cash": 150,
+        "materials": [
+          { "id": "wood", "count": 20 },
+          { "id": "scrap_metal", "count": 16 }
+        ],
+        "buildHours": 4.0
+      },
+      "wallHp": 1200.0,
+      "gateCount": 2,
+      "safeZoneHalfBonus": 5.0
+    },
+    {
+      "level": 3,
+      "name": "Concrete Walls",
+      "cost": {
+        "cash": 400,
+        "materials": [
+          { "id": "scrap_metal", "count": 30 },
+          { "id": "cloth", "count": 10 }
+        ],
+        "buildHours": 8.0
+      },
+      "wallHp": 2500.0,
+      "gateCount": 2,
+      "safeZoneHalfBonus": 7.5
+    }
+  ],
+  "guards": [
+    {
+      "level": 0,
+      "name": "Standard Guards",
+      "cost": { "cash": 0, "materials": [], "buildHours": 0.0 },
+      "guardCount": 2,
+      "guardDamage": 60.0,
+      "guardRange": 40.0,
+      "guardFireInterval": 1.2,
+      "towerCount": 0
+    },
+    {
+      "level": 1,
+      "name": "Wooden Tower & Guard",
+      "cost": {
+        "cash": 80,
+        "materials": [
+          { "id": "wood", "count": 24 }
+        ],
+        "buildHours": 2.0
+      },
+      "guardCount": 3,
+      "guardDamage": 65.0,
+      "guardRange": 45.0,
+      "guardFireInterval": 1.1,
+      "towerCount": 1
+    },
+    {
+      "level": 2,
+      "name": "Rifle Squad",
+      "cost": {
+        "cash": 200,
+        "materials": [
+          { "id": "scrap_metal", "count": 16 },
+          { "id": "cloth", "count": 10 }
+        ],
+        "buildHours": 4.0
+      },
+      "guardCount": 3,
+      "guardDamage": 85.0,
+      "guardRange": 60.0,
+      "guardFireInterval": 0.9,
+      "towerCount": 1
+    },
+    {
+      "level": 3,
+      "name": "Twin Towers & Spotlight",
+      "cost": {
+        "cash": 450,
+        "materials": [
+          { "id": "scrap_metal", "count": 26 },
+          { "id": "wood", "count": 30 }
+        ],
+        "buildHours": 6.0
+      },
+      "guardCount": 4,
+      "guardDamage": 100.0,
+      "guardRange": 75.0,
+      "guardFireInterval": 0.8,
+      "towerCount": 2
+    }
+  ],
+  "workshop": [
+    {
+      "level": 0,
+      "name": "Hand Crafting",
+      "cost": { "cash": 0, "materials": [], "buildHours": 0.0 },
+      "recipeTier": 0
+    },
+    {
+      "level": 1,
+      "name": "Workbench",
+      "cost": {
+        "cash": 60,
+        "materials": [
+          { "id": "wood", "count": 16 }
+        ],
+        "buildHours": 1.5
+      },
+      "recipeTier": 1
+    },
+    {
+      "level": 2,
+      "name": "Tool Bench",
+      "cost": {
+        "cash": 180,
+        "materials": [
+          { "id": "wood", "count": 20 },
+          { "id": "scrap_metal", "count": 10 }
+        ],
+        "buildHours": 3.5
+      },
+      "recipeTier": 2
+    },
+    {
+      "level": 3,
+      "name": "Machine Shop",
+      "cost": {
+        "cash": 500,
+        "materials": [
+          { "id": "scrap_metal", "count": 30 },
+          { "id": "cloth", "count": 16 }
+        ],
+        "buildHours": 6.0
+      },
+      "recipeTier": 3
+    }
+  ],
+  "traders": [
+    {
+      "level": 0,
+      "name": "Sole Trader",
+      "cost": { "cash": 0, "materials": [], "buildHours": 0.0 },
+      "traderSlotsBonus": 0,
+      "hasDoctor": false,
+      "hasMechanic": false,
+      "traderStockTier": 0
+    },
+    {
+      "level": 1,
+      "name": "Expanded Stock",
+      "cost": {
+        "cash": 100,
+        "materials": [
+          { "id": "wood", "count": 12 }
+        ],
+        "buildHours": 1.0
+      },
+      "traderSlotsBonus": 4,
+      "hasDoctor": false,
+      "hasMechanic": false,
+      "traderStockTier": 0
+    },
+    {
+      "level": 2,
+      "name": "Camp Doctor",
+      "cost": {
+        "cash": 200,
+        "materials": [
+          { "id": "cloth", "count": 16 }
+        ],
+        "buildHours": 2.0
+      },
+      "traderSlotsBonus": 4,
+      "hasDoctor": true,
+      "hasMechanic": false,
+      "traderStockTier": 0
+    },
+    {
+      "level": 3,
+      "name": "Camp Mechanic",
+      "cost": {
+        "cash": 350,
+        "materials": [
+          { "id": "scrap_metal", "count": 20 }
+        ],
+        "buildHours": 4.0
+      },
+      "requires": {
+        "line": "workshop",
+        "level": 1
+      },
+      "traderSlotsBonus": 6,
+      "hasDoctor": true,
+      "hasMechanic": true,
+      "traderStockTier": 0
+    },
+    {
+      "level": 4,
+      "name": "Second Trader",
+      "cost": {
+        "cash": 600,
+        "materials": [
+          { "id": "wood", "count": 24 },
+          { "id": "scrap_metal", "count": 24 }
+        ],
+        "buildHours": 8.0
+      },
+      "traderSlotsBonus": 8,
+      "hasDoctor": true,
+      "hasMechanic": true,
+      "traderStockTier": 1
+    }
+  ]
+}
