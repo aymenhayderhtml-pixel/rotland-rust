@@ -107,7 +107,7 @@ fn cap_is_higher_at_night_and_scaled_by_difficulty() {
         (false, 1.5, 30),  // 20 * 1.5 = 30
         (true, 1.5, 48),   // 30 * 1.6 = 48
         (false, 2.0, 40),  // 20 * 2.0 = 40
-        (true, 2.0, 64),   // 40 * 1.6 = 64
+        (true, 2.0, 60),   // 40 * 1.6 = 64, capped by spawning.json hardCap 60
     ];
 
     let mut checked_cases = 0;

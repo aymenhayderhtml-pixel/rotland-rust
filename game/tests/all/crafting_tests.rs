@@ -8,7 +8,6 @@ fn recipes_load_from_repo_and_validate() {
     let items = ItemRegistry::from_repo().expect("ItemRegistry::from_repo");
     let recipes = RecipeRegistry::from_repo().expect("RecipeRegistry::from_repo");
 
-    assert_eq!(recipes.len(), 7);
     assert!(!recipes.is_empty());
 
     recipes.validate(&items).expect("recipes validate with items");

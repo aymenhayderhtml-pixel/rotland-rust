@@ -540,6 +540,8 @@ mod tests {
         assert_eq!(ev1.swing_started.as_deref(), dagger.anim.attack.as_deref());
         assert_eq!(combat.swing_state(), SwingState::WindingUp);
 
+        // A fresh fighter: the dagger swing above is still winding up, so it can't swing again yet
+        let mut combat = Combat::new("spear");
         combat.set_weapon(Some(spear.clone()));
         let ev2 = combat.update(0.01, true, &mut player, &mut world, &physics);
         assert_eq!(ev2.swing_started.as_deref(), spear.anim.attack.as_deref());

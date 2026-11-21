@@ -21,11 +21,10 @@ use game::weapons::WeaponRegistry;
 /// `transform = (-2, 0.125, 13)`, `Count = 1`). Neither Godot nor Rotland had dirty_water
 /// in any loot table or shop, nor did Godot have lake/well/rain collection interactions.
 const UNOBTAINABLE_ALLOW_LIST: &[(&str, &str)] = &[
+    ("fish_raw", "Caught with the fishing rod at the lake (game::fishing), not from loot or shops."),
     (
         "dirty_water",
-        "Godot only placed dirty_water as a static WorldItem node in Main.tscn (-2, 0.125, 13). \
-         Godot had no loot, shop, or lake/well interaction for dirty_water. Dynamic water gathering \
-         is planned as a future world action task.",
+        "Gathered by pressing E in shallow lake water (game::swimming::try_gather_dirty_water).",
     ),
 ];
 
