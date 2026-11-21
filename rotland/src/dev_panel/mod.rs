@@ -21,6 +21,9 @@ use crate::app::state::{ActorsState, PlaySide, RenderState, SessionState, WorldS
 /// Milliseconds per second used to convert frame delta dt to ms.
 const MS_PER_SECOND: f32 = 1000.0; // new: DECISIONS 2026-11-20
 
+/// Interval in seconds between FPS/ms text display updates (at most 4 times per second).
+const STATS_UPDATE_INTERVAL: f32 = 0.25;
+
 /// Default quantity for the item spawner stepper.
 const DEFAULT_GIVE_COUNT: u32 = 1; // new: DECISIONS 2026-11-20
 
@@ -39,6 +42,10 @@ pub struct DevPanelState {
     pub give_count: u32,
     pub god_mode: bool,
     pub status_msg: Option<String>,
+    pub stats_timer: f32,
+    pub shown_fps: f32,
+    pub shown_ms: f32,
+    pub wants_keyboard_input: bool,
     cached_poi_chunk: Option<IVec2>,
     cached_poi: Option<(String, Vec3)>,
 }
@@ -62,6 +69,10 @@ impl DevPanelState {
             give_count: DEFAULT_GIVE_COUNT,
             god_mode: false,
             status_msg: None,
+            stats_timer: STATS_UPDATE_INTERVAL,
+            shown_fps: 0.0,
+            shown_ms: 0.0,
+            wants_keyboard_input: false,
             cached_poi_chunk: None,
             cached_poi: None,
         }
@@ -72,7 +83,8 @@ impl DevPanelState {
 pub struct DevPanelView<'a> {
     pub player_pos: Vec3,
     pub player_yaw: f32,
-    pub fps: f32,
+    pub shown_fps: f32,
+    pub shown_ms: f32,
     pub draws: u32,
     pub triangles: u64,
     pub shadow_draws: u32,
@@ -105,6 +117,20 @@ pub fn update_dev_panel(
 
     let was_open = state.open;
     if state.open {
+        state.stats_timer += session.last_dt;
+        let latest_ms = state.history.as_slice().last().copied().unwrap_or_else(|| {
+            if render.fps > 0.0 {
+                MS_PER_SECOND / render.fps
+            } else {
+                0.0
+            }
+        });
+        if !was_open || state.stats_timer >= STATS_UPDATE_INTERVAL {
+            state.stats_timer = 0.0;
+            state.shown_fps = render.fps;
+            state.shown_ms = latest_ms;
+        }
+
         let (player_pos, player_yaw) = actors
             .player_ctrl
             .as_ref()
@@ -123,7 +149,8 @@ pub fn update_dev_panel(
         let view = DevPanelView {
             player_pos,
             player_yaw,
-            fps: render.fps,
+            shown_fps: state.shown_fps,
+            shown_ms: state.shown_ms,
             draws,
             triangles,
             shadow_draws,
@@ -139,9 +166,15 @@ pub fn update_dev_panel(
         if !actions.is_empty() {
             apply_dev_actions(&actions, state, world, actors, play, session);
         }
+        state.wants_keyboard_input = state.open && ctx.egui_wants_keyboard_input();
+    } else {
+        state.wants_keyboard_input = false;
     }
 
     maintain_god_mode(state.god_mode, actors, play);
+    if !state.open {
+        state.wants_keyboard_input = false;
+    }
     was_open && !state.open
 }
 

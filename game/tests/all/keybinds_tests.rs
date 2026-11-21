@@ -175,4 +175,8 @@ fn keybinds_input_bindings_conversion() {
     assert_eq!(input_bindings.sprint, KeyCode::ShiftLeft);
     assert_eq!(input_bindings.crouch, KeyCode::KeyZ);
     assert_eq!(input_bindings.toggle_camera, KeyCode::KeyV);
+    assert_eq!(input_bindings.look_left, KeyCode::ArrowLeft);
+    assert_eq!(input_bindings.look_right, KeyCode::ArrowRight);
+    assert_eq!(input_bindings.look_up, KeyCode::ArrowUp);
+    assert_eq!(input_bindings.look_down, KeyCode::ArrowDown);
 }

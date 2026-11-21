@@ -16,6 +16,7 @@ mod flowfield_tests;
 mod gun_tests;
 mod hints_tests;
 mod hud_math_tests;
+mod input_look_tests;
 mod items_tests;
 mod keybinds_tests;
 mod ladders_tests;

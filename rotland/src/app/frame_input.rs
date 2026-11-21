@@ -116,31 +116,37 @@ pub fn process_input(
             None
         };
     }
-    for (key, tab) in [
-        (keys.inventory, HubTab::Bag),
-        (keys.skills, HubTab::Skills),
-        (keys.bounties, HubTab::Bounties),
-        (keys.profile, HubTab::Profile),
-        (keys.map, HubTab::Map),
-    ] {
-        if input.pressed(key)
-            && ui.camp_ui.is_none()
-            && !ui.menus.as_ref().is_some_and(|m| m.is_open())
-            && !(in_car && key == keys.skills)
-        {
-            ui.hub = match &ui.hub {
-                Some(h) if h.screen() == HubScreen::Tab(tab) => None,
-                _ => Some(hub_ui::HubUiState::new(HubScreen::Tab(tab))),
-            };
-        if ui.hub.is_none() && actors.open_trunk.is_some() {
-            actors.open_trunk = None;
-        }
+    let dev_typing = ui.dev_panel.open && ui.dev_panel.wants_keyboard_input;
+    if !dev_typing {
+        for (key, tab) in [
+            (keys.inventory, HubTab::Bag),
+            (keys.skills, HubTab::Skills),
+            (keys.bounties, HubTab::Bounties),
+            (keys.profile, HubTab::Profile),
+            (keys.map, HubTab::Map),
+        ] {
+            if input.pressed(key)
+                && ui.camp_ui.is_none()
+                && !ui.menus.as_ref().is_some_and(|m| m.is_open())
+                && !(in_car && key == keys.skills)
+            {
+                ui.hub = match &ui.hub {
+                    Some(h) if h.screen() == HubScreen::Tab(tab) => None,
+                    _ => Some(hub_ui::HubUiState::new(HubScreen::Tab(tab))),
+                };
+                if ui.hub.is_none() && actors.open_trunk.is_some() {
+                    actors.open_trunk = None;
+                }
+            }
         }
     }
     // F1 toggles the developer panel (not while a menu is open)
     if input.pressed(KeyCode::F1) && !ui.menus.as_ref().is_some_and(|m| m.is_open()) {
         ui.dev_panel.open = !ui.dev_panel.open;
         ui.cursor_captured = !ui.dev_panel.open;
+        if !ui.dev_panel.open {
+            ui.dev_panel.wants_keyboard_input = false;
+        }
     }
     // Esc closes an open camp or hub screen (the screen itself sees the key), otherwise the menus
     if input.pressed(KeyCode::Escape)
@@ -169,7 +175,11 @@ pub fn process_input(
     }
     session.play_time += dt as f64;
 
-    let mut actions = Actions::from_input(input, &keys.movement);
+    let mut actions = if dev_typing {
+        Actions::default()
+    } else {
+        Actions::from_input(input, &keys.movement)
+    };
     // V cycles the car camera while driving; the on-foot camera toggle waits until you're out
     if in_car {
         actions.toggle_camera = false;
@@ -177,12 +187,24 @@ pub fn process_input(
     if !ui.cursor_captured || ui.screen_open() {
         actions.look_delta = (0.0, 0.0);
     }
+    // Arrow keys look around: works even without mouse capture, but never during open screens or dev typing
+    if !dev_typing && !ui.screen_open() {
+        let key_look = game::input::keyboard_look_delta(
+            input.held(keys.movement.look_left),
+            input.held(keys.movement.look_right),
+            input.held(keys.movement.look_up),
+            input.held(keys.movement.look_down),
+            dt,
+        );
+        actions.look_delta.0 += key_look.0;
+        actions.look_delta.1 += key_look.1;
+    }
     if let Some(m) = &ui.menus {
         let sens = m.settings.mouse_sensitivity;
         actions.look_delta.0 *= sens;
         actions.look_delta.1 *= if m.settings.invert_y { -sens } else { sens };
     }
-    if session.autowalk {
+    if session.autowalk && !dev_typing {
         actions.move_vec.y = -1.0;
     }
 
@@ -191,7 +213,8 @@ pub fn process_input(
         actions = Actions::default();
     }
     // G: the dog stays or follows again (Godot dog_stay)
-    if input.pressed(keys.dog_stay)
+    if !dev_typing
+        && input.pressed(keys.dog_stay)
         && !ui.screen_open()
         && let Some(d) = actors.dogs.as_mut()
         && d.sim.has_dog()
@@ -206,7 +229,9 @@ pub fn process_input(
             });
         }
     }
-    if let Some(change) = play.play.as_mut().and_then(|p| p.hotbar_keys(input, &keys.slots)) {
+    if !dev_typing
+        && let Some(change) = play.play.as_mut().and_then(|p| p.hotbar_keys(input, &keys.slots))
+    {
         apply_hand(change, render, play, actors, world);
     }
     let attack = !dead

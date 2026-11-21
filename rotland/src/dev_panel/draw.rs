@@ -12,7 +12,7 @@ use world::time::Clock;
 use super::actions::DevAction;
 use super::{DevPanelState, DevPanelView};
 
-const PANEL_DEFAULT_WIDTH: f32 = 340.0; // new: DECISIONS 2026-11-20
+const PANEL_DEFAULT_WIDTH: f32 = 360.0; // new: DECISIONS 2026-11-20
 const GRAPH_HEIGHT: f32 = 76.0; // new: DECISIONS 2026-11-20
 const GRAPH_MIN_WIDTH: f32 = 220.0; // new: DECISIONS 2026-11-20
 const GRAPH_MIN_SCALE_MS: f32 = 40.0; // new: DECISIONS 2026-11-20
@@ -25,7 +25,6 @@ const STATUS_FONT_SIZE: f32 = 12.0; // new: DECISIONS 2026-11-20
 const MAX_GIVE_COUNT: u32 = 999; // new: DECISIONS 2026-11-20
 const HOURS_PER_DAY: f32 = 24.0; // new: DECISIONS 2026-11-20
 const NOON_HOUR: f32 = 12.0; // new: DECISIONS 2026-11-20
-const MS_PER_SECOND: f32 = 1000.0; // new: DECISIONS 2026-11-20
 
 /// Draws the floating "Dev Panel" window and returns any actions triggered this frame.
 pub fn draw_dev_panel(
@@ -38,7 +37,9 @@ pub fn draw_dev_panel(
 
     egui::Window::new("Dev Panel")
         .open(&mut open)
-        .resizable(true)
+        .resizable(false)
+        .min_width(PANEL_DEFAULT_WIDTH)
+        .max_width(PANEL_DEFAULT_WIDTH)
         .default_width(PANEL_DEFAULT_WIDTH)
         .anchor(egui::Align2::RIGHT_TOP, egui::vec2(-12.0, 56.0))
         .show(ctx, |ui| {
@@ -76,23 +77,20 @@ pub fn draw_dev_panel(
 
 fn draw_perf_section(ui: &mut egui::Ui, history: &FpsHistory, view: &DevPanelView<'_>) {
     ui.label(RichText::new("Performance & Stats").strong());
-    let latest_ms = history.as_slice().last().copied().unwrap_or_else(|| {
-        if view.fps > 0.0 {
-            MS_PER_SECOND / view.fps
-        } else {
-            0.0
-        }
-    });
     ui.monospace(format!(
-        "FPS: {:.1} ({:.1} ms) | Draws: {} | Shd: {}",
-        view.fps, latest_ms, view.draws, view.shadow_draws
+        "FPS:   {:>6.1} ({:>5.1} ms)",
+        view.shown_fps, view.shown_ms
     ));
     ui.monospace(format!(
-        "Tris: {} | Shadow tris: {}",
+        "Draws: {:>5} | Shadow draws: {:>5}",
+        view.draws, view.shadow_draws
+    ));
+    ui.monospace(format!(
+        "Tris:  {:>7} | Shadow tris: {:>7}",
         view.triangles, view.shadow_triangles
     ));
     ui.monospace(format!(
-        "Pos: ({:.1}, {:.1}, {:.1}) | Yaw: {:.0} deg",
+        "Pos: ({:>6.1}, {:>6.1}, {:>6.1}) | Yaw: {:>4.0} deg",
         view.player_pos.x,
         view.player_pos.y,
         view.player_pos.z,
