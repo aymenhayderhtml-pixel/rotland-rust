@@ -15,7 +15,7 @@ pub struct BindableAction {
     pub default_shift: bool,
 }
 
-/// All 31 gameplay actions that support key rebinding.
+/// All 32 gameplay actions that support key rebinding.
 pub const KEYBINDS_ALL_ACTIONS: &[BindableAction] = &[
     BindableAction {
         action: "move_forward",
@@ -263,6 +263,15 @@ pub const KEYBINDS_ALL_ACTIONS: &[BindableAction] = &[
         section: "Look",
         default_code: 4194322,
         default_key: KeyCode::ArrowDown,
+        default_shift: false,
+    },
+    BindableAction {
+        action: "build_mode",
+        label: "Build mode",
+        section: "Actions",
+        // new: DECISIONS 2026-11-21
+        default_code: 66,
+        default_key: KeyCode::KeyB,
         default_shift: false,
     },
 ];

@@ -12,6 +12,9 @@ use super::state::{
 };
 use crate::{hub_ui, play};
 
+#[path = "../build_mode/mod.rs"]
+pub mod build_mode;
+
 /// Result of input processing for the frame.
 pub enum InputOutcome {
     /// A menu is open, so game simulation is paused for this frame.
@@ -116,8 +119,25 @@ pub fn process_input(
             None
         };
     }
+    build_mode::check_build_test_flag(play.play.as_mut().map(|p| &mut p.inventory));
+
+    let build_key = ui
+        .menus
+        .as_ref()
+        .and_then(|m| m.keys.keycode_of("build_mode"))
+        .unwrap_or(KeyCode::KeyB);
+
     let dev_typing = ui.dev_panel.open && ui.dev_panel.wants_keyboard_input;
     if !dev_typing {
+        if input.pressed(build_key)
+            && ui.camp_ui.is_none()
+            && !ui.menus.as_ref().is_some_and(|m| m.is_open())
+        {
+            build_mode::toggle();
+            if build_mode::is_active() {
+                ui.cursor_captured = true;
+            }
+        }
         for (key, tab) in [
             (keys.inventory, HubTab::Bag),
             (keys.skills, HubTab::Skills),
@@ -148,8 +168,14 @@ pub fn process_input(
             ui.dev_panel.wants_keyboard_input = false;
         }
     }
+    let mut build_escaped = false;
+    if input.pressed(KeyCode::Escape) && build_mode::is_active() && !ui.screen_open() {
+        build_mode::set_active(false);
+        build_escaped = true;
+    }
     // Esc closes an open camp or hub screen (the screen itself sees the key), otherwise the menus
     if input.pressed(KeyCode::Escape)
+        && !build_escaped
         && !ui.screen_open()
         && !ui.menus.as_ref().is_some_and(|m| m.keys_ui.is_waiting())
         && let Some(m) = ui.menus.as_mut()
@@ -230,12 +256,81 @@ pub fn process_input(
             });
         }
     }
+    if build_mode::is_active() && !ui.screen_open() && !ui.menus.as_ref().is_some_and(|m| m.is_open()) {
+        if input.wheel > 0.0 {
+            build_mode::with_state(|s| s.cycle_next());
+        } else if input.wheel < 0.0 {
+            build_mode::with_state(|s| s.cycle_prev());
+        }
+        for (idx, key) in [
+            KeyCode::Digit1,
+            KeyCode::Digit2,
+            KeyCode::Digit3,
+            KeyCode::Digit4,
+            KeyCode::Digit5,
+            KeyCode::Digit6,
+            KeyCode::Digit7,
+            KeyCode::Digit8,
+            KeyCode::Digit9,
+        ]
+        .iter()
+        .enumerate()
+        {
+            if input.pressed(*key) {
+                build_mode::with_state(|s| s.select_slot(idx));
+            }
+        }
+        if input.pressed(KeyCode::KeyR) {
+            build_mode::with_state(|s| s.rotate_90());
+        }
+        if ui.cursor_captured && input.mouse_pressed(MouseButton::Left) {
+            let placed = build_mode::with_state(|s| {
+                build_mode::try_place(s, play.play.as_mut().map(|p| &mut p.inventory))
+            });
+            if placed
+                && let (Some(toast), Some(play_state)) = (
+                    build_mode::with_state(|s| s.toast.clone()),
+                    play.play.as_mut(),
+                )
+            {
+                play_state.show_toast(toast);
+            }
+        }
+        if ui.cursor_captured && input.mouse_pressed(MouseButton::Right) {
+            let removed = build_mode::with_state(|s| {
+                build_mode::try_remove(s, play.play.as_mut().map(|p| &mut p.inventory))
+            });
+            if removed
+                && let (Some(toast), Some(play_state)) = (
+                    build_mode::with_state(|s| s.toast.clone()),
+                    play.play.as_mut(),
+                )
+            {
+                play_state.show_toast(toast);
+            }
+        }
+        if input.pressed(keys.interact) {
+            let toggled = build_mode::with_state(build_mode::try_toggle_door);
+            if toggled
+                && let (Some(toast), Some(play_state)) = (
+                    build_mode::with_state(|s| s.toast.clone()),
+                    play.play.as_mut(),
+                )
+            {
+                play_state.show_toast(toast);
+            }
+        }
+        build_mode::with_state(|s| build_mode::update_raycast(s, &render.camera, &world.physics));
+    }
+
     if !dev_typing
+        && !build_mode::is_active()
         && let Some(change) = play.play.as_mut().and_then(|p| p.hotbar_keys(input, &keys.slots))
     {
         apply_hand(change, render, play, actors, world);
     }
     let attack = !dead
+        && !build_mode::is_active()
         && !ui.screen_open()
         && (session.autoattack || (ui.cursor_captured && input.mouse_pressed(MouseButton::Left)));
 

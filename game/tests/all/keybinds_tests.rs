@@ -8,8 +8,8 @@ use winit::keyboard::KeyCode;
 fn keybinds_defaults_match_godot_project() {
     let kb = KeyBindings::default();
 
-    // Exactly 31 bindable actions defined in Godot KeyBindings.cs
-    assert_eq!(KEYBINDS_ALL_ACTIONS.len(), 31);
+    // Exactly 32 bindable actions defined in Godot KeyBindings.cs
+    assert_eq!(KEYBINDS_ALL_ACTIONS.len(), 32);
 
     // Hand-traced default codes from project.godot:
     assert_eq!(kb.code_of("move_forward"), 87); // W
@@ -43,9 +43,11 @@ fn keybinds_defaults_match_godot_project() {
     assert_eq!(kb.code_of("look_right"), 4194321); // Right arrow
     assert_eq!(kb.code_of("look_up"), 4194320); // Up arrow
     assert_eq!(kb.code_of("look_down"), 4194322); // Down arrow
+    assert_eq!(kb.code_of("build_mode"), 66); // B
 
     // Key names:
     assert_eq!(kb.key_name("jump"), "Space");
+    assert_eq!(kb.key_name("build_mode"), "B");
     assert_eq!(kb.key_name("interact"), "E");
     assert_eq!(kb.key_name("dog_home"), "Shift+G");
     assert_eq!(kb.key_name("inventory"), "Tab");

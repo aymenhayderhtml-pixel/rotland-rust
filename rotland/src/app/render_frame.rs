@@ -7,6 +7,7 @@ use glam::{Mat4, Vec3};
 
 use super::start_world::start_world;
 use super::state::{ActorsState, AudioState, PlaySide, RenderState, SessionState, UiState, WorldState};
+use super::frame_input::build_mode;
 use crate::{car_lights, fp_weapon, light};
 
 /// Renders the 3D scene: updates streamed chunks, prepares skeletal instances, sets lighting, and draws passes.
@@ -110,6 +111,19 @@ pub fn render_frame(
     } else {
         Vec::new()
     };
+    // Base building: placed parts and ghost preview model
+    if let Some(pack) = render.pack.as_ref() {
+        build_mode::with_state(|s| {
+            build_mode::render_placed_and_ghost(
+                s,
+                &gpu.device,
+                pack,
+                &mut render.library,
+                &mut beds,
+                &mut world.physics,
+            );
+        });
+    }
     let (Some(renderer), Some(streamer)) = (render.renderer.as_mut(), world.streamer.as_ref()) else {
         render.scratch_beds = beds;
         return;
