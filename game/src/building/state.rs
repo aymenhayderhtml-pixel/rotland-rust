@@ -237,6 +237,31 @@ impl BaseState {
             .collect()
     }
 
+    /// Finds the placed part nearest to a ray from `origin` along direction `dir` within `max_dist`.
+    pub fn raycast_part(&self, origin: Vec3, dir: Vec3, max_dist: f32) -> Option<u32> {
+        let d = dir.normalize_or_zero();
+        if d == Vec3::ZERO {
+            return None;
+        }
+        let mut best: Option<(u32, f32)> = None;
+        let hit_radius_sq = 2.0;
+        for p in &self.parts {
+            let v = p.position - origin;
+            let t = v.dot(d);
+            if t > 0.0 && t <= max_dist {
+                let perp_dist_sq = (v - d * t).length_squared();
+                if perp_dist_sq <= hit_radius_sq {
+                    match best {
+                        None => best = Some((p.id, t)),
+                        Some((_, best_t)) if t < best_t => best = Some((p.id, t)),
+                        _ => {}
+                    }
+                }
+            }
+        }
+        best.map(|(id, _)| id)
+    }
+
     /// Returns the world transform (position, yaw) for drawing and colliders.
     pub fn world_transform(&self, part: &PlacedPart) -> (Vec3, f32) {
         (part.position, part.yaw)

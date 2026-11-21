@@ -854,3 +854,44 @@ fn building_from_json_and_error_display() {
 
     let _alias_check: PlacementError = Invalid::SlopeTooSteep;
 }
+
+#[test]
+fn building_raycast_part_finds_aimed_part() {
+    let mut state = BaseState::default();
+    let part1 = PlacedPart {
+        id: 1,
+        part: "wall".into(),
+        cell: IVec2::new(0, 0),
+        floor: 0,
+        rot: 0,
+        hp: 100.0,
+        door_open: false,
+        position: Vec3::new(0.0, 1.0, 5.0),
+        yaw: 0.0,
+    };
+    let part2 = PlacedPart {
+        id: 2,
+        part: "floor".into(),
+        cell: IVec2::new(0, 5),
+        floor: 0,
+        rot: 0,
+        hp: 100.0,
+        door_open: false,
+        position: Vec3::new(0.0, 0.0, 10.0),
+        yaw: 0.0,
+    };
+    state.place_part(part1);
+    state.place_part(part2);
+
+    // Ray looking directly at part 1
+    let hit = state.raycast_part(Vec3::new(0.0, 1.0, 0.0), Vec3::new(0.0, 0.0, 1.0), 20.0);
+    assert_eq!(hit, Some(1));
+
+    // Ray looking in opposite direction
+    let hit_none = state.raycast_part(Vec3::new(0.0, 1.0, 0.0), Vec3::new(0.0, 0.0, -1.0), 20.0);
+    assert_eq!(hit_none, None);
+
+    // Ray looking too far away
+    let hit_far = state.raycast_part(Vec3::new(0.0, 1.0, 0.0), Vec3::new(0.0, 0.0, 1.0), 2.0);
+    assert_eq!(hit_far, None);
+}
