@@ -3,13 +3,14 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-/// Melee weapons swing; guns fire. Unknown kinds fail the load so a typo in data is caught early.
+/// Melee weapons swing; guns fire; bows shoot arrows. Unknown kinds fail the load so a typo in data is caught early.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum WeaponKind {
     #[default]
     Melee,
     Gun,
+    Bow,
 }
 
 /// Clip names the player plays with a weapon (the "anim" block of weapons.json).
@@ -95,6 +96,16 @@ pub struct WeaponDef {
     /// Reload seconds [from, to) during which the magazine is hidden. None if none.
     pub mag_swap: Option<[f32; 2]>,
 
+    // Bow & projectile fields
+    pub gravity: f32,
+    pub draw_time: f32,
+    pub arrow_speed: f32,
+    pub throwable: bool,
+    pub throw_speed: f32,
+    pub throw_damage: f32,
+    pub pickup_chance: f32,
+    pub max_flight_seconds: f32,
+
     pub anim: WeaponAnim,
     /// Path of the weapon's .glb model.
     pub model: String,
@@ -141,6 +152,17 @@ impl Default for WeaponDef {
             bash_damage: 0.0,
             bash_impact: 0.3,
             mag_swap: None,
+            // data: weapons.json gravity
+            gravity: 9.8,
+            draw_time: 0.0,
+            arrow_speed: 0.0,
+            throwable: false,
+            throw_speed: 0.0,
+            throw_damage: 0.0,
+            // data: weapons.json pickupChance
+            pickup_chance: 0.6,
+            // data: weapons.json maxFlightSeconds
+            max_flight_seconds: 10.0,
             anim: WeaponAnim::default(),
             model: String::new(),
             hold: WeaponHold::default(),
@@ -156,6 +178,10 @@ impl Default for WeaponDef {
 impl WeaponDef {
     pub fn is_gun(&self) -> bool {
         self.kind == WeaponKind::Gun
+    }
+
+    pub fn is_bow(&self) -> bool {
+        self.kind == WeaponKind::Bow
     }
 
     /// First-person hold offset. If none was specified in data, returns default zero.
