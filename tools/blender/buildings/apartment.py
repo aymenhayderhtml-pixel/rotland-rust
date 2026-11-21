@@ -85,29 +85,29 @@ def build(model):
         is_upper = flr > 1
         for xc in x_cols:
             w_box = ((xc - 0.5, 5.94, z0), (xc + 0.5, 6.0, z1))
-            k.box((xc - 0.45, 5.96, z0 + 0.05), (xc + 0.45, 6.0, z1 - 0.05), "tire_black", roof=is_upper)
+            k.box((xc - 0.45, 5.96, z0 + 0.05), (xc + 0.45, 6.02, z1 - 0.05), "tire_black", roof=is_upper)
             # Stone lintel and sill
-            k.box((xc - 0.55, 5.95, z1), (xc + 0.55, 6.0, z1 + 0.12), "rock_light", roof=is_upper)
-            k.box((xc - 0.55, 5.95, z0 - 0.1), (xc + 0.55, 6.0, z0), "rock_light", roof=is_upper)
+            k.box((xc - 0.55, 5.95, z1), (xc + 0.55, 6.02, z1 + 0.12), "rock_light", roof=is_upper)
+            k.box((xc - 0.55, 5.95, z0 - 0.1), (xc + 0.55, 6.02, z0), "rock_light", roof=is_upper)
             # Window frame strips
-            k.box((xc - 0.5, 5.97, z0), (xc - 0.44, 6.0, z1), "rock_light", roof=is_upper)
-            k.box((xc + 0.44, 5.97, z0), (xc + 0.5, 6.0, z1), "rock_light", roof=is_upper)
+            k.box((xc - 0.5, 5.97, z0), (xc - 0.44, 6.03, z1), "rock_light", roof=is_upper)
+            k.box((xc + 0.44, 5.97, z0), (xc + 0.5, 6.03, z1), "rock_light", roof=is_upper)
             # Boarded or broken details
             if (flr == 1 and xc in (-6.5, 3.5)) or (flr == 2 and xc in (-3.8, 6.0)):
                 k.boards(w_box, 6.0, -1, color="bark_light", rows=(0.25, 0.5, 0.75))
             elif flr == 3 and xc in (-6.5, 0.0):
                 k.boards(w_box, 6.0, -1, color="bark_dark", rows=(0.3, 0.7))
             elif flr == 2 and xc == 0.0:
-                k.box((xc - 0.35, 5.97, z0 + 0.4), (xc + 0.3, 6.01, z0 + 0.52), "bark_light", roof=is_upper)
+                k.box((xc - 0.35, 5.97, z0 + 0.4), (xc + 0.3, 6.03, z0 + 0.52), "bark_light", roof=is_upper)
 
     # Back windows
     for flr, z0, z1 in window_floors:
         is_upper = flr > 1
         for xc in (-6.5, -3.8, 0.0, 3.5, 6.0):
             w_box = ((xc - 0.5, -6.0, z0), (xc + 0.5, -5.94, z1))
-            k.box((xc - 0.45, -6.0, z0 + 0.05), (xc + 0.45, -5.96, z1 - 0.05), "tire_black", roof=is_upper)
-            k.box((xc - 0.55, -6.0, z1), (xc + 0.55, -5.95, z1 + 0.12), "rock_light", roof=is_upper)
-            k.box((xc - 0.55, -6.0, z0 - 0.1), (xc + 0.55, -5.95, z0), "rock_light", roof=is_upper)
+            k.box((xc - 0.45, -6.02, z0 + 0.05), (xc + 0.45, -5.96, z1 - 0.05), "tire_black", roof=is_upper)
+            k.box((xc - 0.55, -6.02, z1), (xc + 0.55, -5.95, z1 + 0.12), "rock_light", roof=is_upper)
+            k.box((xc - 0.55, -6.02, z0 - 0.1), (xc + 0.55, -5.95, z0), "rock_light", roof=is_upper)
             if (flr == 1 and xc in (0.0, -6.5)) or (flr == 2 and xc == 3.5):
                 k.boards(w_box, -6.0, 1, color="bark_light", rows=(0.3, 0.7))
 
@@ -116,9 +116,9 @@ def build(model):
         is_upper = flr > 1
         for yc in (-3.5, 0.0, 3.5):
             w_box = ((-9.0, yc - 0.5, z0), (-8.94, yc + 0.5, z1))
-            k.box((-9.0, yc - 0.45, z0 + 0.05), (-8.96, yc + 0.45, z1 - 0.05), "tire_black", roof=is_upper)
-            k.box((-9.0, yc - 0.55, z1), (-8.95, yc + 0.55, z1 + 0.12), "rock_light", roof=is_upper)
-            k.box((-9.0, yc - 0.55, z0 - 0.1), (-8.95, yc + 0.55, z0), "rock_light", roof=is_upper)
+            k.box((-9.02, yc - 0.45, z0 + 0.05), (-8.96, yc + 0.45, z1 - 0.05), "tire_black", roof=is_upper)
+            k.box((-9.02, yc - 0.55, z1), (-8.95, yc + 0.55, z1 + 0.12), "rock_light", roof=is_upper)
+            k.box((-9.02, yc - 0.55, z0 - 0.1), (-8.95, yc + 0.55, z0), "rock_light", roof=is_upper)
             if flr == 1 and yc == 0.0:
                 k.boards(w_box, -9.0, 1, color="bark_light")
 
@@ -127,9 +127,9 @@ def build(model):
         is_upper = flr > 1
         for yc in (-3.5, -1.0, 1.0, 3.5):
             w_box = ((8.14, yc - 0.5, z0), (8.2, yc + 0.5, z1))
-            k.box((8.16, yc - 0.45, z0 + 0.05), (8.2, yc + 0.45, z1 - 0.05), "tire_black", roof=is_upper)
-            k.box((8.15, yc - 0.55, z1), (8.2, yc + 0.55, z1 + 0.12), "rock_light", roof=is_upper)
-            k.box((8.15, yc - 0.55, z0 - 0.1), (8.2, yc + 0.55, z0), "rock_light", roof=is_upper)
+            k.box((8.16, yc - 0.45, z0 + 0.05), (8.22, yc + 0.45, z1 - 0.05), "tire_black", roof=is_upper)
+            k.box((8.15, yc - 0.55, z1), (8.22, yc + 0.55, z1 + 0.12), "rock_light", roof=is_upper)
+            k.box((8.15, yc - 0.55, z0 - 0.1), (8.22, yc + 0.55, z0), "rock_light", roof=is_upper)
             if flr == 1 and yc == -1.0:
                 k.boards(w_box, 8.2, -1, color="bark_light", rows=(0.2, 0.5, 0.8))
 
