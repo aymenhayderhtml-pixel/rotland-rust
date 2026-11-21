@@ -23,3 +23,70 @@ Tests (`game/tests/all/camp_upgrades_tests.rs`, names start `camp_upgrades_`): c
 
 ## Worker notes
 
+### Files changed
+- `data/camp_upgrades.json`: Complete specification of all 4 upgrade lines (walls 0..=3, guards 0..=3, workshop 0..=3, traders 0..=4), costs (dollars, wood, scrap_metal, cloth), build hours, cross-line requirements (traders 3 -> workshop 1), stat bonuses, refund ratio (0.5), and repair rates.
+- `game/src/camp_upgrades/types.rs`: `UpgradeLine`, `MaterialCost`, `UpgradeCost`, `UpgradeRequirement`, `UpgradeInProgress`, `CampUpgradeState` (serde save struct with defaults), `CantStart`, `CampEffects`.
+- `game/src/camp_upgrades/config.rs`: `CampUpgradesConfig`, level definitions, loader (`load_default`, `load_from_file`, `from_json`), `validate`, query helpers, and `effects()` calculation.
+- `game/src/camp_upgrades/logic.rs`: Core logic functions and state methods for `can_start`, `start`, `tick`, `cancel`, `damage_walls`, `repair_walls`, `walls_breached`.
+- `game/src/camp_upgrades/mod.rs`: Public re-exports for the module.
+- `game/src/lib.rs`: Registered and exported `camp_upgrades`.
+- `game/tests/all/main.rs`: Registered `camp_upgrades_tests`.
+- `game/tests/all/camp_upgrades_tests.rs`: Integration tests covering config validation, requirements chain, costs, busy lock, tick completion, refund on cancel, effect growth, serialization roundtrip, default from empty JSON, and wall combat/repair mechanics.
+
+### How to test
+Run the gate:
+`tools/gate.sh --task tasks/R16-01-camp-upgrades-core.md`
+Or filter tests:
+`cargo test camp_upgrades`
+
+### Wiring notes for Claude
+- State management:
+  - `CampUpgradeState` derives `Serialize, Deserialize, Default`. Fields: `walls_level`, `guards_level`, `workshop_level`, `traders_level`, `in_progress: Option<UpgradeInProgress>`, `wall_hp: f32`.
+  - Empty json `{}` restores as level 0 with 0 HP and no active construction.
+  - Integrate into world / settlement save state as a sub-struct.
+- Game loop integration:
+  - Load config once at startup: `let cfg = CampUpgradesConfig::load_default()?;`
+  - In settlement / camp tick, advance construction timer by in-game hours:
+    ```rust
+    if let Some((line, new_level)) = state.tick(&cfg, dt_hours) {
+        // Log notification or announce upgrade completion
+    }
+    ```
+  - Starting an upgrade:
+    ```rust
+    // Check first:
+    let cost = state.can_start(&cfg, line, wallet.dollars(), |item_id, count| inventory.count(item_id) >= count)?;
+    // Deduct cash and items:
+    wallet.try_spend(cost.cash);
+    inventory.remove_items(&cost.materials);
+    state.start(&cfg, line);
+    ```
+  - Cancelling:
+    ```rust
+    if let Some(refund) = state.cancel(&cfg) {
+        wallet.add(refund.cash);
+        for m in refund.materials {
+            inventory.add(&m.item_id, m.count);
+        }
+    }
+    ```
+  - Accessing current effects:
+    `let effects: CampEffects = cfg.effects(&state);`
+    Use `effects.safe_zone_half_bonus` to expand safe zone, `effects.wall_hp_max` for walls, `effects.guard_count`, `effects.guard_damage`, `effects.guard_range`, `effects.guard_fire_interval`, `effects.tower_count`, `effects.recipe_tier` for crafting station unlocks, `effects.trader_slots_bonus`, `effects.has_doctor`, `effects.has_mechanic`, and `effects.trader_stock_tier`.
+  - Walls & damage:
+    - During night waves: `state.damage_walls(dmg)`
+    - Check breach: `if state.walls_breached() { ... }`
+    - Repair walls: `let hp_restored = state.repair_walls(&cfg, &[("wood", 2), ("scrap_metal", 1)]);`
+
+### Known issues
+None. All 10 tests pass cleanly, clippy is clean with 0 warnings, scope and unused checks pass.
+
+## Gate report
+- date: 2026-11-21
+- base: main
+- files changed (9): data/camp_upgrades.json, game/src/camp_upgrades/config.rs, game/src/camp_upgrades/logic.rs, game/src/camp_upgrades/mod.rs, game/src/camp_upgrades/types.rs, game/src/lib.rs, game/tests/all/camp_upgrades_tests.rs, game/tests/all/main.rs, tasks/R16-01-camp-upgrades-core.md
+- tests passed: 10
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS
