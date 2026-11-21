@@ -18,3 +18,46 @@ The new look:
 - **Settings:** tabs across the top (Video, Audio, Controls, Gameplay: group today's settings into them), each setting as a row: label left, control right, a short gray help line under hard ones; Apply/Back at the bottom. Controls tab keeps today's key rebinding UI.
 - Works at 1280x720 up to 2560x1440 (scale by screen height), no overlapping text, no text wrapping that makes rows jump.
 - No new crates, no images or fonts from files (egui default fonts only), no unused code.
+
+## Neon notes
+
+- Module wiring without editing menus.rs: rotland/src/menus/menus_draw.rs
+    loads rotland/src/menus/theme.rs via #[path = "theme.rs"] mod theme; so
+    rotland/src/menus.rs stays completely untouched while placing the shared
+    theme at the requested path.
+  - Scoped egui style: theme::with_menu_style saves ctx.global_style(), applies
+    the Rotland dark charcoal / rust-orange Style and Visuals, and restores the
+    exact previous style on scope exit (via a Drop guard), so the HUD and other
+    screens are unaffected.
+  - Public API preserved: menus_draw::draw(menus, ctx, slots), all MenuAction
+    variants, #[cfg(test)] pub use menus_draw_slots::{format_play_time,
+    format_saved_at}, Esc behavior, and all settings fields/ranges (referencing
+    settings.rs constants directly) are unchanged.
+  - Pause menu day/time line: Current in-game day and time are not available in
+    Menus, egui::Context, or [SlotSummary; 3], so per the task instructions that
+    line was skipped.
+  - Settings tabs & controls: The active tab and brief "Settings saved"
+    confirmation timestamp are stored in egui temporary context memory
+    (ctx.data_mut), avoiding any struct changes in menus.rs. Switching tabs
+    cancels any in-progress key rebind in menus.keys_ui. Apply clamps, persists
+    via menus.save_settings(), and emits MenuAction::SettingsChanged; Back (Esc)
+    calls menus.press_back() as before.
+  - Resolution scaling: All panels, fonts, margins, and controls scale from
+    ctx.content_rect().height() / 720.0 clamped to [0.85, 1.85], keeping text
+    single-line/non-jumping across 1280x720 to 2560x1440 while guaranteeing
+    keys_ui::draw_keys's fixed 540px inner frame always fits cleanly inside the
+    Controls tab.
+  - Tests: Added unit tests in rotland/src/menus/theme.rs
+    (ui_scale_tracks_screen_height_and_clamps and
+    with_menu_style_restores_previous_style), runnable via cargo test menus. ===
+    END ===
+
+## Gate report
+- date: 2026-11-21
+- base: main
+- files changed (23): assets/models/buildings/settlement.glb, assets/models/_previews/car_hatchback_blue.png, assets/models/_previews/car_hatchback_blue_rear.png, assets/models/_previews/car_hatchback_blue_side.png, assets/models/_previews/car_hatchback_olive.png, assets/models/_previews/car_hatchback_olive_rear.png, assets/models/_previews/car_hatchback_olive_side.png, assets/models/_previews/car_hatchback_red.png, assets/models/_previews/car_hatchback_red_rear.png, assets/models/_previews/car_hatchback_red_side.png, assets/models/vehicles/car_hatchback_blue.glb, assets/models/vehicles/car_hatchback_olive.glb, assets/models/vehicles/car_hatchback_red.glb, rotland/src/map_ui/mod.rs, rotland/src/map_ui/tests.rs, rotland/src/menus/menus_draw/menus_draw_settings.rs, rotland/src/menus/menus_draw/menus_draw_slots.rs, rotland/src/menus/menus_draw.rs, rotland/src/menus/theme.rs, tasks/R16-N1-menus-look.md, tools/blender/buildings/settlement.py, tools/blender/vehicles/car_parts.py, tools/claim_target.sh
+- tests passed: 11
+- clippy: PASS
+- test: PASS
+- checks: FAIL
+- gate: FAIL (checks)

@@ -14,6 +14,5 @@ mod tests;
 
 pub use action::MapAction;
 pub use draw::draw_map;
-pub use draw_city::{draw_city_and_road, MapStreetsConfig};
 pub use state::MapUiState;
 pub use view::MapView;

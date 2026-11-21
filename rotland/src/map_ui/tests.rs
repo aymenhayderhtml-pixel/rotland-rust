@@ -80,7 +80,7 @@ fn map_ui_state_pan_and_centre() {
 
 #[test]
 fn map_ui_streets_config_loads() {
-    let cfg = super::MapStreetsConfig::default();
+    let cfg = super::draw_city::MapStreetsConfig::default();
     assert_eq!(cfg.street_min_px, game::CITY_STREET_MIN_PX);
     assert_eq!(cfg.street_color, engine::egui::Color32::from_rgb(69, 69, 74));
 }
