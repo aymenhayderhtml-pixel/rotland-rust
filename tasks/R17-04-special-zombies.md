@@ -11,3 +11,31 @@ Build only these three with `-- --only=zombie_brute,zombie_screamer,zombie_crawl
 
 ## Worker notes
 
+### Files changed
+- `tools/blender/characters/build_characters.py`:
+  - Added variant definitions for `zombie_brute`, `zombie_screamer`, `zombie_crawler` with proportions, textures/colors, posture transforms, and custom clip overrides for crawler.
+  - Updated `render_rest_preview` to properly apply posture rotations/locations under `rotation_mode = "XYZ"`.
+  - Added dedicated preview camera framing for brute, screamer, and crawler.
+- `tools/blender/characters/zombie_details.py`:
+  - `zombie_brute`: Added `_brute_overalls` (denim bib, straps, bronze buckles, knee patches), `_brute_metal_plate` (curved steel chest plate, rust stain, 4 corner rivets, leather harness with buckles), and `_brute_huge_arms` (continuous muscular lofts for deltoids, biceps/triceps, thick forearms, fists).
+  - `zombie_screamer`: Added `_screamer_face` (sunken dark eye sockets, dropped unhinged jaw, sharp teeth, bloody oral sinews), `_screamer_long_neck` (elongated throat cords, trachea ridge, throat hollow), `_screamer_ragged_dress` (draped tattered hem, trailing jagged shreds, torn sleeve cuffs), and `_screamer_hair` (straggly matted hair locks).
+  - `zombie_crawler`: Added `_crawler_stumps` (removes lower shin and feet vertices below 0.44m, adds ragged cuff hems, rounded bloody flesh caps, and protruding jagged white bone fragments) and `_crawler_torn_hem` (dragging tattered strips and scrape marks).
+- `tools/blender/characters/poses_zombie.py`:
+  - Added crawler-specific animation clips (`zombie_crawler_idle`, `zombie_crawler_crawl`, `zombie_crawler_sprint`, `zombie_crawler_attack`, `zombie_crawler_hit`, `zombie_crawler_die`, `zombie_crawler_scream`). Hips are lowered to ground level (-0.65m), body drags trailing leg stumps, arms perform an alternating crawling stroke (reach forward and pull back), and on death the crawler pitches forward and collapses flat on the ground.
+- `assets/models/characters/zombie_brute.glb`: Built binary glTF model (3666 tris, within 5000 budget).
+- `assets/models/characters/zombie_screamer.glb`: Built binary glTF model (3302 tris, within 5000 budget).
+- `assets/models/characters/zombie_crawler.glb`: Built binary glTF model (2614 tris, within 5000 budget).
+
+### How to test
+1. Run character build script:
+   `flock /tmp/rotland-blender.lock blender -b --python tools/blender/characters/build_characters.py -- --only=zombie_brute,zombie_screamer,zombie_crawler`
+2. Inspect rendered rest previews and contact sheets in `assets/models/_previews/zombie_{brute,screamer,crawler}*.png`.
+3. Run gate checks:
+   `python3 -I tools/gate_checks.py --base main --task tasks/R17-04-special-zombies.md`
+
+### Wiring notes for Claude
+- All three special zombies share the standard 22-bone rigify humanoid armature (`rigify_humanoid`) and export standard actions (`idle`, `walk`, `run`, `hit`, `die`, `zombie_shamble`, `zombie_lurch`, `zombie_crawl`, `zombie_attack`, `zombie_bang`, `zombie_eat`, `zombie_scream`, `zombie_runner_sprint`).
+- `data/zombies.json` already has `brute`, `screamer`, and `crawler` referencing these model assets; no engine or gameplay code changes are necessary.
+
+### Known issues
+- None.

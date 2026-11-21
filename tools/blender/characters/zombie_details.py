@@ -1,19 +1,31 @@
 """Zombie-only details on top of the rounded body (visual plan step 2).
 
-All three zombies get sunken eyes, an open mouth with teeth and a torn shirt hem. Then each look
-gets its own story: zombie_01 (hunched) has torn ribs and wild hair, zombie_02 (big, bare
-left arm) has a bitten arm, a torn trouser leg and a bald patch, and zombie_03 (thin, hospital gown)
-has a long gown, a wrist tag and long stringy hair. Every part sits on one bone (rigid weights).
+All zombies get sunken eyes, open mouth details, and torn hems. Then each look gets its own story:
+- zombie_01: hunched, torn ribs, wild hair
+- zombie_02: big, bare left arm, bitten arm, torn leg, bald patch
+- zombie_03: thin, hospital gown, wrist tag, long hair
+- zombie_brute: 1.35x scale, very broad shoulders, huge arms, torn work overalls, metal plate strapped to chest
+- zombie_screamer: thin, long neck, jaw wide open, pale skin, ragged dress/coat
+- zombie_crawler: legs missing below knee (stumps), dragging scrapes and torn rags
 """
 import math
 
+import bmesh
 from mathutils import Vector
 
 
 def add(mb, look, lm, arm_points):
-    _face(mb, lm)
-    _torn_hem(mb, look, lm)
     kind = look["name"]
+    if kind == "zombie_screamer":
+        _screamer_face(mb, lm, look)
+        _screamer_ragged_dress(mb, look, lm)
+    elif kind == "zombie_crawler":
+        _face(mb, lm)
+        _crawler_torn_hem(mb, look, lm)
+    else:
+        _face(mb, lm)
+        _torn_hem(mb, look, lm)
+
     if kind == "zombie_01":
         _ribs(mb, look, lm)
         _wild_hair(mb, look, lm)
@@ -25,6 +37,15 @@ def add(mb, look, lm, arm_points):
         _gown(mb, look, lm)
         _wrist_tag(mb, lm, arm_points)
         _long_hair(mb, look, lm)
+    elif kind == "zombie_brute":
+        _brute_overalls(mb, look, lm)
+        _brute_metal_plate(mb, lm)
+        _brute_huge_arms(mb, look, lm, arm_points)
+    elif kind == "zombie_screamer":
+        _screamer_long_neck(mb, look, lm)
+        _screamer_hair(mb, look, lm)
+    elif kind == "zombie_crawler":
+        _crawler_stumps(mb, look, lm)
 
 
 def _face(mb, lm):
@@ -118,3 +139,201 @@ def _long_hair(mb, look, lm):
     for s in (1, -1):
         mb.add_loft([((s * 0.085, f + 0.02, h + 0.80 * span), 0.012, 0.016),
                      ((s * 0.090, f + 0.035, h + 0.10 * span), 0.006, 0.008)], look["hair"], "head", segs=5)
+
+
+def _brute_overalls(mb, look, lm):
+    """Torn work overalls with front bib, pocket, shoulder straps and torn pant legs."""
+    cz, pc = lm["chest_z"], (lm["sy"] + lm["cy"]) / 2 + 0.006
+    sz = lm["spine_z"]
+    pants = look["pants"]
+    # Front bib
+    mb.add_box((-0.135, pc + 0.098, sz + 0.01), (0.135, pc + 0.118, cz + 0.165), pants, "chest")
+    # Back bib panel
+    mb.add_box((-0.125, pc - 0.108, sz + 0.01), (0.125, pc - 0.092, cz + 0.140), pants, "chest")
+    # Front center bib pocket
+    mb.add_box((-0.075, pc + 0.114, cz + 0.025), (0.075, pc + 0.124, cz + 0.105), "canvas_khaki", "chest")
+    # Overalls straps running over shoulders with brass buckle clips
+    for s in (-1, 1):
+        mb.add_loft([((s * 0.095, pc + 0.106, cz + 0.145), 0.024, 0.010),
+                     ((s * 0.100, lm["cy"] + 0.008, lm["neck_z"] + 0.010), 0.024, 0.010),
+                     ((s * 0.095, pc - 0.098, cz + 0.120), 0.024, 0.010)], pants, "chest", segs=6)
+        mb.add_box((s * 0.095 - 0.015, pc + 0.112, cz + 0.130),
+                   (s * 0.095 + 0.015, pc + 0.122, cz + 0.155), "brass", "chest")
+    # Torn patches on the legs revealing zombie flesh
+    mb.add_box((-0.14, 0.046, 0.58), (-0.06, 0.068, 0.68), "blood_dark", "thigh_L")
+    mb.add_box((-0.13, 0.052, 0.60), (-0.07, 0.070, 0.66), look["skin"], "thigh_L")
+    mb.add_box((0.06, 0.046, 0.30), (0.14, 0.068, 0.40), "blood_dark", "shin_R")
+    mb.add_box((0.07, 0.052, 0.32), (0.13, 0.070, 0.38), look["skin"], "shin_R")
+
+
+def _brute_metal_plate(mb, lm):
+    """Heavy steel armor plate strapped to the chest with rivets and leather bands."""
+    cz, pc = lm["chest_z"], (lm["sy"] + lm["cy"]) / 2 + 0.006
+    # Metal plate
+    mb.add_box((-0.120, pc + 0.118, cz + 0.025), (0.120, pc + 0.138, cz + 0.175), "metal", "chest")
+    # Rust stain patch
+    mb.add_box((-0.100, pc + 0.128, cz + 0.040), (0.010, pc + 0.140, cz + 0.110), "rust", "chest")
+    # Corner rivets
+    for cx in (-0.102, 0.102):
+        for cz_r in (cz + 0.045, cz + 0.155):
+            mb.add_box((cx - 0.009, pc + 0.132, cz_r - 0.009),
+                       (cx + 0.009, pc + 0.144, cz_r + 0.009), "rock_light", "chest")
+    # Heavy strapping wrapping around torso
+    mb.add_loft([((0, pc, cz + 0.135), 0.208, 0.124), ((0, pc, cz + 0.158), 0.208, 0.124)],
+                "tire_black", "chest", segs=10)
+    mb.add_loft([((0, pc, cz + 0.045), 0.205, 0.122), ((0, pc, cz + 0.068), 0.205, 0.122)],
+                "tire_black", "chest", segs=10)
+    # Strap buckles on sides
+    mb.add_box((-0.212, pc - 0.015, cz + 0.130), (-0.200, pc + 0.020, cz + 0.165), "chrome", "chest")
+    mb.add_box((0.200, pc - 0.015, cz + 0.040), (0.212, pc + 0.020, cz + 0.075), "chrome", "chest")
+
+
+def _brute_huge_arms(mb, look, lm, arm_points):
+    """Massive muscular volume wrapping deltoids, upper arms, forearms and fists."""
+    skin = look["skin"]
+    for sign, side in ((1, "R"), (-1, "L")):
+        shoulder, elbow, wrist, tip = arm_points(sign, lm["hy"], lm["hips_z"] + 0.52)
+        # Trapezius muscle slope connecting neck to shoulder
+        trap_p0 = Vector((sign * 0.08, lm["ny"], lm["neck_z"] + 0.01))
+        trap_p1 = Vector((sign * 0.17, lm["hy"], lm["hips_z"] + 0.54))
+        mb.add_loft([(trap_p0, 0.065, 0.065), (trap_p1, 0.076, 0.076)], skin, "shoulder_" + side, segs=8)
+
+        # Huge rounded deltoid cap on upper arm
+        delt_c = shoulder + Vector((sign * 0.02, 0.0, 0.01))
+        mb.add_ellipsoid(delt_c, (0.078, 0.082, 0.074), skin, "upper_arm_" + side, segs=8, rings=5)
+
+        # Thick muscular upper arm loft from shoulder through bicep/tricep to elbow
+        p_bicep = shoulder.lerp(elbow, 0.48)
+        mb.add_loft([(shoulder, 0.072, 0.074), (p_bicep, 0.076, 0.078), (elbow, 0.062, 0.062)],
+                    skin, "upper_arm_" + side, segs=8)
+
+        # Thick muscular forearm loft from elbow through forearm swell to wrist
+        p_fore = elbow.lerp(wrist, 0.35)
+        mb.add_loft([(elbow, 0.062, 0.062), (p_fore, 0.066, 0.064), (wrist, 0.048, 0.044)],
+                    skin, "forearm_" + side, segs=8)
+
+        # Heavy brutal knuckles/fist
+        hand_c = wrist.lerp(tip, 0.50)
+        mb.add_ellipsoid(hand_c, (0.052, 0.056, 0.042), skin, "hand_" + side, segs=6, rings=4)
+
+
+def _screamer_face(mb, lm, look):
+    """Black hollow eye sockets and a massive, unhinged gaping scream jaw."""
+    h, f = lm["head_z"], lm["fy"]
+    for s in (1, -1):
+        mb.add_ellipsoid((s * 0.040, f + 0.073, h + 0.113), (0.028, 0.012, 0.022), "gun_black", "head", segs=8, rings=4)
+        mb.add_box((s * 0.040 - 0.005, f + 0.078, h + 0.110),
+                   (s * 0.040 + 0.005, f + 0.084, h + 0.116), "white", "head")
+    # Cavernous gaping throat
+    mb.add_box((-0.032, f + 0.052, h - 0.018), (0.032, f + 0.092, h + 0.060), "gun_black", "head")
+    mb.add_box((-0.028, f + 0.062, h - 0.010), (0.028, f + 0.095, h + 0.056), "blood_dark", "head")
+    # Upper sharp teeth
+    mb.add_box((-0.024, f + 0.084, h + 0.050), (0.024, f + 0.094, h + 0.060), "rock_light", "head")
+    # Distended lower jaw dropped down
+    mb.add_loft([((-0.034, f + 0.052, h + 0.015), 0.012, 0.014),
+                 ((0.0, f + 0.094, h - 0.024), 0.028, 0.016),
+                 ((0.034, f + 0.052, h + 0.015), 0.012, 0.014)], look["skin"], "head", segs=6)
+    # Lower sharp teeth
+    mb.add_box((-0.022, f + 0.084, h - 0.014), (0.022, f + 0.093, h - 0.006), "rock_light", "head")
+    # Bloody sinew connecting corners of open mouth
+    for s in (1, -1):
+        mb.add_loft([((s * 0.030, f + 0.068, h + 0.048), 0.004, 0.005),
+                     ((s * 0.031, f + 0.074, h + 0.002), 0.003, 0.004)], "blood_dark", "head", segs=5)
+
+
+def _screamer_long_neck(mb, look, lm):
+    """Taut, elongated cords and protruding trachea on the neck."""
+    skin = look["skin"]
+    for s in (1, -1):
+        mb.add_loft([((s * 0.046, lm["ny"] - 0.012, lm["neck_z"] - 0.035), 0.014, 0.012),
+                     ((s * 0.054, lm["fy"] - 0.018, lm["head_z"] + 0.075), 0.010, 0.010)], skin, "neck", segs=6)
+    # Windpipe ridge
+    mb.add_loft([((0, lm["ny"] + 0.058, lm["neck_z"] - 0.020), 0.015, 0.014),
+                 ((0, lm["fy"] + 0.064, lm["head_z"] + 0.050), 0.017, 0.015)], skin, "neck", segs=6)
+    # Throat shadow hollow
+    mb.add_ellipsoid((0, lm["ny"] + 0.046, lm["neck_z"] - 0.030), (0.026, 0.010, 0.016), "bark_dark", "neck", segs=6, rings=3)
+
+
+def _screamer_ragged_dress(mb, look, lm):
+    """Long ragged dress/coat hanging down from waist past knees with jagged tattered strips."""
+    hz, hy = lm["hips_z"], lm["hy"]
+    dress_col = look["shirt"]
+    mb.add_loft([((0, hy, hz + 0.06), 0.165, 0.105),
+                 ((0, hy, hz - 0.12), 0.185, 0.120),
+                 ((0, hy, hz - 0.32), 0.200, 0.135)], dress_col, "hips", segs=10)
+    mb.add_loft([((0, hy, hz - 0.28), 0.202, 0.137),
+                 ((0, hy, hz - 0.33), 0.204, 0.138)], "dirt", "hips", segs=10)
+    # Jagged hanging shreds
+    for ang, drop, col in ((15, 0.12, dress_col), (45, 0.08, "dirt"), (80, 0.14, dress_col),
+                           (120, 0.09, "blood_dark"), (160, 0.13, dress_col), (200, 0.10, "dirt"),
+                           (245, 0.14, dress_col), (290, 0.09, "dirt"), (335, 0.12, dress_col)):
+        a = math.radians(ang)
+        x, y = 0.198 * math.cos(a), hy + 0.133 * math.sin(a)
+        top = hz - 0.31
+        mb.add_loft([((x, y, top), 0.024, 0.014), ((x * 1.02, y * 1.02, top - drop), 0.004, 0.004)],
+                    col, "hips", segs=5)
+    # Ragged sleeve shreds
+    for s in (1, -1):
+        mb.add_loft([((s * 0.24, hy, hz + 0.44), 0.045, 0.045),
+                     ((s * 0.25, hy, hz + 0.36), 0.048, 0.048),
+                     ((s * 0.255, hy, hz + 0.28), 0.020, 0.010)], dress_col,
+                    "upper_arm_" + ("R" if s > 0 else "L"), segs=6)
+
+
+def _screamer_hair(mb, look, lm):
+    """Long stringy matted hair streaming down the back and sides of the head."""
+    h, top, f = lm["head_z"], lm["head_top"], lm["fy"]
+    span = top - h
+    mb.add_loft([((0, f - 0.045, h + 0.70 * span), 0.098, 0.075),
+                 ((0, f - 0.060, h + 0.10 * span), 0.092, 0.060),
+                 ((0, f - 0.070, h - 0.12 * span), 0.080, 0.040)], look["hair"], "head", segs=10)
+    for s in (1, -1):
+        mb.add_loft([((s * 0.085, f + 0.015, h + 0.75 * span), 0.014, 0.016),
+                     ((s * 0.092, f + 0.028, h + 0.05 * span), 0.008, 0.010),
+                     ((s * 0.095, f + 0.010, h - 0.10 * span), 0.004, 0.005)], look["hair"], "head", segs=5)
+
+
+def _crawler_stumps(mb, look, lm):
+    """Deletes feet and lower shins, adding severed bloody stumps with protruding bone."""
+    # Delete all foot/toe vertices and lower shin vertices
+    # Bone indices in humanoid.BONE_NAMES:
+    # 15: shin_L, 16: foot_L, 17: toe_L
+    # 19: shin_R, 20: foot_R, 21: toe_R
+    del_verts = []
+    for v in mb.bm.verts:
+        b = v[mb.bone_layer]
+        if b in (16, 17, 20, 21):
+            del_verts.append(v)
+        elif b in (15, 19) and v.co.z < 0.44:
+            del_verts.append(v)
+    bmesh.ops.delete(mb.bm, geom=del_verts, context="VERTS")
+
+    for sign, side in ((1, "R"), (-1, "L")):
+        x = sign * 0.10
+        bone = "thigh_" + side
+        # Torn trouser cuff
+        mb.add_loft([((x, 0.004, 0.47), 0.058, 0.060), ((x, 0.004, 0.43), 0.055, 0.057)],
+                    look["pants"], bone, segs=8)
+        # Bloody fleshy stump cap
+        mb.add_ellipsoid((x, 0.004, 0.43), (0.046, 0.048, 0.022), "blood_dark", bone, segs=8, rings=4)
+        mb.add_ellipsoid((x, 0.004, 0.41), (0.032, 0.034, 0.016), "red_paint", bone, segs=6, rings=3)
+        # Protruding broken bone shaft
+        mb.add_loft([((x, 0.004, 0.43), 0.018, 0.016), ((x, 0.004, 0.38), 0.015, 0.013),
+                     ((x + sign * 0.003, 0.006, 0.34), 0.008, 0.006)], "rock_light", bone, segs=5)
+        mb.add_box((x - 0.005, 0.002, 0.335), (x + 0.005, 0.008, 0.350), "rock_light", bone)
+
+
+def _crawler_torn_hem(mb, look, lm):
+    """Scraped, caked-dirt shirt shreds and belly scrapes from dragging along the ground."""
+    sz, hy = lm["spine_z"], lm["hy"]
+    for ang, drop in ((30, 0.08), (75, 0.10), (120, 0.07), (165, 0.09),
+                      (210, 0.08), (255, 0.11), (300, 0.08), (345, 0.10)):
+        a = math.radians(ang)
+        x, y = 0.154 * math.cos(a), hy + 0.093 * math.sin(a)
+        top = sz - 0.010
+        mb.add_loft([((x, y, top), 0.022, 0.014), ((x * 1.02, y * 1.02, top - drop), 0.004, 0.004)],
+                    look["shirt"], "spine", segs=5)
+    # Scrapes on belly and chest
+    mb.add_box((-0.12, lm["sy"] + 0.088, sz - 0.02), (0.12, lm["sy"] + 0.106, sz + 0.08), "dirt", "spine")
+    mb.add_box((-0.09, lm["cy"] + 0.098, lm["chest_z"] + 0.02),
+               (0.09, lm["cy"] + 0.114, lm["chest_z"] + 0.14), "blood_dark", "chest")
