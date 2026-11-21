@@ -155,9 +155,9 @@ pub fn update_actors(
                 if !actors.car_camera.is_active() {
                     actors.car_camera.activate();
                 }
-                if ui.cursor_captured && !ui.screen_open() {
-                    actors.car_camera.orbit(glam::Vec2::new(actions.look_delta.0, actions.look_delta.1));
-                }
+                // look_delta is already zero when the mouse is free or a screen is open (frame_input),
+                // except for arrow-key look, which should turn the car camera too
+                actors.car_camera.orbit(glam::Vec2::new(actions.look_delta.0, actions.look_delta.1));
                 if input.pressed(K::KeyV) && ui.hub.is_none() && ui.camp_ui.is_none() {
                     let mode = actors.car_camera.cycle_mode();
                     if let Some(play_state) = play.play.as_mut() {

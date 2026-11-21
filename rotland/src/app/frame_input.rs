@@ -187,8 +187,9 @@ pub fn process_input(
     if !ui.cursor_captured || ui.screen_open() {
         actions.look_delta = (0.0, 0.0);
     }
-    // Arrow keys look around: works even without mouse capture, but never during open screens or dev typing
-    if !dev_typing && !ui.screen_open() {
+    // Arrow keys look around: works without mouse capture and with the dev panel open,
+    // but never in the camp/hub screens or while typing in a dev panel field
+    if !dev_typing && ui.camp_ui.is_none() && ui.hub.is_none() {
         let key_look = game::input::keyboard_look_delta(
             input.held(keys.movement.look_left),
             input.held(keys.movement.look_right),
