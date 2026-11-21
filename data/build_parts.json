@@ -1,0 +1,145 @@
+{
+  "gridSize": 2.0,
+  "floorHeight": 3.0,
+  "maxFloors": 2,
+  "maxSlope": 0.8,
+  "onlyNearCamp": false,
+  "campRadius": 60.0,
+  "campPos": [0.0, 0.0],
+  "refundShare": 0.5,
+  "parts": {
+    "floor": {
+      "id": "floor",
+      "name": "Floor (2x2)",
+      "snap": "cell",
+      "footprint": [[0, 0]],
+      "height": 0.1,
+      "hp": 100.0,
+      "cost": { "wood": 4 },
+      "blocksZombies": false,
+      "isFloor": true
+    },
+    "wall": {
+      "id": "wall",
+      "name": "Wall",
+      "snap": "edge",
+      "footprint": [[0, 0]],
+      "height": 3.0,
+      "hp": 150.0,
+      "cost": { "wood": 4 },
+      "blocksZombies": true
+    },
+    "wall_window": {
+      "id": "wall_window",
+      "name": "Wall with Window",
+      "snap": "edge",
+      "footprint": [[0, 0]],
+      "height": 3.0,
+      "hp": 120.0,
+      "cost": { "wood": 4 },
+      "blocksZombies": true
+    },
+    "wall_door": {
+      "id": "wall_door",
+      "name": "Wall with Door",
+      "snap": "edge",
+      "footprint": [[0, 0]],
+      "height": 3.0,
+      "hp": 120.0,
+      "cost": { "wood": 5, "scrap_metal": 1 },
+      "blocksZombies": true,
+      "isDoor": true
+    },
+    "half_wall": {
+      "id": "half_wall",
+      "name": "Half Wall",
+      "snap": "edge",
+      "footprint": [[0, 0]],
+      "height": 1.5,
+      "hp": 80.0,
+      "cost": { "wood": 2 },
+      "blocksZombies": true
+    },
+    "roof": {
+      "id": "roof",
+      "name": "Flat Roof (2x2)",
+      "snap": "cell",
+      "footprint": [[0, 0]],
+      "height": 0.1,
+      "hp": 100.0,
+      "cost": { "wood": 4 },
+      "blocksZombies": false,
+      "isRoof": true
+    },
+    "stairs": {
+      "id": "stairs",
+      "name": "Stairs",
+      "snap": "cell",
+      "footprint": [[0, 0]],
+      "height": 3.0,
+      "hp": 100.0,
+      "cost": { "wood": 4 },
+      "blocksZombies": false
+    },
+    "bed": {
+      "id": "bed",
+      "name": "Bed",
+      "snap": "cell",
+      "footprint": [[0, 0]],
+      "height": 0.8,
+      "hp": 80.0,
+      "cost": { "wood": 4, "cloth": 2 },
+      "blocksZombies": false
+    },
+    "storage_box": {
+      "id": "storage_box",
+      "name": "Storage Box",
+      "snap": "cell",
+      "footprint": [[0, 0]],
+      "height": 0.8,
+      "hp": 100.0,
+      "cost": { "wood": 3, "scrap_metal": 1 },
+      "blocksZombies": true
+    },
+    "workbench": {
+      "id": "workbench",
+      "name": "Workbench",
+      "snap": "cell",
+      "footprint": [[0, 0]],
+      "height": 1.0,
+      "hp": 120.0,
+      "cost": { "wood": 5, "scrap_metal": 2 },
+      "blocksZombies": true
+    },
+    "light": {
+      "id": "light",
+      "name": "Lantern",
+      "snap": "cell",
+      "footprint": [[0, 0]],
+      "height": 0.5,
+      "hp": 40.0,
+      "cost": { "scrap_metal": 1 },
+      "blocksZombies": false
+    },
+    "spikes": {
+      "id": "spikes",
+      "name": "Spikes",
+      "snap": "cell",
+      "footprint": [[0, 0]],
+      "height": 0.6,
+      "hp": 60.0,
+      "cost": { "wood": 3, "scrap_metal": 1 },
+      "blocksZombies": true
+    },
+    "barricade": {
+      "id": "barricade",
+      "name": "Barricade",
+      "snap": "cell",
+      "footprint": [[0, 0]],
+      "height": 1.2,
+      "hp": 100.0,
+      "cost": { "wood": 3 },
+      "blocksZombies": true
+    }
+  }
+}

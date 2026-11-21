@@ -2,6 +2,7 @@
 
 mod animals_tests;
 mod bounties_tests;
+mod building_tests;
 mod campfire_tests;
 mod camp_guards_tests;
 mod camp_tests;
