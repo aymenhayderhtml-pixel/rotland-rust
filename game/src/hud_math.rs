@@ -255,3 +255,111 @@ pub fn hud_elements_overlap(screen_w: f32, screen_h: f32) -> bool {
         || l.hotbar.overlaps(&l.ammo)
 }
 
+// =========================================================================
+// R16-09 HUD Polish Math: damage direction, arc rendering, vital trails
+// =========================================================================
+
+// data: hud.json fade_duration_s
+pub const DEFAULT_DAMAGE_FADE_S: f32 = 1.2;
+// data: hud.json fade_duration_s
+pub const DEFAULT_PICKUP_FADE_S: f32 = 2.5;
+// data: hud.json duration_s
+pub const DEFAULT_NOTIFICATION_DURATION_S: f32 = 4.0;
+// data: hud.json trail_shrink_rate
+pub const DEFAULT_TRAIL_SHRINK_RATE: f32 = 0.35;
+// data: hud.json trail_delay_s
+pub const DEFAULT_TRAIL_DELAY_S: f32 = 0.4;
+// data: hud.json pulse_speed
+pub const DEFAULT_PULSE_SPEED: f32 = 6.0;
+
+/// Computes the angle in radians on the 2D screen from the player to the attacker,
+/// relative to the camera view direction (yaw).
+/// 0 is straight ahead (screen top / up).
+/// Positive radians are to the right (clockwise): PI/2 is screen right, PI is screen bottom (behind).
+/// Negative radians are to the left (counter-clockwise): -PI/2 is screen left.
+/// Follows Godot coordinate conventions (AGENTS.md rule 7).
+pub fn damage_direction_angle_rad(
+    player_x: f32,
+    player_z: f32,
+    attacker_x: f32,
+    attacker_z: f32,
+    camera_yaw_rad: f32,
+) -> f32 {
+    let dx = attacker_x - player_x;
+    let dz = attacker_z - player_z;
+    let forward_x = -camera_yaw_rad.sin();
+    let forward_z = -camera_yaw_rad.cos();
+    let right_x = camera_yaw_rad.cos();
+    let right_z = -camera_yaw_rad.sin();
+    let dot_right = dx * right_x + dz * right_z;
+    let dot_forward = dx * forward_x + dz * forward_z;
+    dot_right.atan2(dot_forward)
+}
+
+/// Converts a screen angle in radians (0 = Up, PI/2 = Right, PI = Down, -PI/2 = Left)
+/// into a 2D screen direction unit vector (dx, dy) where top is -Y and right is +X.
+#[inline]
+pub fn damage_screen_direction(angle_rad: f32) -> (f32, f32) {
+    (angle_rad.sin(), -angle_rad.cos())
+}
+
+/// Computes a point on the screen edge ellipse for a given damage direction angle and edge margin.
+#[inline]
+pub fn damage_screen_point(screen_w: f32, screen_h: f32, angle_rad: f32, margin: f32) -> (f32, f32) {
+    let cx = screen_w * 0.5;
+    let cy = screen_h * 0.5;
+    let rx = (cx - margin).max(1.0);
+    let ry = (cy - margin).max(1.0);
+    let (dx, dy) = damage_screen_direction(angle_rad);
+    (cx + rx * dx, cy + ry * dy)
+}
+
+/// Generates a series of 2D screen points along an elliptical arc centered at (center_x, center_y).
+/// The arc covers `span_rad` radians centered on `angle_rad`.
+pub fn damage_arc_points(
+    center_x: f32,
+    center_y: f32,
+    radius_x: f32,
+    radius_y: f32,
+    angle_rad: f32,
+    span_rad: f32,
+    segments: usize,
+) -> Vec<(f32, f32)> {
+    let count = segments.max(1);
+    let half_span = span_rad * 0.5;
+    let mut points = Vec::with_capacity(count + 1);
+    for i in 0..=count {
+        let t = i as f32 / count as f32;
+        let a = angle_rad - half_span + span_rad * t;
+        let px = center_x + radius_x * a.sin();
+        let py = center_y - radius_y * a.cos();
+        points.push((px, py));
+    }
+    points
+}
+
+/// Computes the remaining alpha fraction for an element fading linearly over `duration_s`.
+#[inline]
+pub fn damage_alpha(elapsed_s: f32, duration_s: f32) -> f32 {
+    1.0 - (elapsed_s / duration_s.max(1e-4)).clamp(0.0, 1.0)
+}
+
+/// Updates a vital bar's recent damage trail toward the actual current value.
+/// If current_trail is at or below target, it snaps to target.
+/// If current_trail is above target, it shrinks at `shrink_rate` fraction per second.
+#[inline]
+pub fn vitals_trail_update(current_trail: f32, target_value: f32, dt: f32, shrink_rate: f32) -> f32 {
+    if current_trail <= target_value {
+        target_value
+    } else {
+        (current_trail - shrink_rate * dt).max(target_value)
+    }
+}
+
+/// Computes a pulse factor in range [0.0, 1.0] for pulsing HUD elements (e.g. low health/food/water).
+#[inline]
+pub fn bar_pulse_factor(time: f64, speed: f32) -> f32 {
+    (0.5 + 0.5 * ((time as f32) * speed).sin()).clamp(0.0, 1.0)
+}
+
+

@@ -1,0 +1,47 @@
+{
+  "damage_direction": {
+    "fade_duration_s": 1.2,
+    "arc_radius_fraction": 0.85,
+    "arc_span_deg": 40.0,
+    "arc_thickness_px": 5.0,
+    "color": "#e62828",
+    "alpha": 0.85
+  },
+  "pickup_popup": {
+    "fade_duration_s": 2.5,
+    "max_visible": 5,
+    "width_px": 180.0,
+    "height_px": 28.0,
+    "font_size_px": 14.0,
+    "bg_color": "#121214e6",
+    "text_color": "#ffffff",
+    "corner_radius_px": 6.0
+  },
+  "notifications": {
+    "duration_s": 4.0,
+    "max_queue": 3,
+    "height_px": 30.0,
+    "font_size_px": 14.0,
+    "info_color": "#38bdf8",
+    "warning_color": "#fbbf24",
+    "danger_color": "#ef4444",
+    "bg_color": "#121214f0",
+    "corner_radius_px": 15.0
+  },
+  "bars": {
+    "corner_radius_px": 6.0,
+    "bg_color": "#0c0c0ee6",
+    "trail_color": "#ffffffc8",
+    "trail_shrink_rate": 0.35,
+    "trail_delay_s": 0.4,
+    "low_health_threshold": 0.25,
+    "low_stamina_threshold": 0.20,
+    "low_food_threshold": 0.20,
+    "low_water_threshold": 0.20,
+    "pulse_speed": 6.0,
+    "health_color": "#cc2626",
+    "stamina_color": "#40bf4d",
+    "food_color": "#f28c26",
+    "water_color": "#408cf2"
+  }
+}

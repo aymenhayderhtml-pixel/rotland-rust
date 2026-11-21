@@ -158,3 +158,129 @@ fn test_hud_layout_no_overlaps_all_resolutions() {
         );
     }
 }
+
+#[test]
+fn test_damage_direction_angles() {
+    // Player at (0, 0), looking North (yaw = 0.0)
+    let p_x = 0.0;
+    let p_z = 0.0;
+    let yaw_north = 0.0;
+
+    // Attacker straight ahead North (0, -10)
+    let a_front = damage_direction_angle_rad(p_x, p_z, 0.0, -10.0, yaw_north);
+    assert!(a_front.abs() < 1e-4, "Expected 0.0 rad, got {a_front}");
+
+    // Attacker to the right East (10, 0) -> +PI/2
+    let a_right = damage_direction_angle_rad(p_x, p_z, 10.0, 0.0, yaw_north);
+    assert!((a_right - (PI / 2.0)).abs() < 1e-4, "Expected PI/2 rad, got {a_right}");
+
+    // Attacker behind South (0, 10) -> PI
+    let a_behind = damage_direction_angle_rad(p_x, p_z, 0.0, 10.0, yaw_north);
+    assert!((a_behind.abs() - PI).abs() < 1e-4, "Expected PI rad, got {a_behind}");
+
+    // Attacker to the left West (-10, 0) -> -PI/2
+    let a_left = damage_direction_angle_rad(p_x, p_z, -10.0, 0.0, yaw_north);
+    assert!((a_left - (-PI / 2.0)).abs() < 1e-4, "Expected -PI/2 rad, got {a_left}");
+
+    // Camera facing East (yaw = -PI/2 in Godot convention)
+    let yaw_east = -PI / 2.0;
+
+    // Attacker at East (10, 0) is now straight ahead in view -> 0.0 rad
+    let a_east_facing_east = damage_direction_angle_rad(p_x, p_z, 10.0, 0.0, yaw_east);
+    assert!(a_east_facing_east.abs() < 1e-4, "Expected 0.0, got {a_east_facing_east}");
+
+    // Attacker at North (0, -10) is to the left of East view -> -PI/2 rad
+    let a_north_facing_east = damage_direction_angle_rad(p_x, p_z, 0.0, -10.0, yaw_east);
+    assert!((a_north_facing_east - (-PI / 2.0)).abs() < 1e-4);
+
+    // Attacker at South (0, 10) is to the right of East view -> +PI/2 rad
+    let a_south_facing_east = damage_direction_angle_rad(p_x, p_z, 0.0, 10.0, yaw_east);
+    assert!((a_south_facing_east - (PI / 2.0)).abs() < 1e-4);
+}
+
+#[test]
+fn test_damage_screen_direction_and_point() {
+    // 0 rad -> Up (0, -1)
+    let (dx_up, dy_up) = damage_screen_direction(0.0);
+    assert!(dx_up.abs() < 1e-4 && (dy_up - (-1.0)).abs() < 1e-4);
+
+    // PI/2 -> Right (1, 0)
+    let (dx_r, dy_r) = damage_screen_direction(PI / 2.0);
+    assert!((dx_r - 1.0).abs() < 1e-4 && dy_r.abs() < 1e-4);
+
+    // PI -> Down (0, 1)
+    let (dx_d, dy_d) = damage_screen_direction(PI);
+    assert!(dx_d.abs() < 1e-4 && (dy_d - 1.0).abs() < 1e-4);
+
+    // -PI/2 -> Left (-1, 0)
+    let (dx_l, dy_l) = damage_screen_direction(-PI / 2.0);
+    assert!((dx_l - (-1.0)).abs() < 1e-4 && dy_l.abs() < 1e-4);
+
+    // Screen point: 1920x1080 screen with 20px margin
+    let (px, py) = damage_screen_point(1920.0, 1080.0, 0.0, 20.0);
+    assert_eq!(px, 960.0);
+    assert_eq!(py, 20.0);
+
+    let (px_r, py_r) = damage_screen_point(1920.0, 1080.0, PI / 2.0, 20.0);
+    assert_eq!(px_r, 1920.0 - 20.0);
+    assert_eq!(py_r, 540.0);
+}
+
+#[test]
+fn test_damage_arc_points() {
+    let pts = damage_arc_points(100.0, 100.0, 50.0, 50.0, 0.0, PI / 4.0, 4);
+    assert_eq!(pts.len(), 5);
+    // Midpoint should be at top (100.0, 50.0)
+    let mid = pts[2];
+    assert!((mid.0 - 100.0).abs() < 1e-4);
+    assert!((mid.1 - 50.0).abs() < 1e-4);
+}
+
+#[test]
+fn test_damage_alpha_fade() {
+    assert_eq!(damage_alpha(0.0, 1.2), 1.0);
+    assert!((damage_alpha(0.6, 1.2) - 0.5).abs() < 1e-4);
+    assert_eq!(damage_alpha(1.2, 1.2), 0.0);
+    assert_eq!(damage_alpha(2.0, 1.2), 0.0);
+}
+
+#[test]
+fn test_vitals_trail_update() {
+    // Current trail at 100, health dropped to 70
+    let mut trail = 100.0;
+    let target = 70.0;
+    let shrink_rate = 30.0; // 30 hp per second
+
+    // After 0.5s, trail should be 85.0
+    trail = vitals_trail_update(trail, target, 0.5, shrink_rate);
+    assert!((trail - 85.0).abs() < 1e-4);
+
+    // After another 1.0s, trail should reach target 70.0 (clamped)
+    trail = vitals_trail_update(trail, target, 1.0, shrink_rate);
+    assert_eq!(trail, 70.0);
+
+    // If player heals to 90, trail snaps to 90
+    trail = vitals_trail_update(trail, 90.0, 0.1, shrink_rate);
+    assert_eq!(trail, 90.0);
+}
+
+#[test]
+fn test_bar_pulse_factor() {
+    let p0 = bar_pulse_factor(0.0, 6.0);
+    assert!((p0 - 0.5).abs() < 1e-4);
+    for t in [0.1, 0.5, 1.0, 2.5] {
+        let p = bar_pulse_factor(t, 6.0);
+        assert!((0.0..=1.0).contains(&p));
+    }
+}
+
+#[test]
+fn test_hud_math_defaults() {
+    assert_eq!(DEFAULT_DAMAGE_FADE_S, 1.2);
+    assert_eq!(DEFAULT_PICKUP_FADE_S, 2.5);
+    assert_eq!(DEFAULT_NOTIFICATION_DURATION_S, 4.0);
+    assert_eq!(DEFAULT_TRAIL_SHRINK_RATE, 0.35);
+    assert_eq!(DEFAULT_TRAIL_DELAY_S, 0.4);
+    assert_eq!(DEFAULT_PULSE_SPEED, 6.0);
+}
+
