@@ -1,0 +1,58 @@
+{
+  "distanceFromCamp": 1500.0,
+  "blocks": 10,
+  "blockSize": 64.0,
+  "streetWidth": 10.0,
+  "avenueWidth": 14.0,
+  "avenueEvery": 3,
+  "blockedChance": 0.25,
+  "cornerDropChance": 0.5,
+  "maxSlope": 3.0,
+  "directionTries": 8,
+  "coreBlocks": 2,
+  "outskirtsRings": 2,
+  "industrialStrip": [2, 6],
+  "parks": [1, 2],
+  "districts": {
+    "outskirts": [
+      { "id": "house_small", "weight": 4 },
+      { "id": "gas_station", "weight": 1 },
+      { "id": "shop", "weight": 2 },
+      { "id": "shed", "weight": 1 }
+    ],
+    "downtown": [
+      { "id": "apartment", "weight": 4 },
+      { "id": "shop", "weight": 3 },
+      { "id": "office", "weight": 2 },
+      { "id": "pharmacy", "weight": 1 },
+      { "id": "ruin", "weight": 1 }
+    ],
+    "core": [
+      { "id": "police", "weight": 1 },
+      { "id": "hospital", "weight": 1 },
+      { "id": "ruin", "weight": 3 },
+      { "id": "office", "weight": 2 },
+      { "id": "apartment", "weight": 2 }
+    ],
+    "industrial": [
+      { "id": "warehouse", "weight": 4 },
+      { "id": "gas_station", "weight": 1 },
+      { "id": "ruin", "weight": 1 },
+      { "id": "shed", "weight": 2 }
+    ]
+  },
+  "buildings": {
+    "apartment": [20.0, 14.0],
+    "shop": [18.0, 10.0],
+    "office": [18.0, 18.0],
+    "pharmacy": [12.0, 10.0],
+    "police": [24.0, 18.0],
+    "hospital": [30.0, 22.0],
+    "warehouse": [26.0, 16.0],
+    "ruin": [16.0, 12.0],
+    "house_small": [9.0, 7.0],
+    "gas_station": [10.0, 8.0],
+    "shed": [3.0, 3.0]
+  },
+  "lotGap": 2.0
+}
