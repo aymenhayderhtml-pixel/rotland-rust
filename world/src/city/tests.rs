@@ -341,7 +341,7 @@ fn city_queries() {
 
 #[test]
 fn city_attached_to_real_world() {
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../data");
+    let dir = repo_path("data");
     let generator = crate::WorldGenerator::from_data_dir(42, dir).unwrap();
     let city = generator.city().expect("data/city.json gives the real world a city");
     let camp = generator.settlements()[0].center;
