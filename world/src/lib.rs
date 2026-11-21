@@ -4,6 +4,7 @@ pub mod color;
 pub mod daynight;
 pub mod generator;
 pub mod ground_paint;
+pub mod lake;
 pub mod loot;
 pub mod math;
 pub mod noise;
@@ -22,6 +23,10 @@ pub use color::Color;
 pub use daynight::{DayNightLook, SkyColors};
 pub use generator::{ChunkGround, GroundTriangle, WorldGenerator};
 pub use ground_paint::GroundPaint;
+pub use lake::{
+    Dock, FishingSpot, FishingSpotKind, LakeConfig, LakeConfigData, LakeLayout, LakeZone,
+    VillageLot,
+};
 pub use loot::{LootPlacer, LootSpot};
 pub use math::{lerp, smooth_step};
 pub use noise::GodotNoise;

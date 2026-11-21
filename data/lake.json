@@ -1,0 +1,34 @@
+{
+  "distanceFromCamp": 1500.0,
+  "radius": [260.0, 200.0],
+  "shoreNoise": {
+    "amplitude": 12.0,
+    "frequency": 0.02
+  },
+  "beachWidth": 14.0,
+  "shallowWidth": 12.0,
+  "maxDepth": 8.0,
+  "waterLevelAboveShore": 0.3,
+  "village": {
+    "count": 8,
+    "sizes": [
+      [14.0, 10.0],
+      [12.0, 8.0],
+      [16.0, 12.0],
+      [10.0, 8.0],
+      [12.0, 10.0],
+      [14.0, 12.0],
+      [10.0, 10.0],
+      [12.0, 8.0]
+    ]
+  },
+  "docks": {
+    "count": 3,
+    "width": 4.0,
+    "length": 20.0
+  },
+  "angleFromCity": 180.0,
+  "beachBlend": 16.0,
+  "shoreSamples": 128,
+  "regionMargin": 32.0
+}
