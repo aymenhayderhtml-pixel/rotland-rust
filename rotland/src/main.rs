@@ -35,6 +35,7 @@ mod streaming;
 mod terrain;
 mod trunk_play;
 mod wildlife;
+mod water_view;
 mod zombies;
 
 use engine::{EngineArgs, FrameTarget, Game, GameStats, Gpu, Input};
@@ -43,6 +44,7 @@ pub use app::{PlayerPose, R0};
 
 impl Game for R0 {
     fn init(&mut self, gpu: &Gpu, args: &EngineArgs) {
+        crate::water_view::init(args);
         app::startup::init(
             gpu,
             args,
