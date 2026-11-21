@@ -14,3 +14,25 @@ Lot 30 x 22 m. Budget: `hospital` 10000 triangles, `hospital_lod1` 1200 triangle
 3-floor hospital (only the ground floor enterable): white walls with a red stripe, a red cross sign (boxes), a covered ambulance bay (roof on posts) at one end, wide entrance doors. Inside: reception, a corridor, 2 rooms with beds (simple boxes). 5 loot, 5 spawns.
 
 ## Worker notes
+- Created `police.py` and `police_lod1.py`:
+  - `police`: 2-floor police station on 24 x 18 m lot (footprint 15 x 15 m building, 7 x 15 m fenced parking corner). Blue-gray (`gown_blue`) walls with blue (`shirt_blue`) accent stripes, entrance steps with handrails, double doors, flagpole without flag, barred ground-floor windows, fenced parking lot with perimeter fence, striped barrier arm, and dumpster. Inside: front desk lobby with computer and file cabinets, central hallway, jail cell with iron bars, bunk bed and toilet, locker room with lockers and bench, armory with shelves and gun racks, barricaded stairs to closed second floor.
+    - Triangle count: 5164 tris (budget 8000) -> PASS
+    - Markers: `lot_size` (scale 24 x 18 x 1), `door_1`, `door_2`, `loot_1`..`loot_5`, `spawn_1`..`spawn_4`
+  - `police_lod1`: Low-detail model matching outer footprint, volumes, roofline, parking corner, barrier, flagpole, and main colors, with interior and fine details removed.
+    - Triangle count: 336 tris (budget 1000) -> PASS
+    - Markers: `lot_size` (scale 24 x 18 x 1)
+- Created `hospital.py` and `hospital_lod1.py`:
+  - `hospital`: 3-floor hospital on 30 x 22 m lot (footprint 21 x 18 m building, 7 x 17 m ambulance bay). White walls with red (`red_paint`) stripes between floors and on roof fascia, 3D red cross sign made of boxes on the front facade, covered ambulance bay on posts with emergency parking markings, wide entrance doors with awning. Inside: reception waiting room with desk, chairs, water cooler, central corridor with blue line and crash cart/gurney, Room 1 (triage) with 2 simple box hospital beds, monitor carts, IV stand, Room 2 (ward) with 2 simple box hospital beds, privacy screens, oxygen tank, pharmacy storage with stocked medicine racks, boarded stairwell to closed upper floors.
+    - Triangle count: 4872 tris (budget 10000) -> PASS
+    - Markers: `lot_size` (scale 30 x 22 x 1), `door_1`, `door_2`, `loot_1`..`loot_5`, `spawn_1`..`spawn_5`
+  - `hospital_lod1`: Low-detail model matching 3-floor silhouette, ambulance bay on posts, entrance awning, red cross sign, red stripes, elevator penthouse, and rooftop AC unit.
+    - Triangle count: 468 tris (budget 1200) -> PASS
+    - Markers: `lot_size` (scale 30 x 22 x 1)
+- Palette: All colors used exist in `tools/blender/palette.py` (`gown_blue`, `shirt_blue`, `rock_dark`, `rock_mid`, `rock_light`, `white`, `red_paint`, `metal`, `gun_black`, `brass`, `wood_crate`, `water_blue`, `bark_dark`, `pants_dark`).
+- Previews visually verified in `assets/models/_previews/`:
+  - `police.png`, `police_top.png`, `police_lod1.png`
+  - `hospital.png`, `hospital_top.png`, `hospital_lod1.png`
+- Wiring notes for Claude:
+  - Add `police` and `hospital` to `tools/blender/buildings/build_buildings.py`
+  - Add `police_lod1` and `hospital_lod1` to `tools/blender/buildings/build_lods.py` (or equivalent build lists)
+- Known issues: None.
