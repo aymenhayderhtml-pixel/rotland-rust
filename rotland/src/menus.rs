@@ -6,6 +6,7 @@ use engine::egui;
 use crate::settings::Settings;
 
 pub mod menus_draw;
+pub use menus_draw::theme;
 #[cfg(test)]
 mod menus_tests;
 

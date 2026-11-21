@@ -171,7 +171,8 @@ pub fn draw_ui(
             && play_state.gun.as_ref().is_some_and(|g| g.scope.is_some());
         let at = p.position;
         if let Some(g) = world.world_gen.as_ref() {
-            state.in_safe_zone = g.settlements().iter().any(|s| s.contains(at, 0.0, g.config()));
+            let safe_bonus = play_state.camp.effects().safe_zone_half_bonus;
+            state.in_safe_zone = g.settlements().iter().any(|s| s.contains(at, safe_bonus, g.config()));
             if let Some(s) = g.settlements().first() {
                 let dist = glam::Vec2::new(s.center.x - at.x, s.center.z - at.z).length();
                 state.camp = Some(hud::CampHudInfo::new(
@@ -240,6 +241,8 @@ pub fn draw_ui(
                 bounty_manager: Some(&play_state.camp.bounties),
                 item_registry: Some(&play_state.items),
                 economy_config: Some(&play_state.camp.economy),
+                upgrades: play_state.camp.upgrades_view(&play_state.inventory, &play_state.items),
+                recipe_tier: play_state.camp.effects().recipe_tier,
                 near_lit_campfire: play_state.camp.campfires.near_campfire(actors.player),
                 player_pos: actors.player,
                 is_dead: dead,
@@ -252,6 +255,43 @@ pub fn draw_ui(
         };
         match action {
             Some(camp_ui::CampAction::Close) => ui.camp_ui = None,
+            Some(camp_ui::CampAction::DoctorHeal) => {
+                let cost = 30; // data: camp_upgrades.json
+                if play_state.camp.wallet.try_spend(cost) {
+                    if let Some(c) = actors.combat.as_mut() {
+                        c.health.heal(c.health.max());
+                    }
+                    if let Some(state) = ui.camp_ui.as_mut() {
+                        state.set_status("Doctor: Healed to full health (-$30)");
+                    }
+                } else if let Some(state) = ui.camp_ui.as_mut() {
+                    state.set_status("Doctor: Not enough cash ($30 needed)");
+                }
+            }
+            Some(camp_ui::CampAction::MechanicRepair) => {
+                let cost = 50; // data: camp_upgrades.json
+                if play_state.camp.wallet.dollars() >= cost {
+                    let mut repaired = false;
+                    if let Some(cars) = actors.cars.as_mut() {
+                        for car in cars.live_cars_mut() {
+                            if car.condition.fraction() < 1.0 {
+                                car.condition.repair(300.0);
+                                repaired = true;
+                            }
+                        }
+                    }
+                    if repaired {
+                        play_state.camp.wallet.try_spend(cost);
+                        if let Some(state) = ui.camp_ui.as_mut() {
+                            state.set_status("Mechanic: Car repaired (-$50)");
+                        }
+                    } else if let Some(state) = ui.camp_ui.as_mut() {
+                        state.set_status("Mechanic: No damaged car found");
+                    }
+                } else if let Some(state) = ui.camp_ui.as_mut() {
+                    state.set_status("Mechanic: Not enough cash ($50 needed)");
+                }
+            }
             Some(a) => {
                 let buy_info = match &a {
                     camp_ui::CampAction::Buy { item, count } => Some((item.clone(), *count)),

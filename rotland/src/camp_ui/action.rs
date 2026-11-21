@@ -1,5 +1,7 @@
 //! Actions triggered by user interactions with camp screens.
 
+use game::camp_upgrades::UpgradeLine;
+
 /// Action chosen by the player on a camp screen.
 /// The UI never modifies game state directly; caller matches and applies the action.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -26,6 +28,14 @@ pub enum CampAction {
     TurnIn { bounty: String },
     /// Abandon an active bounty without penalty.
     Abandon { bounty: String },
+    /// Start constructing the next level of the given camp upgrade line.
+    StartUpgrade(UpgradeLine),
+    /// Cancel the currently running camp upgrade (refund handled by caller).
+    CancelUpgrade,
+    /// Heal to full health for cash via the unlocked camp doctor.
+    DoctorHeal,
+    /// Repair car to full for cash via the unlocked camp mechanic.
+    MechanicRepair,
     /// Close the camp screen.
     Close,
 }

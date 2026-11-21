@@ -10,8 +10,9 @@ pub use slots::{
     SlotInfo, SlotState, Slots, DEFAULT_SLOT_COUNT,
 };
 pub use systems::{
-    CampfireData, DeathRule, DifficultySaveData, DroppedItemData, InventorySaveData, PlayerSaveData,
-    SavedSlot, SettlementsSaveData, StatsSaveData, TimeSaveData, Vec3Data, WalletSaveData,
-    WeaponsSaveData, WorldSaveData, WorldStateSaveData,
+    CampfireData, CampUpgradesSaveData, DeathRule, DifficultySaveData, DroppedItemData,
+    InventorySaveData, PlayerSaveData, SavedSlot, SettlementsSaveData, StatsSaveData, TimeSaveData,
+    UpgradeInProgressSaveData, Vec3Data, WalletSaveData, WeaponsSaveData, WorldSaveData,
+    WorldStateSaveData,
 };
 

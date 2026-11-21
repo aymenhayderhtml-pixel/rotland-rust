@@ -349,14 +349,22 @@ pub fn update_world_interactions(
                 };
                 play_state.show_toast(text);
             }
-        } else if let Some((_, role, prompt)) = npc {
-            play_state.set_prompt(prompt);
-            let screen = match role.as_str() {
+        } else if let Some((_, role, mut prompt)) = npc {
+            let mut screen = match role.as_str() {
                 "trader" => Some(camp_ui::CampScreen::Shop),
                 "banker" => Some(camp_ui::CampScreen::Bank),
                 r if r.starts_with("bounty") => Some(camp_ui::CampScreen::Bounties),
+                "board" | "camp_board" | "upgrades" => Some(camp_ui::CampScreen::Upgrades),
                 _ => None,
             };
+            if role == "trader" {
+                prompt = "[E] Trader   [B] Camp Board".to_string();
+                if input.pressed(winit::keyboard::KeyCode::KeyB) && ui.camp_ui.is_none() && ui.hub.is_none() {
+                    screen = Some(camp_ui::CampScreen::Upgrades);
+                    ui.camp_ui = Some(camp_ui::CampUiState::new(camp_ui::CampScreen::Upgrades));
+                }
+            }
+            play_state.set_prompt(prompt);
             if let (true, Some(s)) = (pressed, screen) {
                 ui.camp_ui = Some(camp_ui::CampUiState::new(s));
             }
@@ -380,9 +388,12 @@ pub fn update_world_interactions(
         play.hour = play.clock.hour;
         // Fires burn in game hours (Godot Campfire: 5 h per load of wood)
         let hours = play.clock.day as f32 * 24.0 + play.clock.hour - before;
+        play.elapsed_hours = hours.max(0.0);
         if let Some(play_state) = play.play.as_mut() {
             play_state.camp.campfires.advance_hours(hours.max(0.0));
         }
+    } else {
+        play.elapsed_hours = 0.0;
     }
     if let Some(play_state) = play.play.as_mut() {
         for f in play_state.camp.campfires.campfires_mut() {

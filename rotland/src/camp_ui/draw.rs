@@ -1,12 +1,15 @@
 //! Central draw dispatcher and layout for camp screens (egui 0.37).
 
-use engine::egui::{self, vec2, Align2, Color32, CornerRadius, Frame, Id, Margin, Order, RichText, Sense, Stroke};
+use engine::egui::{
+    self, Align2, Color32, CornerRadius, Frame, Id, Margin, Order, RichText, Sense, Stroke, vec2,
+};
 
 use super::action::CampAction;
 use super::draw_bank::draw_bank;
 use super::draw_bounties::draw_bounties;
 use super::draw_crafting::draw_crafting;
 use super::draw_shop::draw_shop;
+use super::draw_upgrades::draw_upgrades_screen;
 use super::screen::CampScreen;
 use super::state::CampUiState;
 use super::view::CampView;
@@ -47,7 +50,13 @@ pub fn draw(
         state.set_screen(screen);
     }
 
+    // Camp Board uses the shared menu theme and a responsive 4-column layout.
+    if state.screen == CampScreen::Upgrades {
+        return draw_upgrades_screen(ctx, state, view);
+    }
+
     let mut action = None;
+    let active_screen = state.screen;
 
     // 2. Fullscreen dim background
     let screen_rect = ctx.content_rect();
@@ -77,7 +86,7 @@ pub fn draw(
                     // --- Header ---
                     ui.horizontal(|ui| {
                         ui.label(
-                            RichText::new(state.screen.title())
+                            RichText::new(active_screen.title())
                                 .size(22.0)
                                 .color(Color32::WHITE)
                                 .strong(),
@@ -91,6 +100,7 @@ pub fn draw(
                             CampScreen::Bank,
                             CampScreen::Crafting,
                             CampScreen::Bounties,
+                            CampScreen::Upgrades,
                         ];
                         for tab in tabs {
                             let is_active = state.screen == tab;
@@ -124,11 +134,12 @@ pub fn draw(
                     ui.add_space(10.0);
 
                     // --- Body ---
-                    let body_action = match state.screen {
+                    let body_action = match active_screen {
                         CampScreen::Shop => draw_shop(ui, state, view),
                         CampScreen::Bank => draw_bank(ui, state, view),
                         CampScreen::Crafting => draw_crafting(ui, state, view),
                         CampScreen::Bounties => draw_bounties(ui, state, view),
+                        CampScreen::Upgrades => None,
                     };
 
                     if let Some(act) = body_action {

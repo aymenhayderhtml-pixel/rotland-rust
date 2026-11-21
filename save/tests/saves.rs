@@ -3,10 +3,11 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use save::{
-    godot_save_dir, import_godot_from, CampfireData, DeathRule,
+    godot_save_dir, import_godot_from, CampUpgradesSaveData, CampfireData, DeathRule,
     DifficultySaveData, DroppedItemData, InventorySaveData, PlayerSaveData, SaveError, SaveFile,
-    SavedSlot, SettlementsSaveData, SlotState, Slots, StatsSaveData, TimeSaveData, Vec3Data,
-    WalletSaveData, WeaponsSaveData, WorldSaveData, WorldStateSaveData, FORMAT_VERSION,
+    SavedSlot, SettlementsSaveData, SlotState, Slots, StatsSaveData, TimeSaveData,
+    UpgradeInProgressSaveData, Vec3Data, WalletSaveData, WeaponsSaveData, WorldSaveData,
+    WorldStateSaveData, FORMAT_VERSION,
 };
 
 static TEST_DIR_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -606,6 +607,7 @@ fn roundtrip_settlements() {
     save.systems.settlements = Some(SettlementsSaveData {
         visited: vec!["camp_main".to_string(), "north_outpost".to_string()],
         respawn: Some("north_outpost".to_string()),
+        ..Default::default()
     });
 
     slots.write(3, &save).expect("write settlements save");
@@ -620,6 +622,67 @@ fn roundtrip_settlements() {
 
     assert!(compared > 0, "comparison test compared 0 items");
     assert_eq!(compared, 2);
+}
+
+#[test]
+fn roundtrip_camp_upgrades() {
+    let temp = TempDirGuard::new("camp_upgrades");
+    let slots = Slots::new(temp.path());
+
+    let mut save = SaveFile::new_populated(789);
+    save.systems.settlements = Some(SettlementsSaveData {
+        visited: vec!["camp_main".to_string()],
+        respawn: Some("camp_main".to_string()),
+        camp_upgrades: CampUpgradesSaveData {
+            walls_level: 2,
+            guards_level: 1,
+            workshop_level: 3,
+            traders_level: 4,
+            in_progress: Some(UpgradeInProgressSaveData {
+                line: "walls".to_string(),
+                target_level: 3,
+                hours_left: 6.5,
+            }),
+            wall_hp: 400.0,
+        },
+    });
+
+    slots.write(2, &save).expect("write camp_upgrades save");
+    let loaded = slots.read(2).expect("read camp_upgrades save");
+
+    let s = loaded.systems.settlements.expect("settlements system missing");
+    assert_eq!(s.camp_upgrades.walls_level, 2);
+    assert_eq!(s.camp_upgrades.guards_level, 1);
+    assert_eq!(s.camp_upgrades.workshop_level, 3);
+    assert_eq!(s.camp_upgrades.traders_level, 4);
+    let prog = s.camp_upgrades.in_progress.expect("in_progress missing");
+    assert_eq!(prog.line, "walls");
+    assert_eq!(prog.target_level, 3);
+    assert_eq!(prog.hours_left, 6.5);
+    assert_eq!(s.camp_upgrades.wall_hp, 400.0);
+}
+
+#[test]
+fn old_save_loads_default_camp_upgrades() {
+    let json = r#"{
+        "version": 1,
+        "savedAtUtc": "2026-11-21T00:00:00Z",
+        "systems": {
+            "settlements": {
+                "visited": ["camp_main"],
+                "respawn": "camp_main"
+            }
+        }
+    }"#;
+
+    let save: SaveFile = serde_json::from_str(json).expect("deserialize old save");
+    let s = save.systems.settlements.expect("settlements missing");
+    assert_eq!(s.camp_upgrades.walls_level, 0);
+    assert_eq!(s.camp_upgrades.guards_level, 0);
+    assert_eq!(s.camp_upgrades.workshop_level, 0);
+    assert_eq!(s.camp_upgrades.traders_level, 0);
+    assert!(s.camp_upgrades.in_progress.is_none());
+    assert_eq!(s.camp_upgrades.wall_hp, 0.0);
 }
 
 #[test]

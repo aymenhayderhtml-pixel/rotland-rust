@@ -79,6 +79,7 @@ pub fn init(
         Some("bank") => Some(crate::camp_ui::CampUiState::new(crate::camp_ui::CampScreen::Bank)),
         Some("crafting") => Some(crate::camp_ui::CampUiState::new(crate::camp_ui::CampScreen::Crafting)),
         Some("bounties") => Some(crate::camp_ui::CampUiState::new(crate::camp_ui::CampScreen::Bounties)),
+        Some("upgrades") | Some("board") => Some(crate::camp_ui::CampUiState::new(crate::camp_ui::CampScreen::Upgrades)),
         _ => None,
     };
     session.walk = session.scene == "forest" && !session.free_cam;

@@ -66,6 +66,7 @@ pub fn save_now(
     file.systems.settlements = Some(save::SettlementsSaveData {
         visited,
         respawn: play_state.camp.settlements.respawn_id().map(|s| s.to_string()),
+        camp_upgrades: play_state.camp.upgrades_to_save(),
     });
     match slots.write(session.active_slot as usize, &file) {
         Ok(()) => {
