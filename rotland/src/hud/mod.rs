@@ -174,6 +174,7 @@ pub struct Hud {
     pub player_pos: glam::Vec3,
     pub camera_yaw: f32,
     pub last_time: f64,
+    pub car_out_of_fuel_notified: bool,
 }
 
 impl Default for Hud {
@@ -187,6 +188,7 @@ impl Default for Hud {
             player_pos: glam::Vec3::ZERO,
             camera_yaw: 0.0,
             last_time: 0.0,
+            car_out_of_fuel_notified: false,
         }
     }
 }
@@ -199,7 +201,12 @@ impl Hud {
 
     /// Triggered when the player takes damage from an attacker at world position `from`.
     /// Adds a directional damage arc that fades over 1.2s.
-    pub fn on_damage(&mut self, from: glam::Vec3, now: f64) {
+    pub fn on_damage(&mut self, from: glam::Vec3) {
+        self.on_damage_at(from, self.last_time);
+    }
+
+    /// Triggered when the player takes damage from an attacker at world position `from` at timestamp `now`.
+    pub fn on_damage_at(&mut self, from: glam::Vec3, now: f64) {
         let duration = self.config.damage_direction.fade_duration_s;
         self.damage_indicators.push(DamageIndicator::new(from, now, duration));
     }
@@ -466,11 +473,17 @@ mod tests {
         assert_eq!(hud.notifications.len(), 0);
 
         // 1. Damage direction event
-        hud.on_damage(Vec3::new(10.0, 0.0, 5.0), 10.0);
+        hud.on_damage_at(Vec3::new(10.0, 0.0, 5.0), 10.0);
         assert_eq!(hud.damage_indicators.len(), 1);
         assert!(!hud.damage_indicators[0].is_expired(10.5));
         assert!(hud.damage_indicators[0].alpha(10.5) > 0.0);
         assert!(hud.damage_indicators[0].is_expired(11.3));
+
+        // Convenient 1-arg API hud.on_damage uses hud.last_time
+        hud.last_time = 10.2;
+        hud.on_damage(Vec3::new(0.0, 0.0, -5.0));
+        assert_eq!(hud.damage_indicators.len(), 2);
+        assert_eq!(hud.damage_indicators[1].spawn_time, 10.2);
 
         // 2. Pickup popups with repeat merging
         hud.on_pickup_at("canned_beans", 2, 10.0);
@@ -566,7 +579,7 @@ mod tests {
     #[test]
     fn test_hud_state_populate() {
         let mut hud = Hud::new();
-        hud.on_damage(Vec3::new(5.0, 0.0, 5.0), 1.0);
+        hud.on_damage_at(Vec3::new(5.0, 0.0, 5.0), 1.0);
         hud.on_pickup_at("beans", 1, 1.0);
         hud.notify("Bounty complete", NotificationKind::Warning);
 
@@ -577,6 +590,29 @@ mod tests {
         assert_eq!(state.pickup_popups.as_ref().map(|v| v.len()), Some(1));
         assert_eq!(state.notifications.as_ref().map(|v| v.len()), Some(1));
         assert!(state.vitals_trail.is_some());
+    }
+
+    #[test]
+    fn test_hud_wired_notifications() {
+        let mut hud = Hud::new();
+        hud.last_time = 5.0;
+
+        // Verify the notification types supported by the HUD wiring:
+        hud.notify("Bounty complete", NotificationKind::Info);
+        hud.notify("Skill level up: Survival (2)", NotificationKind::Info);
+        hud.notify("Car out of fuel", NotificationKind::Warning);
+
+        assert_eq!(hud.notifications.len(), 3);
+        assert_eq!(hud.notifications.items[0].text, "Bounty complete");
+        assert_eq!(hud.notifications.items[1].text, "Skill level up: Survival (2)");
+        assert_eq!(hud.notifications.items[2].text, "Car out of fuel");
+        assert_eq!(hud.notifications.items[2].kind, NotificationKind::Warning);
+
+        // Pushing a 4th notification evicts the oldest (queue capacity 3)
+        hud.notify("Quick save done", NotificationKind::Info);
+        assert_eq!(hud.notifications.len(), 3);
+        assert_eq!(hud.notifications.items[0].text, "Skill level up: Survival (2)");
+        assert_eq!(hud.notifications.items[2].text, "Quick save done");
     }
 
     #[test]

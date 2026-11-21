@@ -13,7 +13,7 @@ pub fn update_sim(
     world: &mut WorldState,
     actors: &mut ActorsState,
     play: &mut PlaySide,
-    _ui: &mut UiState,
+    ui: &mut UiState,
     session: &SessionState,
     audio: &mut AudioState,
 ) {
@@ -59,6 +59,13 @@ pub fn update_sim(
         let mut bites = std::mem::take(&mut actors.bites_scratch);
         bites.clear();
         bites.extend(frame.bites.iter().map(|b| b.damage));
+        if alive {
+            for z_actor in &z.list {
+                if z_actor.last_out.as_ref().is_some_and(|o| o.attack_hit.is_some()) {
+                    ui.hud.on_damage(z_actor.position);
+                }
+            }
+        }
 
         // Buildings near the player wake the zombies waiting inside; a building is cleared when they are all dead
         if let (Some(pz), Some(st), Some(pack)) = (
@@ -244,6 +251,9 @@ pub fn update_sim(
                 if hit.is_player {
                     if alive {
                         bites.push(hit.damage);
+                        if let Some(attacker) = af.draws.iter().find(|d| d.id == hit.animal_id) {
+                            ui.hud.on_damage(attacker.position);
+                        }
                     }
                 } else if let Some(target) = hit.target_id {
                     let mut d = game::DamageInfo::new(hit.damage);
