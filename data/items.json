@@ -84,5 +84,21 @@
   "baked_potato":  { "name": "Baked Potato", "shortName": "Baked", "category": "food", "weight": 0.3, "maxStack": 10, "value": 7,
                      "color": "#8b6a3e", "effects": { "hunger": 20 } },
   "vegetable_stew": { "name": "Vegetable Stew", "shortName": "Stew", "category": "food", "weight": 0.6, "maxStack": 5, "value": 14,
-                     "color": "#b5652b", "effects": { "hunger": 50, "thirst": 15 } }
+                     "color": "#b5652b", "effects": { "hunger": 50, "thirst": 15 } },
+  "dagger":         { "name": "Dagger", "category": "weapon", "weight": 0.25, "maxStack": 1, "value": 10,
+                      "color": "#a5abb0", "weaponId": "dagger", "description": "Fast and light concealable blade." },
+  "spear":          { "name": "Spear", "category": "weapon", "weight": 1.8, "maxStack": 1, "value": 25,
+                      "color": "#8b6f47", "weaponId": "spear", "description": "Long reach thrusting weapon. Can also be thrown." },
+  "hammer":         { "name": "Sledgehammer", "shortName": "Hammer", "category": "weapon", "weight": 3.0, "maxStack": 1, "value": 30,
+                      "color": "#4a4e52", "weaponId": "hammer", "description": "Heavy blunt weapon with high stagger." },
+  "pipe":           { "name": "Lead Pipe", "shortName": "Pipe", "category": "weapon", "weight": 1.2, "maxStack": 1, "value": 8,
+                      "color": "#7a7a7a", "weaponId": "pipe", "description": "Common improvised metal pipe." },
+  "fire_axe":       { "name": "Fire Axe", "shortName": "Fire Axe", "category": "weapon", "weight": 2.8, "maxStack": 1, "value": 55,
+                      "color": "#b22222", "weaponId": "fire_axe", "description": "Heavy two-handed axe that deals massive damage." },
+  "bow":            { "name": "Hunting Bow", "shortName": "Bow", "category": "weapon", "weight": 1.0, "maxStack": 1, "value": 45,
+                      "color": "#5c4033", "weaponId": "bow", "description": "Silent ranged weapon. Hold to draw for more power." },
+  "arrow":          { "name": "Arrow", "category": "ammo", "weight": 0.02, "maxStack": 30, "value": 1,
+                      "color": "#8b7355", "ammoType": "arrow", "description": "Wooden arrow with feather fletching." },
+  "arrow_broken":   { "name": "Broken Arrow", "shortName": "Brk.Arrow", "category": "material", "weight": 0.01, "maxStack": 30, "value": 0,
+                      "color": "#5a4d41", "description": "Remains of an arrow that shattered on impact." }
 }

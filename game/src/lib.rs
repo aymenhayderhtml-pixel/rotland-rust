@@ -34,6 +34,7 @@ pub mod melee;
 pub mod player;
 pub mod poi_zombies;
 pub mod profile_stats;
+pub mod projectiles;
 pub mod skills;
 pub mod spawner;
 pub mod spawner_config;
@@ -70,6 +71,7 @@ pub use map::*;
 pub use player::*;
 pub use poi_zombies::*;
 pub use profile_stats::*;
+pub use projectiles::*;
 pub use skills::*;
 pub use spawner::{
     ActiveZombie, CampDensityRule, SpawnConfig, SpawnConfigData, SpawnContext, SpawnOrder,
