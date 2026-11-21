@@ -16,6 +16,10 @@ pub struct InputBindings {
     pub crouch: KeyCode,
     pub toggle_camera: KeyCode,
     pub aim_button: MouseButton,
+    pub look_left: KeyCode,
+    pub look_right: KeyCode,
+    pub look_up: KeyCode,
+    pub look_down: KeyCode,
 }
 
 impl Default for InputBindings {
@@ -36,6 +40,10 @@ impl Default for InputBindings {
             toggle_camera: KeyCode::KeyV,
             // Godot: button_index 2 (Right mouse button)
             aim_button: MouseButton::Right,
+            look_left: KeyCode::ArrowLeft,
+            look_right: KeyCode::ArrowRight,
+            look_up: KeyCode::ArrowUp,
+            look_down: KeyCode::ArrowDown,
         }
     }
 }
@@ -55,6 +63,10 @@ impl InputBindings {
             crouch: kb.keycode_of("crouch").unwrap_or(KeyCode::KeyC),
             toggle_camera: kb.keycode_of("toggle_camera").unwrap_or(KeyCode::KeyV),
             aim_button: MouseButton::Right,
+            look_left: kb.keycode_of("look_left").unwrap_or(KeyCode::ArrowLeft),
+            look_right: kb.keycode_of("look_right").unwrap_or(KeyCode::ArrowRight),
+            look_up: kb.keycode_of("look_up").unwrap_or(KeyCode::ArrowUp),
+            look_down: kb.keycode_of("look_down").unwrap_or(KeyCode::ArrowDown),
         }
     }
 }
@@ -121,4 +133,44 @@ impl Actions {
     pub fn from_default_input(input: &Input) -> Self {
         Self::from_input(input, &InputBindings::default())
     }
+}
+
+/// Keyboard camera turn speed in degrees per second at mouse sensitivity 1.0.
+pub const KEYBOARD_LOOK_SPEED_DEG: f32 = 120.0; // new: DECISIONS 2026-11-21
+
+/// Calculates look delta in mouse-pixel units from held arrow/look keys and frame delta `dt`.
+///
+/// Converts a 120 deg/s rotation rate into raw pixel units using `crate::camera_rig::MOUSE_SENSITIVITY`
+/// (0.003 radians per pixel). Left arrow produces negative x delta (turning view left), and Up arrow
+/// produces negative y delta (looking up, matching upward mouse motion).
+pub fn keyboard_look_delta(
+    left: bool,
+    right: bool,
+    up: bool,
+    down: bool,
+    dt: f32,
+) -> (f32, f32) {
+    if dt <= 0.0 {
+        return (0.0, 0.0);
+    }
+    let mut x = 0.0f32;
+    let mut y = 0.0f32;
+    if left {
+        x -= 1.0;
+    }
+    if right {
+        x += 1.0;
+    }
+    if up {
+        y -= 1.0;
+    }
+    if down {
+        y += 1.0;
+    }
+    if x == 0.0 && y == 0.0 {
+        return (0.0, 0.0);
+    }
+    let speed_rad = KEYBOARD_LOOK_SPEED_DEG.to_radians();
+    let speed_pixels = speed_rad / crate::camera_rig::MOUSE_SENSITIVITY;
+    (x * speed_pixels * dt, y * speed_pixels * dt)
 }
