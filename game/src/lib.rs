@@ -5,6 +5,7 @@
 
 pub mod animals;
 pub mod bounties;
+pub mod building;
 pub mod camera_rig;
 pub mod camp;
 pub mod campfire;
@@ -46,6 +47,7 @@ pub mod zombie_voices;
 
 pub use animals::*;
 pub use bounties::*;
+pub use building::*;
 pub use camera_rig::*;
 pub use camp::*;
 pub use campfire::*;
