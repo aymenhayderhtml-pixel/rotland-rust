@@ -4,7 +4,7 @@ Updated: 2026-11-21 by Claude (after R13).
 
 ## Where we are
 - Version 0.1 = Godot parity in Rust, done (R0-R10). History: `docs/archive/RUST_QUEUE.md`.
-- Working on **0.2**. Plan and owner decisions: `docs/PLAN_0.2.md`. Locked choices: `docs/DECISIONS.md`.
+- Working on **0.2**. This week: `docs/PLAN_0.2_PUSH.md` (6-day push). Earlier plan: `docs/PLAN_0.2.md`. Locked choices: `docs/DECISIONS.md`.
 - Open Godot gaps (short list): `docs/PARITY_OPEN.md`. Worker mistakes: `docs/JESTER.md`.
 
 ## Latest numbers (release, plugged in, 2026-11-21)
