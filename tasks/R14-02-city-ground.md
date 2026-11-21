@@ -13,4 +13,27 @@ Only edit `sample` and `emit_triangle` (and the struct/constructor if you must) 
 5. Tests in `world/src/city/ground_tests.rs` (`#[cfg(test)] mod ground_tests;` in `mod.rs`, names start with `city_`), using `WorldGenerator::from_data_dir(42, <repo>/data)`: a street center is asphalt-colored; a park block center is green (g > r and g > b); the city's height range is at most `maxSlope` + 0.5; a point 300 m outside the city and off the road has the same height and color as a `WorldGenerator` built with no city (`with_configs` with the same data); the road midpoint is asphalt-colored.
 
 ## Worker notes
+- Files changed:
+  - `data/city_ground.json`: configuration for edge blend, road widths/blends, and RGB 0-255 surface colors (asphalt, sidewalk, lot ground, dirt).
+  - `world/src/city/ground.rs`: `CityGroundData` parsing and validation, `CityPlane` fit/clamp logic, `CityGround` height flattening (city square and camp road), and ground painting (asphalt streets, sidewalk edges, lotGround concrete/dirt mix with patch noise, park block grass, and cracked camp road).
+  - `world/src/city/ground_tests.rs`: comprehensive tests verifying street asphalt, park block green color, height range <= maxSlope + 0.5, exact terrain match 300m outside city, and road midpoint asphalt.
+  - `world/src/city/mod.rs`: exposed `ground` module, re-exported `CityGround`, `CityGroundData`, `CityPlane`, and registered `ground_tests`.
+  - `world/src/generator.rs`: wired `CityGround` into `sample` and `emit_triangle`, and added loading of `city_ground.json` in `from_data_dir` and `attach_city_with_ground`.
+- How to test:
+  - `tools/gate.sh --task tasks/R14-02-city-ground.md`
+  - `tools/gate.sh --test golden`
+- Wiring notes for Claude:
+  - `WorldGenerator::from_data_dir` automatically loads `city_ground.json` alongside `city.json`.
+  - `attach_city` maintains backwards compatibility; `attach_city_with_ground` is also available to explicitly provide ground settings.
+- Known issues:
+  - None.
 
+## Gate report
+- date: 2026-11-21
+- base: main
+- files changed (6): data/city_ground.json, tasks/R14-02-city-ground.md, world/src/city/ground.rs, world/src/city/ground_tests.rs, world/src/city/mod.rs, world/src/generator.rs
+- tests passed: 16
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS
