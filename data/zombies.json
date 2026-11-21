@@ -7,7 +7,19 @@
     "runner":  { "maxHealth": 40, "wanderSpeed": 1.2, "chaseSpeed": 5.2, "sightRange": 22, "sightFovDeg": 120,
                 "hearingMultiplier": 1.0, "attackRange": 1.4, "attackDamage": 8, "attackWindup": 0.45,
                 "attackCooldown": 0.9, "loseTargetTime": 6, "xp": 35, "color": "#b5655f",
-                "models": ["zombie_03"], "runClip": "zombie_runner_sprint" }
+                "models": ["zombie_03"], "runClip": "zombie_runner_sprint" },
+    "brute":   { "maxHealth": 400, "wanderSpeed": 0.6, "chaseSpeed": 1.8, "sightRange": 16, "sightFovDeg": 120,
+                "hearingMultiplier": 1.0, "attackRange": 1.6, "attackDamage": 25, "attackWindup": 0.6,
+                "attackCooldown": 1.8, "loseTargetTime": 8, "xp": 60, "color": "#3d4b30",
+                "models": ["zombie_brute"] },
+    "screamer": { "maxHealth": 30, "wanderSpeed": 0.8, "chaseSpeed": 2.4, "sightRange": 24, "sightFovDeg": 140,
+                "hearingMultiplier": 1.5, "attackRange": 1.2, "attackDamage": 5, "attackWindup": 0.45,
+                "attackCooldown": 1.2, "loseTargetTime": 6, "xp": 30, "color": "#8b4545",
+                "models": ["zombie_screamer"] },
+    "crawler": { "maxHealth": 35, "wanderSpeed": 0.5, "chaseSpeed": 1.2, "sightRange": 14, "sightFovDeg": 100,
+                "hearingMultiplier": 0.8, "attackRange": 1.0, "attackDamage": 8, "attackWindup": 0.35,
+                "attackCooldown": 1.0, "loseTargetTime": 6, "xp": 20, "color": "#4a5a35",
+                "models": ["zombie_crawler"] }
   },
   "behaviour": {
     "gaits": ["zombie_shamble", "zombie_lurch"],
