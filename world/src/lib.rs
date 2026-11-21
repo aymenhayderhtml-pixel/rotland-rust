@@ -1,4 +1,5 @@
 pub mod biome;
+pub mod camp_layout;
 pub mod city;
 pub mod color;
 pub mod daynight;
@@ -15,6 +16,10 @@ pub mod settlement;
 pub mod time;
 
 pub use biome::BiomeId;
+pub use camp_layout::{
+    camp_upgrade_props, camp_upgrade_props_with_config, wall_section_count, CampLayoutConfigData,
+    CampLevels, TowerCorner,
+};
 pub use city::{
     BuildingWeight, CityBlock, CityConfig, CityConfigData, CityDistrictsData, CityLayout, CityLot,
     District, StreetSegment,
