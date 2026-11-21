@@ -1,0 +1,13 @@
+# R16-04: smarter zombies, core: hordes + pressure director + special zombie data
+
+Read first: `tasks/R16-common.md`, `game/src/flowfield.rs` (the existing shared flow field: hordes use it), `game/src/spawner.rs`, `game/src/spawner_config.rs`, `data/spawning.json`, `data/zombies.json`, `game/src/zombie/` (only the type/def file, to add special types).
+Files: game/src/horde/*, game/src/director/*, game/src/lib.rs, game/tests/all/horde_tests.rs, game/tests/all/director_tests.rs, game/tests/all/main.rs, data/director.json, data/zombies.json, tasks/R16-04-hordes-director.md
+Test: horde
+
+1. **Director** (`game/src/director/`): paces zombie pressure like a game director. States Calm -> Building -> Wave -> Relax. Input each tick: dt, is_night, player health 0..1, recent kills, zombies near, in_city, player in camp. Output: a spawn-rate multiplier, a max-active multiplier, and wave events (`WaveStart { size, kind: Night|City|Noise }`). Rules (numbers in `data/director.json`): waves at night more often; never a wave while the player is in the camp's safe zone or at low health (< 0.3) unless `nightHorde`; a big **night horde** about once per night that targets the camp (owner: only big waves can damage camp walls: emit `CampAttack { size }` for that one).
+2. **Hordes** (`game/src/horde/`): a group of zombies that moves as one: a leader follows the flow field (or a target point when no flow field cell); followers keep a loose formation (separation + cohesion + alignment, cheap: O(n) per horde using offsets from the leader, not all-pairs). API: `Horde::new(leader, members)`, `Horde::steer(&self, member_pos, flow_dir_at: impl Fn(Vec3)->Option<Vec3>) -> Vec3 desired velocity`, `HordeSet` (create from a wave event, remove dead, merge when two hordes meet).
+3. **Special zombies** in `data/zombies.json` (same fields as walker/runner plus new optional fields, kept compatible): `brute` (slow, 400 HP, breaks doors/walls: `structureDamage`), `screamer` (weak, when it sees the player it screams: `callRadius` 60 m pulls other zombies to the player), `crawler` (low, fast, small hitbox, hard to see). Model ids `zombie_brute`, `zombie_screamer`, `zombie_crawler` (models this afternoon). Add a spawn table entry so specials are rare: night and city only (weights in `spawning.json` belong to R14 code; instead put `specialChance` per state in `director.json`).
+Tests (`horde_tests.rs`, `director_tests.rs`, names start `horde_` / `director_`): director cycles states over simulated time; no waves in the camp; one night horde per night; hordes stay together while moving (max distance to the leader bounded); merge; specials load from zombies.json.
+
+## Worker notes
+
