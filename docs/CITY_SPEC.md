@@ -1,6 +1,6 @@
 # City spec: "Ashford" ruined city (0.2, day 3)
 
-Status: SIGNED OFF by the owner 2026-11-21 (distance 1.5 km, size 640 m, 2x zombies, 1 in 4 streets blocked). "Ashford" is a working name. Next, every number moves to `data/city.json`, covered by the DECISIONS 2026-11-21 row, so code can tag it `// data: city.json <key>`.
+Status: SIGNED OFF by the owner 2026-11-21 (distance 1.5 km, size 640 m, 2x zombies, 1 in 4 streets blocked). City name "Ashford" confirmed by the owner. Next, every number moves to `data/city.json`, covered by the DECISIONS 2026-11-21 row, so code can tag it `// data: city.json <key>`.
 
 ## What exists today (facts this spec builds on)
 - The world is endless, made of 64 m chunks. The game loads 3 chunks around the player (7x7 chunks, ~190 m sight).
