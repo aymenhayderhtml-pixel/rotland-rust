@@ -29,6 +29,8 @@ pub struct SpawnContext<'a> {
     pub ground_check: Option<&'a dyn Fn(Vec3) -> Option<Vec3>>,
     pub zombie_amount: f32,
     pub biome_name: Option<&'a str>,
+    pub in_city: bool,
+    pub in_city_core: bool,
 }
 
 impl<'a> SpawnContext<'a> {
@@ -49,7 +51,29 @@ impl<'a> SpawnContext<'a> {
             ground_check: None,
             zombie_amount: 1.0,
             biome_name: None,
+            in_city: false,
+            in_city_core: false,
         }
+    }
+
+    pub fn with_in_city(mut self, in_city: bool) -> Self {
+        self.in_city = in_city;
+        self
+    }
+
+    pub fn with_city(mut self, in_city: bool) -> Self {
+        self.in_city = in_city;
+        self
+    }
+
+    pub fn with_in_city_core(mut self, in_city_core: bool) -> Self {
+        self.in_city_core = in_city_core;
+        self
+    }
+
+    pub fn with_city_core(mut self, in_city_core: bool) -> Self {
+        self.in_city_core = in_city_core;
+        self
     }
 
     pub fn with_night(mut self, is_night: bool) -> Self {
@@ -173,18 +197,15 @@ impl Spawner {
         (self.max_active as f32 * amount).floor() as u32
     }
 
-    /// Full spawn cap taking difficulty, biome, night factor and camp proximity into account.
+    /// Full spawn cap taking difficulty, biome, night factor, camp proximity and city into account.
     pub fn calculate_cap(&self, ctx: &SpawnContext) -> usize {
         let scaled = self.scaled_max_active(ctx.zombie_amount) as f32;
         let density = if self.ignore_biome_density {
             1.0
+        } else if ctx.in_city && let Some(city) = &self.config.city {
+            city.density
         } else if let Some(biome) = ctx.biome_name {
             self.config.density_for(biome)
-        } else {
-            1.0
-        };
-        let night_factor = if ctx.is_night {
-            self.config.night_max_active_multiplier
         } else {
             1.0
         };
@@ -194,8 +215,17 @@ impl Spawner {
             let camp_dist = nearest_camp_distance(ctx.player_position, ctx.settlements);
             self.config.camp_factor_for(camp_dist, ctx.is_night)
         };
+        let mut day_cap = scaled * density * camp_factor;
+        if ctx.in_city && let Some(city) = &self.config.city {
+            day_cap = day_cap.min(city.max_active as f32);
+        }
+        let night_factor = if ctx.is_night {
+            self.config.night_max_active_multiplier
+        } else {
+            1.0
+        };
 
-        (scaled * density * night_factor * camp_factor).floor().max(0.0) as usize
+        (day_cap * night_factor).floor().max(0.0) as usize
     }
 
     /// Advances time, issues despawns for out-of-range zombies, and attempts spawning up to the cap.
@@ -275,7 +305,7 @@ impl Spawner {
                 },
             };
 
-            let type_id = self.config.pick_type_id(&mut self.rng, ctx.is_night);
+            let type_id = self.config.pick_type_id_core(&mut self.rng, ctx.is_night, ctx.in_city_core);
             return Some(SpawnOrder {
                 type_id: type_id.to_string(),
                 position: feet,

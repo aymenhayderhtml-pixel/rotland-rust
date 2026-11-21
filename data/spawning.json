@@ -12,5 +12,13 @@
   "types": {
     "day":   [ { "id": "walker", "weight": 1.0 }, { "id": "runner", "weight": 0.1 } ],
     "night": [ { "id": "walker", "weight": 0.6 }, { "id": "runner", "weight": 0.4 } ]
+  },
+  "city": {
+    "density": 2.0,
+    "maxActive": 32,
+    "coreNightTypes": [
+      { "id": "walker", "weight": 0.4 },
+      { "id": "runner", "weight": 0.6 }
+    ]
   }
 }
