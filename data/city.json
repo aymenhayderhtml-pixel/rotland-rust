@@ -55,5 +55,33 @@
     "shed": [3.0, 3.0]
   },
   "maxLotsPerBlock": 4,
-  "lotGap": 2.0
+  "lotGap": 2.0,
+  "props": {
+    "lampSpacing": 24.0,
+    "lampSidewalkInset": 1.0,
+    "busStopSpacing": 128.0,
+    "roadWreckSpacing": 150.0,
+    "roadWreckOffset": 2.0,
+    "minPropDistance": 3.0,
+    "sidewalkWidth": 1.5,
+    "blockers": [
+      { "id": "barricade", "weight": 3 },
+      { "id": "car_wreck_sedan", "weight": 2 },
+      { "id": "rubble_pile", "weight": 2 },
+      { "id": "jersey_barrier", "weight": 2 }
+    ],
+    "clutterPerSegment": [1, 3],
+    "clutter": [
+      { "id": "car_wreck", "weight": 2 },
+      { "id": "car_wreck_sedan", "weight": 2 },
+      { "id": "car_wreck_van", "weight": 1 },
+      { "id": "trash_bags", "weight": 3 },
+      { "id": "dumpster", "weight": 2 },
+      { "id": "mailbox", "weight": 1 },
+      { "id": "sign_fallen", "weight": 1 },
+      { "id": "tire_pile", "weight": 1 },
+      { "id": "barrel_rusty", "weight": 1 }
+    ],
+    "fenceBrokenPerBlock": [0, 2]
+  }
 }

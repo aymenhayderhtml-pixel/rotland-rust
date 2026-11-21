@@ -145,11 +145,65 @@ impl WorldGenerator {
     /// POIs and props for one chunk, following BuildChunk rules.
     pub fn chunk_contents(&self, coord: IVec2) -> (Vec<PoiInstance>, Vec<PropInstance>) {
         let placed_pois = PoiPlacer::place(self, &self.poi_config, coord);
-        let pois = SettlementGround::remove_pois(&self.settlements, placed_pois, &self.poi_config, self.config.clear_radius);
+        let mut pois = SettlementGround::remove_pois(&self.settlements, placed_pois, &self.poi_config, self.config.clear_radius);
         let placed_props = ScatterPlacer::place(self, &self.scatter_config, coord);
-        let cleared_props = PoiGeometry::remove_cleared(&pois, placed_props, &self.poi_config);
-        let props = SettlementGround::remove_props(&self.settlements, cleared_props, self.config.clear_radius);
-        (pois, props)
+
+        if let Some(city) = self.city() {
+            // Drop wild POIs inside the city
+            pois.retain(|poi| !city.contains(Vec2::new(poi.position.x, poi.position.z)));
+
+            // Add city lot POIs whose center is in this chunk
+            for (idx, lot) in city.lots.iter().enumerate() {
+                let cx = (lot.center.x / Self::CHUNK_SIZE).floor() as i32;
+                let cy = (lot.center.y / Self::CHUNK_SIZE).floor() as i32;
+                if cx == coord.x && cy == coord.y {
+                    let y = self.height(lot.center.x, lot.center.y);
+                    pois.push(PoiInstance::new(
+                        format!("city_{idx}"),
+                        &lot.building_id,
+                        Vec3::new(lot.center.x, y, lot.center.y),
+                        lot.yaw,
+                    ));
+                }
+            }
+
+            // Inside city: drop scatter props except trees and ground cover in Park blocks off streets
+            let filtered_props: Vec<PropInstance> = placed_props
+                .into_iter()
+                .filter(|prop| {
+                    let p = Vec2::new(prop.position.x, prop.position.z);
+                    if city.contains(p) {
+                        let is_park = city.district_at(p) == Some(crate::city::District::Park);
+                        let on_street = city.street_at(p).is_some();
+                        is_park && !on_street && (prop.is_tree() || crate::city::place::is_ground_cover(&prop.model))
+                    } else {
+                        true
+                    }
+                })
+                .collect();
+
+            let cleared_props = PoiGeometry::remove_cleared(&pois, filtered_props, &self.poi_config);
+            let mut props = SettlementGround::remove_props(&self.settlements, cleared_props, self.config.clear_radius);
+
+            // Add city street props and road wrecks
+            let city_props = crate::city::place::place_street_props(self, city, coord);
+            for cp in city_props {
+                let dx_dz_ok = !props.iter().any(|p| {
+                    let dx = p.position.x - cp.position.x;
+                    let dz = p.position.z - cp.position.z;
+                    dx * dx + dz * dz < 3.0 * 3.0 - 1e-4
+                });
+                if dx_dz_ok {
+                    props.push(cp);
+                }
+            }
+
+            (pois, props)
+        } else {
+            let cleared_props = PoiGeometry::remove_cleared(&pois, placed_props, &self.poi_config);
+            let props = SettlementGround::remove_props(&self.settlements, cleared_props, self.config.clear_radius);
+            (pois, props)
+        }
     }
 
     /// Loot crate spots for one chunk, following BuildChunk rules.
