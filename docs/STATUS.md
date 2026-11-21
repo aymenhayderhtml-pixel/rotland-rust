@@ -20,7 +20,7 @@ Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zomb
 
 ## Next (from PLAN_0.2.md)
 1. Stutter: re-measure on a quiet laptop (nothing else running), then find the between-frames stall (present mode / vsync, compositor, physics collider rebuild in `physics/src/world.rs`). Re-run `--bench` quietly too.
-2. Day 6: owner looks at Ashford; fixes from that (lot ground color, sidewalk look, building color variants). Day 7: owner play test in a release build.
+2. Day 6 DONE: owner checked Ashford (arrow-key look, steady dev panel, city teleports, lamps/bus stops facing, building LOD1 at 70 m). Owner sees no more issues. Optional: dithered LOD fade if the 70 m switch still shows. Day 7: owner play test + stutter recording (`--spikes=/tmp/spikes.txt`, camp + city spots).
 
 ## Workers (who does what: PLAN_0.2.md "AI roles")
 - DeepSeek: `opencode` / `opencode/deepseek-v4.1-flash-free`: free usage ran out on 2026-11-20.
