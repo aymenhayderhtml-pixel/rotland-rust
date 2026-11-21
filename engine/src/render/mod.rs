@@ -12,5 +12,5 @@ pub use camera::Camera;
 pub use lit::{DrawItem, FrameCounts, Lighting, LitRenderer, SpotLight};
 pub use mesh::{ColorVertex, GpuMesh};
 pub use shadow::ShadowSettings;
-pub use skinned::{SkinInstance, SkinnedBatch};
+pub use skinned::{split_batches, split_instances, SkinInstance, SkinnedBatch};
 pub use water::{WaterPatch, WaterRenderer, WaterStyle};

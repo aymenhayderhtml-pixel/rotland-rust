@@ -160,8 +160,35 @@ fn mesh_vs(v: VsIn) -> VsOut {
     return o;
 }
 
+fn shade_fragment(i: VsOut) -> vec4<f32> {
+    let n = normalize(i.normal);
+    let dist = distance(i.world, scene.camera_pos.xyz);
+    let ndl = max(dot(n, scene.sun_dir.xyz), 0.0);
+    var shade = 1.0;
+    if (ndl > 0.0) {
+        shade = sun_shadow(i.world, n, dist);
+    }
+    let sun = scene.sun_color.rgb * scene.sun_dir.w * ndl * shade;
+    // Sky ambient: lerp ground to sky by how much the surface faces up
+    let up = n.y * 0.5 + 0.5;
+    let ambient = mix(scene.ground_horizon.rgb, scene.sky_top.rgb * 0.5 + scene.sky_horizon.rgb * 0.5, up) * scene.fog.w;
+    // The moon lights the night without shadows (like Godot's moon light), the spots light the dark (flashlight + car headlights)
+    let moon = scene.moon_color.rgb * scene.moon_dir.w * max(dot(n, scene.moon_dir.xyz), 0.0);
+    var color = i.albedo * (sun + moon + ambient + spot_lights(i.world, n)) + i.albedo * i.glow * 3.0;
+    let fog = smoothstep(scene.fog.x, scene.fog.y, dist) * scene.fog.z;
+    color = mix(color, scene.fog_color.rgb, fog);
+    return vec4(filmic(color), 1.0);
+}
+
+// Normal fragment entry point: NO discard, keeps early depth test (Early-Z) active on Intel integrated GPUs
 @fragment
 fn mesh_fs(i: VsOut) -> @location(0) vec4<f32> {
+    return shade_fragment(i);
+}
+
+// Fading fragment entry point: dither discard used ONLY for instances inside a fade band
+@fragment
+fn mesh_fs_fade(i: VsOut) -> @location(0) vec4<f32> {
     let fade_bits = bitcast<u32>(i.lod_fade);
     let is_complementary = (fade_bits & 0x80000000u) != 0u;
     let fade = abs(i.lod_fade);
@@ -182,24 +209,7 @@ fn mesh_fs(i: VsOut) -> @location(0) vec4<f32> {
             discard;
         }
     }
-
-    let n = normalize(i.normal);
-    let dist = distance(i.world, scene.camera_pos.xyz);
-    let ndl = max(dot(n, scene.sun_dir.xyz), 0.0);
-    var shade = 1.0;
-    if (ndl > 0.0) {
-        shade = sun_shadow(i.world, n, dist);
-    }
-    let sun = scene.sun_color.rgb * scene.sun_dir.w * ndl * shade;
-    // Sky ambient: lerp ground to sky by how much the surface faces up
-    let up = n.y * 0.5 + 0.5;
-    let ambient = mix(scene.ground_horizon.rgb, scene.sky_top.rgb * 0.5 + scene.sky_horizon.rgb * 0.5, up) * scene.fog.w;
-    // The moon lights the night without shadows (like Godot's moon light), the spots light the dark (flashlight + car headlights)
-    let moon = scene.moon_color.rgb * scene.moon_dir.w * max(dot(n, scene.moon_dir.xyz), 0.0);
-    var color = i.albedo * (sun + moon + ambient + spot_lights(i.world, n)) + i.albedo * i.glow * 3.0;
-    let fog = smoothstep(scene.fog.x, scene.fog.y, dist) * scene.fog.z;
-    color = mix(color, scene.fog_color.rgb, fog);
-    return vec4(filmic(color), 1.0);
+    return shade_fragment(i);
 }
 
 // ---- skinned meshes (characters): rigid skinning, many instances per draw.
