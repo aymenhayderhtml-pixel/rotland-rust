@@ -120,8 +120,9 @@ pub fn draw_ui(
         );
     }
 
+    let hour = play.hour;
     if let (Some(play_state), Some(p), Some(c), false) = (
-        play.play.as_ref(),
+        play.play.as_mut(),
         actors.player_ctrl.as_ref(),
         actors.combat.as_ref(),
         on_main,
@@ -133,12 +134,30 @@ pub fn draw_ui(
             c.health.max(),
             p.stamina.current,
             p.stamina.max,
-            play.hour,
+            hour,
             p.yaw,
             fps,
             c.is_dead(),
         );
         let mut state = state;
+        let now = ctx.input(|i| i.time);
+        let dt = session.last_dt;
+        ui.hud.update(dt, now, p.position, p.yaw);
+        ui.hud.update_vitals(
+            c.health.current(),
+            p.stamina.current,
+            state.food.map(|(f, _)| f),
+            state.water.map(|(w, _)| w),
+            dt,
+        );
+        for (item_id, count) in play_state.pending_pickups.drain(..) {
+            ui.hud.on_pickup(&item_id, count);
+        }
+        if let Some(overlays) = ui.overlays.as_mut() {
+            for notif in overlays.pending_level_ups.drain(..) {
+                ui.hud.notify(notif, hud::NotificationKind::Info);
+            }
+        }
         // R10-04 inputs: what is in the hand, the scope, the camp / waypoint on the compass, the dog
         state.held = if play_state.gun.is_some() {
             hud::HeldKind::Gun
@@ -173,6 +192,13 @@ pub fn draw_ui(
         }
         // Driving dashboard: shown bottom-right while a car is driven
         if let Some(car) = actors.cars.as_ref().and_then(|c| c.driven_car()) {
+            let is_empty = car.tank.is_empty();
+            if is_empty && !ui.hud.car_out_of_fuel_notified {
+                ui.hud.notify("Car out of fuel", hud::NotificationKind::Warning);
+                ui.hud.car_out_of_fuel_notified = true;
+            } else if !is_empty {
+                ui.hud.car_out_of_fuel_notified = false;
+            }
             state.vehicle = Some(hud::VehicleHudInfo {
                 speed_kmh: car.speed_kmh(),
                 forward_speed: car.forward_speed(),
@@ -184,7 +210,7 @@ pub fn draw_ui(
                 lights_on: car.lights_on,
                 handbrake: car.controls.handbrake,
                 is_wrecked: car.condition.is_wrecked(),
-                is_empty: car.tank.is_empty(),
+                is_empty,
                 is_flipped: car.body.is_flipped(),
                 camera_label: actors.car_camera.mode().label(),
             });
@@ -192,6 +218,7 @@ pub fn draw_ui(
                 "[W/S] Drive [A/D] Steer [Space] Brake [L] Lights [H] Horn [V] Cam [E] Exit".to_string(),
             );
         }
+        ui.hud.populate_state(&mut state);
         hud::draw_hud(ctx, &state, &mut ui.icons);
         super::minimap::draw_minimap_hud(ctx, world, actors, play_state, ui);
         if let (Some(t), false) = (&play.hint_text, c.is_dead()) {
@@ -226,9 +253,27 @@ pub fn draw_ui(
         match action {
             Some(camp_ui::CampAction::Close) => ui.camp_ui = None,
             Some(a) => {
+                let buy_info = match &a {
+                    camp_ui::CampAction::Buy { item, count } => Some((item.clone(), *count)),
+                    _ => None,
+                };
+                let is_turn_in = matches!(&a, camp_ui::CampAction::TurnIn { .. });
                 let items = play_state.items.clone();
                 let status = play_state.camp.apply(a, &mut play_state.inventory, &items, dead);
                 play_state.hotbar.on_inventory_changed(&play_state.inventory);
+                if let Some(s) = &status {
+                    if is_turn_in && s.starts_with("Bounty completed:") {
+                        ui.hud.notify("Bounty complete", hud::NotificationKind::Info);
+                    }
+                    if let Some((item, _)) = buy_info
+                        && let Some(rest) = s.strip_prefix("Bought ")
+                        && let Some(n_str) = rest.split_whitespace().next()
+                        && let Ok(got) = n_str.parse::<u32>()
+                        && got > 0
+                    {
+                        ui.hud.on_pickup(&item, got);
+                    }
+                }
                 if let (Some(s), Some(state)) = (status, ui.camp_ui.as_mut()) {
                     state.set_status(s);
                 }
@@ -341,6 +386,11 @@ pub fn draw_ui(
                 if let (Some(id), Some(cars)) = (actors.open_trunk.as_deref(), actors.cars.as_mut())
                     && let Some(car) = cars.get_mut(id)
                 {
+                    let moved_info = if from_trunk {
+                        car.trunk.slot(slot).map(|s| (s.item_id.clone(), s.count))
+                    } else {
+                        None
+                    };
                     let action = hub_ui::HubAction::TrunkMove { from_trunk, slot, count };
                     if let Some(toast) = trunk_play::apply_trunk_action(
                         &action,
@@ -349,6 +399,13 @@ pub fn draw_ui(
                         &play_state.items,
                     ) {
                         play_state.show_toast(toast);
+                    }
+                    if let Some((item_id, count_before)) = moved_info {
+                        let count_after = car.trunk.slot(slot).filter(|s| s.item_id == item_id).map_or(0, |s| s.count);
+                        let moved = count_before.saturating_sub(count_after);
+                        if moved > 0 {
+                            ui.hud.on_pickup(&item_id, moved);
+                        }
                     }
                     play_state.hotbar.on_inventory_changed(&play_state.inventory);
                 }

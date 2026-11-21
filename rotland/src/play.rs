@@ -60,6 +60,8 @@ pub struct PlayState {
     pub stats: game::ProfileStats,
     /// The tips for new players (Godot HintSystem, saved under "hints"); None if data/hints.json is broken.
     pub hints: Option<game::HintSystem>,
+    /// Items collected this frame for HUD pickup popups.
+    pub pending_pickups: Vec<(String, u32)>,
 }
 
 /// What changed in hand this frame.
@@ -115,6 +117,7 @@ impl PlayState {
             map: game::MapState::new(),
             stats: game::ProfileStats::default(),
             hints: game::HintSystem::from_repo().map_err(|e| log::warn!("data/hints.json: {e}")).ok(),
+            pending_pickups: Vec::new(),
         })
     }
 
@@ -345,15 +348,25 @@ impl PlayState {
                 self.loot_multiplier,
             );
             let text = match result {
-                InteractResult::OpenedCrate { toast, cash, .. } => {
+                InteractResult::OpenedCrate { toast, cash, items, leftovers, .. } => {
                     // Crate cash goes to the wallet; opening one counts for loot bounties
                     self.camp.wallet.add(cash);
                     self.camp.bounties.on_crate_looted();
                     self.picked_up = true;
+                    for stack in items {
+                        let leftover = leftovers.iter().find(|l| l.item_id == stack.item_id).map_or(0, |l| l.count);
+                        let added = stack.count.saturating_sub(leftover);
+                        if added > 0 {
+                            self.pending_pickups.push((stack.item_id, added));
+                        }
+                    }
                     Some(toast)
                 }
-                InteractResult::PickedUpItem { toast, .. } => {
+                InteractResult::PickedUpItem { toast, item_id, count, .. } => {
                     self.picked_up = true;
+                    if count > 0 {
+                        self.pending_pickups.push((item_id, count));
+                    }
                     toast
                 }
                 InteractResult::None => None,

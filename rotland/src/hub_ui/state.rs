@@ -33,6 +33,8 @@ pub struct HubUiState {
     pub status: String,
     pub level_up_banner: Option<LevelUpBannerState>,
     pub xp_toasts: Vec<XpToast>,
+    /// Pending skill level-up messages to notify on the HUD.
+    pub pending_level_ups: Vec<String>,
     /// The Map tab's pan, zoom and cached picture.
     pub map_ui: crate::map_ui::MapUiState,
 }
@@ -57,6 +59,7 @@ impl HubUiState {
             status: String::new(),
             level_up_banner: None,
             xp_toasts: Vec::new(),
+            pending_level_ups: Vec::new(),
             map_ui: crate::map_ui::MapUiState::new(),
         }
     }
@@ -204,6 +207,7 @@ impl HubUiState {
 
     /// Triggers the level up banner for a skill. Replaces any existing banner and restarts timer.
     pub fn trigger_level_up(&mut self, skill_name: &str, level: u32) {
+        self.pending_level_ups.push(format!("Skill level up: {skill_name} ({level})"));
         self.level_up_banner = Some(LevelUpBannerState {
             text: format!("{} LEVEL {}", skill_name.to_ascii_uppercase(), level),
             time_left: LEVEL_UP_BANNER_DURATION,

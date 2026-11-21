@@ -231,6 +231,8 @@ pub struct UiState {
     pub minimap: crate::app::minimap::MinimapState,
     /// F1 developer panel (R12-03).
     pub dev_panel: crate::dev_panel::DevPanelState,
+    /// Persistent HUD manager for transient effects, directional damage, pickup popups, notifications, and vitals trails.
+    pub hud: crate::hud::Hud,
 }
 
 impl UiState {

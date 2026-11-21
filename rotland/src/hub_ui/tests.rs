@@ -149,6 +149,7 @@ fn test_level_up_banner() {
 
     // Second level-up replaces existing banner and resets duration
     state.trigger_level_up("Agility", 3);
+    assert_eq!(state.pending_level_ups.len(), 2);
     let banner2 = state.level_up_banner.as_ref().expect("banner must exist");
     assert_eq!(banner2.text, "AGILITY LEVEL 3");
     assert!((banner2.time_left - LEVEL_UP_BANNER_DURATION).abs() < 1e-4);
