@@ -126,6 +126,76 @@ VARIANTS = [
         "blood": "blood_dark", "hunched": False,
         "proportions": {"width": 0.88, "depth": 0.94, "height": 1.04},
     },
+    {
+        "name": "zombie_brute",
+        "skin": "skin_zombie",
+        "hair": "hair_dark",
+        "hair_style": "wild",
+        "shirt": "shirt_zombie",
+        "pants": "pants_denim",
+        "shoes": "tire_black",
+        "blood": "blood_dark",
+        "hunched": False,
+        "proportions": {"width": 1.65, "depth": 1.52, "height": 1.35},
+        "posture": {"spine": (-6, 0, 0), "chest": (-6, 0, 0), "neck": (-4, 0, 0), "head": (-6, 0, 0)},
+    },
+    {
+        "name": "zombie_screamer",
+        "skin": "skin_pale",
+        "hair": "hair_dark",
+        "hair_style": "none",
+        "shirt": "gown_blue",
+        "jacket": "cloth_olive",
+        "pants": "pants_dark",
+        "shoes": "shoe_dark",
+        "blood": "blood_dark",
+        "hunched": True,
+        "proportions": {"width": 0.82, "depth": 0.86, "height": 1.06},
+        "posture": {"spine": (-14, 0, 0), "chest": (-12, 0, 0), "neck": (-10, 0, 0), "head": (24, 0, 0)},
+    },
+    {
+        "name": "zombie_crawler",
+        "skin": "skin_zombie",
+        "hair": "hair_dark",
+        "hair_style": "wild",
+        "shirt": "shirt_zombie",
+        "pants": "pants_dark",
+        "shoes": "shoe_dark",
+        "blood": "blood_dark",
+        "hunched": False,
+        "proportions": {"width": 1.0, "depth": 1.0, "height": 1.0},
+        "posture": {
+            "hips": {"rot": (0, 0, 0), "loc": (0, -0.65, 0)},
+            "spine": (-28, 0, 0),
+            "chest": (-6, 0, 0),
+            "neck": (0, 0, 0),
+            "head": (37, 0, 0),
+            "upper_arm_R": (92, 0, -8),
+            "forearm_R": (0, 0, 0),
+            "upper_arm_L": (92, 0, 8),
+            "forearm_L": (0, 0, 0),
+            "thigh_R": (-68, 0, 0),
+            "shin_R": (-22, 0, 0),
+            "thigh_L": (-66, 0, 0),
+            "shin_L": (-24, 0, 0),
+        },
+        "clips": {
+            "idle": "zombie_crawler_idle",
+            "walk": "zombie_crawler_crawl",
+            "run": "zombie_crawler_sprint",
+            "zombie_shamble": "zombie_crawler_crawl",
+            "zombie_lurch": "zombie_crawler_crawl",
+            "zombie_crawl": "zombie_crawl",
+            "zombie_attack": "zombie_crawler_attack",
+            "hit": "zombie_crawler_hit",
+            "zombie_stagger": "zombie_crawler_hit",
+            "die": "zombie_crawler_die",
+            "zombie_scream": "zombie_crawler_scream",
+            "zombie_runner_sprint": "zombie_crawler_sprint",
+            "zombie_bang": "zombie_crawler_crawl",
+            "zombie_eat": "zombie_eat",
+        },
+    },
 ]
 
 # Zombies only use this subset. Everything else in poses.CLIPS is for the player.
@@ -150,16 +220,16 @@ def clips_for(variant):
     return names
 
 
-def setup_character_camera(scene, hunched=False):
+def setup_character_camera(scene, hunched=False, target_z=0.82, cam_dist_mult=1.0):
     """Sets up a camera framed for 3/4 front view of the character with comfortable margins."""
     cam_data = bpy.data.cameras.new("CharacterCamera")
     cam_data.angle = math.radians(44)
     cam = bpy.data.objects.new("CharacterCamera", cam_data)
     scene.collection.objects.link(cam)
 
-    target = Vector((0.0, -0.05, 0.82))
+    target = Vector((0.0, -0.05, target_z))
     # 3/4 front view: +X (right), +Y (in front of facing direction), +Z (above)
-    cam.location = Vector((1.6, 2.85, 1.45))
+    cam.location = target + Vector((1.6, 2.85, 0.63)) * cam_dist_mult
     direction = target - cam.location
     cam.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
     scene.camera = cam
@@ -174,15 +244,30 @@ def setup_character_camera(scene, hunched=False):
 
 
 def _with_offsets(pose, offsets):
-    """Adds per-bone rotation offsets to every keyed pose (absent bones count as rest)."""
+    """Adds per-bone rotation and location offsets to every keyed pose (absent bones count as rest)."""
     out = dict(pose)
     for bone, delta in offsets.items():
         entry = out.get(bone, (0, 0, 0))
-        if isinstance(entry, dict):
-            rot = entry.get("rot", (0, 0, 0))
-            out[bone] = {**entry, "rot": tuple(r + d for r, d in zip(rot, delta))}
+        e_rot = entry.get("rot", (0, 0, 0)) if isinstance(entry, dict) else entry
+        e_loc = entry.get("loc") if isinstance(entry, dict) else None
+
+        if isinstance(delta, dict):
+            d_rot = delta.get("rot", (0, 0, 0))
+            d_loc = delta.get("loc")
         else:
-            out[bone] = tuple(r + d for r, d in zip(entry, delta))
+            d_rot = delta
+            d_loc = None
+
+        new_rot = tuple(r + d for r, d in zip(e_rot, d_rot))
+        if e_loc is not None or d_loc is not None:
+            l0 = e_loc if e_loc is not None else (0.0, 0.0, 0.0)
+            l1 = d_loc if d_loc is not None else (0.0, 0.0, 0.0)
+            new_loc = tuple(a + b for a, b in zip(l0, l1))
+            out[bone] = {"rot": new_rot, "loc": new_loc}
+        elif isinstance(entry, dict):
+            out[bone] = {**entry, "rot": new_rot}
+        else:
+            out[bone] = new_rot
     return out
 
 
@@ -212,8 +297,15 @@ def apply_pose_keyframes(arm_obj, clip_name, clip_data, posture=None):
         if bone_name in keyed:
             continue
         pb = arm_obj.pose.bones[bone_name]
-        pb.rotation_euler = tuple(math.radians(r) for r in offsets.get(bone_name, (0, 0, 0)))
-        pb.location = (0.0, 0.0, 0.0)
+        offset_val = offsets.get(bone_name, (0, 0, 0))
+        if isinstance(offset_val, dict):
+            rot = offset_val.get("rot", (0, 0, 0))
+            loc = offset_val.get("loc", (0, 0, 0))
+        else:
+            rot = offset_val
+            loc = (0, 0, 0)
+        pb.rotation_euler = tuple(math.radians(r) for r in rot)
+        pb.location = Vector(loc)
         pb.keyframe_insert(data_path="rotation_euler", frame=1)
         pb.keyframe_insert(data_path="location", frame=1)
 
@@ -241,18 +333,40 @@ def apply_pose_keyframes(arm_obj, clip_name, clip_data, posture=None):
     return act
 
 
-def render_rest_preview(name, arm_obj, mesh_obj):
-    """Renders 384x384 rest-pose preview to assets/models/_previews/<name>.png."""
+def render_rest_preview(name, arm_obj, mesh_obj, posture=None, target_z=0.82, cam_dist_mult=1.0):
+    """Renders 384x384 rest-pose preview to assets/models/_previews/<name>.png with posture applied."""
     scene = bpy.context.scene
-    # Set to rest pose (frame 0 without action)
-    if arm_obj.animation_data:
-        arm_obj.animation_data.action = None
+
+    if not arm_obj.animation_data:
+        arm_obj.animation_data_create()
+    rest_act = bpy.data.actions.new("_preview_rest")
+    arm_obj.animation_data.action = rest_act
     for pb in arm_obj.pose.bones:
+        pb.rotation_mode = "XYZ"
         pb.rotation_euler = (0, 0, 0)
         pb.location = (0, 0, 0)
+
+    if posture:
+        for bone_name, val in posture.items():
+            if bone_name in arm_obj.pose.bones:
+                pb = arm_obj.pose.bones[bone_name]
+                pb.rotation_mode = "XYZ"
+                if isinstance(val, dict):
+                    if "rot" in val:
+                        pb.rotation_euler = tuple(math.radians(r) for r in val["rot"])
+                    if "loc" in val:
+                        pb.location = Vector(val["loc"])
+                else:
+                    pb.rotation_euler = tuple(math.radians(r) for r in val)
+
+    for pb in arm_obj.pose.bones:
+        pb.keyframe_insert(data_path="rotation_euler", frame=1)
+        pb.keyframe_insert(data_path="location", frame=1)
+
+    scene.frame_set(1)
     bpy.context.view_layer.update()
 
-    setup_character_camera(scene)
+    setup_character_camera(scene, target_z=target_z, cam_dist_mult=cam_dist_mult)
     scene.render.resolution_x = common.PREVIEW_SIZE
     scene.render.resolution_y = common.PREVIEW_SIZE
     scene.render.resolution_percentage = 100
@@ -265,14 +379,17 @@ def render_rest_preview(name, arm_obj, mesh_obj):
     bpy.ops.render.render(write_still=True)
     print(f"Rest preview {name} -> {out_path}")
 
+    arm_obj.animation_data.action = None
+    bpy.data.actions.remove(rest_act)
 
-def frame_camera(cam, wide):
+
+def frame_camera(cam, wide, target_z=0.82, cam_dist_mult=1.0):
     """Aims the existing camera. `wide` pulls back for clips that spread the body (die)."""
-    target = Vector((0.0, -0.05, 0.82))
-    offset = Vector((1.6, 2.9, 0.63))
+    target = Vector((0.0, -0.05, target_z))
+    offset = Vector((1.6, 2.9, 0.63)) * cam_dist_mult
     angle = 44
     if wide:
-        target = Vector((0.0, -0.55, 0.6))
+        target = Vector((0.0, -0.55, target_z * 0.75))
         offset = offset * 1.3
         angle = 46
     cam.data.angle = math.radians(angle)
@@ -280,12 +397,12 @@ def frame_camera(cam, wide):
     cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
 
 
-def render_contact_sheet(name, arm_obj, clip_name, clip_data):
+def render_contact_sheet(name, arm_obj, clip_name, clip_data, target_z=0.82, cam_dist_mult=1.0):
     """Renders 8 evenly spaced frames across the clip and stitches them into a 1600x260 PNG."""
     scene = bpy.context.scene
     act = bpy.data.actions.get(clip_name)
     arm_obj.animation_data.action = act
-    frame_camera(scene.camera, wide=(clip_name == "die"))
+    frame_camera(scene.camera, wide=(clip_name == "die"), target_z=target_z, cam_dist_mult=cam_dist_mult)
 
     length = clip_data["length"]
     # 8 sample times
@@ -347,14 +464,28 @@ def build_one_character(variant):
     if not ok:
         print(f"ERROR: {name} has {tris} triangles, over budget {BUDGET}!")
 
+    # Framing parameters
+    if name == "zombie_crawler":
+        target_z, cam_dist_mult = 0.35, 0.85
+    elif name == "zombie_brute":
+        target_z, cam_dist_mult = 1.10, 1.35
+    else:
+        target_z, cam_dist_mult = 0.82, 1.0
+
     # Render rest preview before setting animation actions
-    render_rest_preview(name, arm_obj, mesh_obj)
+    render_rest_preview(name, arm_obj, mesh_obj, posture=variant.get("posture"),
+                        target_z=target_z, cam_dist_mult=cam_dist_mult)
 
     # Keyframe this character's clips from poses.py (one action each, exported as-is)
+    custom_clips = variant.get("clips", {})
     for clip_name in clips_for(variant):
-        clip_data = poses.ALL_CLIPS[clip_name]
-        apply_pose_keyframes(arm_obj, clip_name, clip_data, variant.get("posture"))
-        render_contact_sheet(name, arm_obj, clip_name, clip_data)
+        clip_source = custom_clips.get(clip_name, clip_name)
+        clip_data = poses.ALL_CLIPS[clip_source]
+        # Custom clips (like crawler clips) already include ground placement, so do not add posture offset
+        posture = None if clip_name in custom_clips else variant.get("posture")
+        apply_pose_keyframes(arm_obj, clip_name, clip_data, posture)
+        render_contact_sheet(name, arm_obj, clip_name, clip_data,
+                             target_z=target_z, cam_dist_mult=cam_dist_mult)
 
     # Export to GLB with all actions
     os.makedirs(CHARACTERS_DIR, exist_ok=True)
