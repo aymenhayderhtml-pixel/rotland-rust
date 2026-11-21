@@ -34,6 +34,22 @@ if [ -z "$ROOT" ]; then
 fi
 
 # One lock for every heavy command.
+# Already inside `flock /tmp/rotland-heavy.lock ...` (a parent holds it)? Then taking it again would
+# wait forever on ourselves (deadlock seen 2026-11-21), so treat it as held.
+lock_held_by_ancestor() {
+  local pid=$PPID
+  while [ "$pid" -gt 1 ] 2>/dev/null; do
+    # Only a real `flock` process whose own argument is the lock file counts
+    if tr '\0' '\n' < "/proc/$pid/cmdline" 2>/dev/null | awk 'NR==1 && $0 !~ /(^|\/)flock$/ {exit 1} $0=="/tmp/rotland-heavy.lock" {found=1} END {exit !found}'; then
+      return 0
+    fi
+    pid=$(awk '{print $4}' "/proc/$pid/stat" 2>/dev/null || echo 1)
+  done
+  return 1
+}
+if [ "${ROTLAND_GATE_LOCKED:-}" != "1" ] && lock_held_by_ancestor; then
+  export ROTLAND_GATE_LOCKED=1
+fi
 if [ "${ROTLAND_GATE_LOCKED:-}" != "1" ]; then
   if ! command -v flock >/dev/null 2>&1; then
     echo "GATE: FAIL (flock not installed)"
@@ -46,6 +62,8 @@ fi
 
 cd "$ROOT"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/home/aymen/Documents/rotland-rust/target}"
+# Our own crates build to the same file names in every worktree: rebuild them when the checkout changed
+"$ROOT/tools/claim_target.sh"
 
 # Test filter: --test wins, then a `Test:` line in the task file, else whole suite.
 if [ -z "$FILTER" ] && [ -n "$TASK" ] && [ -f "$TASK" ]; then
