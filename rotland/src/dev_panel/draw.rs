@@ -90,7 +90,7 @@ fn draw_perf_section(ui: &mut egui::Ui, history: &FpsHistory, view: &DevPanelVie
         view.triangles, view.shadow_triangles
     ));
     ui.monospace(format!(
-        "Pos: ({:>6.1}, {:>6.1}, {:>6.1}) | Yaw: {:>4.0} deg",
+        "Pos: {:>7.1} {:>5.1} {:>7.1}  Yaw: {:>4.0}°",
         view.player_pos.x,
         view.player_pos.y,
         view.player_pos.z,
