@@ -278,3 +278,30 @@ fn projectile_api_coverage() {
     let expired_ev = ProjectileEvent::Expired;
     assert_eq!(expired_ev.pickup(), None);
 }
+
+#[test]
+fn projectile_raycast_hits_head_and_world() {
+    use game::guns_fire::GunTarget;
+    use physics::PhysicsWorld;
+
+    let targets = vec![GunTarget {
+        id: 77,
+        position: Vec3::new(0.0, 0.0, 5.0),
+        body_radius: 0.45,
+        head_center: Vec3::new(0.0, 1.65, 5.0),
+        head_radius: 0.14,
+    }];
+    let world = PhysicsWorld::new();
+
+    // Aimed right at head
+    let from_head = Vec3::new(0.0, 1.65, 0.0);
+    let to_head = Vec3::new(0.0, 1.65, 10.0);
+    let hit_head = game::projectiles::raycast_projectile(from_head, to_head, &targets, &world);
+    assert!(matches!(hit_head, Some(Hit::Zombie { id: 77, headshot: true, .. })));
+
+    // Aimed at chest
+    let from_body = Vec3::new(0.0, 1.0, 0.0);
+    let to_body = Vec3::new(0.0, 1.0, 10.0);
+    let hit_body = game::projectiles::raycast_projectile(from_body, to_body, &targets, &world);
+    assert!(matches!(hit_body, Some(Hit::Zombie { id: 77, headshot: false, .. })));
+}

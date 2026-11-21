@@ -141,3 +141,17 @@ fn projectile_weapons_new_fire_axe_stats() {
     assert!(fire_axe.cooldown > axe.cooldown, "fire axe is slower than standard axe");
     assert!(fire_axe.tags.contains(&"chop".to_string()));
 }
+
+#[test]
+fn projectile_weapons_new_melee_kinds_and_models() {
+    let weapon_path = paths::repo_path("data/weapons.json");
+    let weapons = WeaponRegistry::load(&weapon_path).expect("load weapons.json");
+
+    let melee_ids = ["dagger", "spear", "hammer", "pipe", "fire_axe"];
+    for id in &melee_ids {
+        let w = weapons.get(id).unwrap_or_else(|| panic!("weapon {id} exists"));
+        assert_eq!(w.kind, WeaponKind::Melee, "{id} must be melee");
+        assert!(!w.model.is_empty(), "{id} must have a model path");
+        assert!(w.damage > 0.0, "{id} must have positive damage");
+    }
+}
