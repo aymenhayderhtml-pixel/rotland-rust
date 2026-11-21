@@ -1,6 +1,7 @@
 //! Persistent HUD mini-map state and cached terrain+fog patch texture.
 
 use std::collections::HashMap;
+use std::path::Path;
 
 use engine::egui;
 use glam::{IVec2, Vec2};
@@ -8,9 +9,98 @@ use world::WorldGenerator;
 
 const MAX_CACHED_CHUNKS: usize = 64;
 
+/// Visual styling configuration for city streets and camp road on the mini-map.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MinimapStreetsConfig {
+    pub street_color: egui::Color32,
+    pub road_color: egui::Color32,
+    pub blocked_color: egui::Color32,
+    pub street_min_px: f32,
+}
+
+impl Default for MinimapStreetsConfig {
+    fn default() -> Self {
+        Self {
+            street_color: egui::Color32::from_rgb(69, 69, 74),
+            road_color: egui::Color32::from_rgb(90, 83, 72),
+            blocked_color: egui::Color32::from_rgb(217, 53, 43),
+            street_min_px: 2.0,
+        }
+    }
+}
+
+impl MinimapStreetsConfig {
+    pub fn load_default() -> Self {
+        Self::load(&paths::repo_path("data/minimap.json"))
+    }
+
+    pub fn load(path: &Path) -> Self {
+        let Ok(text) = std::fs::read_to_string(path) else {
+            return Self::default();
+        };
+        let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) else {
+            return Self::default();
+        };
+        let mut cfg = Self::default();
+        if let Some(c) = val.get("street_color").and_then(parse_color_value) {
+            cfg.street_color = c;
+        }
+        if let Some(c) = val.get("road_color").and_then(parse_color_value) {
+            cfg.road_color = c;
+        }
+        if let Some(c) = val.get("blocked_color").and_then(parse_color_value) {
+            cfg.blocked_color = c;
+        }
+        if let Some(w) = val.get("street_min_px").and_then(|v| v.as_f64()) {
+            cfg.street_min_px = (w as f32).max(0.5);
+        }
+        cfg
+    }
+}
+
+fn parse_color_value(v: &serde_json::Value) -> Option<egui::Color32> {
+    match v {
+        serde_json::Value::String(s) => {
+            let hex = s.trim_start_matches('#');
+            if hex.len() == 6 {
+                let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+                let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+                let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+                Some(egui::Color32::from_rgb(r, g, b))
+            } else if hex.len() == 8 {
+                let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+                let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+                let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+                let a = u8::from_str_radix(&hex[6..8], 16).ok()?;
+                Some(egui::Color32::from_rgba_unmultiplied(r, g, b, a))
+            } else {
+                None
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            if arr.len() == 3 {
+                let r = arr[0].as_u64()? as u8;
+                let g = arr[1].as_u64()? as u8;
+                let b = arr[2].as_u64()? as u8;
+                Some(egui::Color32::from_rgb(r, g, b))
+            } else if arr.len() == 4 {
+                let r = arr[0].as_u64()? as u8;
+                let g = arr[1].as_u64()? as u8;
+                let b = arr[2].as_u64()? as u8;
+                let a = arr[3].as_u64()? as u8;
+                Some(egui::Color32::from_rgba_unmultiplied(r, g, b, a))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
 /// Persistent mini-map state: data-driven config, cached chunk terrain, cached patch, scratch buffers.
 pub struct MinimapState {
     pub config: game::MinimapConfig,
+    pub streets_cfg: MinimapStreetsConfig,
     chunk_terrain: HashMap<IVec2, Vec<[u8; 3]>>,
     patch_rgba_scratch: Vec<u8>,
     pub(super) texture: Option<egui::TextureHandle>,
@@ -25,6 +115,7 @@ impl Default for MinimapState {
     fn default() -> Self {
         Self {
             config: game::MinimapConfig::load_default(),
+            streets_cfg: MinimapStreetsConfig::load_default(),
             chunk_terrain: HashMap::new(),
             patch_rgba_scratch: Vec::new(),
             texture: None,

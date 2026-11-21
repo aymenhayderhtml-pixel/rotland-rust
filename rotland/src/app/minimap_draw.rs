@@ -1,9 +1,117 @@
 //! Small egui drawing helpers for the HUD mini-map.
 
 use engine::egui::{self, Align2, Color32, FontId, Pos2, Stroke, vec2};
+use glam::Vec2;
+
+use super::minimap_cache::MinimapStreetsConfig;
 
 fn color(c: [u8; 4]) -> Color32 {
     Color32::from_rgba_unmultiplied(c[0], c[1], c[2], c[3])
+}
+
+pub(super) fn draw_streets_and_road(
+    painter: &egui::Painter,
+    centre: Pos2,
+    city: Option<&world::CityLayout>,
+    player_xz: Vec2,
+    radius_metres: f32,
+    radius_px: f32,
+    disk_r: f32,
+    scale: f32,
+    cfg: &MinimapStreetsConfig,
+) {
+    let Some(city) = city else {
+        return;
+    };
+
+    // 1. Draw camp road segments
+    let road_w = (cfg.street_min_px * scale).max(1.5 * scale);
+    for window in city.road.windows(2) {
+        let (a, b) = (window[0], window[1]);
+        let ab = b - a;
+        let len_sq = ab.length_squared();
+        let t = if len_sq < 1e-6 {
+            0.0
+        } else {
+            ((player_xz - a).dot(ab) / len_sq).clamp(0.0, 1.0)
+        };
+        let closest = a + ab * t;
+        if closest.distance_squared(player_xz) > radius_metres * radius_metres {
+            continue;
+        }
+
+        let off_a = game::world_to_minimap_offset(a, player_xz, radius_metres, radius_px);
+        let off_b = game::world_to_minimap_offset(b, player_xz, radius_metres, radius_px);
+        if let Some((ca, cb)) = game::clip_segment_to_circle(off_a, off_b, disk_r) {
+            let pa = Pos2::new(centre.x + ca.x, centre.y + ca.y);
+            let pb = Pos2::new(centre.x + cb.x, centre.y + cb.y);
+            painter.line_segment([pa, pb], Stroke::new(road_w, cfg.road_color));
+        }
+    }
+
+    // 2. City streets bounding check (cheap early out when far from city)
+    let margin = radius_metres + 20.0;
+    if player_xz.x < city.origin.x - margin
+        || player_xz.x > city.origin.x + city.size + margin
+        || player_xz.y < city.origin.y - margin
+        || player_xz.y > city.origin.y + city.size + margin
+    {
+        return;
+    }
+
+    let min_w = cfg.street_min_px.max(1.0);
+    let mut blocked_crosses: Vec<Pos2> = Vec::new();
+
+    for street in &city.streets {
+        let max_reach = radius_metres + street.width * 0.5;
+        if street.closest_point(player_xz).distance_squared(player_xz) > max_reach * max_reach {
+            continue;
+        }
+
+        let off_a = game::world_to_minimap_offset(street.a, player_xz, radius_metres, radius_px);
+        let off_b = game::world_to_minimap_offset(street.b, player_xz, radius_metres, radius_px);
+
+        if let Some((ca, cb)) = game::clip_segment_to_circle(off_a, off_b, disk_r) {
+            let pa = Pos2::new(centre.x + ca.x, centre.y + ca.y);
+            let pb = Pos2::new(centre.x + cb.x, centre.y + cb.y);
+
+            let width_ratio = if street.avenue {
+                (street.width / 10.0).max(1.35)
+            } else {
+                (street.width / 10.0).max(1.0)
+            };
+            let stroke_w = (min_w * width_ratio * scale).max(min_w * scale);
+            painter.line_segment([pa, pb], Stroke::new(stroke_w, cfg.street_color));
+
+            if street.blocked {
+                let mid = (street.a + street.b) * 0.5;
+                let mid_off =
+                    game::world_to_minimap_offset(mid, player_xz, radius_metres, radius_px);
+                if mid_off.length_squared() <= disk_r * disk_r {
+                    blocked_crosses.push(Pos2::new(centre.x + mid_off.x, centre.y + mid_off.y));
+                }
+            }
+        }
+    }
+
+    let cross_sz = 3.2 * scale;
+    let cross_stroke = Stroke::new(1.8 * scale, cfg.blocked_color);
+    for p in blocked_crosses {
+        painter.line_segment(
+            [
+                Pos2::new(p.x - cross_sz, p.y - cross_sz),
+                Pos2::new(p.x + cross_sz, p.y + cross_sz),
+            ],
+            cross_stroke,
+        );
+        painter.line_segment(
+            [
+                Pos2::new(p.x + cross_sz, p.y - cross_sz),
+                Pos2::new(p.x - cross_sz, p.y + cross_sz),
+            ],
+            cross_stroke,
+        );
+    }
 }
 
 pub(super) fn draw_camp_outlines(
@@ -147,4 +255,39 @@ pub(super) fn draw_player(p: &egui::Painter, at: Pos2, yaw: f32, size: f32, scal
         fill,
         Stroke::new(2.2 * scale, Color32::from_rgba_unmultiplied(0, 0, 0, 245)),
     ));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn minimap_street_endpoint_world_to_minimap_transform() {
+        let player = Vec2::new(100.0, 200.0);
+        let radius_metres = 60.0;
+        let radius_px = 86.0;
+
+        // Street end point 30m East of player (+X)
+        let street_end_east = Vec2::new(130.0, 200.0);
+        let off_east =
+            game::world_to_minimap_offset(street_end_east, player, radius_metres, radius_px);
+        assert!((off_east.x - 43.0).abs() < 1e-4);
+        assert!(off_east.y.abs() < 1e-4);
+
+        // Street end point 40m North of player (-Y/-Z)
+        let street_end_north = Vec2::new(100.0, 160.0);
+        let off_north =
+            game::world_to_minimap_offset(street_end_north, player, radius_metres, radius_px);
+        assert!(off_north.x.abs() < 1e-4);
+        assert!((off_north.y - (-40.0 / 60.0 * 86.0)).abs() < 1e-4);
+
+        // Clipping: segment crossing the minimap boundary
+        let seg_start = off_east;
+        let seg_end = Vec2::new(200.0, 0.0);
+        let clipped = game::clip_segment_to_circle(seg_start, seg_end, radius_px);
+        assert!(clipped.is_some());
+        let (ca, cb) = clipped.unwrap();
+        assert_eq!(ca, seg_start);
+        assert!((cb.length() - radius_px).abs() < 1e-4);
+    }
 }
