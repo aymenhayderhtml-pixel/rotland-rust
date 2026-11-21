@@ -71,6 +71,28 @@ pub fn maintain_god_mode(god_mode: bool, actors: &mut ActorsState, play: &mut Pl
     }
 }
 
+fn place_player(dest: Vec3, actors: &mut ActorsState) {
+    actors.player = dest;
+    if let Some(player) = actors.player_ctrl.as_mut() {
+        player.position = dest;
+        player.velocity = Vec3::ZERO;
+        player.on_floor = false;
+    }
+}
+
+/// Keeps a teleported player hovering at the target until the physics ground below exists,
+/// then sets them down on it (so a far teleport never falls through unloaded ground).
+pub fn maintain_landing(state: &mut DevPanelState, world: &WorldState, actors: &mut ActorsState) {
+    let Some(dest) = state.landing else { return };
+    match world.physics.ground_height(dest.x, dest.z) {
+        Some(y) => {
+            place_player(Vec3::new(dest.x, y + DEV_TELEPORT_GROUND_OFFSET, dest.z), actors);
+            state.landing = None;
+        }
+        None => place_player(dest, actors),
+    }
+}
+
 fn teleport_player(
     pos: Vec3,
     state: &mut DevPanelState,
@@ -83,12 +105,9 @@ fn teleport_player(
         .unwrap_or_else(|| world.height(pos.x, pos.z))
         + DEV_TELEPORT_GROUND_OFFSET;
     let dest = Vec3::new(pos.x, ground_y, pos.z);
-    actors.player = dest;
-    if let Some(player) = actors.player_ctrl.as_mut() {
-        player.position = dest;
-        player.velocity = Vec3::ZERO;
-        player.on_floor = false;
-    }
+    place_player(dest, actors);
+    // A far jump lands before that chunk's ground collider is streamed in: hold until it exists
+    state.landing = Some(dest);
     state.status_msg = Some(format!(
         "Teleported to ({:.1}, {:.1}, {:.1})",
         dest.x, dest.y, dest.z

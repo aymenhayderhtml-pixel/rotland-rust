@@ -195,6 +195,16 @@ fn draw_teleport_section(
         }
     });
 
+    if !view.city_spots.is_empty() {
+        ui.horizontal(|ui| {
+            for (label, pos) in &view.city_spots {
+                if ui.button(*label).clicked() {
+                    actions.push(DevAction::Teleport(*pos));
+                }
+            }
+        });
+    }
+
     ui.horizontal(|ui| {
         ui.label("X:");
         let rx = ui.add(

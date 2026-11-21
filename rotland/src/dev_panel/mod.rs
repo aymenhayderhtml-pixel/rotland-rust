@@ -48,6 +48,8 @@ pub struct DevPanelState {
     pub wants_keyboard_input: bool,
     cached_poi_chunk: Option<IVec2>,
     cached_poi: Option<(String, Vec3)>,
+    /// After a teleport: hold the player here until the ground collider below has loaded.
+    pub(crate) landing: Option<Vec3>,
 }
 
 impl Default for DevPanelState {
@@ -75,6 +77,7 @@ impl DevPanelState {
             wants_keyboard_input: false,
             cached_poi_chunk: None,
             cached_poi: None,
+            landing: None,
         }
     }
 }
@@ -95,6 +98,8 @@ pub struct DevPanelView<'a> {
     pub zombie_types: &'a [&'static str],
     pub nearest_poi: Option<(String, Vec3)>,
     pub camp_spawn: Option<Vec3>,
+    /// Ashford teleport spots: (label, x/z with y 0; the teleport finds the ground).
+    pub city_spots: Vec<(&'static str, Vec3)>,
 }
 
 /// Ticks frame-time history, renders the dev window when open, applies actions,
@@ -146,6 +151,7 @@ pub fn update_dev_panel(
             });
         let nearest_poi = resolve_nearest_poi(state, world, player_pos);
         let camp_spawn = camp_spawn_pos(world);
+        let city_spots = city_spots(world);
         let view = DevPanelView {
             player_pos,
             player_yaw,
@@ -161,6 +167,7 @@ pub fn update_dev_panel(
             zombie_types: DEV_ZOMBIE_TYPES,
             nearest_poi,
             camp_spawn,
+            city_spots,
         };
         let actions = draw_dev_panel(ctx, state, &view);
         if !actions.is_empty() {
@@ -172,6 +179,7 @@ pub fn update_dev_panel(
     }
 
     maintain_god_mode(state.god_mode, actors, play);
+    actions::maintain_landing(state, world, actors);
     if !state.open {
         state.wants_keyboard_input = false;
     }
@@ -186,6 +194,17 @@ fn all_item_ids() -> &'static [String] {
             .map(|id| (*id).to_string())
             .collect()
     })
+}
+
+/// The city core, the street where the camp road enters, and the middle of the camp road.
+fn city_spots(world: &WorldState) -> Vec<(&'static str, Vec3)> {
+    let Some(city) = world.world_gen.as_ref().and_then(|g| g.city()) else { return Vec::new() };
+    let core = city.origin + glam::Vec2::splat(city.size * 0.5);
+    let mut spots = vec![("City core", core), ("City entry", city.entry)];
+    if let (Some(a), Some(b)) = (city.road.first(), city.road.last()) {
+        spots.push(("Camp road", (*a + *b) * 0.5));
+    }
+    spots.into_iter().map(|(label, p)| (label, Vec3::new(p.x, 0.0, p.y))).collect()
 }
 
 fn camp_spawn_pos(world: &WorldState) -> Option<Vec3> {
