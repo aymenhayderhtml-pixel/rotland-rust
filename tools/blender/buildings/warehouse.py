@@ -125,6 +125,14 @@ def _add_pallet(k, cx, cy, cz):
     k.collider((cx - 0.6, cy - 0.48, cz), (cx + 0.6, cy + 0.48, cz + 0.15), base="pallet")
 
 
+def _barrel_on_floor(k, x, y, color="red_paint", r=0.3, h=0.9):
+    """Adds a barrel sitting on the concrete floor (Z = F) rather than sunken at Z = 0."""
+    k.model.add(common.make_frustum(r, r, F, F + h, segments=10, center=(x, y), color=color))
+    for z in (F + 0.15, F + h - 0.2):
+        k.model.add(common.make_frustum(r + 0.02, r + 0.02, z, z + 0.05, segments=10, center=(x, y), color="rock_dark"))
+    k.collider((x - r, y - r, F), (x + r, y + r, F + h), "barrel")
+
+
 def build(model):
     k = kit.Kit(model)
 
@@ -132,8 +140,8 @@ def build(model):
     k.solid((-11.5, -6.5, 0.0), (11.5, 4.5, F), "rock_mid", base="floor")
 
     # 2. Doors definitions
-    # Big roller door on front (+Y): half open (Z from F to 2.2 m is clear to walk under)
-    roller_door = ((-7.0, 4.3, F), (-3.0, 4.5, 2.2))
+    # Big roller door on front (+Y): opening all the way to WALL_TOP, drum from 3.8 to 4.3, wall fill 4.3 to WALL_TOP
+    roller_door = ((-7.0, 4.3, F), (-3.0, 4.5, WALL_TOP))
     # Small side door on right wall (+X) so it is visible in front-right preview
     side_door = ((11.3, -1.8, F), (11.5, -0.6, kit.DOOR_H))
 
@@ -148,16 +156,16 @@ def build(model):
     _build_corrugated_wall(k, (11.3, -6.3), (11.5, 4.3), y_face=False, openings=[side_door], base="wall_right")
 
     # Foundation trim (concrete base trim around the building exterior)
-    k.box((-11.55, -6.55, 0.0), (11.55, -6.45, 0.3), "rock_dark")
-    k.box((-11.55, 4.45, 0.0), (-7.0, 4.55, 0.3), "rock_dark")
-    k.box((-3.0, 4.45, 0.0), (0.5, 4.55, 0.3), "rock_dark")
-    k.box((-11.55, -6.55, 0.0), (-11.45, 4.45, 0.3), "rock_dark")
-    k.box((11.45, -6.55, 0.0), (11.55, -1.8, 0.3), "rock_dark")
-    k.box((11.45, -0.6, 0.0), (11.55, 4.45, 0.3), "rock_dark")
+    k.box((-11.55, -6.55, -0.05), (11.55, -6.45, 0.3), "rock_dark")
+    k.box((-11.55, 4.45, -0.05), (-7.0, 4.55, 0.3), "rock_dark")
+    k.box((-3.0, 4.45, -0.05), (0.5, 4.55, 0.3), "rock_dark")
+    k.box((-11.55, -6.55, -0.05), (-11.45, 4.45, 0.3), "rock_dark")
+    k.box((11.45, -6.55, -0.05), (11.55, -1.8, 0.3), "rock_dark")
+    k.box((11.45, -0.6, -0.05), (11.55, 4.45, 0.3), "rock_dark")
 
     # 4. Big roller door visual details (half open)
-    # The rolled up metal door hanging down from 2.2 to 3.8 m
-    k.box((-6.95, 4.36, 2.2), (-3.05, 4.44, 3.8), "metal")
+    # The rolled up metal door hanging down from 2.3 to 3.8 m
+    k.box((-6.95, 4.36, 2.3), (-3.05, 4.44, 3.8), "metal")
     # Yellow hazard bar along the bottom of the half-open door
     k.box((-6.95, 4.35, 2.2), (-3.05, 4.45, 2.3), "brass")
     # Horizontal slats on the roller door
@@ -167,6 +175,7 @@ def build(model):
         z += 0.25
     # Rolled canister drum at top of door
     k.box((-7.1, 4.25, 3.8), (-2.9, 4.55, 4.3), "rock_dark")
+    k.box((-7.0, 4.3, 4.3), (-3.0, 4.5, WALL_TOP), "metal")
     # Side guide rails
     k.box((-7.08, 4.34, F), (-6.95, 4.52, 3.8), "gun_black")
     k.box((-3.05, 4.34, F), (-2.92, 4.52, 3.8), "gun_black")
@@ -179,7 +188,7 @@ def build(model):
     dock_top = 0.7
     k.solid((0.5, 4.5, 0.0), (11.0, 6.8, dock_top), "rock_mid", base="dock")
     # Yellow safety caution stripe along the edge
-    k.box((0.5, 6.74, dock_top - 0.02), (11.0, 6.82, dock_top + 0.02), "brass")
+    k.box((0.5, 6.74, dock_top - 0.02), (10.94, 6.82, dock_top + 0.02), "brass")
     k.box((10.94, 4.5, dock_top - 0.02), (11.02, 6.82, dock_top + 0.02), "brass")
     # Rubber dock bumpers on front edge
     for bx in (2.5, 5.5, 8.5):
@@ -194,7 +203,7 @@ def build(model):
         k.box((bay_x0, 4.48, dock_top), (bay_x1, 4.52, dock_top + 2.8), "rock_dark")
         k.box((bay_x0 - 0.06, 4.47, dock_top), (bay_x0, 4.53, dock_top + 2.86), "brass")
         k.box((bay_x1, 4.47, dock_top), (bay_x1 + 0.06, 4.53, dock_top + 2.86), "brass")
-        k.box((bay_x0 - 0.06, 4.47, dock_top + 2.8), (bay_x1 + 0.06, 4.53, dock_top + 2.86), "brass")
+        k.box((bay_x0, 4.47, dock_top + 2.8), (bay_x1, 4.53, dock_top + 2.86), "brass")
         bz = dock_top + 0.3
         while bz < dock_top + 2.8:
             k.box((bay_x0, 4.52, bz - 0.02), (bay_x1, 4.54, bz + 0.02), "metal")
@@ -209,7 +218,7 @@ def build(model):
     # 6. Shallow Gable Roof
     ridge = (0.0, -1.0, RIDGE_Z)
     k.roof(ridge, (0.0, -6.8, WALL_TOP), span=(1.0, 0.0, 0.0), width=23.6, color="metal", thick=0.14)
-    k.roof(ridge, (0.0, 4.8, WALL_TOP), span=(1.0, 0.0, 0.0), width=23.6, color="metal", thick=0.14)
+    k.roof(ridge, (0.0, 4.8, WALL_TOP), span=(1.0, 0.0, 0.0), width=23.58, color="metal", thick=0.14)
 
     # Ridge cap
     k.ridge_cap((0.0, -1.0, RIDGE_Z), 0, 23.8, color="rock_dark")
@@ -251,7 +260,7 @@ def build(model):
     _add_pallet(k, -4.5, -2.5, F)
     _add_pallet(k, -4.5, -2.5, F + 0.15)
     k.solid((-4.9, -2.9, F + 0.30), (-4.2, -2.2, F + 0.95), "wood_crate", base="crate_s2_a")
-    k.barrel(-4.0, -2.3, color="red_paint")
+    _barrel_on_floor(k, -4.0, -2.3, color="red_paint")
 
     # Hand pallet jack near Stack 2 (red frame, black wheels, handle)
     k.solid((-3.2, -2.7, F), (-2.8, -1.7, F + 0.15), "red_paint", base="jack_fork")
@@ -266,7 +275,7 @@ def build(model):
     for sz in (1.0, 2.0, 3.0):
         k.box((rack_x0, rack_y0 - 0.05, sz), (rack_x1, rack_y0 + 0.05, sz + 0.08), "brass")
         k.box((rack_x0, rack_y1 - 0.05, sz), (rack_x1, rack_y1 + 0.05, sz + 0.08), "brass")
-        k.solid((rack_x0, rack_y0, sz), (rack_x1, rack_y1, sz + 0.08), "wood_crate", base="rack_shelf")
+        k.solid((rack_x0 + 0.06, rack_y0 + 0.05, sz + 0.01), (rack_x1 - 0.06, rack_y1 - 0.05, sz + 0.08), "wood_crate", base="rack_shelf")
     # Crates and boxes on rack tiers
     k.solid((2.0, -5.9, 1.08), (2.8, -5.3, 1.8), "wood_crate", base="rack_c1")
     k.solid((3.2, -5.9, 1.08), (4.2, -5.3, 1.7), "wood_crate", base="rack_c2")
@@ -278,8 +287,8 @@ def build(model):
     _add_pallet(k, 7.5, 1.5, F)
     _add_pallet(k, 7.5, 1.5, F + 0.15)
     k.solid((7.1, 1.1, F + 0.30), (7.9, 1.9, F + 0.90), "wood_crate", base="crate_s4")
-    k.barrel(6.3, 1.5, color="red_paint")
-    k.barrel(6.3, 2.2, color="metal")
+    _barrel_on_floor(k, 6.3, 1.5, color="red_paint")
+    _barrel_on_floor(k, 6.3, 2.2, color="metal")
 
     # Shipping desk / workbench in corner near side door (X = 10.0, Y = -3.5)
     k.solid((9.5, -4.0, F), (11.0, -3.0, 0.85), "bark_dark", base="desk")

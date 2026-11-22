@@ -30,7 +30,7 @@ def _make_simple_awning(k, x0, x1, color):
     common.transform(slab, loc=(x_mid, 3.6, 2.65), rot=(rot_x, 0.0, 0.0))
     k.model.add(slab)
     # Front valance
-    k.box((x0, 3.96, 2.30), (x1, 4.0, 2.45), "white")
+    k.box((x0 + 0.01, 3.96, 2.30), (x1 - 0.01, 4.0, 2.45), "white")
 
 
 def build(model):

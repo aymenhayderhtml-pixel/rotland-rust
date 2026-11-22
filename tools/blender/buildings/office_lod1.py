@@ -27,19 +27,20 @@ def build(model):
     k.collider((-7.6, -7.6, 0.0), (7.6, 7.2, 8.6), "body_lower")
 
     # Corner base plinths (defining exact 16x16 footprint bounds [-8.0, 8.0])
-    k.box((-8.0, -8.0, 0.0), (-7.5, -7.5, 0.6), "rock_dark")
-    k.box((-8.0, 7.2, 0.0), (-7.5, 7.7, 0.6), "rock_dark")
-    k.box((7.2, -8.0, 0.0), (7.7, -7.5, 0.6), "rock_dark")
+    k.box((-8.0, -8.0, 0.01), (-7.5, -7.5, 0.6), "rock_dark")
+    k.box((-8.0, 7.2, 0.01), (-7.5, 7.7, 0.6), "rock_dark")
+    k.box((7.2, -8.0, 0.01), (7.7, -7.5, 0.6), "rock_dark")
 
-    # Plinth base trims
-    k.box((-7.6, 7.15, 0.0), (4.5, 7.25, 0.55), "rock_dark")
-    k.box((-7.6, -7.6, 0.0), (7.6, -7.5, 0.55), "rock_dark")
-    k.box((-7.6, -7.6, 0.0), (-7.5, 7.2, 0.55), "rock_dark")
-    k.box((7.5, -7.6, 0.0), (7.6, 4.5, 0.55), "rock_dark")
+    # Plinth base trims (proud by 2cm, sitting between corner plinths and door)
+    k.box((-7.5, 7.2, 0.04), (-1.7, 7.24, 0.55), "rock_dark")
+    k.box((-0.5, 7.2, 0.04), (4.5, 7.24, 0.55), "rock_dark")
+    k.box((-7.5, -7.62, 0.04), (7.2, -7.5, 0.55), "rock_dark")
+    k.box((-7.62, -7.5, 0.04), (-7.5, 7.18, 0.55), "rock_dark")
+    k.box((7.5, -7.5, 0.04), (7.62, 4.45, 0.55), "rock_dark")
 
-    # Entrance door (flush dark box)
-    k.box((-1.7, 7.18, 0.0), (-0.5, 7.22, kit.DOOR_H), "rock_dark")
-    k.box((-2.0, 7.15, 2.45), (-0.2, 7.6, 2.58), "metal")
+    # Entrance door (flush dark box, bottom at 0.04 to avoid Z=0 plane)
+    k.box((-1.7, 7.18, 0.04), (-0.5, 7.22, kit.DOOR_H), "rock_dark")
+    k.box((-1.85, 7.15, 2.45), (-0.35, 7.6, 2.58), "metal")
 
     # Ground floor storefront glass strips
     k.box((-7.0, 7.18, 0.6), (-1.9, 7.22, 2.7), "glass_tint")
@@ -80,11 +81,11 @@ def build(model):
         k.box((7.58, -7.2, z0), (7.62, y_hi, z1), "glass_tint")
 
     # 4. Rubble Pile at foot of collapsed corner (x [4.5, 8.0], y [4.5, 8.0])
-    k.box((4.5, 4.5, 0.0), (8.0, 8.0, 0.9), "rock_dark")
+    k.box((4.5, 4.5, 0.02), (8.0, 8.0, 0.9), "rock_dark")
     k.box((5.0, 5.0, 0.9), (7.8, 7.8, 1.8), "rock_mid")
     k.box((5.5, 5.5, 1.8), (7.4, 7.4, 2.6), "rock_light")
-    k.box((4.0, 6.5, 0.0), (5.0, 7.8, 0.7), "rock_light")
-    k.box((6.5, 4.0, 0.0), (7.8, 5.0, 0.7), "rock_light")
+    k.box((4.0, 6.5, 0.06), (5.0, 7.8, 0.7), "rock_light")
+    k.box((6.5, 4.0, 0.08), (7.8, 5.0, 0.7), "rock_light")
     # Rebar rods
     k.box((5.6, 5.6, 2.2), (5.7, 5.7, 3.4), "rust")
     k.box((6.6, 6.2, 1.8), (6.7, 6.3, 3.1), "rust")
@@ -95,9 +96,9 @@ def build(model):
 
     # Parapet
     k.box((-7.6, -7.6, WALL_TOP + 0.15), (7.6, -7.45, PARAPET_TOP), "rock_mid", roof=True)
-    k.box((-7.6, -7.6, WALL_TOP + 0.15), (-7.45, 7.2, PARAPET_TOP), "rock_mid", roof=True)
+    k.box((-7.6, -7.45, WALL_TOP + 0.15), (-7.45, 7.05, PARAPET_TOP), "rock_mid", roof=True)
     k.box((-7.6, 7.05, WALL_TOP + 0.15), (3.5, 7.2, PARAPET_TOP), "rock_mid", roof=True)
-    k.box((7.45, -7.6, WALL_TOP + 0.15), (7.6, 3.5, PARAPET_TOP), "rock_mid", roof=True)
+    k.box((7.45, -7.45, WALL_TOP + 0.15), (7.6, 3.5, PARAPET_TOP), "rock_mid", roof=True)
 
     # Penthouse & AC
     k.box((-2.5, -2.5, WALL_TOP + 0.15), (1.5, 1.5, 13.5), "rock_mid", roof=True)

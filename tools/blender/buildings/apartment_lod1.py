@@ -27,22 +27,23 @@ def build(model):
     k.box((-9.0, -6.0, 0.0), (8.2, 6.0, WALL_TOP), "red_paint")
     k.collider((-9.0, -6.0, 0.0), (8.2, 6.0, WALL_TOP), "main_body")
 
-    # Stone plinth base (z 0.0 to 0.55)
-    k.box((-9.01, 5.96, 0.0), (8.21, 6.01, 0.55), "rock_mid")
-    k.box((-9.01, -6.01, 0.0), (8.21, -5.96, 0.55), "rock_mid")
-    k.box((-9.01, -6.01, 0.0), (-8.96, 6.01, 0.55), "rock_mid")
-    k.box((8.16, -6.01, 0.0), (8.21, 6.01, 0.55), "rock_mid")
+    # Stone plinth base (z 0.02 to 0.55, proud by 2-3cm, butted at corners, split for door)
+    k.box((-8.96, 5.98, 0.02), (-0.6, 6.03, 0.55), "rock_mid")
+    k.box((0.6, 5.98, 0.02), (8.16, 6.03, 0.55), "rock_mid")
+    k.box((-8.96, -6.03, 0.02), (8.16, -5.98, 0.55), "rock_mid")
+    k.box((-9.03, -6.03, 0.02), (-8.98, 6.03, 0.55), "rock_mid")
+    k.box((8.18, -6.03, 0.02), (8.23, 6.03, 0.55), "rock_mid")
 
-    # Stone belt courses
+    # Stone belt courses (proud, butted at corners)
     for zb in (2.95, 5.75):
-        k.box((-9.01, 5.97, zb), (8.21, 6.01, zb + 0.15), "rock_light")
-        k.box((-9.01, -6.01, zb), (8.21, -5.97, zb + 0.15), "rock_light")
-        k.box((-9.01, -6.01, zb), (-8.97, 6.01, zb + 0.15), "rock_light")
-        k.box((8.17, -6.01, zb), (8.21, 6.01, zb + 0.15), "rock_light")
+        k.box((-8.96, 5.98, zb), (8.16, 6.025, zb + 0.15), "rock_light")
+        k.box((-8.96, -6.025, zb), (8.16, -5.98, zb + 0.15), "rock_light")
+        k.box((-9.025, -6.025, zb), (-8.98, 6.025, zb + 0.15), "rock_light")
+        k.box((8.18, -6.025, zb), (8.225, 6.025, zb + 0.15), "rock_light")
 
     # Front door (flush dark opening with lintel)
-    k.box((-0.6, 5.98, 0.0), (0.6, 6.01, kit.DOOR_H), "rock_dark")
-    k.box((-0.75, 5.97, kit.DOOR_H), (0.75, 6.01, kit.DOOR_H + 0.15), "rock_light")
+    k.box((-0.6, 5.99, 0.02), (0.6, 6.02, kit.DOOR_H), "rock_dark")
+    k.box((-0.75, 5.97, kit.DOOR_H), (0.75, 6.03, kit.DOOR_H + 0.15), "rock_light")
 
     # Simplified window patches (bands / separated blocks per floor)
     # Front: 2 blocks on ground floor (left of door, right of door), 1 long row on upper floors
@@ -69,8 +70,8 @@ def build(model):
     for zp in (3.0, 5.8):
         # Platform
         k.box((8.2, -2.2, zp), (9.0, 2.2, zp + 0.06), "rust")
-        # Railing plane
-        k.box((8.94, -2.2, zp), (9.0, 2.2, zp + 0.85), "rust")
+        # Railing plane (sits on top of platform)
+        k.box((8.94, -2.2, zp + 0.06), (9.0, 2.2, zp + 0.85), "rust")
     # Diagonal stair bar
     k.box((8.45, -1.8, 3.06), (8.75, 1.8, 5.8), "rust")
     # Ladder strip
@@ -80,15 +81,15 @@ def build(model):
     # 3. Roof: slab, parapet, water tank, bulkhead
     k.box((-9.0, -6.0, WALL_TOP), (8.2, 6.0, WALL_TOP + 0.15), "rock_dark", roof=True)
 
-    # Parapet walls
-    k.box((-9.0, 5.85, WALL_TOP + 0.15), (8.2, 6.0, PARAPET_TOP), "red_paint", roof=True)
-    k.box((-9.0, -6.0, WALL_TOP + 0.15), (8.2, -5.85, PARAPET_TOP), "red_paint", roof=True)
+    # Parapet walls (butted at corners)
+    k.box((-8.85, 5.85, WALL_TOP + 0.15), (8.05, 6.0, PARAPET_TOP), "red_paint", roof=True)
+    k.box((-8.85, -6.0, WALL_TOP + 0.15), (8.05, -5.85, PARAPET_TOP), "red_paint", roof=True)
     k.box((-9.0, -6.0, WALL_TOP + 0.15), (-8.85, 6.0, PARAPET_TOP), "red_paint", roof=True)
     k.box((8.05, -6.0, WALL_TOP + 0.15), (8.2, 6.0, PARAPET_TOP), "red_paint", roof=True)
 
-    # Coping strip
-    k.box((-9.02, 5.83, PARAPET_TOP), (8.22, 6.02, COPING_TOP), "rock_light", roof=True)
-    k.box((-9.02, -6.02, PARAPET_TOP), (8.22, -5.83, COPING_TOP), "rock_light", roof=True)
+    # Coping strip (butted at corners)
+    k.box((-8.83, 5.83, PARAPET_TOP), (8.03, 6.02, COPING_TOP), "rock_light", roof=True)
+    k.box((-8.83, -6.02, PARAPET_TOP), (8.03, -5.83, COPING_TOP), "rock_light", roof=True)
     k.box((-9.02, -6.02, PARAPET_TOP), (-8.83, 6.02, COPING_TOP), "rock_light", roof=True)
     k.box((8.03, -6.02, PARAPET_TOP), (8.22, 6.02, COPING_TOP), "rock_light", roof=True)
 

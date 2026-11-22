@@ -45,36 +45,33 @@ def build(model):
     k.box((-9.0, -6.0, 3.0), (8.2, -5.85, WALL_TOP), "red_paint", roof=True)
     k.collider((-9.0, -6.0, 3.0), (8.2, -5.85, WALL_TOP), "wall_back_upper")
 
-    # West wall (x -9.0 to -8.85, y -6.0 to 6.0, z F to 8.6)
-    k.solid((-9.0, -6.0, F), (-8.85, 6.0, 3.0), "red_paint", base="wall_west_gf")
-    k.box((-9.0, -6.0, 3.0), (-8.85, 6.0, WALL_TOP), "red_paint", roof=True)
-    k.collider((-9.0, -6.0, 3.0), (-8.85, 6.0, WALL_TOP), "wall_west_upper")
+    # West wall (x -9.0 to -8.85, y -5.85 to 5.85, z F to 8.6)
+    k.solid((-9.0, -5.85, F), (-8.85, 5.85, 3.0), "red_paint", base="wall_west_gf")
+    k.box((-9.0, -5.85, 3.0), (-8.85, 5.85, WALL_TOP), "red_paint", roof=True)
+    k.collider((-9.0, -5.85, 3.0), (-8.85, 5.85, WALL_TOP), "wall_west_upper")
 
-    # East wall (x 8.05 to 8.2, y -6.0 to 6.0, z F to 8.6)
-    k.solid((8.05, -6.0, F), (8.2, 6.0, 3.0), "red_paint", base="wall_east_gf")
-    k.box((8.05, -6.0, 3.0), (8.2, 6.0, WALL_TOP), "red_paint", roof=True)
-    k.collider((8.05, -6.0, 3.0), (8.2, 6.0, WALL_TOP), "wall_east_upper")
+    # East wall (x 8.05 to 8.2, y -5.85 to 5.85, z F to 8.6)
+    k.solid((8.05, -5.85, F), (8.2, 5.85, 3.0), "red_paint", base="wall_east_gf")
+    k.box((8.05, -5.85, 3.0), (8.2, 5.85, WALL_TOP), "red_paint", roof=True)
+    k.collider((8.05, -5.85, 3.0), (8.2, 5.85, WALL_TOP), "wall_east_upper")
 
-    # Stone plinth / foundation trim along base (z 0.0 to 0.55)
-    k.box((-9.0, 5.95, 0.0), (8.2, 6.0, 0.55), "rock_mid")
-    k.box((-9.0, -6.0, 0.0), (8.2, -5.95, 0.55), "rock_mid")
-    k.box((-9.0, -6.0, 0.0), (-8.95, 6.0, 0.55), "rock_mid")
-    k.box((8.15, -6.0, 0.0), (8.2, 6.0, 0.55), "rock_mid")
+    # Stone plinth / foundation trim along base (z 0.02 to 0.55, proud, butted, split for door)
+    k.box((-8.96, 5.98, 0.02), (-0.6, 6.03, 0.55), "rock_mid")
+    k.box((0.6, 5.98, 0.02), (8.16, 6.03, 0.55), "rock_mid")
+    k.box((-8.96, -6.03, 0.02), (8.16, -5.98, 0.55), "rock_mid")
+    k.box((-9.03, -6.03, 0.02), (-8.98, 6.03, 0.55), "rock_mid")
+    k.box((8.18, -6.03, 0.02), (8.23, 6.03, 0.55), "rock_mid")
 
-    # Architectural stone belt courses between floors (z 2.9-3.1 and 5.7-5.9)
-    k.box((-9.0, 5.96, 2.95), (8.2, 6.0, 3.1), "rock_light")
-    k.box((-9.0, -6.0, 2.95), (8.2, -5.96, 3.1), "rock_light")
-    k.box((-9.0, -6.0, 2.95), (-8.96, 6.0, 3.1), "rock_light")
-    k.box((8.16, -6.0, 2.95), (8.2, 6.0, 3.1), "rock_light")
-
-    k.box((-9.0, 5.96, 5.75), (8.2, 6.0, 5.9), "rock_light", roof=True)
-    k.box((-9.0, -6.0, 5.75), (8.2, -5.96, 5.9), "rock_light", roof=True)
-    k.box((-9.0, -6.0, 5.75), (-8.96, 6.0, 5.9), "rock_light", roof=True)
-    k.box((8.16, -6.0, 5.75), (8.2, 6.0, 5.9), "rock_light", roof=True)
+    # Architectural stone belt courses between floors (proud, butted at corners)
+    for zb, is_rf in ((2.95, False), (5.75, True)):
+        k.box((-8.96, 5.98, zb), (8.16, 6.025, zb + 0.15), "rock_light", roof=is_rf)
+        k.box((-8.96, -6.025, zb), (8.16, -5.98, zb + 0.15), "rock_light", roof=is_rf)
+        k.box((-9.025, -6.025, zb), (-8.98, 6.025, zb + 0.15), "rock_light", roof=is_rf)
+        k.box((8.18, -6.025, zb), (8.225, 6.025, zb + 0.15), "rock_light", roof=is_rf)
 
     # Front door frame and stone portico trim
-    k.frame(front_door, 6.0, -1, color="rock_light", t=0.08, depth=0.04, sill=False)
-    k.box((-0.9, 5.92, 2.25), (0.9, 6.0, 2.38), "rock_light")  # portico lintel
+    k.frame(front_door, 6.0, 1, color="rock_light", t=0.08, depth=0.04, sill=False)
+    k.box((-0.9, 5.92, 2.25), (0.9, 6.04, 2.38), "rock_light")  # portico lintel proud of wall
 
     # 3. Windows across all 3 floors
     window_floors = [(1, 1.1, 2.5), (2, 3.8, 5.2), (3, 6.5, 7.9)]
@@ -94,9 +91,9 @@ def build(model):
             k.box((xc + 0.44, 5.97, z0), (xc + 0.5, 6.03, z1), "rock_light", roof=is_upper)
             # Boarded or broken details
             if (flr == 1 and xc in (-6.5, 3.5)) or (flr == 2 and xc in (-3.8, 6.0)):
-                k.boards(w_box, 6.0, -1, color="bark_light", rows=(0.25, 0.5, 0.75))
+                k.boards(w_box, 6.0, 1, color="bark_light", rows=(0.25, 0.5, 0.75))
             elif flr == 3 and xc in (-6.5, 0.0):
-                k.boards(w_box, 6.0, -1, color="bark_dark", rows=(0.3, 0.7))
+                k.boards(w_box, 6.0, 1, color="bark_dark", rows=(0.3, 0.7))
             elif flr == 2 and xc == 0.0:
                 k.box((xc - 0.35, 5.97, z0 + 0.4), (xc + 0.3, 6.03, z0 + 0.52), "bark_light", roof=is_upper)
 
@@ -109,7 +106,7 @@ def build(model):
             k.box((xc - 0.55, -6.02, z1), (xc + 0.55, -5.95, z1 + 0.12), "rock_light", roof=is_upper)
             k.box((xc - 0.55, -6.02, z0 - 0.1), (xc + 0.55, -5.95, z0), "rock_light", roof=is_upper)
             if (flr == 1 and xc in (0.0, -6.5)) or (flr == 2 and xc == 3.5):
-                k.boards(w_box, -6.0, 1, color="bark_light", rows=(0.3, 0.7))
+                k.boards(w_box, -6.0, -1, color="bark_light", rows=(0.3, 0.7))
 
     # West side windows (x = -9.0)
     for flr, z0, z1 in window_floors:
@@ -120,7 +117,7 @@ def build(model):
             k.box((-9.02, yc - 0.55, z1), (-8.95, yc + 0.55, z1 + 0.12), "rock_light", roof=is_upper)
             k.box((-9.02, yc - 0.55, z0 - 0.1), (-8.95, yc + 0.55, z0), "rock_light", roof=is_upper)
             if flr == 1 and yc == 0.0:
-                k.boards(w_box, -9.0, 1, color="bark_light")
+                k.boards(w_box, -9.0, -1, color="bark_light")
 
     # East side windows (fire escape side, x = 8.2)
     for flr, z0, z1 in window_floors:
@@ -131,7 +128,7 @@ def build(model):
             k.box((8.15, yc - 0.55, z1), (8.22, yc + 0.55, z1 + 0.12), "rock_light", roof=is_upper)
             k.box((8.15, yc - 0.55, z0 - 0.1), (8.22, yc + 0.55, z0), "rock_light", roof=is_upper)
             if flr == 1 and yc == -1.0:
-                k.boards(w_box, 8.2, -1, color="bark_light", rows=(0.2, 0.5, 0.8))
+                k.boards(w_box, 8.2, 1, color="bark_light", rows=(0.2, 0.5, 0.8))
 
     # 4. Rusty Fire Escape on East side (x from 8.2 to 9.0, y in [-2.2, 2.2])
     # Floor 2 platform at z=3.0, Floor 3 platform at z=5.8
@@ -145,7 +142,7 @@ def build(model):
         k.box((8.95, -2.2, z_plat + 0.85), (9.0, 2.2, z_plat + 0.92), "rust")  # top rail
         k.box((8.96, -2.2, z_plat + 0.45), (9.0, 2.2, z_plat + 0.50), "rust")  # mid rail
         for y_post in (-2.2, -1.1, 0.0, 1.1, 2.2):
-            k.box((8.95, y_post - 0.03, z_plat), (9.0, y_post + 0.03, z_plat + 0.92), "rust")
+            k.box((8.95, y_post - 0.03, z_plat + 0.06), (9.0, y_post + 0.03, z_plat + 0.92), "rust")
         # Railing ends (north & south edges)
         for y_end in (-2.2, 2.2):
             k.box((8.2, y_end - 0.03, z_plat + 0.85), (9.0, y_end + 0.03, z_plat + 0.92), "rust")
@@ -178,18 +175,17 @@ def build(model):
         z_rung += 0.35
     # Gooseneck grab rails over parapet
     k.box((8.1, -1.8, PARAPET_TOP + 0.4), (8.95, -1.75, PARAPET_TOP + 0.45), "rust")
-    k.box((8.1, -1.8, PARAPET_TOP + 0.4), (8.6, -1.75, PARAPET_TOP + 0.45), "rust")
 
     # 5. Roof: slab, parapet walls, coping stone, and rooftop structures
     k.box((-9.0, -6.0, WALL_TOP), (8.2, 6.0, WALL_TOP + 0.15), "rock_dark", roof=True)
     k.collider((-9.0, -6.0, WALL_TOP), (8.2, 6.0, WALL_TOP + 0.15), "roof_slab")
 
-    # Low parapet walls around roof
-    k.box((-9.0, 5.85, WALL_TOP + 0.15), (8.2, 6.0, PARAPET_TOP), "red_paint", roof=True)
-    k.collider((-9.0, 5.85, WALL_TOP + 0.15), (8.2, 6.0, PARAPET_TOP), "parapet_front")
+    # Low parapet walls around roof (butted at corners)
+    k.box((-8.85, 5.85, WALL_TOP + 0.15), (8.05, 6.0, PARAPET_TOP), "red_paint", roof=True)
+    k.collider((-8.85, 5.85, WALL_TOP + 0.15), (8.05, 6.0, PARAPET_TOP), "parapet_front")
 
-    k.box((-9.0, -6.0, WALL_TOP + 0.15), (8.2, -5.85, PARAPET_TOP), "red_paint", roof=True)
-    k.collider((-9.0, -6.0, WALL_TOP + 0.15), (8.2, -5.85, PARAPET_TOP), "parapet_back")
+    k.box((-8.85, -6.0, WALL_TOP + 0.15), (8.05, -5.85, PARAPET_TOP), "red_paint", roof=True)
+    k.collider((-8.85, -6.0, WALL_TOP + 0.15), (8.05, -5.85, PARAPET_TOP), "parapet_back")
 
     k.box((-9.0, -6.0, WALL_TOP + 0.15), (-8.85, 6.0, PARAPET_TOP), "red_paint", roof=True)
     k.collider((-9.0, -6.0, WALL_TOP + 0.15), (-8.85, 6.0, PARAPET_TOP), "parapet_west")
@@ -197,9 +193,9 @@ def build(model):
     k.box((8.05, -6.0, WALL_TOP + 0.15), (8.2, 6.0, PARAPET_TOP), "red_paint", roof=True)
     k.collider((8.05, -6.0, WALL_TOP + 0.15), (8.2, 6.0, PARAPET_TOP), "parapet_east")
 
-    # Stone coping atop parapet
-    k.box((-9.0, 5.83, PARAPET_TOP), (8.2, 6.02, COPING_TOP), "rock_light", roof=True)
-    k.box((-9.0, -6.02, PARAPET_TOP), (8.2, -5.83, COPING_TOP), "rock_light", roof=True)
+    # Stone coping atop parapet (butted at corners)
+    k.box((-8.83, 5.83, PARAPET_TOP), (8.03, 6.02, COPING_TOP), "rock_light", roof=True)
+    k.box((-8.83, -6.02, PARAPET_TOP), (8.03, -5.83, COPING_TOP), "rock_light", roof=True)
     k.box((-9.02, -6.02, PARAPET_TOP), (-8.83, 6.02, COPING_TOP), "rock_light", roof=True)
     k.box((8.03, -6.02, PARAPET_TOP), (8.22, 6.02, COPING_TOP), "rock_light", roof=True)
 
@@ -214,8 +210,8 @@ def build(model):
             k.box((lx - 0.08, ly - 0.08, tz_base), (lx + 0.08, ly + 0.08, tz_tank), "bark_dark", roof=True)
             k.collider((lx - 0.08, ly - 0.08, tz_base), (lx + 0.08, ly + 0.08, tz_tank), "tank_leg")
     # Cross braces
-    k.box((tx - 0.9, ty - 0.9, tz_base + 0.5), (tx + 0.9, ty + 0.9, tz_base + 0.55), "bark_dark", roof=True)
-    k.box((tx - 0.9, ty + 0.9, tz_base + 0.5), (tx + 0.9, ty - 0.9, tz_base + 0.55), "bark_dark", roof=True)
+    k.box((tx - 0.9, ty - 0.04, tz_base + 0.5), (tx + 0.9, ty + 0.04, tz_base + 0.55), "bark_dark", roof=True)
+    k.box((tx - 0.04, ty - 0.9, tz_base + 0.55), (tx + 0.04, ty + 0.9, tz_base + 0.60), "bark_dark", roof=True)
     # Cylindrical tank body
     tank_bm = common.make_frustum(1.15, 1.15, tz_tank, tz_top, segments=12, center=(tx, ty), color="bark_dark")
     model.add(tank_bm, roof=True)
@@ -236,8 +232,8 @@ def build(model):
     k.chimney(5.5, -3.0, tz_base, tz_base + 1.5, color="red_paint")
     k.box((-1.0 - 0.06, -4.0 - 0.06, tz_base), (-1.0 + 0.06, -4.0 + 0.06, tz_base + 1.1), "metal", roof=True)
 
-    # 6. Ground Floor Interior: Entrance Hall (x -3.5 to 3.5, y 0.8 to 5.85)
-    k.box((-3.5, 0.8, F), (3.5, 5.85, F + 0.02), "rock_light")
+    # 6. Ground Floor Interior: Entrance Hall (x -3.38 to 3.38, y 0.82 to 5.82)
+    k.box((-3.38, 0.82, F + 0.008), (3.38, 5.82, F + 0.02), "rock_light")
     k.box((-3.5, 0.8, 3.0), (3.5, 5.85, 3.12), "white", roof=True)
 
     # Hallway partition walls separating lobby from closed units
@@ -288,7 +284,7 @@ def build(model):
     # Stair handrail
     k.box((-1.82, 1.4, landing_z), (-1.76, 1.46, landing_z + 0.85), "metal")
     k.box((-1.82, 3.2, F), (-1.76, 3.26, F + 0.85), "metal")
-    k.box((-1.82, 1.4, landing_z + 0.85), (-1.76, 3.2, F + 0.85), "metal")
+    k.box((-1.81, 1.46, landing_z + 0.80), (-1.77, 3.2, F + 0.80), "metal")
 
     # 7. Empties / Markers
     k.empty("lot_size", (0.0, 0.0, 0.0), scale=(20.0, 14.0, 1.0))
