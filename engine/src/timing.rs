@@ -58,6 +58,12 @@ pub struct FramePhases {
     #[serde(rename = "GPU wait/present")]
     pub gpu_wait_present: f64,
     pub render: f64,
+    /// The whole game update (simulation, streaming, actors); the named phases above are parts of it.
+    #[serde(rename = "game update (all)")]
+    pub update_all: f64,
+    /// Waiting for the next screen image from the window system.
+    #[serde(rename = "surface acquire")]
+    pub surface_acquire: f64,
     #[serde(rename = "world_streaming")]
     pub world_streaming_alias: f64,
     #[serde(rename = "zombies_actors")]
@@ -97,6 +103,8 @@ impl FramePhases {
                 self.gpu_wait_present_alias += ms;
             }
             "render" => self.render += ms,
+            "game update (all)" => self.update_all += ms,
+            "surface acquire" => self.surface_acquire += ms,
             _ => {}
         }
     }
@@ -129,7 +137,12 @@ impl FrameEvents {
 #[derive(serde::Serialize, Clone, Debug, PartialEq)]
 pub struct SpikeRecord {
     pub frame: u64,
+    /// The larger of `work_ms` and `since_last_ms`.
     pub total_ms: f64,
+    /// Time spent inside this frame's own work (update, render, present).
+    pub work_ms: f64,
+    /// Time from the previous frame's start to this one's (includes everything between frames).
+    pub since_last_ms: f64,
     #[serde(flatten)]
     pub phases: FramePhases,
     #[serde(flatten)]
@@ -240,11 +253,14 @@ pub fn finish_frame(frame: u64, dt_ms: f64) -> Option<SpikeRecord> {
     SPIKE_RECORDER.with(|r| {
         let mut st = r.borrow_mut();
         let act = st.active.take()?;
-        let total_ms = (act.start.elapsed().as_secs_f64() * 1000.0).max(dt_ms);
+        let work_ms = act.start.elapsed().as_secs_f64() * 1000.0;
+        let total_ms = work_ms.max(dt_ms);
         if total_ms > 20.0 {
             let record = SpikeRecord {
                 frame,
                 total_ms,
+                work_ms,
+                since_last_ms: dt_ms,
                 phases: act.phases,
                 events: act.events,
             };

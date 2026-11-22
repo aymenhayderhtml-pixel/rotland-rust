@@ -26,40 +26,74 @@ pub fn cell_centre(min: (i32, i32), i: usize, j: usize, cell: f32) -> (f32, f32)
     )
 }
 
-/// Fills `blocked` (row-major, `side * side` cells, index = j * side + i) for the grid.
-/// Trees, rocks and buildings never move, so each world cell's answer is remembered in `cache` and
-/// only new cells cost rays (~32,000 rays per full scan before, a few hundred per rebuild after).
+/// The grid of the previous scan: its lowest cell plus its answers, so cells still inside the new
+/// grid are copied instead of looked up again (standing still costs nothing).
+pub struct ScanGrid {
+    pub min: Option<(i32, i32)>,
+    pub blocked: Vec<bool>,
+    /// False where the cell had no ground yet (its chunk was not loaded): checked again next scan.
+    pub known: Vec<bool>,
+}
+
+impl ScanGrid {
+    pub fn new(count: usize) -> Self {
+        Self { min: None, blocked: vec![false; count], known: vec![false; count] }
+    }
+}
+
+/// Fills `out` (row-major, `side * side` cells, index = j * side + i) for the grid at `min`.
+/// Trees, rocks and buildings never move: cells inside the previous grid `prev` are copied, other
+/// cells come from `cache`, and only never-seen cells cost rays.
 /// Cells with no ground yet (their chunk has not loaded) are not remembered, so they are checked again.
+/// Returns false when the grid did not move and every cell was copied (the last search still holds).
 pub fn scan_blocked(
     physics: &PhysicsWorld,
     min: (i32, i32),
     cell: f32,
     side: usize,
-    blocked: &mut [bool],
+    prev: &ScanGrid,
+    out: &mut ScanGrid,
     cache: &mut HashMap<(i32, i32), bool>,
-) {
+) -> bool {
     if cache.len() > CACHE_LIMIT {
         cache.clear();
     }
     let min_up = MAX_FLOOR_ANGLE_DEG.to_radians().cos();
+    let n = side as i32;
+    let mut changed = prev.min != Some(min);
     for j in 0..side {
         for i in 0..side {
-            let key = (min.0 + i as i32, min.1 + j as i32);
-            blocked[j * side + i] = match cache.get(&key) {
-                Some(&b) => b,
-                None => {
-                    let (x, z) = cell_centre(min, i, j, cell);
-                    match cell_blocked(physics, x, z, min_up) {
-                        Some(b) => {
-                            cache.insert(key, b);
-                            b
-                        }
-                        None => true,
+            let u = j * side + i;
+            let (wx, wz) = (min.0 + i as i32, min.1 + j as i32);
+            if let Some(pm) = prev.min {
+                let (pi, pj) = (wx - pm.0, wz - pm.1);
+                if pi >= 0 && pj >= 0 && pi < n && pj < n {
+                    let pu = pj as usize * side + pi as usize;
+                    if prev.known[pu] {
+                        out.blocked[u] = prev.blocked[pu];
+                        out.known[u] = true;
+                        continue;
                     }
                 }
+            }
+            changed = true;
+            let answer = match cache.get(&(wx, wz)) {
+                Some(&b) => Some(b),
+                None => {
+                    let (x, z) = cell_centre(min, i, j, cell);
+                    let b = cell_blocked(physics, x, z, min_up);
+                    if let Some(b) = b {
+                        cache.insert((wx, wz), b);
+                    }
+                    b
+                }
             };
+            out.blocked[u] = answer.unwrap_or(true);
+            out.known[u] = answer.is_some();
         }
     }
+    out.min = Some(min);
+    changed
 }
 
 /// About 40 full grids of cells; past this the memory is simply dropped and rebuilt as needed.

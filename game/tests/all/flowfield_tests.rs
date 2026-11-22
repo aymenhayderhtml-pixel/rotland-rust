@@ -149,3 +149,23 @@ fn rebuild_of_a_128_cell_grid_is_fast() {
     println!("flow field rebuild, 128 x 128 cells, fastest of 5: {best_ms:.2} ms");
     assert!(best_ms < 50.0, "rebuild took {best_ms:.2} ms (limit 50 ms in debug)");
 }
+
+#[test]
+fn moved_grid_reuses_old_answers_and_matches_a_fresh_build() {
+    let mut world = flat_world();
+    add_box(&mut world, 19.0, -10.0, 21.0, 30.0, 3.0);
+    add_ring(&mut world, 40.0, 40.0, 10.0, 10.0);
+    let (t1, t2) = (Vec3::new(10.5, 0.0, 10.5), Vec3::new(17.5, 0.0, 4.5));
+    let mut moved = FlowField::default();
+    moved.rebuild(&world, t1);
+    moved.rebuild(&world, t2);
+    moved.rebuild(&world, t2);
+    let mut fresh = FlowField::default();
+    fresh.rebuild(&world, t2);
+    for x in (-40..60).step_by(3) {
+        for z in (-40..60).step_by(3) {
+            let p = Vec3::new(x as f32 + 0.5, 0.0, z as f32 + 0.5);
+            assert_eq!(moved.direction(p), fresh.direction(p), "differs at {p:?}");
+        }
+    }
+}

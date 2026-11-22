@@ -30,3 +30,10 @@ Experiment (reverted): applying 1 built chunk per frame instead of 3 (`MAX_APPLI
 
 - Find what blocks between frames (try a wall-clock timer around `event_loop` waiting and `request_redraw`, and compare with the compositor). Only then pick a fix.
 - Physics `detect_collisions` runs over the whole scene on every frame where chunks change (`physics/src/world.rs`). It is the next candidate if the walk spikes stay in `physics`.
+
+## 2026-11-22: cause found and fixed (zombie flow field)
+- Probe timers at Ashford core (seed 42, `--at=-384,1792`, release): the zombie flow field rebuild (`game/src/flowfield.rs`, every 0.5 s) took **10 ms median, 15 ms max**, one frame every half second: the regular hitch the owner saw. Scan of 16k cells (all from the HashMap cache) ~3 ms + heap Dijkstra ~6 ms.
+- Fix: the scan copies cells still inside the previous grid (no hash lookups), the search uses a bucket ring (Dial) instead of a heap, and the search is skipped when the grid did not move and nothing changed. Result: **0.13 ms median standing still, 2.5 ms median / 6 ms p95 walking** (new cells still need rays).
+- The spike log was misleading: `total_ms` mixed this frame's work with the gap since the previous frame, so each slow frame showed twice ("pairs"). It now writes `work_ms`, `since_last_ms`, `game update (all)` and `surface acquire` separately.
+- What's left in slow frames: `surface acquire` (the CPU waiting for the GPU, i.e. GPU-bound frames of 15-30 ms). Measured with Firefox decoding video in the background (shares the integrated GPU), so re-measure on a quiet laptop.
+- Also seen: the zombie loop costs ~3 ms for 21 zombies at the core (move_and_slide rays); a steady cost, not a spike.
