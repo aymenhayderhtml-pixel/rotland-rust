@@ -92,20 +92,20 @@ def _sign_plates():
     """Octagonal STOP sign lying flat/tilted on the ground, attached to the upper pole."""
     bms = []
 
-    # Octagonal STOP sign: 8-sided prism, radius 0.38 m, thickness 0.02 m
+    # Octagonal STOP sign: 8-sided prism, radius 0.38 m, thickness 0.015 m
     # Octagon backing: red
-    stop_back = common.make_frustum(0.38, 0.38, 0.0, 0.02, segments=8, rot_z=math.pi / 8, color="red_paint")
-    # Inner face: white border ring
-    stop_white = common.make_frustum(0.34, 0.34, 0.02, 0.025, segments=8, rot_z=math.pi / 8, color="white")
-    # Inner red center
-    stop_inner = common.make_frustum(0.30, 0.30, 0.025, 0.03, segments=8, rot_z=math.pi / 8, color="red_paint")
+    stop_back = common.make_frustum(0.38, 0.38, 0.0, 0.015, segments=8, rot_z=math.pi / 8, color="red_paint")
+    # Inner face: white border ring (proud by 12 mm to prevent coplanar z-fighting with backing)
+    stop_white = common.make_frustum(0.34, 0.34, 0.015, 0.028, segments=8, rot_z=math.pi / 8, color="white")
+    # Inner red center (proud by another 12 mm to prevent coplanar z-fighting with white ring)
+    stop_inner = common.make_frustum(0.30, 0.30, 0.028, 0.042, segments=8, rot_z=math.pi / 8, color="red_paint")
 
     # Mounting bracket clamp on back of sign
-    bracket = common.make_box((0.10, 0.40, 0.04), loc=(0.0, 0.0, -0.02), color="rust")
+    bracket = common.make_box((0.10, 0.40, 0.04), loc=(0.0, 0.0, -0.025), color="rust")
 
     # Bullet holes / damage marks
-    hole1 = common.make_box((0.03, 0.03, 0.02), loc=(-0.10, 0.08, 0.028), color="gun_black")
-    hole2 = common.make_box((0.03, 0.03, 0.02), loc=(0.12, -0.10, 0.028), color="gun_black")
+    hole1 = common.make_box((0.03, 0.03, 0.01), loc=(-0.10, 0.08, 0.045), color="gun_black")
+    hole2 = common.make_box((0.03, 0.03, 0.01), loc=(0.12, -0.10, 0.045), color="gun_black")
 
     stop_combined = common.combine([stop_back, stop_white, stop_inner, bracket, hole1, hole2])
 
