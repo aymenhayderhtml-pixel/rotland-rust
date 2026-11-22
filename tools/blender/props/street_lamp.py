@@ -36,10 +36,10 @@ def build(model):
 
     # Lower mast with inspection hatch
     lower_pole = common.make_frustum(0.12, 0.095, 0.42, 3.40, segments=8, color="metal")
-    # Rust band and open maintenance hatch
-    rust_band = common.make_frustum(0.122, 0.118, 0.70, 1.15, segments=8, color="rust")
+    # Rust band and open maintenance hatch (sleeve sticks out 1.5 cm)
+    rust_band = common.make_frustum(0.132, 0.128, 0.70, 1.15, segments=8, color="rust")
     hatch_hole = common.make_box((0.08, 0.04, 0.28), loc=(0.0, -0.10, 0.92), color="gun_black")
-    hatch_cover = common.make_box((0.09, 0.015, 0.26), loc=(0.05, -0.12, 0.88), color="rust")
+    hatch_cover = common.make_box((0.09, 0.015, 0.26), loc=(0.05, -0.14, 0.88), color="rust")
     common.transform(hatch_cover, rot=(0.1, 0.2, -0.3))  # dangling loose hatch cover
     model.add(common.combine([lower_pole, rust_band, hatch_hole, hatch_cover]))
 
@@ -77,12 +77,12 @@ def build(model):
 
     # Luminaire body: tilted downward towards the street (-Y, -Z)
     lum_top = common.make_box((0.30, 0.65, 0.12), loc=(0.0, -0.25, 0.0), color="metal")
-    lum_taper = common.make_box((0.24, 0.20, 0.10), loc=(0.0, -0.55, -0.01), color="rust")
-    # Glass frame and dead unlit glass panel underneath
-    glass_frame = common.make_box((0.26, 0.52, 0.03), loc=(0.0, -0.28, -0.07), color="gun_black")
-    glass_intact = common.make_box((0.22, 0.26, 0.02), loc=(0.0, -0.38, -0.08), color="glass_tint")
+    lum_taper = common.make_box((0.24, 0.20, 0.08), loc=(0.0, -0.55, 0.0), color="rust")
+    # Glass frame and dead unlit glass panel underneath (stepped levels with >= 1.5 cm gaps)
+    glass_frame = common.make_box((0.26, 0.52, 0.02), loc=(0.0, -0.28, -0.08), color="gun_black")
+    glass_intact = common.make_box((0.22, 0.26, 0.02), loc=(0.0, -0.38, -0.11), color="glass_tint")
     # Broken half of glass panel: dark cavity with broken bulb and dangling wire
-    broken_cavity = common.make_box((0.22, 0.24, 0.04), loc=(0.0, -0.14, -0.065), color="gun_black")
+    broken_cavity = common.make_box((0.22, 0.24, 0.03), loc=(0.0, -0.14, -0.055), color="gun_black")
     broken_socket = common.make_frustum(0.04, 0.03, 0.0, 0.06, segments=6, color="brass")
     common.transform(broken_socket, rot=(math.pi, 0.0, 0.0), loc=(0.0, -0.16, -0.04))
     broken_bulb = common.make_frustum(0.03, 0.01, 0.0, 0.04, segments=5, color="white")
