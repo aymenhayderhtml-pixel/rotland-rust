@@ -357,6 +357,13 @@ pub fn draw_ui(
     let yaw = actors.player_ctrl.as_ref().map_or(0.0, |p| p.yaw);
     let day = play.clock.day;
     if let (Some(play_state), Some(state), false) = (play.play.as_mut(), ui.hub.as_mut(), on_main) {
+        if let Some(wid) = actors.combat.as_ref().and_then(|c| c.weapon_id()) {
+            if play_state.hotbar.equipped_item_id() != Some(wid) && play_state.inventory.has(wid, 1) {
+                play_state.hotbar.toggle_equip_item(wid, &play_state.inventory, &play_state.items);
+            }
+        } else if play_state.hotbar.equipped_item_id().is_some() {
+            play_state.hotbar.holster();
+        }
         let dog = actors.dogs.as_ref().and_then(|d| {
             d.sim
                 .dog()
@@ -423,9 +430,14 @@ pub fn draw_ui(
                     .map(|c| (c.health.current(), c.health.max())),
                 trunk_inventory: trunk_car.map(|c| &c.trunk),
                 trunk_max_weight: trunk_car.map_or(40.0, |c| c.trunk.max_weight()),
+                equipped_weapon: actors
+                    .combat
+                    .as_ref()
+                    .and_then(|c| c.weapon_id())
+                    .or_else(|| play_state.hotbar.equipped_item_id()),
                 ..Default::default()
             };
-            hub_ui::draw(ctx, state, &view)
+            hub_ui::draw(ctx, state, &view, &mut ui.icons)
         };
         match action {
             Some(hub_ui::HubAction::Close) => {

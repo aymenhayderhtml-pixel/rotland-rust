@@ -11,6 +11,7 @@ use super::view::HubView;
 
 pub const PORTRAIT_WIDTH: f32 = 200.0;
 pub const PORTRAIT_HEIGHT: f32 = 260.0;
+pub const STAT_VALUE_WIDTH: f32 = 240.0; // // new: DECISIONS 2026-11-21
 
 /// Draws the Profile tab: portrait box on the left, lifetime stats and difficulty options on the right.
 pub fn draw_profile(
@@ -70,12 +71,14 @@ pub fn draw_profile(
             ui.label(RichText::new("Profile").size(20.0).strong().color(Color32::WHITE));
             ui.add_space(6.0);
 
+            // Let the stats scroll box fill the panel's available height instead of hardcoded 480px (issue 005)
+            let scroll_max_h = ui.available_height().max(520.0); // // new: DECISIONS 2026-11-21
             ScrollArea::vertical()
                 .id_salt("hub_profile_scroll")
-                .max_height(480.0)
+                .max_height(scroll_max_h)
                 .show(ui, |ui| {
                     Grid::new("profile_stats_grid")
-                        .spacing(vec2(16.0, 6.0))
+                        .spacing(vec2(16.0, 4.0)) // // godot: ProfileTab.cs:42
                         .striped(true)
                         .show(ui, |ui| {
                             add_stat_row(ui, "Days survived", &view.days_survived.to_string());
@@ -143,7 +146,7 @@ pub fn draw_profile(
                         (view.difficulty_settings, view.difficulty_config)
                     {
                         Grid::new("profile_difficulty_grid")
-                            .spacing(vec2(16.0, 6.0))
+                            .spacing(vec2(16.0, 4.0)) // // godot: ProfileTab.cs:42
                             .show(ui, |ui| {
                                 add_stat_row(ui, "Difficulty", &settings.label(cfg));
                                 add_stat_row(
@@ -216,6 +219,9 @@ pub fn draw_profile(
 
 fn add_stat_row(ui: &mut egui::Ui, name: &str, value: &str) {
     ui.label(RichText::new(name).size(14.0).color(Color32::from_rgb(180, 185, 190)));
-    ui.label(RichText::new(value).size(14.0).strong().color(Color32::WHITE));
+    ui.add_sized(
+        vec2(STAT_VALUE_WIDTH, 18.0), // // new: DECISIONS 2026-11-21
+        egui::Label::new(RichText::new(value).size(14.0).strong().color(Color32::WHITE)),
+    );
     ui.end_row();
 }
