@@ -10,7 +10,7 @@ use crate::play::PlayState;
 
 pub use super::minimap_cache::MinimapState;
 use super::minimap_draw::{
-    draw_camp_outlines, draw_marker, draw_player, draw_streets_and_road,
+    draw_camp_outlines, draw_lake_features, draw_marker, draw_player, draw_streets_and_road,
 };
 
 const CIRCLE_SEGMENTS: usize = 48;
@@ -71,6 +71,7 @@ pub fn draw_minimap_hud(
     }
 
     let city = world.world_gen.as_ref().and_then(|g| g.city());
+    let lake = world.world_gen.as_ref().and_then(|g| g.lake());
 
     draw_minimap_overlay(
         ctx,
@@ -78,6 +79,7 @@ pub fn draw_minimap_hud(
         &play_state.map,
         play_state.camp.bounties.active(),
         city,
+        lake,
         player_xz,
         player_yaw,
     );
@@ -89,6 +91,7 @@ fn draw_minimap_overlay(
     map: &game::MapState,
     bounties: &[game::BountyDef],
     city: Option<&world::CityLayout>,
+    lake: Option<&world::LakeLayout>,
     player_xz: Vec2,
     yaw: f32,
 ) {
@@ -159,6 +162,18 @@ fn draw_minimap_overlay(
                 painter,
                 centre,
                 city,
+                player_xz,
+                cfg.radius_metres,
+                radius,
+                disk_r - 1.0 * scale,
+                scale,
+                &state.streets_cfg,
+            );
+
+            draw_lake_features(
+                painter,
+                centre,
+                lake,
                 player_xz,
                 cfg.radius_metres,
                 radius,

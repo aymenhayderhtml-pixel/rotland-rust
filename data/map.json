@@ -1,0 +1,15 @@
+{
+  "lake_name": "Lake",
+  "water_color": "#4287f5",
+  "shore_color": "#1b4f8a",
+  "shore_width": 2.0,
+  "dock_color": "#7a5230",
+  "dock_width": 2.5,
+  "village_lot_color": "#787a7d",
+  "village_lot_outline": "#4a4c4e",
+  "fishing_spot_color": "#f0b429",
+  "fishing_spot_radius": 3.5,
+  "label_color": "#f5f0e1",
+  "label_size": 16.0,
+  "max_shore_points": 64
+}

@@ -257,9 +257,90 @@ pub(super) fn draw_player(p: &egui::Painter, at: Pos2, yaw: f32, size: f32, scal
     ));
 }
 
+pub(super) fn draw_lake_features(
+    painter: &egui::Painter,
+    centre: Pos2,
+    lake: Option<&world::LakeLayout>,
+    player_xz: Vec2,
+    radius_metres: f32,
+    radius_px: f32,
+    disk_r: f32,
+    scale: f32,
+    cfg: &MinimapStreetsConfig,
+) {
+    let Some(lake) = lake else {
+        return;
+    };
+    let (lake_min, lake_max) = lake.water_bounds();
+    let margin = radius_metres + 32.0;
+    if player_xz.x < lake_min.x - margin
+        || player_xz.x > lake_max.x + margin
+        || player_xz.y < lake_min.y - margin
+        || player_xz.y > lake_max.y + margin
+    {
+        return;
+    }
+
+    // 1. Docks as short brown lines
+    let dock_w = (cfg.dock_width * scale).max(1.8 * scale);
+    for dock in &lake.docks {
+        let off_a = game::world_to_minimap_offset(dock.start, player_xz, radius_metres, radius_px);
+        let off_b = game::world_to_minimap_offset(dock.end, player_xz, radius_metres, radius_px);
+        if let Some((ca, cb)) = game::clip_segment_to_circle(off_a, off_b, disk_r) {
+            let pa = Pos2::new(centre.x + ca.x, centre.y + ca.y);
+            let pb = Pos2::new(centre.x + cb.x, centre.y + cb.y);
+            painter.line_segment([pa, pb], Stroke::new(dock_w, cfg.dock_color));
+        }
+    }
+
+    // 2. Village lots as small gray squares
+    for lot in &lake.village_lots {
+        let lot_off = game::world_to_minimap_offset(lot.center, player_xz, radius_metres, radius_px);
+        if lot_off.length_squared() <= (disk_r + 16.0 * scale) * (disk_r + 16.0 * scale) {
+            let corners = lot.corners();
+            let pts: Vec<Pos2> = corners
+                .iter()
+                .map(|&c| {
+                    let off = game::world_to_minimap_offset(c, player_xz, radius_metres, radius_px);
+                    Pos2::new(centre.x + off.x, centre.y + off.y)
+                })
+                .collect();
+            painter.add(egui::Shape::convex_polygon(
+                pts,
+                cfg.village_lot_color,
+                Stroke::new(scale, cfg.village_lot_outline),
+            ));
+        }
+    }
+
+    // 3. Fishing spots as small circles
+    for spot in &lake.fishing_spots {
+        let off = game::world_to_minimap_offset(spot.position, player_xz, radius_metres, radius_px);
+        if off.length_squared() <= disk_r * disk_r {
+            painter.circle_filled(
+                Pos2::new(centre.x + off.x, centre.y + off.y),
+                2.2 * scale,
+                cfg.fishing_spot_color,
+            );
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn minimap_lake_dock_endpoint_world_to_minimap_transform() {
+        let player = Vec2::new(100.0, 200.0);
+        let radius_metres = 60.0;
+        let radius_px = 86.0;
+
+        let dock_start = Vec2::new(130.0, 200.0);
+        let off = game::world_to_minimap_offset(dock_start, player, radius_metres, radius_px);
+        assert!((off.x - 43.0).abs() < 1e-4);
+        assert!(off.y.abs() < 1e-4);
+    }
 
     #[test]
     fn minimap_street_endpoint_world_to_minimap_transform() {

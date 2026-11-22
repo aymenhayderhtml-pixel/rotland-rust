@@ -29,6 +29,7 @@ mod ladders_tests;
 mod loot_tests;
 mod map_buildings_tests;
 mod map_city_tests;
+mod map_lake_tests;
 mod map_tests;
 mod melee_tests;
 mod minimap_tests;
