@@ -21,7 +21,8 @@ pub fn draw_profile(
 ) -> Option<HubAction> {
     let mut action = None;
 
-    ui.horizontal(|ui| {
+    // left_to_right with the full remaining height, so the stats column is not cut at the portrait's height (issue 005)
+    ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
         // --- Left: Portrait Box ---
         ui.vertical(|ui| {
             ui.set_width(PORTRAIT_WIDTH);
@@ -71,8 +72,8 @@ pub fn draw_profile(
             ui.label(RichText::new("Profile").size(20.0).strong().color(Color32::WHITE));
             ui.add_space(6.0);
 
-            // Let the stats scroll box fill the panel's available height instead of hardcoded 480px (issue 005)
-            let scroll_max_h = ui.available_height().max(520.0); // // new: DECISIONS 2026-11-21
+            // The stats scroll box fills the panel's remaining height (issue 005)
+            let scroll_max_h = ui.available_height();
             ScrollArea::vertical()
                 .id_salt("hub_profile_scroll")
                 .max_height(scroll_max_h)
