@@ -36,6 +36,13 @@ impl Hotbar {
         Self::with_size(HOTBAR_SIZE)
     }
 
+    /// Creates a hotbar initialized for a new game, equipping the first slot.
+    pub fn new_game(inventory: &Inventory) -> Self {
+        let mut hotbar = Self::new();
+        hotbar.equip_slot(0, inventory);
+        hotbar
+    }
+
     /// Creates a hotbar with a custom slot count.
     pub fn with_size(slot_count: usize) -> Self {
         Self {
@@ -188,5 +195,71 @@ impl Hotbar {
         let item_id = self.selected_item()?;
         let item_def = registry.get(item_id)?;
         item_def.weapon(weapons)
+    }
+
+    /// Equips the item in the specified 0-based inventory slot index, or holsters if empty.
+    pub fn equip_slot(&mut self, slot_index: usize, inventory: &Inventory) -> Option<&str> {
+        if let Some(stack) = inventory.slot(slot_index) {
+            self.equipped_item_id = Some(stack.item_id.clone());
+        } else {
+            self.equipped_item_id = None;
+        }
+        self.equipped_item_id()
+    }
+
+    /// Fixes up the equipped hand item when loading a save.
+    ///
+    /// If `hand_item` is None or empty, un-equips the hotbar.
+    /// If the item is already present in a hotbar slot (0..slot_count), equips it.
+    /// If the item is NOT in the hotbar, puts it into the first free hotbar slot (moving it
+    /// from the bag if already carried, or creating a 1-count stack if not present in the inventory),
+    /// or into the first free bag slot if the hotbar is full, and equips it.
+    pub fn fixup_equipped_from_save(
+        &mut self,
+        hand_item: Option<&str>,
+        inventory: &mut Inventory,
+    ) {
+        let Some(item) = hand_item.filter(|s| !s.is_empty()) else {
+            self.unequip();
+            return;
+        };
+
+        let hotbar_end = self.slot_count.min(inventory.slots().len());
+        let in_hotbar = (0..hotbar_end)
+            .any(|i| inventory.slots()[i].as_ref().is_some_and(|s| s.item_id == item));
+        if in_hotbar {
+            self.equipped_item_id = Some(item.to_string());
+            return;
+        }
+
+        let in_bag_slot = (hotbar_end..inventory.slots().len())
+            .find(|&i| inventory.slots()[i].as_ref().is_some_and(|s| s.item_id == item));
+        let first_free_hotbar = (0..hotbar_end).find(|&i| inventory.slots()[i].is_none());
+
+        if let Some(target) = first_free_hotbar {
+            if let Some(bag_slot) = in_bag_slot {
+                inventory.swap_slots(bag_slot, target);
+            } else {
+                inventory.slots_mut()[target] = Some(ItemStack {
+                    item_id: item.to_string(),
+                    count: 1,
+                });
+                inventory.set_changed();
+            }
+            self.equipped_item_id = Some(item.to_string());
+        } else if in_bag_slot.is_some() {
+            self.equipped_item_id = Some(item.to_string());
+        } else {
+            let first_free_bag = (hotbar_end..inventory.slots().len())
+                .find(|&i| inventory.slots()[i].is_none());
+            if let Some(target) = first_free_bag {
+                inventory.slots_mut()[target] = Some(ItemStack {
+                    item_id: item.to_string(),
+                    count: 1,
+                });
+                inventory.set_changed();
+                self.equipped_item_id = Some(item.to_string());
+            }
+        }
     }
 }

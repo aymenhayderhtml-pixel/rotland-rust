@@ -35,7 +35,9 @@ pub fn weapon_hand_offset(hold_pos: Vec3, hold_rot_deg: Vec3) -> Mat4 {
 /// Returns the (position, rotation_deg) hold offset for a weapon id from `data/weapons.json`.
 pub fn weapon_hold_for(weapon: &str) -> (Vec3, Vec3) {
     match weapon {
-        "knife" | "pistol" | "shotgun" | "rifle" | "ak47" | "smg" => {
+        "bat" | "axe" | "crowbar" | "katana" | "knife" | "pistol" | "shotgun" | "rifle"
+        | "ak47" | "smg" | "dagger" | "bow" => {
+            // data: weapons.json knife
             (Vec3::ZERO, Vec3::new(90.0, 0.0, 0.0))
         }
         _ => (Vec3::ZERO, Vec3::ZERO),
@@ -119,7 +121,19 @@ mod tests {
     fn hold_offsets_for_known_weapons() {
         let (pos_bat, rot_bat) = weapon_hold_for("bat");
         assert_eq!(pos_bat, Vec3::ZERO);
-        assert_eq!(rot_bat, Vec3::ZERO);
+        assert_eq!(rot_bat, Vec3::new(90.0, 0.0, 0.0));
+
+        let (pos_axe, rot_axe) = weapon_hold_for("axe");
+        assert_eq!(pos_axe, Vec3::ZERO);
+        assert_eq!(rot_axe, Vec3::new(90.0, 0.0, 0.0));
+
+        let (pos_crowbar, rot_crowbar) = weapon_hold_for("crowbar");
+        assert_eq!(pos_crowbar, Vec3::ZERO);
+        assert_eq!(rot_crowbar, Vec3::new(90.0, 0.0, 0.0));
+
+        let (pos_katana, rot_katana) = weapon_hold_for("katana");
+        assert_eq!(pos_katana, Vec3::ZERO);
+        assert_eq!(rot_katana, Vec3::new(90.0, 0.0, 0.0));
 
         let (pos_gun, rot_gun) = weapon_hold_for("shotgun");
         assert_eq!(pos_gun, Vec3::ZERO);
