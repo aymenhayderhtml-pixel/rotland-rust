@@ -11,6 +11,7 @@ mod draw_bounties;
 mod draw_crafting;
 mod draw_shop;
 mod draw_upgrades;
+pub mod upgrades;
 mod screen;
 mod state;
 mod view;
