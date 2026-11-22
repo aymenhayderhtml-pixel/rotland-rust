@@ -59,14 +59,38 @@ def build(model):
     k.ridge_cap((0.0, 0.0, RIDGE_Z), 1, 6.5, "bark_dark")
 
     # Door and window trims
-    k.frame(door, 3.0, 1, "bark_dark")
-    k.frame(win_front, 3.0, 1, "bark_dark")
-    k.frame(win_back, -3.0, -1, "bark_dark")
-    k.boards(win_back, -3.0, -1)
-    k.frame(win_side, 4.0, 1, "bark_dark")
+    def clean_frame(opening, face, sign, color="bark_dark", t=0.08, depth=0.05, sill=True):
+        lo, hi = opening
+        axis = 0 if (hi[0] - lo[0]) < (hi[1] - lo[1]) else 1
+        u = 1 - axis
+        a, b = sorted((face, face + sign * depth))
+        window = lo[2] > F + 0.05
+        z_bot = lo[2]
+        if window and sill:
+            p0, p1 = [0.0, 0.0, lo[2] - t], [0.0, 0.0, lo[2]]
+            p0[u], p1[u] = lo[u] - t * 1.5, hi[u] + t * 1.5
+            p0[axis], p1[axis] = (a - 0.04, b) if sign < 0 else (a, b + 0.04)
+            k.box(tuple(p0), tuple(p1), color)
+        z_top = hi[2]
+        for u0, u1 in ((lo[u] - t, lo[u]), (hi[u], hi[u] + t)):
+            p0, p1 = [0.0, 0.0, z_bot], [0.0, 0.0, z_top]
+            p0[u], p1[u] = u0, u1
+            p0[axis], p1[axis] = a, b
+            k.box(tuple(p0), tuple(p1), color)
+        p0, p1 = [0.0, 0.0, z_top], [0.0, 0.0, z_top + t]
+        p0[u], p1[u] = lo[u] - t, hi[u] + t
+        p0[axis], p1[axis] = a, b
+        k.box(tuple(p0), tuple(p1), color)
 
-    # Corner posts
-    k.posts([(-4.0, -3.0), (4.0, -3.0), (-4.0, 3.0), (4.0, 3.0)], TOP, color="bark_dark", size=0.22)
+    clean_frame(door, 3.02, 1, "bark_dark", sill=False)
+    clean_frame(win_front, 3.02, 1, "bark_dark")
+    clean_frame(win_back, -3.02, -1, "bark_dark")
+    k.boards(win_back, -3.03, -1)
+    clean_frame(win_side, 4.02, 1, "bark_dark")
+
+    # Corner posts (lifted 0.02 m above ground to avoid floor bottom coplanarity)
+    for px, py in ((-4.0, -3.0), (4.0, -3.0), (-4.0, 3.0), (4.0, 3.0)):
+        k.box((px - 0.11, py - 0.11, 0.02), (px + 0.11, py + 0.11, TOP + 0.02), "bark_dark")
 
     # ---- Signature Lake Detail 1: Smoke stack ----
     # Metal stove pipe penetrating roof at X = -1.8, Y = -1.2, rising to Z = 4.3 m
@@ -78,17 +102,17 @@ def build(model):
     k.model.add(pipe_collar, roof=True)
 
     # ---- Signature Lake Detail 2: Fishing nets on exterior left wall (-X) ----
-    # Hanging wooden rack bar
-    k.box((-4.12, -2.0, 2.15), (-4.00, 2.0, 2.22), "bark_dark")
+    # Hanging wooden rack bar (proud of wall x = -4.0)
+    k.box((-4.14, -2.0, 2.15), (-4.02, 2.0, 2.22), "bark_dark")
     # Net strips forming a draped mesh look
     for ny in (-1.5, -0.75, 0.0, 0.75, 1.5):
-        k.box((-4.08, ny - 0.28, 0.6), (-4.02, ny + 0.28, 2.15), "canvas_khaki")
+        k.box((-4.08, ny - 0.28, 0.6), (-4.04, ny + 0.28, 2.15), "canvas_khaki")
     # Horizontal cord lines
-    k.box((-4.09, -1.9, 1.0), (-4.01, 1.9, 1.04), "cloth_olive")
-    k.box((-4.09, -1.9, 1.5), (-4.01, 1.9, 1.54), "cloth_olive")
+    k.box((-4.10, -1.9, 1.0), (-4.05, 1.9, 1.04), "cloth_olive")
+    k.box((-4.10, -1.9, 1.5), (-4.05, 1.9, 1.54), "cloth_olive")
     # Cork/wood floats along top of net
     for fy in (-1.4, -0.7, 0.0, 0.7, 1.4):
-        k.box((-4.14, fy - 0.06, 2.08), (-4.01, fy + 0.06, 2.20), "wheat_gold")
+        k.box((-4.15, fy - 0.06, 2.08), (-4.03, fy + 0.06, 2.20), "wheat_gold")
 
     # ---- Signature Lake Detail 3: Cluster of buoys hanging on front wall beside door ----
     # Hanging peg rail
@@ -101,7 +125,7 @@ def build(model):
         (-1.1, "water_blue", "white"),
     ]
     for bx, c_body, c_tip in buoy_specs:
-        peg = common.make_box((0.03, 0.12, 0.03), loc=(bx, 3.07, 1.88), color="bark_light")
+        peg = common.make_box((0.03, 0.10, 0.03), loc=(bx, 3.08, 1.88), color="bark_light")
         cord = common.make_box((0.015, 0.015, 0.22), loc=(bx, 3.12, 1.75), color="wheat_gold")
         b_body = common.make_frustum(0.08, 0.06, 1.35, 1.65, segments=5, center=(bx, 3.12), color=c_body)
         b_tip = common.make_frustum(0.06, 0.02, 1.65, 1.74, segments=4, center=(bx, 3.12), color=c_tip)
@@ -126,15 +150,18 @@ def build(model):
     k.model.add(stove_top)
     k.model.add(stove_pipe_lower)
 
-    # 3. Stack of fish crates and barrel
+    # 3. Stack of fish crates and barrel (barrel sits at floor level z=F)
     k.crate(-3.2, 1.8, 0.55, "wood_crate", z=F)
     k.crate(-3.2, 1.0, 0.45, "wood_crate", z=F)
-    k.barrel(3.0, 2.0, "bark_dark")
+    k.model.add(common.make_frustum(0.3, 0.3, F, F + 0.9, segments=10, center=(3.0, 2.0), color="bark_dark"))
+    for zb in (F + 0.15, F + 0.7):
+        k.model.add(common.make_frustum(0.32, 0.32, zb, zb + 0.05, segments=10, center=(3.0, 2.0), color="rock_dark"))
+    k.collider((2.7, 1.7, F), (3.3, 2.3, F + 0.9), "barrel")
 
-    # 4. Storage shelf on back wall
-    k.solid((0.8, -2.85, F), (3.5, -2.3, 1.8), "bark_dark", base="shelf")
+    # 4. Storage shelf on back wall (proud of back wall inner face y = -2.85)
+    k.solid((0.8, -2.83, F), (3.5, -2.3, 1.8), "bark_dark", base="shelf")
     for z in (0.6, 1.1, 1.6):
-        k.box((0.8, -2.85, z), (3.5, -2.25, z + 0.05), "wood_crate")
+        k.box((0.82, -2.81, z), (3.48, -2.25, z + 0.05), "wood_crate")
     k.box((1.2, -2.6, 1.15), (1.6, -2.4, 1.45), "metal")
     k.box((2.2, -2.6, 1.15), (2.5, -2.4, 1.40), "brass")
 

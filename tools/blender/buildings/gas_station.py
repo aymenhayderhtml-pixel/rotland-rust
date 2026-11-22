@@ -27,14 +27,14 @@ def build(model):
     right_window = ((4.7, -3.0, 1.0), (5.2, -1.0, 2.2))
 
     k.wall((-5.0, -4.0, F), (5.0, -3.85, TOP), color="white", base="wall_back")
-    k.wall((-5.0, -3.85, F), (-4.85, 1.0, TOP), openings=[left_window], color="white", base="wall_left")
-    k.wall((4.85, -3.85, F), (5.0, 1.0, TOP), openings=[right_window], color="white", base="wall_right")
+    k.wall((-5.0, -3.85, F), (-4.85, 0.85, TOP), openings=[left_window], color="white", base="wall_left")
+    k.wall((4.85, -3.85, F), (5.0, 0.85, TOP), openings=[right_window], color="white", base="wall_right")
     k.wall((-5.0, 0.85, F), (5.0, 1.0, TOP), openings=[big_window, door], color="white", base="wall_front")
 
     # Flat shop roof, red fascia on the front, and the canopy roof over the pumps
     k.box((-4.98, -3.98, TOP), (4.98, 0.98, TOP + 0.2), "rock_dark", roof=True)
     k.collider((-4.98, -3.98, TOP), (4.98, 0.98, TOP + 0.2), "shop_roof")
-    k.box((-4.5, 1.02, 2.55), (4.5, 1.16, 2.95), "red_paint")
+    k.box((-4.5, 1.07, 2.55), (4.5, 1.16, 2.95), "red_paint")
     k.box((-5.0, 1.02, 4.2), (5.0, 4.02, 4.35), "red_paint", roof=True)
     k.collider((-5.0, 1.02, 4.2), (5.0, 4.02, 4.35), "canopy_roof")
     for x in (-4.6, 4.6):
@@ -53,11 +53,34 @@ def build(model):
     k.solid((4.45, -0.8, F), (4.8, 0.6, 2.0), "metal", base="shelf_right")
 
     # Detail (visual plan step 7): metal frames, boarded side windows, a roof AC unit and a vending machine
-    k.frame(big_window, 1.02, 1, "metal")
-    k.frame(door, 1.02, 1, "metal")
-    k.frame(left_window, -5.02, -1, "metal")
+    def clean_frame(opening, face, sign, color="metal", t=0.08, depth=0.05, sill=True):
+        lo, hi = opening
+        axis = 0 if (hi[0] - lo[0]) < (hi[1] - lo[1]) else 1
+        u = 1 - axis
+        a, b = sorted((face, face + sign * depth))
+        window = lo[2] > F + 0.05
+        z_bot = lo[2]
+        if window and sill:
+            p0, p1 = [0.0, 0.0, lo[2] - t], [0.0, 0.0, lo[2]]
+            p0[u], p1[u] = lo[u] - t * 1.5, hi[u] + t * 1.5
+            p0[axis], p1[axis] = (a - 0.04, b) if sign < 0 else (a, b + 0.04)
+            k.box(tuple(p0), tuple(p1), color)
+        z_top = hi[2]
+        for u0, u1 in ((lo[u] - t, lo[u]), (hi[u], hi[u] + t)):
+            p0, p1 = [0.0, 0.0, z_bot], [0.0, 0.0, z_top]
+            p0[u], p1[u] = u0, u1
+            p0[axis], p1[axis] = a, b
+            k.box(tuple(p0), tuple(p1), color)
+        p0, p1 = [0.0, 0.0, z_top], [0.0, 0.0, z_top + t]
+        p0[u], p1[u] = lo[u] - t, hi[u] + t
+        p0[axis], p1[axis] = a, b
+        k.box(tuple(p0), tuple(p1), color)
+
+    clean_frame(big_window, 1.02, 1, "metal")
+    clean_frame(door, 1.02, 1, "metal", sill=False)
+    clean_frame(left_window, -5.02, -1, "metal")
     k.boards(left_window, -5.03, -1)
-    k.frame(right_window, 5.02, 1, "metal")
+    clean_frame(right_window, 5.02, 1, "metal")
     k.boards(right_window, 5.03, 1, rows=(0.25, 0.75))
     k.box((1.5, -3.0, TOP + 0.22), (2.6, -2.0, TOP + 0.75), "metal", roof=True)
     k.box((1.6, -2.02, TOP + 0.3), (2.5, -1.98, TOP + 0.65), "rock_dark", roof=True)

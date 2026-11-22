@@ -22,7 +22,7 @@ def build(model):
     k = kit.Kit(model)
     k.solid((-3.0, -2.5, 0.0), (3.0, 2.5, F), "wood_crate", base="floor")
 
-    door = ((-0.55, 2.3, F), (0.55, 2.6, kit.DOOR_H))
+    door = ((-0.55, 2.3, F), (0.55, 2.6, F + 6 * 0.35))
     win_left = ((-3.2, -0.9, 1.0), (-2.7, 0.3, 1.9))
     win_right = ((2.7, -0.9, 1.0), (3.2, 0.3, 1.9))
     k.wall((-3.0, 2.35, F), (3.0, 2.5, TOP), openings=[door], colors=LOG, course=0.35, base="wall_front")
@@ -46,15 +46,38 @@ def build(model):
         k.box((-1.0, -2.0, z), (0.4, -1.98, z + 0.05), "wood_crate")
 
     # Detail (visual plan step 7): frames, a boarded window, log-end corner posts, ridge cap, chimney
-    k.frame(door, 2.52, 1, "bark_dark")
-    k.frame(win_left, -3.02, -1, "bark_dark")
+    def clean_frame(opening, face, sign, color="bark_dark", t=0.08, depth=0.05, sill=True):
+        lo, hi = opening
+        axis = 0 if (hi[0] - lo[0]) < (hi[1] - lo[1]) else 1
+        u = 1 - axis
+        a, b = sorted((face, face + sign * depth))
+        window = lo[2] > F + 0.05
+        z_bot = lo[2]
+        if window and sill:
+            p0, p1 = [0.0, 0.0, lo[2] - t], [0.0, 0.0, lo[2]]
+            p0[u], p1[u] = lo[u] - t * 1.5, hi[u] + t * 1.5
+            p0[axis], p1[axis] = (a - 0.04, b) if sign < 0 else (a, b + 0.04)
+            k.box(tuple(p0), tuple(p1), color)
+        z_top = hi[2]
+        for u0, u1 in ((lo[u] - t, lo[u]), (hi[u], hi[u] + t)):
+            p0, p1 = [0.0, 0.0, z_bot], [0.0, 0.0, z_top]
+            p0[u], p1[u] = u0, u1
+            p0[axis], p1[axis] = a, b
+            k.box(tuple(p0), tuple(p1), color)
+        p0, p1 = [0.0, 0.0, z_top], [0.0, 0.0, z_top + t]
+        p0[u], p1[u] = lo[u] - t, hi[u] + t
+        p0[axis], p1[axis] = a, b
+        k.box(tuple(p0), tuple(p1), color)
+
+    clean_frame(door, 2.52, 1, "bark_dark", sill=False)
+    clean_frame(win_left, -3.02, -1, "bark_dark")
     k.boards(win_left, -3.03, -1)
-    k.frame(win_right, 3.02, 1, "bark_dark")
+    clean_frame(win_right, 3.02, 1, "bark_dark")
     for px, py in ((-3.0, -2.5), (3.0, -2.5), (-3.0, 2.5), (3.0, 2.5)):
         k.box((px - 0.11, py - 0.11, 0.02), (px + 0.11, py + 0.11, 2.46), "bark_dark")
-    k.ridge_cap((0.0, 0.0, 3.3), 1, 5.0, "bark_dark")
+    k.ridge_cap((0.0, 0.0, 3.3), 1, 5.04, "bark_dark")
     k.chimney(-1.6, -1.2, 2.7, 3.8, "rock_mid")
-    k.crate(2.5, -1.9, 0.5)
+    k.crate(2.5, -1.9, 0.5, z=F)
 
     k.empty("lot_size", (0.0, 0.0, 0.0), scale=(6.0, 5.0, 1.0))
     k.empty("door_1", (0.0, 2.425, F))
