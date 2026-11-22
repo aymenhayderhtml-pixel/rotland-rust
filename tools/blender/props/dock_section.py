@@ -20,15 +20,15 @@ def build(model):
         beam = common.make_box((0.18, 4.0, 0.16), loc=(x, 0.0, -0.08), color="bark_dark")
         model.add(beam)
 
-    # 10 weathered wooden planks across X (width 4.0 m), spaced along Y (-2.0 to 2.0)
+    # 10 weathered wooden planks across X (width 3.88 m to fit inside rub rails), spaced along Y (-2.0 to 2.0)
     colors = ("wood_crate", "bark_light", "bark_dark", "wood_crate", "bark_light")
     for i in range(10):
         y = -1.8 + i * 0.40
         col = colors[i % len(colors)]
         # Subtle organic shifts in width and x-offset for weathered look
-        x_shift = 0.02 * (1 if i % 2 == 0 else -1)
+        x_shift = 0.015 * (1 if i % 2 == 0 else -1)
         z_shift = 0.008 * (1 if i % 3 == 0 else -1)
-        plank = common.make_box((3.96, 0.36, 0.08), loc=(x_shift, y, 0.04 + z_shift), color=col)
+        plank = common.make_box((3.88, 0.36, 0.08), loc=(x_shift, y, 0.04 + z_shift), color=col)
         model.add(plank)
 
     # 4 corner pilings (posts) extending down to -3.0 m, top protruding at +0.3 m
@@ -46,9 +46,9 @@ def build(model):
         brace = common.make_box((3.5, 0.12, 0.12), loc=(0.0, py, -1.6), color="bark_dark")
         model.add(brace)
 
-    # Edge bumper / rub-rail planks along the outer sides at deck level
+    # Edge bumper / rub-rail planks along the outer sides at deck level (top at z=0.11 proud of planks)
     for x_edge in (-1.99, 1.99):
-        rail = common.make_box((0.06, 3.98, 0.14), loc=(x_edge, 0.0, 0.02), color="bark_dark")
+        rail = common.make_box((0.06, 3.98, 0.16), loc=(x_edge, 0.0, 0.03), color="bark_dark")
         model.add(rail)
 
     # Colliders

@@ -13,10 +13,10 @@ def build(model):
     parts = []
 
     # 1. Base skids and feet (Z = 0.0 to 0.08)
-    # Two longitudinal steel channel runners at bottom along Y
-    skid_l = common.make_box((0.10, 1.28, 0.08), loc=(-0.72, 0.0, 0.04), color="metal")
-    skid_r = common.make_box((0.10, 1.28, 0.08), loc=(0.72, 0.0, 0.04), color="metal")
-    # Corner caster plates / rust pads
+    # Skids rest on top of corner caster pads (Z from 0.03 to 0.08)
+    skid_l = common.make_box((0.10, 1.28, 0.05), loc=(-0.72, 0.0, 0.055), color="metal")
+    skid_r = common.make_box((0.10, 1.28, 0.05), loc=(0.72, 0.0, 0.055), color="metal")
+    # Corner caster plates / rust pads (Z = 0.0 to 0.03)
     pads = [
         common.make_box((0.14, 0.14, 0.03), loc=(x, y, 0.015), color="rust")
         for x in (-0.72, 0.72) for y in (-0.56, 0.56)
@@ -26,12 +26,12 @@ def build(model):
     # 2. Main green container body
     # Dimensions: X in [-0.88, 0.88], Y in [-0.62, 0.62]
     # Z_bottom = 0.08, Z_rear = 1.18, Z_front = 0.94
-    # Floor
-    floor = common.make_box((1.76, 1.24, 0.04), loc=(0.0, 0.0, 0.10), color="rust")
+    # Floor and end walls sized 1.72 m to sit inside side quads without coplanar faces
+    floor = common.make_box((1.72, 1.20, 0.04), loc=(0.0, 0.0, 0.10), color="rust")
     # Rear wall: vertical, height 1.08 (Z from 0.08 to 1.18)
-    wall_rear = common.make_box((1.76, 0.04, 1.08), loc=(0.0, 0.62, 0.63), color="pine_dark")
+    wall_rear = common.make_box((1.72, 0.04, 1.08), loc=(0.0, 0.62, 0.63), color="pine_dark")
     # Front wall: vertical, height 0.84 (Z from 0.08 to 0.94)
-    wall_front = common.make_box((1.76, 0.04, 0.84), loc=(0.0, -0.62, 0.51), color="pine_dark")
+    wall_front = common.make_box((1.72, 0.04, 0.84), loc=(0.0, -0.62, 0.51), color="pine_dark")
     parts.extend([floor, wall_rear, wall_front])
 
     # Side walls (trapezoidal: high in back, lower in front)
@@ -47,8 +47,8 @@ def build(model):
         parts.append(side_bm)
 
     # Welded top rim collar
-    rim_front = common.make_box((1.80, 0.06, 0.04), loc=(0.0, -0.63, 0.94), color="metal")
-    rim_rear = common.make_box((1.80, 0.06, 0.04), loc=(0.0, 0.63, 1.18), color="rust")
+    rim_front = common.make_box((1.80, 0.05, 0.04), loc=(0.0, -0.635, 0.94), color="metal")
+    rim_rear = common.make_box((1.80, 0.05, 0.04), loc=(0.0, 0.635, 1.18), color="rust")
     parts.extend([rim_front, rim_rear])
 
     # 3. Exterior details: fork pockets on left and right sides
@@ -56,10 +56,10 @@ def build(model):
     pocket_l = common.make_box((0.08, 1.10, 0.16), loc=(-0.92, 0.0, 0.58), color="metal")
     pocket_r = common.make_box((0.08, 1.10, 0.16), loc=(0.92, 0.0, 0.58), color="metal")
     # Front vertical stiffener ribs
-    rib_l = common.make_box((0.04, 0.03, 0.76), loc=(-0.44, -0.64, 0.50), color="rust")
-    rib_r = common.make_box((0.04, 0.03, 0.76), loc=(0.44, -0.64, 0.50), color="rust")
-    # Rust stain patches along bottom front edge
-    rust_patch = common.make_box((0.40, 0.02, 0.15), loc=(0.20, -0.63, 0.18), color="rust")
+    rib_l = common.make_box((0.04, 0.03, 0.76), loc=(-0.44, -0.65, 0.50), color="rust")
+    rib_r = common.make_box((0.04, 0.03, 0.76), loc=(0.44, -0.65, 0.50), color="rust")
+    # Rust stain patches along bottom front edge (sticks out 2 cm from wall_front)
+    rust_patch = common.make_box((0.40, 0.02, 0.15), loc=(0.20, -0.65, 0.18), color="rust")
     parts.extend([pocket_l, pocket_r, rib_l, rib_r, rust_patch])
 
     # 4. Interior trash visible

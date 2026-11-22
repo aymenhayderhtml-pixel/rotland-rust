@@ -31,8 +31,8 @@ def _sedan_body():
     bms = []
 
     # 1. Floorpan / lower chassis frame: y from -2.10 to +2.10
-    floor = common.make_box((2 * BODY_HALF_WIDTH - 0.16, 4.20, 0.08),
-                            loc=(0.0, 0.0, SILL_Z + 0.04), color="gun_black")
+    floor = common.make_box((2 * BODY_HALF_WIDTH - 0.16, 4.20, 0.06),
+                            loc=(0.0, 0.0, SILL_Z + 0.05), color="gun_black")
     bms.append(floor)
 
     # Rocker sills between wheels (y from -1.05 to +1.05)
@@ -58,10 +58,10 @@ def _sedan_body():
     # Front fascia: radiator header, empty headlight sockets, blackened grille
     grille = common.make_box((2 * BODY_HALF_WIDTH - 0.20, 0.06, 0.32),
                              loc=(0.0, HOOD_Y_FRONT, SILL_Z + 0.26), color="gun_black")
-    headlight_l = common.make_box((0.18, 0.07, 0.16),
-                                  loc=(-BODY_HALF_WIDTH + 0.18, HOOD_Y_FRONT, SILL_Z + 0.32), color="rock_dark")
-    headlight_r = common.make_box((0.18, 0.07, 0.16),
-                                  loc=(BODY_HALF_WIDTH - 0.18, HOOD_Y_FRONT, SILL_Z + 0.32), color="metal")
+    headlight_l = common.make_box((0.18, 0.05, 0.16),
+                                  loc=(-BODY_HALF_WIDTH + 0.18, HOOD_Y_FRONT + 0.02, SILL_Z + 0.32), color="rock_dark")
+    headlight_r = common.make_box((0.18, 0.05, 0.16),
+                                  loc=(BODY_HALF_WIDTH - 0.18, HOOD_Y_FRONT + 0.02, SILL_Z + 0.32), color="metal")
     bms.extend([grille, headlight_l, headlight_r])
 
     # Scorched engine block, cylinder head and exhaust inside engine bay
@@ -116,9 +116,9 @@ def _sedan_body():
     bms.extend([dash, col_rod, wheel_rim, seat_fl, seat_fr, rear_bench])
 
     # Doors:
-    # Right passenger door: closed with faded red paint patch
+    # Right passenger door: closed with faded red paint patch, sticks out 2 cm past rocker sill
     door_panel_r = common.make_box((0.04, 0.95, BELT_Z - SILL_Z - 0.02),
-                                   loc=(BODY_HALF_WIDTH - 0.02, 0.35, (SILL_Z + BELT_Z) / 2), color="car_red")
+                                   loc=(BODY_HALF_WIDTH, 0.35, (SILL_Z + BELT_Z) / 2), color="car_red")
     # Left driver door: crumpled, swung open at an angle
     door_panel_l = common.make_box((0.04, 0.92, BELT_Z - SILL_Z - 0.02), loc=(0.0, 0.0, 0.0), color="rust")
     common.transform(door_panel_l, rot=(0.08, 0.15, -0.55),
@@ -136,7 +136,7 @@ def _sedan_body():
                                 loc=(-BODY_HALF_WIDTH + 0.04, -1.95, (SILL_Z + BELT_Z) / 2), color="rust")
     rq_rear_r = common.make_box((0.08, 0.40, BELT_Z - SILL_Z),
                                 loc=(BODY_HALF_WIDTH - 0.04, -1.95, (SILL_Z + BELT_Z) / 2), color="rust")
-    rear_slam = common.make_box((2 * BODY_HALF_WIDTH - 0.16, 0.08, BELT_Z - SILL_Z),
+    rear_slam = common.make_box((2 * BODY_HALF_WIDTH - 0.20, 0.08, BELT_Z - SILL_Z),
                                 loc=(0.0, TRUNK_Y_REAR + 0.04, (SILL_Z + BELT_Z) / 2), color="gun_black")
     # Trunk lid: popped open slightly
     trunk_lid = common.make_box((2 * BODY_HALF_WIDTH - 0.16, 1.15, 0.035), loc=(0.0, 0.0, 0.0), color="rust")
@@ -164,10 +164,10 @@ def _running_gear():
         # Flat tire: squished cylinder
         tire = common.make_frustum(WHEEL_RADIUS, WHEEL_RADIUS, -0.09, 0.09, segments=8, color="tire_black")
         common.transform(tire, rot=(0.0, math.pi / 2, 0.0))
-        # Rusted rim
-        rim = common.make_frustum(0.15, 0.15, -0.092, 0.092, segments=6, color="rust")
+        # Rusted rim, recessed inside tire
+        rim = common.make_frustum(0.15, 0.15, -0.07, 0.07, segments=6, color="rust")
         common.transform(rim, rot=(0.0, math.pi / 2, 0.0))
-        hub = common.make_box((0.04, 0.08, 0.08), loc=(0.092, 0.0, 0.0), color="metal")
+        hub = common.make_box((0.04, 0.08, 0.08), loc=(0.08, 0.0, 0.0), color="metal")
         w_comb = common.combine([tire, rim, hub])
         common.transform(w_comb, loc=(BODY_HALF_WIDTH - 0.08, wy, WHEEL_RADIUS - 0.05))
         bms.append(w_comb)

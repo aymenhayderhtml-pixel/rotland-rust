@@ -13,18 +13,18 @@ def build(model):
     parts = []
 
     # 1. Main posts: 4 corner posts and 2 rear bay divider posts
-    # Coordinates: X in [-1.75, 1.75], Rear Y = +0.70, Front Y = -0.70
+    # Posts stop cleanly under the top beams (front beam at 2.17, rear beam at 2.32)
     post_locs = [
-        (-1.75, -0.70, 2.25),  # front left
-        (1.75, -0.70, 2.25),   # front right
-        (-1.75, 0.70, 2.40),   # rear left
-        (-0.58, 0.70, 2.40),   # rear mid-left
-        (0.58, 0.70, 2.40),    # rear mid-right
-        (1.75, 0.70, 2.40),    # rear right
+        (-1.75, -0.70, 2.17),  # front left
+        (1.75, -0.70, 2.17),   # front right
+        (-1.75, 0.70, 2.32),   # rear left
+        (-0.58, 0.70, 2.32),   # rear mid-left
+        (0.58, 0.70, 2.32),    # rear mid-right
+        (1.75, 0.70, 2.32),    # rear right
     ]
     for x, y, h in post_locs:
-        # Post shaft
-        parts.append(common.make_box((0.08, 0.08, h), loc=(x, y, h / 2), color="metal"))
+        # Post shaft resting on top of footing (z from 0.08 to h)
+        parts.append(common.make_box((0.08, 0.08, h - 0.08), loc=(x, y, (h + 0.08) / 2), color="metal"))
         # Rusted footing at base
         parts.append(common.make_box((0.14, 0.14, 0.08), loc=(x, y, 0.04), color="rust"))
 
@@ -33,21 +33,21 @@ def build(model):
     parts.append(common.make_box((3.60, 0.08, 0.08), loc=(0.0, 0.70, 2.36), color="metal"))
     # Front top beam
     parts.append(common.make_box((3.60, 0.08, 0.08), loc=(0.0, -0.70, 2.21), color="metal"))
-    # Left and right top cross beams
-    parts.append(common.make_box((0.08, 1.40, 0.08), loc=(-1.75, 0.0, 2.30), color="metal"))
-    parts.append(common.make_box((0.08, 1.40, 0.08), loc=(1.75, 0.0, 2.30), color="metal"))
+    # Left and right top cross beams (spanning between posts, 1.32 m)
+    parts.append(common.make_box((0.08, 1.32, 0.08), loc=(-1.75, 0.0, 2.30), color="metal"))
+    parts.append(common.make_box((0.08, 1.32, 0.08), loc=(1.75, 0.0, 2.30), color="metal"))
     # Intermediate roof rafters
-    parts.append(common.make_box((0.06, 1.40, 0.06), loc=(-0.58, 0.0, 2.30), color="metal"))
-    parts.append(common.make_box((0.06, 1.40, 0.06), loc=(0.58, 0.0, 2.30), color="metal"))
+    parts.append(common.make_box((0.06, 1.32, 0.06), loc=(-0.58, 0.0, 2.30), color="metal"))
+    parts.append(common.make_box((0.06, 1.32, 0.06), loc=(0.58, 0.0, 2.30), color="metal"))
 
     # Rear lower sill beam (holding bottom of glass panels)
     parts.append(common.make_box((3.56, 0.06, 0.06), loc=(0.0, 0.70, 0.25), color="rust"))
     # Rear mid waist rail
     parts.append(common.make_box((3.56, 0.06, 0.06), loc=(0.0, 0.70, 1.15), color="metal"))
 
-    # Left side panel rails
-    parts.append(common.make_box((0.06, 1.36, 0.06), loc=(-1.75, 0.0, 0.25), color="rust"))
-    parts.append(common.make_box((0.06, 1.36, 0.06), loc=(-1.75, 0.0, 1.15), color="metal"))
+    # Left side panel rails (1.32 m between posts)
+    parts.append(common.make_box((0.06, 1.32, 0.06), loc=(-1.75, 0.0, 0.25), color="rust"))
+    parts.append(common.make_box((0.06, 1.32, 0.06), loc=(-1.75, 0.0, 1.15), color="metal"))
 
     # 3. Roof canopy: curved/sloped overhang
     # Main roof plane: 3.9 m wide x 1.85 m deep, gently sloped forward
@@ -61,17 +61,18 @@ def build(model):
     # 4. Glass panels:
     # Bay 1 (Left: X in [-1.71, -0.62], width ~1.09) - INTACT
     panel_left_bottom = common.make_box((1.09, 0.015, 0.84), loc=(-1.165, 0.70, 0.70), color="glass_tint")
-    panel_left_top = common.make_box((1.09, 0.015, 1.15), loc=(-1.165, 0.70, 1.75), color="glass_tint")
+    panel_left_top = common.make_box((1.09, 0.015, 1.10), loc=(-1.165, 0.70, 1.74), color="glass_tint")
     parts.extend([panel_left_bottom, panel_left_top])
 
     # Bay 2 (Center: X in [-0.54, 0.54], width ~1.08) - INTACT with timetable poster
     panel_mid_bottom = common.make_box((1.08, 0.015, 0.84), loc=(0.0, 0.70, 0.70), color="glass_tint")
-    panel_mid_top = common.make_box((1.08, 0.015, 1.15), loc=(0.0, 0.70, 1.75), color="glass_tint")
+    panel_mid_top = common.make_box((1.08, 0.015, 1.10), loc=(0.0, 0.70, 1.74), color="glass_tint")
     # Weathered timetable / schedule frame and paper poster inside
-    poster_frame = common.make_box((0.55, 0.025, 0.80), loc=(0.0, 0.685, 1.35), color="gun_black")
-    poster_paper = common.make_box((0.50, 0.03, 0.74), loc=(0.0, 0.68, 1.35), color="white")
-    poster_header = common.make_box((0.46, 0.032, 0.12), loc=(0.0, 0.678, 1.66), color="red_paint")
-    poster_lines = [common.make_box((0.44, 0.032, 0.03), loc=(0.0, 0.678, 1.50 - 0.08 * i), color="gun_black")
+    # Mounted on the inside of the shelter, stepping forward cleanly with no coplanar faces
+    poster_frame = common.make_box((0.55, 0.02, 0.80), loc=(0.0, 0.67, 1.35), color="gun_black")
+    poster_paper = common.make_box((0.50, 0.01, 0.74), loc=(0.0, 0.655, 1.35), color="white")
+    poster_header = common.make_box((0.46, 0.01, 0.12), loc=(0.0, 0.645, 1.66), color="red_paint")
+    poster_lines = [common.make_box((0.44, 0.01, 0.03), loc=(0.0, 0.645, 1.50 - 0.08 * i), color="gun_black")
                     for i in range(5)]
     parts.extend([panel_mid_bottom, panel_mid_top, poster_frame, poster_paper, poster_header] + poster_lines)
 
@@ -110,8 +111,8 @@ def build(model):
     parts.extend(debris)
 
     # Left end glass panel
-    side_panel_bottom = common.make_box((0.015, 1.34, 0.84), loc=(-1.75, 0.0, 0.70), color="glass_tint")
-    side_panel_top = common.make_box((0.015, 1.34, 1.10), loc=(-1.75, 0.0, 1.72), color="glass_tint")
+    side_panel_bottom = common.make_box((0.015, 1.32, 0.84), loc=(-1.75, 0.0, 0.70), color="glass_tint")
+    side_panel_top = common.make_box((0.015, 1.32, 1.08), loc=(-1.75, 0.0, 1.74), color="glass_tint")
     parts.extend([side_panel_bottom, side_panel_top])
 
     # 5. Bench: wooden slats with steel legs
@@ -129,7 +130,7 @@ def build(model):
     # 6. Bus Stop Sign on the front-left post
     sign_bracket = common.make_box((0.04, 0.25, 0.04), loc=(-1.75, -0.80, 2.10), color="metal")
     sign_face = common.make_box((0.02, 0.38, 0.48), loc=(-1.75, -0.92, 1.95), color="car_blue")
-    sign_symbol = common.make_box((0.025, 0.24, 0.24), loc=(-1.75, -0.92, 1.95), color="white")
+    sign_symbol = common.make_box((0.04, 0.24, 0.24), loc=(-1.75, -0.92, 1.95), color="white")
     parts.extend([sign_bracket, sign_face, sign_symbol])
 
     model.add(common.combine(parts))
