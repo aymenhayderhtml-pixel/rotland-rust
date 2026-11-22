@@ -31,7 +31,7 @@ pub fn place_lake_props(
 ) -> Vec<PropInstance> {
     let mut props = Vec::new();
 
-    // 1. Docks: dock_section every 4m + dock_end at the end
+    // 1. Docks: dock_section every 4m + dock_end at the end (raised to deck_y)
     for dock in &lake.docks {
         let dir = dock.forward();
         let len = dock.length();
@@ -41,7 +41,7 @@ pub fn place_lake_props(
             if in_chunk(p, coord) {
                 props.push(PropInstance::new(
                     "dock_section",
-                    Vec3::new(p.x, lake.water_level, p.y),
+                    Vec3::new(p.x, dock.deck_y, p.y),
                     dock.yaw,
                     1.0,
                 ));
@@ -51,7 +51,7 @@ pub fn place_lake_props(
         if in_chunk(dock.end, coord) {
             props.push(PropInstance::new(
                 "dock_end",
-                Vec3::new(dock.end.x, lake.water_level, dock.end.y),
+                Vec3::new(dock.end.x, dock.deck_y, dock.end.y),
                 dock.yaw,
                 1.0,
             ));

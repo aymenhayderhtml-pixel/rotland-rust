@@ -9,6 +9,8 @@
   "shallowWidth": 12.0,
   "maxDepth": 8.0,
   "waterLevelAboveShore": 0.3,
+  "deckHeight": 0.4,
+  "waterGridCell": 5.0,
   "village": {
     "count": 8,
     "sizes": [
@@ -25,7 +27,8 @@
   "docks": {
     "count": 3,
     "width": 4.0,
-    "length": 20.0
+    "length": 20.0,
+    "deckHeight": 0.4
   },
   "angleFromCity": 180.0,
   "beachBlend": 16.0,

@@ -176,6 +176,7 @@ pub struct WaterRenderer {
     bind_group: wgpu::BindGroup,
     uniform_buf: wgpu::Buffer,
     cache: HashMap<PatchKey, CachedMesh>,
+    custom_cache: HashMap<u64, CachedMesh>,
     pub style: WaterStyle,
 }
 
@@ -273,6 +274,7 @@ impl WaterRenderer {
             bind_group,
             uniform_buf,
             cache: HashMap::new(),
+            custom_cache: HashMap::new(),
             style,
         }
     }
@@ -289,17 +291,38 @@ impl WaterRenderer {
         time: f32,
         patches: &[WaterPatch],
     ) {
-        if patches.is_empty() {
-            return;
-        }
+        self.draw_all(gpu, target, encoder, camera, light, time, patches, None);
+    }
 
+    /// Draws all visible water patches and an optional custom water mesh in a single pass.
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_all(
+        &mut self,
+        gpu: &Gpu,
+        target: &FrameTarget,
+        encoder: &mut wgpu::CommandEncoder,
+        camera: &Camera,
+        light: &Lighting,
+        time: f32,
+        patches: &[WaterPatch],
+        custom_mesh: Option<(u64, (Vec3, Vec3), &[Vec3])>,
+    ) {
         let view_proj = camera.view_proj(target.aspect());
         let frustum = Frustum::from_view_proj(&view_proj);
         let visible_indices: Vec<usize> = (0..patches.len())
             .filter(|&i| water_patch_visible(&frustum, &patches[i], self.style.wave_amplitude))
             .collect();
 
-        if visible_indices.is_empty() {
+        let custom_visible = if let Some((_, aabb, verts)) = custom_mesh {
+            let margin = self.style.wave_amplitude.max(0.1);
+            let aabb_min = Vec3::new(aabb.0.x, aabb.0.y - margin, aabb.0.z);
+            let aabb_max = Vec3::new(aabb.1.x, aabb.1.y + margin, aabb.1.z);
+            !verts.is_empty() && frustum.intersects_aabb(aabb_min, aabb_max)
+        } else {
+            false
+        };
+
+        if visible_indices.is_empty() && !custom_visible {
             return;
         }
 
@@ -322,6 +345,23 @@ impl WaterRenderer {
                     vertex_count: verts.len() as u32,
                 });
             }
+        }
+
+        // Ensure custom mesh is cached on GPU
+        if custom_visible
+            && let Some((mesh_key, _, verts)) = custom_mesh
+            && let std::collections::hash_map::Entry::Vacant(slot) = self.custom_cache.entry(mesh_key)
+        {
+            let raw: Vec<[f32; 3]> = verts.iter().map(|v| v.to_array()).collect();
+            let buf = gpu.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("lake water mesh"),
+                contents: bytemuck::cast_slice(&raw),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+            slot.insert(CachedMesh {
+                buffer: buf,
+                vertex_count: verts.len() as u32,
+            });
         }
 
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -356,6 +396,13 @@ impl WaterRenderer {
                 pass.set_vertex_buffer(0, mesh.buffer.slice(..));
                 pass.draw(0..mesh.vertex_count, 0..1);
             }
+        }
+        if custom_visible
+            && let Some((mesh_key, _, _)) = custom_mesh
+            && let Some(mesh) = self.custom_cache.get(&mesh_key)
+        {
+            pass.set_vertex_buffer(0, mesh.buffer.slice(..));
+            pass.draw(0..mesh.vertex_count, 0..1);
         }
     }
 

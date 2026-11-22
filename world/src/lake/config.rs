@@ -24,6 +24,8 @@ pub struct DocksConfig {
     pub count: usize,
     pub width: f32,
     pub length: f32,
+    #[serde(default = "default_deck_height")]
+    pub deck_height: f32,
 }
 
 /// Configuration data loaded from data/lake.json.
@@ -37,6 +39,10 @@ pub struct LakeConfigData {
     pub shallow_width: f32,
     pub max_depth: f32,
     pub water_level_above_shore: f32,
+    #[serde(default = "default_deck_height")]
+    pub deck_height: f32,
+    #[serde(default = "default_water_grid_cell")]
+    pub water_grid_cell: f32,
     pub village: VillageConfig,
     pub docks: DocksConfig,
     pub angle_from_city: f32,
@@ -49,6 +55,16 @@ pub struct LakeConfigData {
     pub wet_sand: [u8; 3],
     #[serde(default = "default_lake_bed")]
     pub lake_bed: [u8; 3],
+}
+
+fn default_deck_height() -> f32 {
+    // data: lake.json deckHeight
+    0.4
+}
+
+fn default_water_grid_cell() -> f32 {
+    // data: lake.json waterGridCell
+    5.0
 }
 
 fn default_sand() -> [u8; 3] {
@@ -89,6 +105,8 @@ impl Default for LakeConfigData {
             max_depth: 8.0,
             // data: lake.json waterLevelAboveShore
             water_level_above_shore: 0.3,
+            deck_height: default_deck_height(),
+            water_grid_cell: default_water_grid_cell(),
             village: VillageConfig {
                 // data: lake.json village
                 count: 8,
@@ -117,6 +135,7 @@ impl Default for LakeConfigData {
                 width: 4.0,
                 // data: lake.json docks
                 length: 20.0,
+                deck_height: default_deck_height(),
             },
             angle_from_city: 180.0,
             // data: lake.json beachBlend
@@ -146,11 +165,14 @@ impl LakeConfigData {
             && self.shallow_width >= 0.0
             && self.max_depth > 0.0
             && self.water_level_above_shore >= 0.0
+            && self.deck_height > 0.0
+            && self.water_grid_cell > 0.0
             && self.village.count > 0
             && !self.village.sizes.is_empty()
             && self.docks.count > 0
             && self.docks.width > 0.0
             && self.docks.length > 0.0
+            && self.docks.deck_height > 0.0
             && self.beach_blend >= 0.0
             && self.shore_samples >= 4
             && self.region_margin >= 0.0;
