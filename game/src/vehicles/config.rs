@@ -83,6 +83,18 @@ pub struct VehicleConfigData {
     pub camp_colour: String,
     #[serde(default)]
     pub colours: Vec<String>,
+    #[serde(default = "default_zombie_hit_damage")]
+    pub zombie_hit_damage: f32,
+    #[serde(default = "default_zombie_hit_seconds")]
+    pub zombie_hit_seconds: f32,
+    #[serde(default = "default_zombie_hit_reach")]
+    pub zombie_hit_reach: f32,
+    #[serde(default = "default_car_half_width")]
+    pub car_half_width: f32,
+    #[serde(default = "default_car_half_height")]
+    pub car_half_height: f32,
+    #[serde(default = "default_car_half_length")]
+    pub car_half_length: f32,
 }
 
 fn default_mass() -> f32 { 1100.0 }
@@ -121,6 +133,17 @@ fn default_spawn_chance() -> f32 { 0.35 }
 fn default_spawn_fuel_max_frac() -> f32 { 0.3 }
 fn default_camp_fuel_frac() -> f32 { 0.5 }
 fn default_camp_colour() -> String { "red".to_string() }
+fn default_zombie_hit_damage() -> f32 { 2.0 }
+// data: vehicles.json zombieHitSeconds
+fn default_zombie_hit_seconds() -> f32 { 1.2 }
+// data: vehicles.json zombieHitReach
+fn default_zombie_hit_reach() -> f32 { 1.5 }
+// data: vehicles.json carHalfWidth
+fn default_car_half_width() -> f32 { 0.8 }
+// data: vehicles.json carHalfHeight
+fn default_car_half_height() -> f32 { 1.2 }
+// data: vehicles.json carHalfLength
+fn default_car_half_length() -> f32 { 1.9 }
 
 impl Default for VehicleConfigData {
     fn default() -> Self {
@@ -164,6 +187,12 @@ impl Default for VehicleConfigData {
             camp_fuel_frac: default_camp_fuel_frac(),
             camp_colour: default_camp_colour(),
             colours: vec!["red".to_string(), "blue".to_string()],
+            zombie_hit_damage: default_zombie_hit_damage(),
+            zombie_hit_seconds: default_zombie_hit_seconds(),
+            zombie_hit_reach: default_zombie_hit_reach(),
+            car_half_width: default_car_half_width(),
+            car_half_height: default_car_half_height(),
+            car_half_length: default_car_half_length(),
         }
     }
 }
@@ -184,6 +213,10 @@ impl VehicleConfigData {
     pub fn from_repo() -> Result<Self, String> {
         let path = paths::repo_path("data/vehicles.json");
         Self::from_file(&path)
+    }
+
+    pub fn car_half_size(&self) -> glam::Vec3 {
+        glam::Vec3::new(self.car_half_width, self.car_half_height, self.car_half_length)
     }
 
     // Godot: VehicleConfig.cs Validate / Problem

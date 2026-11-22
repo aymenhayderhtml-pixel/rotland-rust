@@ -11,6 +11,7 @@ mod point;
 mod run_over;
 mod save;
 pub mod spawn_rules;
+mod zombie_damage;
 
 pub use body::*;
 pub use camera::*;
@@ -25,3 +26,4 @@ pub use point::*;
 pub use run_over::*;
 pub use save::CAR_SYSTEM_ID;
 pub use spawn_rules::*;
+pub use zombie_damage::*;

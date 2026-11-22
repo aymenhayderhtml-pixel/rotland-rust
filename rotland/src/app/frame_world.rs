@@ -192,9 +192,13 @@ pub fn update_world_interactions(
                 && cars.get(&id).is_some_and(|c| c.tank.fraction() < 1.0);
             let can_repair = play_state.inventory.has("scrap_metal", 1)
                 && cars.get(&id).is_some_and(|c| c.condition.fraction() < 1.0);
+            let (hp, max_hp) = cars
+                .get(&id)
+                .map(|c| (c.condition.current(), c.condition.max()))
+                .unwrap_or((0.0, 300.0));
             let mut prompt = String::new();
             if can_drive {
-                prompt.push_str("[E] Drive");
+                prompt.push_str(&format!("[E] Drive  (Car {hp:.0}/{max_hp:.0})"));
                 if can_fuel {
                     prompt.push_str("   [F] Pour in fuel");
                 }
@@ -202,9 +206,9 @@ pub fn update_world_interactions(
                     prompt.push_str("   [T] Repair");
                 }
             } else if can_repair {
-                prompt.push_str("Wrecked [T] Repair (scrap metal)");
+                prompt.push_str(&format!("Wrecked (Car {hp:.0}/{max_hp:.0}): [T] Repair (scrap metal)"));
             } else {
-                prompt.push_str("Wrecked (needs scrap metal to repair)");
+                prompt.push_str(&format!("Wrecked (Car {hp:.0}/{max_hp:.0}, needs scrap metal to repair)"));
             }
             car_prompt = Some(prompt);
             if input.pressed(KeyCode::KeyF) && can_fuel && cars.refuel(&id, &mut play_state.inventory) {

@@ -11,11 +11,11 @@ use glam::{Mat4, Vec3};
 use physics::{ColliderHandle, PhysicsWorld};
 
 /// Model-space box collider vertices for a car when models.pack is not available.
-/// Dimensions: half_width = 0.8, sill = 0.2, roof = 1.4, half_length = 1.9.
+/// Dimensions: half_width = 0.8, sill = 0.0, roof = 2.4, half_length = 1.9.
 pub fn default_car_box() -> Vec<[f32; 3]> {
     let hw = 0.8;
-    let min_y = 0.2;
-    let max_y = 1.4;
+    let min_y = 0.0;
+    let max_y = 2.4;
     let hl = 1.9;
     vec![
         [-hw, min_y, -hl],
@@ -69,7 +69,20 @@ impl ParkedCarSolids {
         let colliders: Vec<Vec<[f32; 3]>> = pack
             .find("car_hatchback_red")
             .or_else(|| pack.find("car_hatchback_blue"))
-            .map(|m| m.colliders.iter().map(|c| c.points.clone()).collect())
+            .map(|m| {
+                m.colliders
+                    .iter()
+                    .map(|c| {
+                        let mut pts = c.points.clone();
+                        for p in &mut pts {
+                            if p[1] > 1.0 {
+                                p[1] = p[1].max(2.4);
+                            }
+                        }
+                        pts
+                    })
+                    .collect()
+            })
             .filter(|v: &Vec<Vec<[f32; 3]>>| !v.is_empty())
             .unwrap_or_else(|| vec![default_car_box()]);
         Self::with_colliders(colliders)
@@ -169,14 +182,14 @@ mod tests {
         assert_eq!(solids.count(), 1);
         assert!(solids.contains(&car_id));
 
-        // Downward raycast aimed at the car roof (y = 1.4)
+        // Downward raycast aimed at the car roof (y = 2.4)
         let ray_origin = Vec3::new(10.0, 5.0, 20.0);
         let ray_dir = Vec3::NEG_Y;
         let hit = physics.raycast(ray_origin, ray_dir, 10.0);
         assert!(hit.is_some(), "Ray should hit the parked car's static box");
         let h = hit.unwrap();
-        assert!((h.point.y - 1.4).abs() < 1e-3);
-        assert!((h.distance - 3.6).abs() < 1e-3);
+        assert!((h.point.y - 2.4).abs() < 1e-3);
+        assert!((h.distance - 2.6).abs() < 1e-3);
 
         // 2. Car becomes driven: sync removes the static collider
         let cars_driven = vec![(car_id.clone(), parked_world, true)];

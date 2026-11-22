@@ -8,6 +8,7 @@ use crate::vehicles::car::{Car, CarDrawState};
 use crate::vehicles::config::VehicleConfigData;
 use crate::vehicles::controls::CarInput;
 use crate::vehicles::run_over::CarRunOver;
+use crate::vehicles::zombie_damage::{calculate_zombie_damage, CarDamageBox};
 use crate::vehicles::save;
 use crate::vehicles::spawn_rules;
 
@@ -281,6 +282,33 @@ impl Cars {
         } else {
             false
         }
+    }
+
+    /// Returns damage bounding boxes for all live cars.
+    pub fn damage_boxes(&self) -> Vec<CarDamageBox> {
+        self.live
+            .values()
+            .map(|car| car.damage_box(&self.config))
+            .collect()
+    }
+
+    /// Evaluates damage from attacking/chasing zombies to all live cars.
+    pub fn apply_zombie_damage(&mut self, zombie_positions: &[Vec3], dt: f32) -> Vec<(String, f32)> {
+        let boxes = self.damage_boxes();
+        let damages = calculate_zombie_damage(
+            &boxes,
+            zombie_positions,
+            self.config.zombie_hit_damage,
+            self.config.zombie_hit_seconds,
+            self.config.zombie_hit_reach,
+            dt,
+        );
+        for (id, damage) in &damages {
+            if *damage > 0.0 && let Some(car) = self.live.get_mut(id) {
+                car.condition.damage(*damage);
+            }
+        }
+        damages
     }
 
     /// Pours a fuel_can item into the car's tank.

@@ -391,6 +391,21 @@ pub fn update_sim(
             actors.car_solids_scratch = car_solids_scratch;
             actors.car_targets_scratch = car_targets_scratch;
             actors.car_gone_scratch = car_gone_scratch;
+
+            // Zombies attack parked or occupied cars within reach
+            let zombie_attackers: Vec<Vec3> = z
+                .list
+                .iter()
+                .filter(|q| {
+                    !q.health.is_dead()
+                        && matches!(
+                            q.brain.state(),
+                            game::zombie::ZombieState::Chase | game::zombie::ZombieState::Attack
+                        )
+                })
+                .map(|q| q.position)
+                .collect();
+            cars.apply_zombie_damage(&zombie_attackers, dt);
         }
 
         // The dog follows, barks and bites zombies and animals (Godot Dog / DogCombat)
