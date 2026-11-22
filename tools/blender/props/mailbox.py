@@ -21,8 +21,8 @@ def build(model):
         (0.23, 0.23),
     ]
     for lx, ly in leg_coords:
-        # Leg post
-        parts.append(common.make_box((0.045, 0.045, 0.34), loc=(lx, ly, 0.17), color="pants_dark"))
+        # Leg post resting on top of foot pad (z from 0.025 to 0.34)
+        parts.append(common.make_box((0.045, 0.045, 0.315), loc=(lx, ly, 0.1825), color="pants_dark"))
         # Foot mounting pad on ground
         parts.append(common.make_box((0.08, 0.08, 0.025), loc=(lx, ly, 0.0125), color="rust"))
     # Diagonal brace bars between front legs and rear legs
@@ -32,20 +32,20 @@ def build(model):
     # 2. Main rectangular body (from z=0.34 to z=0.96)
     # Width X = 0.52 (-0.26 to 0.26), Depth Y = 0.52 (-0.26 to 0.26), Height = 0.62
     body = common.make_box((0.52, 0.52, 0.62), loc=(0.0, 0.0, 0.65), color="car_blue")
-    # Base rim collar
-    base_rim = common.make_box((0.54, 0.54, 0.03), loc=(0.0, 0.0, 0.35), color="rust")
+    # Base rim collar (z from 0.31 to 0.37, collar wraps around bottom)
+    base_rim = common.make_box((0.54, 0.54, 0.06), loc=(0.0, 0.0, 0.34), color="rust")
     parts.extend([body, base_rim])
 
     # 3. Front mail carrier door (facing -Y)
-    door_panel = common.make_box((0.42, 0.015, 0.48), loc=(0.0, -0.265, 0.62), color="car_blue")
-    door_lock = common.make_box((0.04, 0.02, 0.04), loc=(0.14, -0.27, 0.78), color="brass")
+    door_panel = common.make_box((0.42, 0.02, 0.48), loc=(0.0, -0.27, 0.62), color="car_blue")
+    door_lock = common.make_box((0.04, 0.02, 0.04), loc=(0.14, -0.285, 0.78), color="brass")
     door_hinges = [
-        common.make_box((0.025, 0.025, 0.05), loc=(-0.21, -0.27, 0.42), color="metal"),
-        common.make_box((0.025, 0.025, 0.05), loc=(-0.21, -0.27, 0.82), color="metal"),
+        common.make_box((0.025, 0.025, 0.05), loc=(-0.21, -0.285, 0.42), color="metal"),
+        common.make_box((0.025, 0.025, 0.05), loc=(-0.21, -0.285, 0.82), color="metal"),
     ]
-    # White collection schedule decal on front door
-    decal = common.make_box((0.18, 0.005, 0.20), loc=(0.0, -0.274, 0.62), color="white")
-    decal_stripe = common.make_box((0.16, 0.006, 0.04), loc=(0.0, -0.275, 0.69), color="red_paint")
+    # White collection schedule decal on front door (stepping out cleanly)
+    decal = common.make_box((0.18, 0.01, 0.20), loc=(0.0, -0.285, 0.62), color="white")
+    decal_stripe = common.make_box((0.16, 0.01, 0.04), loc=(0.0, -0.292, 0.69), color="red_paint")
     parts.extend([door_panel, door_lock, decal, decal_stripe] + door_hinges)
 
     # 4. Arched curved hood top (from z=0.96 to z=1.24)
@@ -88,9 +88,9 @@ def build(model):
     slot_cavity = common.make_box((0.32, 0.02, 0.07), loc=(0.0, -0.262, 1.06), color="gun_black")
     parts.extend([visor, handle_bar, handle_mount_l, handle_mount_r, slot_cavity])
 
-    # 6. Ruined details: rust patch on bottom corner and top edge
-    rust_corner = common.make_box((0.08, 0.08, 0.12), loc=(0.22, -0.22, 0.40), color="rust")
-    rust_top = common.make_box((0.14, 0.04, 0.03), loc=(-0.12, -0.25, 0.96), color="rust")
+    # 6. Ruined details: rust patch on bottom corner and top edge (sticks out 2 cm)
+    rust_corner = common.make_box((0.08, 0.08, 0.12), loc=(0.24, -0.24, 0.40), color="rust")
+    rust_top = common.make_box((0.14, 0.04, 0.03), loc=(-0.12, -0.26, 0.96), color="rust")
     parts.extend([rust_corner, rust_top])
 
     model.add(common.combine(parts))
