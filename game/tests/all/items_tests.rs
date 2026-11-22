@@ -235,6 +235,81 @@ fn hotbar_auto_holsters_when_weapon_removed() {
 }
 
 #[test]
+fn hotbar_new_game_starts_with_slot_1_bat_equipped() {
+    let registry = ItemRegistry::from_repo().expect("load items");
+    let inv = start_inventory(&registry);
+    let hotbar = Hotbar::new_game(&inv);
+
+    // Slot 1 (index 0) has bat
+    let slot_1 = hotbar.slot_entry(1, &inv).expect("slot 1 has item");
+    assert_eq!(slot_1.item_id, "bat");
+    // Bat is equipped
+    assert_eq!(hotbar.equipped_item_id(), Some("bat"));
+    assert_eq!(hotbar.selected_item(), Some("bat"));
+}
+
+#[test]
+fn hotbar_loaded_save_with_hand_item_but_empty_hotbar_fixed_up() {
+    let mut inv = Inventory::new();
+    let mut hotbar = Hotbar::new();
+
+    // Hotbar is initially empty
+    for key in 1..=hotbar.slot_count() {
+        assert!(hotbar.slot_entry(key, &inv).is_none());
+    }
+    assert_eq!(hotbar.equipped_item_id(), None);
+
+    // Fixup from save where hand item was "bat"
+    hotbar.fixup_equipped_from_save(Some("bat"), &mut inv);
+
+    // Bat is now placed in slot 1 (first free slot) and equipped
+    let slot_1 = hotbar.slot_entry(1, &inv).expect("slot 1 now has bat");
+    assert_eq!(slot_1.item_id, "bat");
+    assert_eq!(slot_1.count, 1);
+    assert_eq!(hotbar.equipped_item_id(), Some("bat"));
+}
+
+#[test]
+fn hotbar_unequip_leaves_hand_empty() {
+    let registry = ItemRegistry::from_repo().expect("load items");
+    let inv = start_inventory(&registry);
+    let mut hotbar = Hotbar::new_game(&inv);
+
+    assert_eq!(hotbar.equipped_item_id(), Some("bat"));
+
+    hotbar.unequip();
+    assert_eq!(hotbar.equipped_item_id(), None);
+    assert_eq!(hotbar.selected_item(), None);
+}
+
+#[test]
+fn hotbar_loaded_save_moves_from_bag_to_hotbar_or_uses_bag_if_full() {
+    let mut inv = Inventory::new();
+    let mut hotbar = Hotbar::new();
+
+    // Place bat in bag slot 10
+    inv.slots_mut()[10] = Some(ItemStack { item_id: "bat".into(), count: 1 });
+    assert!(hotbar.slot_entry(1, &inv).is_none());
+
+    // Fixup moves bat from slot 10 to slot 1 (index 0) and equips
+    hotbar.fixup_equipped_from_save(Some("bat"), &mut inv);
+    assert_eq!(hotbar.slot_entry(1, &inv).unwrap().item_id, "bat");
+    assert!(inv.slot(10).is_none());
+    assert_eq!(hotbar.equipped_item_id(), Some("bat"));
+
+    // Case with full hotbar:
+    let mut full_inv = Inventory::new();
+    let mut full_hotbar = Hotbar::new();
+    for i in 0..6 {
+        full_inv.slots_mut()[i] = Some(ItemStack { item_id: "water_bottle".into(), count: 1 });
+    }
+    // Hand item not in hotbar; hotbar is full -> puts into first free bag slot (slot 6) and equips
+    full_hotbar.fixup_equipped_from_save(Some("bat"), &mut full_inv);
+    assert_eq!(full_hotbar.equipped_item_id(), Some("bat"));
+    assert_eq!(full_inv.slot(6).unwrap().item_id, "bat");
+}
+
+#[test]
 fn slot_swapping_and_merging() {
     let registry = ItemRegistry::from_repo().expect("load items");
     let mut inv = Inventory::with_capacity_and_registry(4, 100.0, Arc::new(registry));

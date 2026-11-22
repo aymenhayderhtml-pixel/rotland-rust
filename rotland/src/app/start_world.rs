@@ -9,7 +9,10 @@ use world::WorldGenerator;
 
 use super::frame_actors::camera_follow;
 use super::frame_input::apply_hand;
-use super::state::{ActorsState, AudioState, PlaySide, RenderState, SessionState, UiState, WorldState};
+use super::state::{
+    weapon_model_name, ActorsState, AudioState, PlaySide, RenderState, SessionState, UiState,
+    WorldState,
+};
 use crate::{
     camp_npcs, campfire_mesh, car_solid, combat, dog_view, play, player_visual, wildlife, zombies,
 };
@@ -128,17 +131,26 @@ pub fn start_world(
                 Ok(d) => actors.dogs = Some(d),
                 Err(e) => log::warn!("data/dog.json: {e}"),
             }
-            actors.combat = Some(combat::Combat::new("bat"));
             match play::PlayState::new(session.seed as u64) {
                 Ok(state) => play.play = Some(state),
                 Err(e) => log::warn!("play systems not loaded: {e}"),
             }
-            // Godot's starter weapon is the bat (data/start_inventory.json)
+            let equipped_item = play.play.as_ref().and_then(|p| p.hotbar.equipped_item_id());
+            let equipped_weapon = play.play.as_ref().and_then(|p| p.equipped_weapon());
+            let is_gun = equipped_weapon.as_ref().is_some_and(|d| d.is_gun());
+            let combat = combat::Combat::new(if is_gun { "" } else { equipped_item.unwrap_or("") });
+            if is_gun
+                && let Some(play_state) = play.play.as_mut()
+            {
+                play_state.gun = equipped_weapon.clone();
+            }
+            actors.combat = Some(combat);
+            let weapon_model = equipped_weapon.as_ref().and_then(weapon_model_name);
             actors.player_visual = Some(player_visual::PlayerVisual::load(
                 &gpu.device,
                 pack,
                 "human_player",
-                Some("bat"),
+                weapon_model.as_deref(),
             ));
         }
     }
@@ -197,19 +209,16 @@ pub fn start_world(
             for w in warnings {
                 play_state.show_toast(w);
             }
-            // Parity: restore saved weapon if still carried in inventory
-            if let Some(weapons) = &file.systems.weapons
-                && !weapons.equipped.is_empty()
-                && play_state.inventory.count(&weapons.equipped) > 0
-                && let Some(weapon_def) = play_state.weapons.get(&weapons.equipped).cloned() {
-                    apply_hand(
-                        crate::play::HandChange::Weapon(Some(weapon_def)),
-                        render,
-                        play,
-                        actors,
-                        world,
-                    );
-                }
+            let saved_equipped = file.systems.weapons.as_ref().map(|w| w.equipped.as_str());
+            play_state.hotbar.fixup_equipped_from_save(saved_equipped, &mut play_state.inventory);
+            let change = play_state.equipped_hand_change();
+            apply_hand(
+                change,
+                render,
+                play,
+                actors,
+                world,
+            );
         }
     }
     actors.climb = game::LadderClimb::default();

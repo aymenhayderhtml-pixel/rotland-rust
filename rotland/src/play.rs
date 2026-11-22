@@ -107,11 +107,12 @@ impl PlayState {
                 DirectorConfig::default()
             });
         let director = Director::new(director_cfg);
+        let hotbar = Hotbar::new_game(&inventory);
         Ok(Self {
             items,
             weapons,
             inventory,
-            hotbar: Hotbar::new(),
+            hotbar,
             spawner: Spawner::new(config, seed),
             loot_tables,
             loot_state: LootState::default(),
@@ -301,6 +302,19 @@ impl PlayState {
 
     pub fn equip_first(&mut self) -> Option<HandChange> {
         self.press(1)
+    }
+
+    /// Returns the currently equipped weapon definition, or None.
+    pub fn equipped_weapon(&self) -> Option<game::weapons::WeaponDef> {
+        self.hotbar
+            .equipped_item_id()
+            .and_then(|id| self.weapons.get(id))
+            .cloned()
+    }
+
+    /// Hand change representing the current hotbar equipped weapon.
+    pub fn equipped_hand_change(&self) -> HandChange {
+        HandChange::Weapon(self.equipped_weapon())
     }
 
     /// Hotbar keys 1-6: take out or put away the item in that slot.
