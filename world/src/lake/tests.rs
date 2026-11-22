@@ -25,6 +25,8 @@ fn lake_config_load() {
     assert_eq!(cfg.docks.count, 3);
     assert_eq!(cfg.docks.width, 4.0);
     assert_eq!(cfg.docks.length, 20.0);
+    assert_eq!(cfg.docks.deck_height, 0.4);
+    assert_eq!(cfg.deck_height, 0.4);
     assert_eq!(cfg.angle_from_city, 180.0);
     assert_eq!(cfg.beach_blend, 16.0);
     assert_eq!(cfg.shore_samples, 128);
@@ -487,7 +489,8 @@ fn lake_dock_props_line_up_with_docks() {
         assert!(!dock_props.is_empty(), "dock {dock_idx} should have placed props");
         for dp in &dock_props {
             assert!((dp.yaw - dock.yaw).abs() < 1e-4, "dock prop yaw must match dock yaw");
-            assert!((dp.position.y - lake.water_level).abs() < 1e-4, "dock prop height must match water level");
+            assert!(dp.position.y > lake.water_level, "dock prop deck y must be above water level");
+            assert!((dp.position.y - dock.deck_y).abs() < 1e-4, "dock prop height must match dock deck_y");
         }
     }
 }
@@ -505,4 +508,124 @@ fn lake_same_seed_same_lake() {
 
     assert_eq!(lake1, lake2);
     assert_ne!(lake1, lake3);
+}
+
+#[test]
+fn lake_docks_deck_y_above_water_level() {
+    let cfg = load_test_cfg();
+    let camp = Vec2::ZERO;
+    let city = Vec2::new(1500.0, 0.0);
+    for seed in [1, 7, 42, 100, 999] {
+        let layout = LakeLayout::generate(seed, camp, Some(city), &cfg, |_| 10.0);
+        assert!(!layout.docks.is_empty());
+        for (i, dock) in layout.docks.iter().enumerate() {
+            assert!(
+                dock.deck_y > layout.water_level,
+                "seed {seed} dock {i} deck y {} must be above water level {}",
+                dock.deck_y,
+                layout.water_level
+            );
+            assert!(
+                (dock.deck_y - (layout.water_level + cfg.docks.deck_height)).abs() < 1e-4,
+                "dock {i} deck y should be water_level + deck_height"
+            );
+        }
+    }
+}
+
+#[test]
+fn lake_water_mesh_no_open_edges_inside_lake() {
+    let cfg = load_test_cfg();
+    let camp = Vec2::ZERO;
+    let city = Vec2::new(1500.0, 0.0);
+    let layout = LakeLayout::generate(42, camp, Some(city), &cfg, |_| 10.0);
+
+    let mesh = layout.build_water_mesh();
+    assert!(!mesh.indices.is_empty());
+    assert!(!mesh.vertices.is_empty());
+
+    // Count how many triangles share each undirected edge.
+    let mut edge_counts = std::collections::HashMap::new();
+    for tri in &mesh.indices {
+        let edges = [
+            (tri[0].min(tri[1]), tri[0].max(tri[1])),
+            (tri[1].min(tri[2]), tri[1].max(tri[2])),
+            (tri[2].min(tri[0]), tri[2].max(tri[0])),
+        ];
+        for e in edges {
+            *edge_counts.entry(e).or_insert(0usize) += 1;
+        }
+    }
+
+    // Every edge must be shared by 1 or 2 triangles (manifold).
+    // An edge with count == 1 is an open boundary edge: its endpoints MUST be on the shore line!
+    for ((u, v), count) in edge_counts {
+        assert!(count <= 2, "mesh non-manifold: edge ({u}, {v}) shared by {count} triangles");
+        if count == 1 {
+            let p_u = Vec2::new(mesh.vertices[u as usize].x, mesh.vertices[u as usize].z);
+            let p_v = Vec2::new(mesh.vertices[v as usize].x, mesh.vertices[v as usize].z);
+            let d_u = layout.shore_distance(p_u);
+            let d_v = layout.shore_distance(p_v);
+
+            assert!(
+                d_u.abs() < 0.05,
+                "open boundary vertex {u} must be on shore line, shore_dist was {d_u}"
+            );
+            assert!(
+                d_v.abs() < 0.05,
+                "open boundary vertex {v} must be on shore line, shore_dist was {d_v}"
+            );
+        }
+    }
+}
+
+#[test]
+fn lake_water_mesh_no_vertices_on_dry_land() {
+    let cfg = load_test_cfg();
+    let camp = Vec2::ZERO;
+    let city = Vec2::new(1500.0, 0.0);
+    let layout = LakeLayout::generate(42, camp, Some(city), &cfg, |_| 10.0);
+
+    let mesh = layout.build_water_mesh();
+    for (i, v) in mesh.vertices.iter().enumerate() {
+        let p = Vec2::new(v.x, v.z);
+        let d = layout.shore_distance(p);
+        let depth = layout.depth_at(p);
+
+        // Water vertex cannot be in dry land (beach/inland)
+        assert!(
+            d <= 0.05,
+            "vertex {i} at {p} floats over land: shore_dist={d} > 0"
+        );
+
+        if depth <= 0.0 {
+            // depth_at == 0 is ONLY allowed right on the shoreline
+            assert!(
+                d.abs() <= 0.05,
+                "vertex {i} at {p} has depth <= 0 ({depth}) but is not on shore line: shore_dist={d}"
+            );
+        } else {
+            // positive depth must be inside the water
+            assert!(d < 0.0, "positive depth vertex must be in water: d={d}");
+        }
+    }
+}
+
+#[test]
+fn lake_water_mesh_triangle_count() {
+    let cfg = load_test_cfg();
+    let camp = Vec2::ZERO;
+    let city = Vec2::new(1500.0, 0.0);
+    let layout = LakeLayout::generate(42, camp, Some(city), &cfg, |_| 10.0);
+
+    let mesh = layout.build_water_mesh();
+    let tris = mesh.triangle_count();
+    assert!(
+        tris < 20_000,
+        "lake water mesh triangle count {tris} must be under 20k"
+    );
+    assert!(
+        tris > 5_000,
+        "lake water mesh triangle count {tris} must properly cover the lake"
+    );
 }

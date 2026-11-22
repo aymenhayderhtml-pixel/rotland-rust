@@ -1,7 +1,7 @@
 //! Water view: provides test water patches and draws water surfaces.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use engine::render::{Camera, Lighting, WaterPatch, WaterRenderer};
 use engine::{EngineArgs, FrameTarget, Gpu};
@@ -36,49 +36,28 @@ pub fn test_patch(spawn: Vec3, ground_y: f32) -> WaterPatch {
     )
 }
 
-/// Draws water surfaces if enabled or if test patches are active.
-/// Strips of water that only cover the lake itself: a single rectangle over the lake's bounding box
-/// also covered the low ground in its corners, so the shore looked flooded.
-/// Rows of `TILE` m cells; a cell is water when any corner is inside the shore line; each run of water
-/// cells in a row becomes one patch (about one or two per row, cached for the world's lifetime).
-fn lake_patches(lake: &world::LakeLayout) -> Vec<WaterPatch> {
-    const TILE: f32 = 8.0;
-    static CACHE: Mutex<Option<(u32, Vec<WaterPatch>)>> = Mutex::new(None);
+/// Returns a cached non-indexed triangle list for the lake's watertight water mesh.
+fn lake_mesh_vertices(lake: &world::LakeLayout) -> Arc<Vec<Vec3>> {
+    static CACHE: Mutex<Option<(u32, Arc<Vec<Vec3>>)>> = Mutex::new(None);
     let key = lake.water_level.to_bits() ^ lake.center.x.to_bits() ^ lake.center.y.to_bits();
     let mut cache = match CACHE.lock() {
         Ok(g) => g,
         Err(poisoned) => poisoned.into_inner(),
     };
-    if let Some((k, patches)) = cache.as_ref()
+    if let Some((k, verts)) = cache.as_ref()
         && *k == key
     {
-        return patches.clone();
+        return verts.clone();
     }
-    let (min, max) = lake.water_bounds();
-    let cols = ((max.x - min.x) / TILE).ceil() as i32;
-    let rows = ((max.y - min.y) / TILE).ceil() as i32;
-    let wet = |x: f32, z: f32| lake.depth_at(glam::Vec2::new(x, z)) > 0.0;
-    let mut patches = Vec::new();
-    for r in 0..rows {
-        let z0 = min.y + r as f32 * TILE;
-        let mut run_start: Option<i32> = None;
-        for c in 0..=cols {
-            let x0 = min.x + c as f32 * TILE;
-            let water = c < cols
-                && (wet(x0, z0) || wet(x0 + TILE, z0) || wet(x0, z0 + TILE) || wet(x0 + TILE, z0 + TILE));
-            match (water, run_start) {
-                (true, None) => run_start = Some(c),
-                (false, Some(start)) => {
-                    let a = glam::Vec2::new(min.x + start as f32 * TILE, z0);
-                    patches.push(WaterPatch::new(a, glam::Vec2::new(x0, z0 + TILE), lake.water_level));
-                    run_start = None;
-                }
-                _ => {}
-            }
-        }
-    }
-    *cache = Some((key, patches.clone()));
-    patches
+    let mesh = lake.build_water_mesh();
+    log::info!(
+        "lake water mesh generated: {} vertices, {} triangles",
+        mesh.vertices.len(),
+        mesh.triangle_count()
+    );
+    let tri_list = Arc::new(mesh.to_triangle_list());
+    *cache = Some((key, tri_list.clone()));
+    tri_list
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -102,6 +81,7 @@ pub fn draw(
         patches.push(test_patch(spawn, ground_y));
     }
 
+    let mut custom_lake = None;
     if let Some(lake) = world.world_gen.as_ref().and_then(|w| w.lake()) {
         let (min, max) = lake.water_bounds();
         let cam_pos = glam::Vec2::new(camera.position.x, camera.position.z);
@@ -109,11 +89,17 @@ pub fn draw(
         let dz = (min.y - cam_pos.y).max(0.0).max(cam_pos.y - max.y);
         let dist_to_box = (dx * dx + dz * dz).sqrt();
         if dist_to_box <= 600.0 {
-            patches.extend(lake_patches(lake));
+            let verts = lake_mesh_vertices(lake);
+            let aabb_min = Vec3::new(min.x, lake.water_level, min.y);
+            let aabb_max = Vec3::new(max.x, lake.water_level, max.y);
+            let key = (lake.water_level.to_bits() as u64)
+                ^ ((lake.center.x.to_bits() as u64) << 16)
+                ^ ((lake.center.y.to_bits() as u64) << 32);
+            custom_lake = Some((key, (aabb_min, aabb_max), verts));
         }
     }
 
-    if patches.is_empty() {
+    if patches.is_empty() && custom_lake.is_none() {
         return;
     }
 
@@ -122,7 +108,8 @@ pub fn draw(
         Err(poisoned) => poisoned.into_inner(),
     };
     let renderer = guard.get_or_insert_with(|| WaterRenderer::new(gpu));
-    renderer.draw(gpu, target, encoder, camera, light, time, &patches);
+    let custom_mesh_ref = custom_lake.as_ref().map(|(k, aabb, verts)| (*k, *aabb, verts.as_slice()));
+    renderer.draw_all(gpu, target, encoder, camera, light, time, &patches, custom_mesh_ref);
 }
 
 #[cfg(test)]
