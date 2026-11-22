@@ -65,7 +65,7 @@ pub fn place_lake_props(
         if in_chunk(buoy_pos, coord) {
             props.push(PropInstance::new(
                 "buoy",
-                Vec3::new(buoy_pos.x, lake.water_level, buoy_pos.y),
+                Vec3::new(buoy_pos.x, lake.water_level - lake.config.buoy_draft, buoy_pos.y),
                 0.0,
                 1.0,
             ));
@@ -76,7 +76,7 @@ pub fn place_lake_props(
         if in_chunk(boat_pos, coord) {
             props.push(PropInstance::new(
                 "rowboat",
-                Vec3::new(boat_pos.x, lake.water_level, boat_pos.y),
+                Vec3::new(boat_pos.x, lake.water_level - lake.config.boat_draft, boat_pos.y),
                 // new: DECISIONS 2026-11-21
                 dock.yaw + 0.2,
                 1.0,

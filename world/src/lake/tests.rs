@@ -27,6 +27,8 @@ fn lake_config_load() {
     assert_eq!(cfg.docks.length, 20.0);
     assert_eq!(cfg.docks.deck_height, 0.4);
     assert_eq!(cfg.deck_height, 0.4);
+    assert_eq!(cfg.boat_draft, 0.18);
+    assert_eq!(cfg.buoy_draft, 0.2);
     assert_eq!(cfg.angle_from_city, 180.0);
     assert_eq!(cfg.beach_blend, 16.0);
     assert_eq!(cfg.shore_samples, 128);
@@ -628,4 +630,82 @@ fn lake_water_mesh_triangle_count() {
         tris > 5_000,
         "lake water mesh triangle count {tris} must properly cover the lake"
     );
+}
+
+#[test]
+fn lake_props_boat_and_buoy_draft() {
+    let data_dir = repo_path("data");
+    let wgen = crate::generator::WorldGenerator::from_data_dir(42, &data_dir).unwrap();
+    let lake = wgen.lake().unwrap();
+
+    let mut found_boat = false;
+    let mut found_buoy = false;
+
+    // Water wave amplitude from engine render water default settings (max 0.08 m)
+    let wave_amplitude = 0.05_f32;
+
+    for dock in &lake.docks {
+        let dir = dock.forward();
+        let perp = glam::Vec2::new(-dir.y, dir.x);
+        let buoy_pos = dock.end + dir * 8.0;
+        let boat_pos = dock.end + perp * 6.0;
+
+        let buoy_coord = glam::IVec2::new(
+            (buoy_pos.x / 64.0).floor() as i32,
+            (buoy_pos.y / 64.0).floor() as i32,
+        );
+        let boat_coord = glam::IVec2::new(
+            (boat_pos.x / 64.0).floor() as i32,
+            (boat_pos.y / 64.0).floor() as i32,
+        );
+
+        let buoy_props = crate::lake::place::place_lake_props(&wgen, lake, buoy_coord);
+        for p in buoy_props {
+            if p.model == "buoy" {
+                found_buoy = true;
+                assert!(
+                    (p.position.y - (lake.water_level - lake.config.buoy_draft)).abs() < 1e-4,
+                    "buoy y ({}) must be below water level ({}) by buoyDraft ({})",
+                    p.position.y,
+                    lake.water_level,
+                    lake.config.buoy_draft
+                );
+                assert!(p.position.y < lake.water_level);
+            }
+        }
+
+        let boat_props = crate::lake::place::place_lake_props(&wgen, lake, boat_coord);
+        for p in boat_props {
+            if p.model == "rowboat" {
+                found_boat = true;
+                assert!(
+                    (p.position.y - (lake.water_level - lake.config.boat_draft)).abs() < 1e-4,
+                    "rowboat y ({}) must be below water level ({}) by boatDraft ({})",
+                    p.position.y,
+                    lake.water_level,
+                    lake.config.boat_draft
+                );
+                assert!(p.position.y < lake.water_level);
+
+                // Rowboat keel is at z = 0.0, gunwale is at z = 0.50 m
+                // Water surface with waves oscillates between water_level - amp and water_level + amp
+                let water_min = lake.water_level - wave_amplitude;
+                let water_max = lake.water_level + wave_amplitude;
+                let keel_y = p.position.y;
+                let gunwale_y = p.position.y + 0.50;
+
+                assert!(
+                    water_min > keel_y,
+                    "water trough {water_min} must stay above keel {keel_y}"
+                );
+                assert!(
+                    water_max < gunwale_y,
+                    "water crest {water_max} must stay below gunwale {gunwale_y}"
+                );
+            }
+        }
+    }
+
+    assert!(found_boat, "must find placed rowboat props");
+    assert!(found_buoy, "must find placed buoy props");
 }

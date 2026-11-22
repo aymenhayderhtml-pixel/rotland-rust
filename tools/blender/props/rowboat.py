@@ -28,12 +28,18 @@ def _build_hull():
     v_gun_l = []
     v_gun_r = []
 
-    for y, kz, cx, cz, gx, gz in stations:
+    for i, (y, kz, cx, cz, gx, gz) in enumerate(stations):
         v_keel.append(bm.verts.new(Vector((0.0, y, kz))))
         v_chine_l.append(bm.verts.new(Vector((-cx, y, cz))))
         v_chine_r.append(bm.verts.new(Vector((cx, y, cz))))
-        v_gun_l.append(bm.verts.new(Vector((-gx, y, gz))))
-        v_gun_r.append(bm.verts.new(Vector((gx, y, gz))))
+        if i == 3:
+            # Single shared vertex at bow stem to eliminate hole/split seam
+            v_stem = bm.verts.new(Vector((0.0, y, gz)))
+            v_gun_l.append(v_stem)
+            v_gun_r.append(v_stem)
+        else:
+            v_gun_l.append(bm.verts.new(Vector((-gx, y, gz))))
+            v_gun_r.append(bm.verts.new(Vector((gx, y, gz))))
 
     # Bottom quads/tris (keel to chine)
     # Port (-X) bottom
@@ -70,6 +76,21 @@ def _build_hull():
     # Transom stern face at -Y
     face_transom = bm.faces.new([v_keel[0], v_chine_r[0], v_gun_r[0], v_gun_l[0], v_chine_l[0]])
     common.paint_faces(bm, [face_transom], "bark_dark")
+
+    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+
+    # Solidify hull into closed manifold solid with thickness so inside faces exist and are visible from above
+    layer = bm.faces.layers.int[common.LAYER]
+    orig_faces = list(bm.faces)
+    res = bmesh.ops.solidify(bm, geom=orig_faces, thickness=0.04)
+    new_faces = [f for f in res["geom"] if isinstance(f, bmesh.types.BMFace)]
+    # Color inner faces to match original shell
+    for orig_f, new_f in zip(orig_faces, new_faces):
+        new_f[layer] = orig_f[layer]
+    # Color rim faces along gunwales and transom
+    all_known = set(orig_faces) | set(new_faces)
+    rim_faces = [f for f in bm.faces if f not in all_known]
+    common.paint_faces(bm, rim_faces, "bark_dark")
 
     bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
     return bm
@@ -128,7 +149,7 @@ def build(model):
 
 
 def main():
-    return 0 if common.run_model(NAME, CATEGORY, BUDGET, build) else 1
+    return 0 if common.run_model(NAME, CATEGORY, BUDGET, build, top_preview=True) else 1
 
 
 if __name__ == "__main__":

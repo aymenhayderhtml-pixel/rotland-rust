@@ -43,6 +43,10 @@ pub struct LakeConfigData {
     pub deck_height: f32,
     #[serde(default = "default_water_grid_cell")]
     pub water_grid_cell: f32,
+    #[serde(default = "default_boat_draft")]
+    pub boat_draft: f32,
+    #[serde(default = "default_buoy_draft")]
+    pub buoy_draft: f32,
     pub village: VillageConfig,
     pub docks: DocksConfig,
     pub angle_from_city: f32,
@@ -65,6 +69,16 @@ fn default_deck_height() -> f32 {
 fn default_water_grid_cell() -> f32 {
     // data: lake.json waterGridCell
     5.0
+}
+
+fn default_boat_draft() -> f32 {
+    // data: lake.json boatDraft
+    0.18
+}
+
+fn default_buoy_draft() -> f32 {
+    // data: lake.json buoyDraft
+    0.2
 }
 
 fn default_sand() -> [u8; 3] {
@@ -107,6 +121,10 @@ impl Default for LakeConfigData {
             water_level_above_shore: 0.3,
             deck_height: default_deck_height(),
             water_grid_cell: default_water_grid_cell(),
+            // data: lake.json boatDraft
+            boat_draft: default_boat_draft(),
+            // data: lake.json buoyDraft
+            buoy_draft: default_buoy_draft(),
             village: VillageConfig {
                 // data: lake.json village
                 count: 8,
@@ -167,6 +185,8 @@ impl LakeConfigData {
             && self.water_level_above_shore >= 0.0
             && self.deck_height > 0.0
             && self.water_grid_cell > 0.0
+            && self.boat_draft >= 0.0
+            && self.buoy_draft >= 0.0
             && self.village.count > 0
             && !self.village.sizes.is_empty()
             && self.docks.count > 0
