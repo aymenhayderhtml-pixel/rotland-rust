@@ -12,3 +12,27 @@ Today the arm sticks straight out sideways and the forearm swings forward/back f
 5. Make sure the other clips did not change (only `wave`).
 
 ## Worker notes
+
+- **Files changed**:
+  - `tools/blender/characters/poses_camp.py`: updated the `wave` clip table.
+  - `assets/models/characters/human_player.glb`, `npc_banker.glb`, `npc_guard.glb`, `npc_mechanic.glb`, `npc_scout.glb`, `npc_survivor.glb`, `npc_trader.glb`, `npc_villager.glb`: re-exported glbs with the updated wave action.
+  - `assets/models/_previews/human_*.png`, `assets/models/_previews/npc_*.png`: updated contact sheets (verified visually in `assets/models/_previews/human_player_wave.png`).
+
+- **Bone axes finding**:
+  - In rest A-pose, the arm points downward 30° below horizontal along `(0.866, 0, -0.5)`.
+  - When `upper_arm_R` is raised to wave position `(5, 0, -95)`:
+    - **Local Z axis** is the axis that lifts the forearm toward the sky. Negative Z rotation (`rz = -75°`) bends the elbow upward so the wrist reaches Z=1.70 m and hand tip reaches Z=1.86 m (above the 1.80 m head top).
+    - **Local Y axis** is the bone roll/twist axis. A positive Y rotation (`ry = +80°`) rotates the forearm so that the palm faces forward (+Y in world coordinates, directly toward the viewer) with the thumb pointing inward toward the head (-X in world coordinates).
+    - **Waving motion**: swinging `forearm_R` local Z between -60° (outward swing) and -90° (inward swing) creates a clean 30° side-to-side arc in the coronal plane, performing 2 full back-and-forth swings across the clip while keeping the palm facing the viewer.
+
+- **Verification**:
+  - Verified with throwaway front, side, and 3/4 test renders in `/tmp`.
+  - Visual inspection of the 8-frame contact sheet (`assets/models/_previews/human_player_wave.png`) confirms smooth arm raise, raised hand waving side to side with palm forward, and return to rest.
+  - Verified through binary glTF inspection that all other 23 animation clips (`idle`, `walk`, `run`, `die`, `melee_1h`, etc.) are 100% identical and only `wave` changed.
+  - Ran `python3 -I tools/gate_checks.py --base main --task tasks/R20-01-wave-pose.md`: scope PASS, numbers PASS, unused PASS.
+
+- **Wiring notes for Claude**:
+  - Please re-bake `assets/models.pack` using `cargo run --release -p baker` so the updated character models and wave animation are included in the binary asset pack.
+
+- **Known issues**:
+  - None.
