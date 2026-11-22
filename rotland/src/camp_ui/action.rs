@@ -1,6 +1,7 @@
 //! Actions triggered by user interactions with camp screens.
 
 use game::camp_upgrades::UpgradeLine;
+use game::guild::RecruitOrder;
 
 /// Action chosen by the player on a camp screen.
 /// The UI never modifies game state directly; caller matches and applies the action.
@@ -38,4 +39,24 @@ pub enum CampAction {
     MechanicRepair,
     /// Close the camp screen.
     Close,
+}
+
+/// Guild action variants triggered by interactions on the Guild camp board screen.
+/// Ready to be merged into `CampAction` when Claude wires `camp.rs` and `frame_ui.rs`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GuildCampAction {
+    /// Accept an offered task on the guild board.
+    AcceptTask { task_id: String },
+    /// Abandon an active guild task without penalty.
+    AbandonTask { task_id: String },
+    /// Claim rewards for a completed guild task.
+    ClaimTask { task_id: String },
+    /// Hire an available teammate recruit.
+    HireRecruit { recruit_id: String },
+    /// Dismiss a hired teammate recruit.
+    DismissRecruit { recruit_id: String },
+    /// Set a standing order (Stay, Follow, Guard) for a hired teammate.
+    SetRecruitOrder { recruit_id: String, order: RecruitOrder },
+    /// Buy `count` units of `item_id` from the guild shop.
+    BuyItem { item_id: String, count: u32 },
 }

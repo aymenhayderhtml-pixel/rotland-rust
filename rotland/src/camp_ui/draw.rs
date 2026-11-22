@@ -14,6 +14,11 @@ use super::screen::CampScreen;
 use super::state::CampUiState;
 use super::view::CampView;
 
+#[path = "guild/mod.rs"]
+pub mod guild;
+
+use self::guild::draw_guild;
+
 pub const PANEL_WIDTH: f32 = 760.0;
 pub const PANEL_HEIGHT: f32 = 600.0;
 
@@ -80,8 +85,18 @@ pub fn draw(
                 .corner_radius(CornerRadius::same(8))
                 .stroke(Stroke::new(2.0, Color32::from_rgb(89, 97, 107)))
                 .show(ui, |ui| {
-                    ui.set_width(PANEL_WIDTH);
-                    ui.set_min_height(PANEL_HEIGHT - 40.0);
+                    let panel_w = if active_screen == CampScreen::Guild {
+                        (screen_rect.width() - 48.0).clamp(PANEL_WIDTH, 1160.0)
+                    } else {
+                        PANEL_WIDTH
+                    };
+                    let panel_min_h = if active_screen == CampScreen::Guild {
+                        (screen_rect.height() - 60.0).clamp(PANEL_HEIGHT - 40.0, 640.0)
+                    } else {
+                        PANEL_HEIGHT - 40.0
+                    };
+                    ui.set_width(panel_w);
+                    ui.set_min_height(panel_min_h);
 
                     // --- Header ---
                     ui.horizontal(|ui| {
@@ -101,6 +116,7 @@ pub fn draw(
                             CampScreen::Crafting,
                             CampScreen::Bounties,
                             CampScreen::Upgrades,
+                            CampScreen::Guild,
                         ];
                         for tab in tabs {
                             let is_active = state.screen == tab;
@@ -140,6 +156,7 @@ pub fn draw(
                         CampScreen::Crafting => draw_crafting(ui, state, view),
                         CampScreen::Bounties => draw_bounties(ui, state, view),
                         CampScreen::Upgrades => None,
+                        CampScreen::Guild => draw_guild(ui, state, view),
                     };
 
                     if let Some(act) = body_action {
