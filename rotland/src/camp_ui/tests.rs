@@ -38,10 +38,18 @@ fn test_tab_switching() {
     assert_eq!(state.screen(), CampScreen::Bounties);
     comparisons += 1;
 
+    // Switch to Guild
+    state.switch_tab(CampScreen::Guild);
+    assert_eq!(state.screen(), CampScreen::Guild);
+    assert_eq!(CampScreen::Guild.title(), "Guild");
+    assert_eq!(CampScreen::Guild.tab_name(), "Guild");
+    assert_eq!(CampScreen::Guild.as_str(), "guild");
+    comparisons += 4;
+
     // Switching to the same tab does not clear state
     state.select_row("bounty_1");
     state.set_count(3);
-    state.switch_tab(CampScreen::Bounties);
+    state.switch_tab(CampScreen::Guild);
     assert_eq!(state.selected_row(), Some("bounty_1"));
     assert_eq!(state.count(), 3);
     comparisons += 2;
