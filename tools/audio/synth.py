@@ -227,9 +227,10 @@ def hit_wood():
 def footstep_grass(variant):
     rng = rng_for(f"footstep_grass_{variant}")
     n = int(0.28 * SR)
-    body = filt(white(n, rng), hi=1100) * decay(n, 0.05) * attack(n, 0.003)
-    rustle = filt(white(n, rng), lo=3000, hi=6000) * decay(n, 0.02)
-    return edge_fade(body + 0.12 * rustle)
+    # Soft, dull thud (owner 2026-11-22: steps were harsh and tiring). Low body only, gentle start, tiny rustle.
+    body = filt(white(n, rng), lo=60, hi=520) * decay(n, 0.045) * attack(n, 0.012)
+    rustle = filt(white(n, rng), lo=1500, hi=3000) * decay(n, 0.015) * attack(n, 0.01)
+    return edge_fade(body + 0.04 * rustle)
 
 
 def zombie_groan(variant):
