@@ -11,3 +11,28 @@ Test: ladder
 (`rotland/src/ladder_play.rs` may not exist: create it only if the wiring needs its own file.)
 
 ## Worker notes
+- Files changed:
+  - `game/src/ladders/end.rs`: Added `nearest_ladder_end` and `ladder_prompt` to find the nearest ladder end within reach (`GRAB_RANGE`) when not climbing.
+  - `game/src/ladders/mod.rs`: Re-exported `nearest_ladder_end` and `ladder_prompt`.
+  - `game/src/ladders/tick.rs`: Refactored `climb_tick` grab detection to use `nearest_ladder_end`.
+  - `rotland/src/app/frame_world.rs`: Integrated `nearest_ladder_end` into interaction prompt selection in `update_world_interactions`. The nearest interactable (ladder vs crate/item/NPC/car/fire/dog) wins so prompts don't fight. When climbing or far away, no ladder prompt is shown (matching Godot).
+  - `game/tests/all/ladders_tests.rs`: Added comprehensive unit tests for `ladder_prompt` and `nearest_ladder_end` covering ladder foot, deck, out-of-range positions, climbing state, and multi-rail proximity.
+- How to test:
+  - Stand at the foot of any ladder (e.g. guard tower): "[E] Climb ladder" is displayed.
+  - Climb onto the deck: on deck in reach of the ladder top, "[E] Climb down" is displayed.
+  - While climbing, no ladder prompt is shown.
+  - Automated tests: `tools/gate.sh --task tasks/R20-03-ladder-prompt.md`
+- Wiring notes for Claude:
+  - None; wiring is complete in `rotland/src/app/frame_world.rs`.
+- Known issues:
+  - None.
+
+## Gate report
+- date: 2026-11-22
+- base: main
+- files changed (6): game/src/ladders/end.rs, game/src/ladders/mod.rs, game/src/ladders/tick.rs, game/tests/all/ladders_tests.rs, rotland/src/app/frame_world.rs, tasks/R20-03-ladder-prompt.md
+- tests passed: 6
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS
