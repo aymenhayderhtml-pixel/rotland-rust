@@ -273,8 +273,9 @@ impl LitRenderer {
             })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &target.depth,
-                // Reverse-Z: 0 is infinitely far
-                depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(0.0), store: wgpu::StoreOp::Discard }),
+                // Reverse-Z: 0 is infinitely far. Stored: the water pass after this one tests against it
+                // (with Discard the water saw garbage depth and drew over hills and the player).
+                depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(0.0), store: wgpu::StoreOp::Store }),
                 stencil_ops: None,
             }),
             timestamp_writes: None,
