@@ -12,6 +12,7 @@ pub enum NotificationKind {
     Info,
     Warning,
     Danger,
+    Horde,
 }
 
 /// A single active event notification.
@@ -117,6 +118,7 @@ pub fn notification_color(kind: NotificationKind, config: &HudConfig) -> engine:
         NotificationKind::Info => parse_hex_color(&cfg.info_color),
         NotificationKind::Warning => parse_hex_color(&cfg.warning_color),
         NotificationKind::Danger => parse_hex_color(&cfg.danger_color),
+        NotificationKind::Horde => parse_hex_color(&cfg.horde_color),
     }
 }
 

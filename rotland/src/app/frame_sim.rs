@@ -35,6 +35,8 @@ pub fn update_sim(
         pl.camp.settlements.update(actors.player, g.settlements(), g.config());
     }
     if let Some(z) = actors.zombies.as_mut() {
+        z.camp_center = world.world_gen.as_ref().and_then(|g| g.settlements().first().map(|s| s.center));
+        z.camp_wall_radius = ui.hud.config.horde_events.camp_wall_radius_m;
         let mut heard = std::mem::take(&mut actors.heard_scratch);
         heard.clear();
         if let Some(c) = actors.combat.as_ref() {
@@ -63,6 +65,88 @@ pub fn update_sim(
             for z_actor in &z.list {
                 if z_actor.last_out.as_ref().is_some_and(|o| o.attack_hit.is_some()) {
                     ui.hud.on_damage(z_actor.position);
+                }
+            }
+        }
+
+        // Process zombie simulation events for HUD notifications
+        for event in &frame.events {
+            match event {
+                crate::zombies::ZombieEvent::HordeNear { .. } => {
+                    let cd = ui.hud.config.horde_events.cooldown_horde_near_s;
+                    if ui.hud.cooldowns.try_trigger(crate::hud::EventKind::HordeNear, ui.hud.last_time, cd) {
+                        let horde_pos = z.tracker.last_near_horde_pos
+                            .unwrap_or(actors.player + Vec3::new(0.0, 0.0, -60.0));
+                        let dir = crate::hud::direction_word_to_target(actors.player, horde_pos);
+                        ui.hud.notify(
+                            format!("A horde is coming from the {}", dir),
+                            crate::hud::NotificationKind::Horde,
+                        );
+                        ui.hud.on_horde_near(horde_pos);
+                    }
+                }
+                crate::zombies::ZombieEvent::HordeFormed { .. } => {}
+                crate::zombies::ZombieEvent::SpecialSeen { kind } => {
+                    let cd = ui.hud.config.horde_events.cooldown_special_seen_s;
+                    if ui.hud.cooldowns.try_trigger(crate::hud::EventKind::SpecialSeen, ui.hud.last_time, cd) {
+                        let name = match kind.as_str() {
+                            "brute" => "Brute",
+                            "screamer" => "Screamer",
+                            "crawler" => "Crawler",
+                            other => other,
+                        };
+                        ui.hud.notify(
+                            format!("{} nearby!", name),
+                            crate::hud::NotificationKind::Warning,
+                        );
+                    }
+                }
+                crate::zombies::ZombieEvent::CampAttacked => {
+                    let cd = ui.hud.config.horde_events.cooldown_camp_attack_s;
+                    if ui.hud.cooldowns.try_trigger(crate::hud::EventKind::CampAttack, ui.hud.last_time, cd) {
+                        ui.hud.notify(
+                            "The camp is under attack!",
+                            crate::hud::NotificationKind::Danger,
+                        );
+                    }
+                }
+            }
+        }
+
+        // Process director horde and wave events from PlayState
+        if let Some(pl) = play.play.as_mut() {
+            let horde_events = std::mem::take(&mut pl.pending_horde_events);
+            for event in horde_events {
+                match event {
+                    game::director::HordeEvent::CampAttack { .. } => {
+                        let cd = ui.hud.config.horde_events.cooldown_camp_attack_s;
+                        if ui.hud.cooldowns.try_trigger(crate::hud::EventKind::CampAttack, ui.hud.last_time, cd) {
+                            ui.hud.notify("The camp is under attack!", crate::hud::NotificationKind::Danger);
+                        }
+                    }
+                    game::director::HordeEvent::HordeIncoming { .. } => {
+                        let cd = ui.hud.config.horde_events.cooldown_wave_s;
+                        if ui.hud.cooldowns.try_trigger(crate::hud::EventKind::WaveIncoming, ui.hud.last_time, cd) {
+                            ui.hud.notify("Wave incoming", crate::hud::NotificationKind::Horde);
+                        }
+                    }
+                    game::director::HordeEvent::PhaseChange { from, to } => {
+                        let cd = ui.hud.config.horde_events.cooldown_phase_s;
+                        if ui.hud.cooldowns.try_trigger(crate::hud::EventKind::PhaseChange, ui.hud.last_time, cd) {
+                            match to {
+                                game::director::DirectorState::Wave => {
+                                    ui.hud.notify("Wave incoming", crate::hud::NotificationKind::Horde);
+                                }
+                                game::director::DirectorState::Building => {
+                                    ui.hud.notify("Tension is rising...", crate::hud::NotificationKind::Warning);
+                                }
+                                game::director::DirectorState::Calm if from == game::director::DirectorState::Relax => {
+                                    ui.hud.notify("The area has calmed down", crate::hud::NotificationKind::Info);
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
                 }
             }
         }

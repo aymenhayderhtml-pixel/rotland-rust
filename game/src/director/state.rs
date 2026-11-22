@@ -32,6 +32,7 @@ pub enum DirectorEvent {
 pub enum HordeEvent {
     HordeIncoming { size: usize },
     CampAttack { size: usize },
+    PhaseChange { from: DirectorState, to: DirectorState },
 }
 
 /// Save state struct that preserves director pacing across game saves.

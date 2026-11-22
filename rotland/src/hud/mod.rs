@@ -20,6 +20,7 @@ pub mod config;
 pub mod crosshair;
 pub mod damage;
 pub mod death;
+pub mod events;
 pub mod fps;
 pub mod hint;
 pub mod hotbar;
@@ -38,6 +39,10 @@ pub mod icons;
 pub use compass::{CampHudInfo, WaypointHudInfo};
 pub use config::HudConfig;
 pub use damage::DamageIndicator;
+#[allow(unused_imports)]
+pub use events::{
+    direction_word_from_angle, direction_word_to_target, EventCooldowns, EventKind, HordeIndicator,
+};
 pub use game::hud_math::HeldKind;
 pub use icons::IconCache;
 pub use notification::{HudNotification, HudNotifications, NotificationKind};
@@ -125,6 +130,8 @@ pub struct HudState {
     pub vitals_trail: Option<VitalsTrailState>,
     /// Player world position for relative directional effects.
     pub player_pos: Option<glam::Vec3>,
+    /// Screen-edge arrows pointing toward near hordes.
+    pub horde_indicators: Option<Vec<HordeIndicator>>,
 }
 
 impl Default for HudState {
@@ -158,6 +165,7 @@ impl Default for HudState {
             notifications: None,
             vitals_trail: None,
             player_pos: None,
+            horde_indicators: None,
         }
     }
 }
@@ -175,6 +183,8 @@ pub struct Hud {
     pub camera_yaw: f32,
     pub last_time: f64,
     pub car_out_of_fuel_notified: bool,
+    pub horde_indicators: Vec<HordeIndicator>,
+    pub cooldowns: EventCooldowns,
 }
 
 impl Default for Hud {
@@ -189,6 +199,8 @@ impl Default for Hud {
             camera_yaw: 0.0,
             last_time: 0.0,
             car_out_of_fuel_notified: false,
+            horde_indicators: Vec::new(),
+            cooldowns: EventCooldowns::default(),
         }
     }
 }
@@ -231,7 +243,12 @@ impl Hud {
         );
     }
 
-    /// Triggered when an event notification should be displayed (Info, Warning, Danger).
+    /// Triggered when a horde comes near: adds a screen-edge arrow pointing to the horde.
+    pub fn on_horde_near(&mut self, horde_pos: glam::Vec3) {
+        self.horde_indicators.push(HordeIndicator::new(horde_pos, self.last_time, 4.0)); // new: DECISIONS 2026-11-21
+    }
+
+    /// Triggered when an event notification should be displayed (Info, Warning, Danger, Horde).
     pub fn notify(&mut self, text: impl Into<String>, kind: NotificationKind) {
         self.notifications.push_with_duration(
             text,
@@ -260,6 +277,7 @@ impl Hud {
         self.damage_indicators.retain(|d| !d.is_expired(now));
         self.pickup_popups.retain(|p| !p.is_expired(now));
         self.notifications.update(now);
+        self.horde_indicators.retain(|h| !h.is_expired(now));
         let _ = dt;
     }
 
@@ -283,6 +301,7 @@ impl Hud {
         state.notifications = Some(self.notifications.items.clone());
         state.vitals_trail = Some(self.vitals_trail.clone());
         state.player_pos = Some(self.player_pos);
+        state.horde_indicators = Some(self.horde_indicators.clone());
     }
 
     /// Draws the complete HUD using this instance's persistent effects and state.
@@ -453,7 +472,25 @@ pub fn draw_hud(ctx: &egui::Context, s: &HudState, icons: &mut IconCache) {
                 );
             }
 
-            // 17. Death overlay when dead
+            // 17. Horde near direction arrows
+            if let Some(horde_arrows) = &s.horde_indicators
+                && !horde_arrows.is_empty()
+                && !s.dead
+            {
+                let ppos = s.player_pos.unwrap_or(glam::Vec3::ZERO);
+                events::draw_horde_arrows(
+                    painter,
+                    &screen,
+                    horde_arrows,
+                    ppos,
+                    s.heading_yaw,
+                    time,
+                    scale,
+                    &config,
+                );
+            }
+
+            // 18. Death overlay when dead
             if s.dead {
                 death::draw_death_overlay(painter, &screen, s.message.as_deref(), scale);
             }
