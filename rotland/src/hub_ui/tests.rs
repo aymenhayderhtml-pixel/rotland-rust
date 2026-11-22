@@ -281,3 +281,95 @@ fn test_screen_tab_helper() {
     assert_eq!(HubScreen::DogPack.tab(), None);
     assert_eq!(HubScreen::DogNameDialog.tab(), None);
 }
+
+#[test]
+fn test_in_hand_detection() {
+    let mut view = HubView::default();
+    assert!(!view.is_in_hand("bat"));
+
+    view.equipped_weapon = Some("bat");
+    assert!(view.is_in_hand("bat"));
+    assert!(!view.is_in_hand("pistol"));
+
+    view.equipped_weapon = None;
+    assert!(!view.is_in_hand("bat"));
+
+    let mut hotbar = game::Hotbar::new();
+    let mut inventory = game::Inventory::new();
+    inventory.add("bat", 1);
+    let items = game::ItemRegistry::from_repo().unwrap();
+    hotbar.toggle_equip_item("bat", &inventory, &items);
+    view.hotbar = Some(&hotbar);
+    assert!(view.is_in_hand("bat"));
+}
+
+#[test]
+fn test_profile_layout_math_fits_1280x720_and_1920x986() {
+    use super::draw::{PANEL_HEIGHT, PANEL_WIDTH};
+    use super::draw_profile::STAT_VALUE_WIDTH;
+
+    // Fixed stat column width for consistent stripes (issue 005)
+    assert_eq!(STAT_VALUE_WIDTH, 240.0);
+
+    // Screen resolutions to verify (requirement 4)
+    let screen_720p = (1280.0_f32, 720.0_f32);
+    let screen_1080p = (1920.0_f32, 986.0_f32);
+
+    for (name, screen_w, screen_h) in [
+        ("720p", screen_720p.0, screen_720p.1),
+        ("1080p", screen_1080p.0, screen_1080p.1),
+    ] {
+        // Panel fits inside the viewport with margin
+        assert!(
+            PANEL_WIDTH <= screen_w,
+            "{name}: panel width {PANEL_WIDTH} must fit screen width {screen_w}"
+        );
+        assert!(
+            PANEL_HEIGHT <= screen_h,
+            "{name}: panel height {PANEL_HEIGHT} must fit screen height {screen_h}"
+        );
+
+        let vertical_margin = (screen_h - PANEL_HEIGHT) / 2.0;
+        assert!(
+            vertical_margin >= 40.0,
+            "{name}: vertical margin {vertical_margin} must be >= 40px"
+        );
+    }
+
+    // Body content available height inside the 620px panel:
+    // Frame inner margin: 14 top + 14 bottom = 28px
+    let frame_inner_h = PANEL_HEIGHT - 28.0; // 592px
+    // Header (tab bar ~28px + space 8px + separator 2px + space 8px) = 46px
+    let header_h = 46.0_f32;
+    // Footer (space 8px + status 20px + space 4px + hints & close button 30px) = 62px
+    let footer_h = 62.0_f32;
+    let available_body_h = frame_inner_h - header_h - footer_h; // 484px
+    assert!(available_body_h >= 480.0);
+
+    // Profile tab content exact height:
+    let profile_title_h = 26.0_f32;
+    let num_stat_rows = 12.0_f32;
+    let stat_row_h = 18.0 + 4.0; // 14pt text + 4px spacing = 22px
+    let stats_grid_h = num_stat_rows * stat_row_h; // 264px
+
+    let separator_h = 8.0 + 2.0 + 6.0; // 16px
+    let difficulty_header_h = 20.0 + 4.0; // 24px
+    let num_difficulty_rows = 4.0_f32;
+    let difficulty_row_h = 18.0 + 4.0; // 22px
+    let difficulty_grid_h = num_difficulty_rows * difficulty_row_h; // 88px
+
+    let total_profile_content_h =
+        profile_title_h + stats_grid_h + separator_h + difficulty_header_h + difficulty_grid_h;
+    // 26 + 264 + 16 + 24 + 88 = 418px
+
+    assert!(
+        total_profile_content_h <= available_body_h,
+        "Total profile content {total_profile_content_h}px must fit inside available body {available_body_h}px"
+    );
+
+    let headroom = available_body_h - total_profile_content_h;
+    assert!(
+        headroom >= 50.0,
+        "Headroom {headroom}px ensures no rows are cut off at 1280x720"
+    );
+}

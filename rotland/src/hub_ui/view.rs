@@ -68,6 +68,8 @@ pub struct HubView<'a> {
     pub near_lit_campfire: bool,
     pub is_dead: bool,
     pub health: Option<(f32, f32)>,
+    /// Weapon currently held in hand or equipped on player.
+    pub equipped_weapon: Option<&'a str>,
     /// What the Map tab shows.
     pub map: Option<crate::map_ui::MapView<'a>>,
 }
@@ -101,6 +103,7 @@ impl<'a> Default for HubView<'a> {
             near_lit_campfire: false,
             is_dead: false,
             health: None,
+            equipped_weapon: None,
             map: None,
         }
     }
@@ -109,6 +112,23 @@ impl<'a> Default for HubView<'a> {
 impl<'a> HubView<'a> {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Returns true if the item is currently held in hand or selected in hotbar.
+    pub fn is_in_hand(&self, item_id: &str) -> bool {
+        if let Some(w) = self.equipped_weapon {
+            if w == item_id {
+                return true;
+            }
+            if let Some(def) = self.item_def(item_id)
+                && def.weapon_id == w
+            {
+                return true;
+            }
+        }
+        self.hotbar
+            .and_then(|h| h.equipped_item_id())
+            .is_some_and(|id| id == item_id)
     }
 
     pub fn player_dollars(&self) -> i32 {

@@ -22,7 +22,12 @@ pub const SLOT_SIZE: f32 = 56.0;
 pub const GRID_COLUMNS: usize = 6;
 
 /// Draws the Bag tab: 6x4 slot grid, crafting list below, details panel on the right.
-pub fn draw_bag(ui: &mut egui::Ui, state: &mut HubUiState, view: &HubView) -> Option<HubAction> {
+pub fn draw_bag(
+    ui: &mut egui::Ui,
+    state: &mut HubUiState,
+    view: &HubView,
+    icons: &mut crate::hud::IconCache,
+) -> Option<HubAction> {
     let mut action = None;
 
     // --- Header: Title and Weight ---
@@ -56,7 +61,7 @@ pub fn draw_bag(ui: &mut egui::Ui, state: &mut HubUiState, view: &HubView) -> Op
             ui.set_width(380.0);
 
             // 6x4 Slots Grid
-            let grid_action = draw_slot_grid(ui, state, view);
+            let grid_action = draw_slot_grid(ui, state, view, icons);
             if let Some(act) = grid_action {
                 action = Some(act);
             }
@@ -79,7 +84,13 @@ pub fn draw_bag(ui: &mut egui::Ui, state: &mut HubUiState, view: &HubView) -> Op
         // Right Column: Details Panel
         ui.vertical(|ui| {
             ui.set_width(300.0);
-            let details_action = draw_details_panel(ui, state, view, None);
+            let selected_stack = view.inventory.and_then(|iv| iv.slot(state.selected_slot()));
+            let detail_icon = selected_stack.and_then(|s| {
+                let def = view.item_def(&s.item_id);
+                let label = def.map(|d| d.hotbar_label()).unwrap_or(&s.item_id);
+                icons.icon_or_label(ui.ctx(), Some(&s.item_id), label)
+            });
+            let details_action = draw_details_panel(ui, state, view, detail_icon);
             if let Some(act) = details_action {
                 action = Some(act);
             }
@@ -93,10 +104,10 @@ fn draw_slot_grid(
     ui: &mut egui::Ui,
     state: &mut HubUiState,
     view: &HubView,
+    icons: &mut crate::hud::IconCache,
 ) -> Option<HubAction> {
     let mut action = None;
     let inv = view.inventory;
-    let equipped_id = view.hotbar.and_then(|h| h.equipped_item_id());
     let slot_count = inv.map(|i| i.slot_count()).unwrap_or(DEFAULT_SLOT_COUNT);
 
     Grid::new("bag_slot_grid")
@@ -104,21 +115,9 @@ fn draw_slot_grid(
         .show(ui, |ui| {
             for i in 0..slot_count {
                 let stack = inv.and_then(|iv| iv.slot(i));
-                let is_equipped = stack.is_some_and(|s| equipped_id == Some(&s.item_id));
+                let is_equipped = stack.is_some_and(|s| view.is_in_hand(&s.item_id));
                 let is_selected = state.selected_slot() == i;
                 let is_hotbar = i < HOTBAR_SIZE;
-
-                // Border styling
-                let border_color = if is_selected {
-                    Color32::WHITE
-                } else if is_equipped {
-                    Color32::from_rgb(255, 217, 51)
-                } else if is_hotbar {
-                    Color32::from_rgb(140, 179, 217)
-                } else {
-                    Color32::from_rgb(89, 89, 89)
-                };
-                let border_width = if is_selected { 3.0 } else if is_equipped || is_hotbar { 2.0 } else { 1.0 };
 
                 let (rect, response) = ui.allocate_exact_size(
                     vec2(SLOT_SIZE, SLOT_SIZE),
@@ -127,13 +126,42 @@ fn draw_slot_grid(
 
                 // Painter drawing
                 let painter = ui.painter();
-                painter.rect(
-                    rect,
-                    CornerRadius::same(4),
-                    Color32::from_rgba_unmultiplied(26, 26, 26, 220),
-                    Stroke::new(border_width, border_color),
-                    engine::egui::StrokeKind::Inside,
-                );
+                let bg_color = Color32::from_rgba_unmultiplied(26, 26, 26, 220); // // godot: HotbarBar.cs:32
+
+                if is_selected && is_equipped {
+                    // Both in hand and selected: yellow outer border + white inner border (issue 007)
+                    painter.rect(
+                        rect,
+                        CornerRadius::same(4),
+                        bg_color,
+                        Stroke::new(2.0, Color32::from_rgb(255, 217, 51)), // // godot: HotbarBar.cs:35
+                        engine::egui::StrokeKind::Inside,
+                    );
+                    painter.rect_stroke(
+                        rect.shrink(2.0), // // new: DECISIONS 2026-11-21
+                        CornerRadius::same(2),
+                        Stroke::new(2.0, Color32::WHITE), // // new: DECISIONS 2026-11-21
+                        engine::egui::StrokeKind::Inside,
+                    );
+                } else {
+                    let (border_color, border_width) = if is_selected {
+                        (Color32::WHITE, 3.0) // // new: DECISIONS 2026-11-21
+                    } else if is_equipped {
+                        (Color32::from_rgb(255, 217, 51), 2.0) // // godot: HotbarBar.cs:35
+                    } else if is_hotbar {
+                        (Color32::from_rgb(140, 179, 217), 2.0) // // new: DECISIONS 2026-11-21
+                    } else {
+                        (Color32::from_rgb(89, 89, 89), 1.0) // // godot: HotbarBar.cs:33
+                    };
+
+                    painter.rect(
+                        rect,
+                        CornerRadius::same(4),
+                        bg_color,
+                        Stroke::new(border_width, border_color),
+                        engine::egui::StrokeKind::Inside,
+                    );
+                }
 
                 // Hotbar key number top-left (1..6)
                 if is_hotbar {
@@ -148,15 +176,31 @@ fn draw_slot_grid(
 
                 if let Some(s) = stack {
                     let def = view.item_def(&s.item_id);
-                    let color_hex = def.map(|d| d.color.as_str()).unwrap_or("#888888");
-                    let swatch_color = parse_hex_color(color_hex);
+                    let label = def.map(|d| d.hotbar_label()).unwrap_or(&s.item_id);
+                    let texture_id = icons.icon_or_label(ui.ctx(), Some(&s.item_id), label);
 
-                    // Swatch rectangle
-                    let swatch_rect = Rect::from_center_size(
-                        pos2(rect.center().x, rect.center().y - 2.0),
-                        vec2(26.0, 16.0),
-                    );
-                    painter.rect_filled(swatch_rect, CornerRadius::same(2), swatch_color);
+                    if let Some(tid) = texture_id {
+                        // Draw item icon picture: 44x34 at offset (6, 4) (issue 006)
+                        let icon_rect = Rect::from_min_size(
+                            pos2(rect.min.x + 6.0, rect.min.y + 4.0), // // new: DECISIONS 2026-11-21
+                            vec2(44.0, 34.0),                          // // godot: HotbarBar.cs:64
+                        );
+                        painter.image(
+                            tid,
+                            icon_rect,
+                            Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+                            Color32::WHITE,
+                        );
+                    } else {
+                        // Fallback swatch rectangle
+                        let color_hex = def.map(|d| d.color.as_str()).unwrap_or("#888888");
+                        let swatch_color = parse_hex_color(color_hex);
+                        let swatch_rect = Rect::from_center_size(
+                            pos2(rect.center().x, rect.center().y - 2.0),
+                            vec2(26.0, 16.0),
+                        );
+                        painter.rect_filled(swatch_rect, CornerRadius::same(2), swatch_color);
+                    }
 
                     // Count top-right if > 1
                     if s.count > 1 {
@@ -170,7 +214,6 @@ fn draw_slot_grid(
                     }
 
                     // Item short name at bottom
-                    let label = def.map(|d| d.hotbar_label()).unwrap_or(&s.item_id);
                     let display_label = if label.len() > 7 { &label[..7] } else { label };
                     painter.text(
                         pos2(rect.center().x, rect.max.y - 3.0),

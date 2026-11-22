@@ -39,6 +39,7 @@ pub fn draw(
     ctx: &egui::Context,
     state: &mut HubUiState,
     view: &HubView,
+    icons: &mut crate::hud::IconCache,
 ) -> Option<HubAction> {
     // 1. Esc key closes any open hub screen
     if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
@@ -125,7 +126,7 @@ pub fn draw(
                     // --- Body Content ---
                     let body_action = match state.tab {
                         HubTab::Profile => draw_profile(ui, state, view),
-                        HubTab::Bag => draw_bag(ui, state, view),
+                        HubTab::Bag => draw_bag(ui, state, view, icons),
                         HubTab::Skills => draw_skills(ui, state, view),
                         HubTab::Bounties => draw_bounties(ui, state, view),
                         HubTab::Map => match &view.map {

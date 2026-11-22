@@ -20,7 +20,6 @@ pub fn draw_details_panel(
     let mut action = None;
     let selected = state.selected_slot();
     let stack = view.inventory.and_then(|iv| iv.slot(selected));
-    let equipped_id = view.hotbar.and_then(|h| h.equipped_item_id());
 
     if let Some(s) = stack {
         let def = view.item_def(&s.item_id);
@@ -28,7 +27,7 @@ pub fn draw_details_panel(
         let category = def.map(|d| d.category.as_str()).unwrap_or("item");
         let weight = def.map(|d| d.weight).unwrap_or(0.0);
         let is_weapon = def.is_some_and(|d| d.is_weapon());
-        let in_hand = equipped_id == Some(&s.item_id);
+        let in_hand = view.is_in_hand(&s.item_id);
 
         let can_use = def.is_some_and(|d| {
             let usable = matches!(
