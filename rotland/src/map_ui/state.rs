@@ -6,6 +6,7 @@ use engine::egui;
 use glam::{IVec2, Vec2};
 
 use super::draw_city::MapStreetsConfig;
+use super::draw_lake::MapLakeConfig;
 
 /// Persistent interactive state of the map view.
 pub struct MapUiState {
@@ -15,6 +16,7 @@ pub struct MapUiState {
     pub(crate) texture_bounds: Option<(Vec2, Vec2)>, // (min_world, max_world)
     pub(crate) cached_version: u64,
     pub streets_cfg: MapStreetsConfig,
+    pub lake_cfg: MapLakeConfig,
 }
 
 impl Default for MapUiState {
@@ -26,6 +28,7 @@ impl Default for MapUiState {
             texture_bounds: None,
             cached_version: 0,
             streets_cfg: MapStreetsConfig::load_default(),
+            lake_cfg: MapLakeConfig::load_default(),
         }
     }
 }

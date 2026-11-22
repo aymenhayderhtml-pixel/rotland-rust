@@ -16,6 +16,12 @@ pub struct MinimapStreetsConfig {
     pub road_color: egui::Color32,
     pub blocked_color: egui::Color32,
     pub street_min_px: f32,
+    pub water_color: egui::Color32,
+    pub dock_color: egui::Color32,
+    pub dock_width: f32,
+    pub village_lot_color: egui::Color32,
+    pub village_lot_outline: egui::Color32,
+    pub fishing_spot_color: egui::Color32,
 }
 
 impl Default for MinimapStreetsConfig {
@@ -25,13 +31,69 @@ impl Default for MinimapStreetsConfig {
             road_color: egui::Color32::from_rgb(90, 83, 72),
             blocked_color: egui::Color32::from_rgb(217, 53, 43),
             street_min_px: 2.0,
+            water_color: egui::Color32::from_rgba_unmultiplied(
+                game::LAKE_WATER_COLOR[0],
+                game::LAKE_WATER_COLOR[1],
+                game::LAKE_WATER_COLOR[2],
+                game::LAKE_WATER_COLOR[3],
+            ),
+            dock_color: egui::Color32::from_rgba_unmultiplied(
+                game::LAKE_DOCK_COLOR[0],
+                game::LAKE_DOCK_COLOR[1],
+                game::LAKE_DOCK_COLOR[2],
+                game::LAKE_DOCK_COLOR[3],
+            ),
+            dock_width: game::LAKE_DOCK_WIDTH,
+            village_lot_color: egui::Color32::from_rgba_unmultiplied(
+                game::LAKE_VILLAGE_LOT_COLOR[0],
+                game::LAKE_VILLAGE_LOT_COLOR[1],
+                game::LAKE_VILLAGE_LOT_COLOR[2],
+                game::LAKE_VILLAGE_LOT_COLOR[3],
+            ),
+            village_lot_outline: egui::Color32::from_rgba_unmultiplied(
+                game::LAKE_VILLAGE_LOT_OUTLINE[0],
+                game::LAKE_VILLAGE_LOT_OUTLINE[1],
+                game::LAKE_VILLAGE_LOT_OUTLINE[2],
+                game::LAKE_VILLAGE_LOT_OUTLINE[3],
+            ),
+            fishing_spot_color: egui::Color32::from_rgba_unmultiplied(
+                game::LAKE_FISHING_SPOT_COLOR[0],
+                game::LAKE_FISHING_SPOT_COLOR[1],
+                game::LAKE_FISHING_SPOT_COLOR[2],
+                game::LAKE_FISHING_SPOT_COLOR[3],
+            ),
         }
     }
 }
 
 impl MinimapStreetsConfig {
     pub fn load_default() -> Self {
-        Self::load(&paths::repo_path("data/minimap.json"))
+        let mut cfg = Self::load(&paths::repo_path("data/minimap.json"));
+        // Load lake map styling overrides if present
+        let map_path = paths::repo_path("data/map.json");
+        if let Ok(text) = std::fs::read_to_string(&map_path)
+            && let Ok(val) = serde_json::from_str::<serde_json::Value>(&text)
+        {
+            if let Some(c) = val.get("water_color").and_then(parse_color_value) {
+                cfg.water_color = c;
+            }
+            if let Some(c) = val.get("dock_color").and_then(parse_color_value) {
+                cfg.dock_color = c;
+            }
+            if let Some(w) = val.get("dock_width").and_then(|v| v.as_f64()) {
+                cfg.dock_width = (w as f32).max(0.5);
+            }
+            if let Some(c) = val.get("village_lot_color").and_then(parse_color_value) {
+                cfg.village_lot_color = c;
+            }
+            if let Some(c) = val.get("village_lot_outline").and_then(parse_color_value) {
+                cfg.village_lot_outline = c;
+            }
+            if let Some(c) = val.get("fishing_spot_color").and_then(parse_color_value) {
+                cfg.fishing_spot_color = c;
+            }
+        }
+        cfg
     }
 
     pub fn load(path: &Path) -> Self {
@@ -198,6 +260,45 @@ impl MinimapState {
             &mut self.patch_rgba_scratch,
         );
 
+        // Water cells show blue (matching big map) where depth_at > 0
+        if let Some(lake) = generator.lake() {
+            let (lake_min, lake_max) = lake.water_bounds();
+            if !(max_world.x < lake_min.x
+                || min_world.x > lake_max.x
+                || max_world.y < lake_min.y
+                || min_world.y > lake_max.y)
+            {
+                let span = max_world - min_world;
+                let inv = 1.0 / (size.max(1) as f32);
+                let w_col = self.streets_cfg.water_color;
+                for py in 0..size {
+                    let wz = min_world.y + (py as f32 + 0.5) * inv * span.y;
+                    for px in 0..size {
+                        let wx = min_world.x + (px as f32 + 0.5) * inv * span.x;
+                        let pos = Vec2::new(wx, wz);
+                        if lake.contains_region(pos) && lake.depth_at(pos) > 0.0 {
+                            let cov = game::smooth_explored_coverage(explore, pos);
+                            if cov > 0.001 {
+                                let idx = (py * size + px) * 4;
+                                let rgb = if cov >= 0.999 {
+                                    [w_col.r(), w_col.g(), w_col.b()]
+                                } else {
+                                    [
+                                        lerp_u8(game::MINIMAP_UNEXPLORED_RGB[0], w_col.r(), cov),
+                                        lerp_u8(game::MINIMAP_UNEXPLORED_RGB[1], w_col.g(), cov),
+                                        lerp_u8(game::MINIMAP_UNEXPLORED_RGB[2], w_col.b(), cov),
+                                    ]
+                                };
+                                self.patch_rgba_scratch[idx] = rgb[0];
+                                self.patch_rgba_scratch[idx + 1] = rgb[1];
+                                self.patch_rgba_scratch[idx + 2] = rgb[2];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let color_image =
             egui::ColorImage::from_rgba_unmultiplied([size, size], &self.patch_rgba_scratch);
         let handle = ctx.load_texture(
@@ -209,4 +310,11 @@ impl MinimapState {
         self.texture_bounds = Some((min_world, max_world));
         self.cached_key = Some(key);
     }
+}
+
+#[inline]
+fn lerp_u8(a: u8, b: u8, t: f32) -> u8 {
+    (a as f32 + (b as f32 - a as f32) * t)
+        .round()
+        .clamp(0.0, 255.0) as u8
 }

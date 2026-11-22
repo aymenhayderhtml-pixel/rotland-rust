@@ -85,3 +85,11 @@ fn map_ui_streets_config_loads() {
     assert_eq!(cfg.street_color, engine::egui::Color32::from_rgb(69, 69, 74));
 }
 
+#[test]
+fn map_ui_lake_config_loads() {
+    let cfg = super::draw_lake::MapLakeConfig::default();
+    assert_eq!(cfg.lake_name, "Lake");
+    assert!((cfg.shore_width - 2.0).abs() < 1e-6);
+    assert_eq!(cfg.water_color, engine::egui::Color32::from_rgb(66, 135, 245));
+}
+

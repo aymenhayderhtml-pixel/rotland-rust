@@ -6,6 +6,7 @@ mod action;
 mod draw;
 mod draw_city;
 mod draw_icons;
+mod draw_lake;
 mod state;
 mod view;
 

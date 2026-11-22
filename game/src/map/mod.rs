@@ -5,6 +5,7 @@ mod city;
 mod compass;
 mod explore;
 mod icons;
+mod lake;
 mod markers;
 mod math;
 mod minimap;
@@ -26,6 +27,12 @@ pub use explore::{CELL_SIZE, CELLS_PER_CHUNK, MapExplore};
 pub use icons::{
     BOUNTY_COLOR, BUILDING_COLOR, CAMP_COLOR, DIM_COLOR, MapIconKind, OUTLINE_COLOR, PLAYER_COLOR,
     SKULL_COLOR, WAYPOINT_COLOR,
+};
+pub use lake::{
+    is_lake_discovered, simplify_shore, LakeMapData, LakeMapDock, LakeMapFishingSpot, LakeMapLot,
+    LAKE_DOCK_COLOR, LAKE_DOCK_WIDTH, LAKE_FISHING_SPOT_COLOR, LAKE_FISHING_SPOT_RADIUS,
+    LAKE_LABEL_COLOR, LAKE_LABEL_SIZE, LAKE_SHORE_COLOR, LAKE_SHORE_WIDTH, LAKE_VILLAGE_LOT_COLOR,
+    LAKE_VILLAGE_LOT_OUTLINE, LAKE_WATER_COLOR, MAX_SHORE_POINTS,
 };
 pub use markers::{MapMarker, MapMarkerKind, collect_markers, letter_for};
 pub use math::{MAP_DEFAULT_ZOOM, SCALES, screen_to_world, step_zoom, world_to_screen};
