@@ -20,14 +20,14 @@ def build(model):
         beam = common.make_box((0.18, 4.0, 0.16), loc=(x, 0.0, -0.08), color="bark_dark")
         model.add(beam)
 
-    # 8 weathered wooden planks across X (width 4.0 m), spaced along Y (-2.0 to 2.0)
+    # 8 weathered wooden planks across X (width 3.88 m to fit inside rub rails), spaced along Y (-2.0 to 2.0)
     colors = ("wood_crate", "bark_light", "bark_dark", "wood_crate")
     for i in range(8):
         y = -1.75 + i * 0.50
         col = colors[i % len(colors)]
-        x_shift = 0.02 * (1 if i % 2 == 0 else -1)
+        x_shift = 0.015 * (1 if i % 2 == 0 else -1)
         z_shift = 0.008 * (1 if i % 3 == 0 else -1)
-        plank = common.make_box((3.96, 0.46, 0.08), loc=(x_shift, y, 0.04 + z_shift), color=col)
+        plank = common.make_box((3.88, 0.44, 0.08), loc=(x_shift, y, 0.04 + z_shift), color=col)
         model.add(plank)
 
     # 4 corner pilings (posts) extending down to -3.0 m, top protruding at +0.35 m
@@ -42,19 +42,20 @@ def build(model):
         brace = common.make_box((3.5, 0.12, 0.12), loc=(0.0, py, -1.6), color="bark_dark")
         model.add(brace)
 
-    # Side and end rub-rails
+    # Side and end rub-rails (taller curb profile, top at z=0.11 proud of planks; end bumper trimmed to fit inside side rails)
     for x_edge in (-1.99, 1.99):
-        rail = common.make_box((0.06, 3.98, 0.14), loc=(x_edge, 0.0, 0.02), color="bark_dark")
+        rail = common.make_box((0.06, 3.98, 0.16), loc=(x_edge, 0.0, 0.03), color="bark_dark")
         model.add(rail)
-    end_bumper = common.make_box((3.98, 0.10, 0.14), loc=(0.0, 1.98, 0.02), color="bark_dark")
+    end_bumper = common.make_box((3.80, 0.08, 0.16), loc=(0.0, 2.00, 0.03), color="bark_dark")
     model.add(end_bumper)
 
     # Weathered wooden bench on the left (X=-1.2, Y=0.2, facing +X)
     # Bench legs
     for by in (-0.35, 0.75):
-        leg_f = common.make_box((0.07, 0.07, 0.44), loc=(-1.42, by, 0.26), color="bark_dark")
+        leg_f = common.make_box((0.07, 0.07, 0.40), loc=(-1.42, by, 0.24), color="bark_dark")
         leg_b = common.make_box((0.07, 0.07, 0.85), loc=(-0.98, by, 0.47), color="bark_dark")
-        brace_b = common.make_box((0.44, 0.06, 0.06), loc=(-1.20, by, 0.40), color="bark_dark")
+        # Brace y-thickness 0.04 to give 15 mm clearance from leg faces
+        brace_b = common.make_box((0.44, 0.04, 0.06), loc=(-1.20, by, 0.43), color="bark_dark")
         model.add(leg_f)
         model.add(leg_b)
         model.add(brace_b)
@@ -62,8 +63,8 @@ def build(model):
     for bx in (-1.35, -1.12):
         slat = common.make_box((0.18, 1.30, 0.04), loc=(bx, 0.20, 0.48), color="wood_crate")
         model.add(slat)
-    # Bench backrest slat
-    back_slat = common.make_box((0.04, 1.30, 0.16), loc=(-0.96, 0.20, 0.76), color="bark_light")
+    # Bench backrest slat (offset proud of back leg front face at x=-0.945)
+    back_slat = common.make_box((0.03, 1.30, 0.16), loc=(-0.92, 0.20, 0.76), color="bark_light")
     model.add(back_slat)
 
     # Lamp post on the front right (X=1.4, Y=1.2)
