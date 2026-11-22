@@ -138,11 +138,14 @@ def _details():
     common.transform(chunk2, rot=(-0.1, 0.4, 0.2))
     bms.append(chunk2)
 
-    # Drainage / forklift cutout slots at the bottom (visual cutouts)
-    notch1 = common.make_box((0.62, 0.28, 0.06), loc=(0.0, -0.6, 0.03), color="rock_dark")
-    bms.append(notch1)
-    notch2 = common.make_box((0.62, 0.28, 0.06), loc=(0.0, 0.6, 0.03), color="rock_dark")
-    bms.append(notch2)
+    # Drainage / forklift cutout slots at the bottom (visual cutouts without redundant ground faces)
+    for ny in (-0.6, 0.6):
+        notch = common.make_box((0.62, 0.28, 0.06), loc=(0.0, ny, 0.03), color="rock_dark")
+        for f in list(notch.faces):
+            if f.normal.z < -0.9:
+                notch.faces.remove(f)
+                break
+        bms.append(notch)
 
     return common.combine(bms)
 
