@@ -35,11 +35,17 @@ def build(model):
     # 4 Ambulance bay posts
     posts = [(-13.5, -7.5), (-13.5, 7.5), (-7.5, -7.5), (-7.5, 7.5)]
     for px, py in posts:
-        k.solid((px - 0.25, py - 0.25, 0.0), (px + 0.25, py + 0.25, 3.8), WALL_COLOR, base="bay_post")
+        k.solid((px - 0.25, py - 0.25, 0.04), (px + 0.25, py + 0.25, 3.8), WALL_COLOR, base="bay_post")
 
     # Canopy roof slab
     k.box((-14.2, -8.7, 3.8), (-6.8, 8.7, 4.15), WALL_COLOR)
-    k.box((-14.22, -8.72, 3.8), (-6.78, 8.72, 4.15), STRIPE_COLOR)
+    # Red fascia edge around canopy roof (sticks out 2 cm)
+    for lo, hi in [
+        ((-14.18, -8.72, 3.78), (-6.78, -8.68, 4.17)),
+        ((-14.18, 8.68, 3.78), (-6.78, 8.72, 4.17)),
+        ((-14.22, -8.72, 3.78), (-14.18, 8.72, 4.17)),
+    ]:
+        k.box(lo, hi, STRIPE_COLOR)
 
     # Main building body (x -7 to 14, y -9 to 9)
     # Floor 1
@@ -56,9 +62,17 @@ def build(model):
     k.box((-7.0, -9.0, TOP2), (14.0, 9.0, TOP3), WALL_COLOR)
 
     # Roof slab and parapet
-    k.box((-7.1, -9.1, TOP3), (14.1, 9.1, ROOF_TOP), TRIM_COLOR)
-    k.box((-7.15, -9.15, ROOF_TOP - 0.08), (14.15, 9.15, ROOF_TOP + 0.04), STRIPE_COLOR)
-    k.box((-6.9, -8.9, ROOF_TOP - 0.2), (13.9, 8.9, ROOF_TOP), "rock_dark")
+    k.box((-7.1, -9.1, TOP3), (14.1, 9.1, TOP3 + 0.2), "rock_dark")
+    # Parapet rim around roof
+    k.box((-7.15, 8.95, TOP3 + 0.2), (14.15, 9.15, ROOF_TOP), WALL_COLOR)
+    k.box((-7.15, -9.15, TOP3 + 0.2), (14.15, -8.95, ROOF_TOP), WALL_COLOR)
+    k.box((-7.15, -8.95, TOP3 + 0.2), (-6.95, 8.95, ROOF_TOP), WALL_COLOR)
+    k.box((13.95, -8.95, TOP3 + 0.2), (14.15, 8.95, ROOF_TOP), WALL_COLOR)
+    # Parapet red fascia cap
+    k.box((-7.2, 8.92, ROOF_TOP - 0.08), (14.2, 9.18, ROOF_TOP + 0.04), STRIPE_COLOR)
+    k.box((-7.2, -9.18, ROOF_TOP - 0.08), (14.2, -8.92, ROOF_TOP + 0.04), STRIPE_COLOR)
+    k.box((-7.2, -8.92, ROOF_TOP - 0.08), (-6.92, 8.92, ROOF_TOP + 0.04), STRIPE_COLOR)
+    k.box((13.92, -8.92, ROOF_TOP - 0.08), (14.2, 8.92, ROOF_TOP + 0.04), STRIPE_COLOR)
 
     # Elevator penthouse on roof
     k.box((7.5, -6.0, ROOF_TOP), (11.5, -2.0, ROOF_TOP + 1.8), WALL_COLOR)
@@ -67,13 +81,13 @@ def build(model):
 
     # Front entrance awning
     k.solid((1.5, 9.0, 3.2), (6.0, 10.2, 3.35), WALL_COLOR, base="awning")
+    k.solid((1.5, 9.02, 0.01), (6.0, 10.0, F), "rock_mid", base="ramp")
     for hx in (2.0, 5.5):
-        k.box((hx - 0.08, 9.95, 0.0), (hx + 0.08, 10.11, 3.2), "metal")
-    k.solid((1.5, 9.0, 0.0), (6.0, 10.0, F), "rock_mid", base="ramp")
+        k.box((hx - 0.08, 9.95, F), (hx + 0.08, 10.11, 3.2), "metal")
 
     # Red cross sign on front facade (boxes)
     k.box((2.2, 9.01, 6.8), (5.3, 9.06, 8.8), WALL_COLOR)
-    k.box((3.3, 9.06, 7.0), (4.2, 9.15, 8.6), STRIPE_COLOR)
+    k.box((3.3, 9.07, 7.0), (4.2, 9.14, 8.6), STRIPE_COLOR)
     k.box((2.5, 9.06, 7.55), (5.0, 9.15, 8.05), STRIPE_COLOR)
 
     # Flat painted entrance doors

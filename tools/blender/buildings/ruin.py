@@ -70,8 +70,8 @@ def build(model):
 
     # 1. Ground floor: cracked slab with dirt and brick dust patches
     k.solid((-6.5, -4.5, 0.0), (6.5, 4.5, F), "dirt", base="floor")
-    k.box((-6.4, -4.4, F - 0.01), (2.0, 1.5, F), "rock_dark")
-    k.box((2.0, -4.4, F - 0.01), (6.4, 0.0, F), "rock_mid")
+    k.box((-6.2, -4.2, F + 0.008), (1.95, 1.5, F + 0.02), "rock_dark")
+    k.box((2.0, -4.2, F + 0.008), (6.2, 0.0, F + 0.02), "rock_mid")
 
     # 2. Back Wall (Y = -4.5 to -4.22) - Solid, stepped jagged heights
     # Corner tall section (X: -6.5 to -5.2, height 5.2m reaching 2nd floor)

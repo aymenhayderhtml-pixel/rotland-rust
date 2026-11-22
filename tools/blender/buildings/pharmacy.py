@@ -57,15 +57,17 @@ def build(model):
     # Green cross sign (made of boxes) above the door
     # White mounting square
     k.box((2.15, 3.41, 2.35), (3.05, 3.45, 3.15), "white")
-    # Green cross bars
+    # Green cross bars (non-overlapping)
     k.box((2.45, 3.45, 2.45), (2.75, 3.51, 3.05), "leaf_mid")
-    k.box((2.25, 3.45, 2.65), (2.95, 3.51, 2.85), "leaf_mid")
+    k.box((2.25, 3.45, 2.65), (2.45, 3.51, 2.85), "leaf_mid")
+    k.box((2.75, 3.45, 2.65), (2.95, 3.51, 2.85), "leaf_mid")
 
     # Projecting green cross blade sign on corner bracket (visible along street)
     k.box((4.25, 3.4, 2.78), (4.35, 3.9, 2.84), "metal")
     k.box((4.27, 3.55, 2.50), (4.33, 3.85, 2.80), "white")
     k.box((4.26, 3.65, 2.53), (4.34, 3.75, 2.77), "leaf_mid")
-    k.box((4.26, 3.57, 2.62), (4.34, 3.83, 2.70), "leaf_mid")
+    k.box((4.26, 3.57, 2.62), (4.34, 3.65, 2.70), "leaf_mid")
+    k.box((4.26, 3.75, 2.62), (4.34, 3.83, 2.70), "leaf_mid")
 
     # Frames for door and windows
     k.frame(door, 3.4, 1, "metal")
@@ -73,10 +75,10 @@ def build(model):
     k.frame(back_window, -4.0, -1, "metal")
 
     # Window mullions and display
-    k.box((-2.83, 3.32, 0.8), (-2.77, 3.44, 2.4), "metal")
-    k.box((-1.43, 3.32, 0.8), (-1.37, 3.44, 2.4), "metal")
-    k.box((-0.03, 3.32, 0.8), (0.03, 3.44, 2.4), "metal")
-    k.box((-4.2, 3.32, 1.57), (1.4, 3.44, 1.63), "metal")
+    k.box((-2.83, 3.32, 0.82), (-2.77, 3.44, 2.38), "metal")
+    k.box((-1.43, 3.32, 0.82), (-1.37, 3.44, 2.38), "metal")
+    k.box((-0.03, 3.32, 0.82), (0.03, 3.44, 2.38), "metal")
+    k.box((-4.18, 3.31, 1.57), (1.38, 3.45, 1.63), "metal")
 
     # Window boards over left pane
     k.boards(((-4.2, 3.25, 0.8), (-2.8, 3.45, 2.4)), 3.4, 1, "bark_light", rows=(0.3, 0.7))
@@ -86,7 +88,7 @@ def build(model):
     k.solid((0.2, 1.0, F), (3.8, 1.6, 1.05), "leaf_mid", base="counter_main")
     k.box((0.15, 0.95, 1.05), (3.85, 1.65, 1.10), "white")
     k.solid((3.2, -1.0, F), (3.8, 1.0, 1.05), "leaf_mid", base="counter_side")
-    k.box((3.15, -1.05, 1.05), (3.85, 1.0, 1.10), "white")
+    k.box((3.15, -1.05, 1.05), (3.85, 0.95, 1.10), "white")
     # Cash register
     k.box((1.0, 1.25, 1.10), (1.3, 1.55, 1.25), "metal")
     k.box((1.05, 1.28, 1.25), (1.25, 1.52, 1.28), "gun_black")
@@ -94,7 +96,7 @@ def build(model):
     # Back wall medicine cabinets (behind counter)
     k.solid((0.5, -3.85, F), (4.5, -3.3, 2.2), "white", base="cabinet_back")
     for z in (0.5, 0.9, 1.3, 1.7, 2.1):
-        k.box((0.5, -3.85, z), (4.5, -3.3, z + 0.04), "leaf_mid")
+        k.box((0.52, -3.83, z), (4.48, -3.28, z + 0.04), "leaf_mid")
     # Medicine boxes and bottles on back shelves
     for x, col in ((0.8, "red_paint"), (1.6, "water_blue"), (2.4, "white"), (3.2, "leaf_dark"), (4.0, "red_paint")):
         k.box((x - 0.25, -3.75, 1.34), (x + 0.25, -3.4, 1.68), col)
@@ -102,12 +104,12 @@ def build(model):
     # 3 Shelf Rows (parallel aisles on customer side)
     shelf_xs = [(-4.4, -3.8), (-2.8, -2.2), (-1.2, -0.6)]
     for i, (x0, x1) in enumerate(shelf_xs, 1):
-        k.solid((x0, -2.8, F), (x1, 1.8, 1.7), "white", base=f"shelf_row_{i}")
+        k.solid((x0, -2.75, F), (x1, 1.75, 1.7), "white", base=f"shelf_row_{i}")
         # End caps in medical green
         k.box((x0 - 0.02, 1.75, F), (x1 + 0.02, 1.82, 1.72), "leaf_mid")
         k.box((x0 - 0.02, -2.82, F), (x1 + 0.02, -2.75, 1.72), "leaf_mid")
         # Top cap
-        k.box((x0 - 0.02, -2.82, 1.7), (x1 + 0.02, 1.82, 1.75), "leaf_mid")
+        k.box((x0 - 0.02, -2.75, 1.7), (x1 + 0.02, 1.75, 1.75), "leaf_mid")
         # Medicine packages on shelves
         for y, col in ((-2.0, "red_paint"), (-1.0, "water_blue"), (0.0, "leaf_dark"), (1.0, "white")):
             k.box((x0 - 0.03, y - 0.2, 0.9), (x1 + 0.03, y + 0.2, 1.15), col)

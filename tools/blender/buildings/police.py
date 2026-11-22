@@ -31,8 +31,8 @@ TRIM_COLOR = "rock_dark"
 
 def build_parking(k):
     """Fenced parking corner on the left (x -11 to -4, y -8 to 7)."""
-    # Asphalt surface
-    k.box((-11.0, -8.0, 0.0), (-4.0, 7.0, 0.04), "rock_dark")
+    # Asphalt surface - sunken base so bottom does not share Z=0 plane with fixtures
+    k.box((-11.0, -8.0, -0.05), (-4.0, 7.0, 0.04), "rock_dark")
     # White parking bay lines
     for y in (-5.0, -2.0, 1.0, 4.0):
         k.box((-10.5, y - 0.06, 0.04), (-7.0, y + 0.06, 0.05), "white")
@@ -46,19 +46,19 @@ def build_parking(k):
     k.box((-11.04, -8.0, 0.2), (-10.96, 7.0, 0.26), "metal")
     k.box((-11.04, -8.0, 1.15), (-10.96, 7.0, 1.21), "metal")
 
-    # South edge fence (y = -8.0, x -11 to -4)
+    # South edge fence (y = -8.0, x -11 to -4) - butts against west rails
     for x in (-8.7, -6.3):
         k.solid((x - 0.06, -8.06, 0.0), (x + 0.06, -7.94, 2.2), "metal", base="fence_post")
-    k.solid((-11.0, -8.04, 2.14), (-4.0, -7.96, 2.2), "metal", base="fence_rail_top")
-    k.box((-11.0, -8.04, 0.2), (-4.0, -7.96, 0.26), "metal")
-    k.box((-11.0, -8.04, 1.15), (-4.0, -7.96, 1.21), "metal")
+    k.solid((-10.96, -8.04, 2.14), (-4.0, -7.96, 2.2), "metal", base="fence_rail_top")
+    k.box((-10.96, -8.04, 0.2), (-4.0, -7.96, 0.26), "metal")
+    k.box((-10.96, -8.04, 1.15), (-4.0, -7.96, 1.21), "metal")
 
-    # North front fence (y = 7.0, x -11 to -8.5)
+    # North front fence (y = 7.0, x -11 to -8.5) - butts against west rails
     for x in (-9.7, -8.5):
         k.solid((x - 0.06, 6.94, 0.0), (x + 0.06, 7.06, 2.2), "metal", base="fence_post")
-    k.solid((-11.0, 6.96, 2.14), (-8.5, 7.04, 2.2), "metal", base="fence_rail_top")
-    k.box((-11.0, 6.96, 0.2), (-8.5, 7.04, 0.26), "metal")
-    k.box((-11.0, 6.96, 1.15), (-8.5, 7.04, 1.21), "metal")
+    k.solid((-10.96, 6.96, 2.14), (-8.5, 7.04, 2.2), "metal", base="fence_rail_top")
+    k.box((-10.96, 6.96, 0.2), (-8.5, 7.04, 0.26), "metal")
+    k.box((-10.96, 6.96, 1.15), (-8.5, 7.04, 1.21), "metal")
 
     # Parking barrier at driveway entrance (x -8.5 to -4.0, y = 7.0)
     # Barrier housing cabinet at x = -4.4
@@ -178,11 +178,9 @@ def build_interior(k):
     """Ground floor interior: lobby, front desk, hallway, cell, locker room, armory."""
     # Hallway walls
     # Hallway runs from y = 3.0 down to y = -7.85 at x = 0.85 to 2.85
-    # Wall dividing west rooms (cell & stairs) from hallway (at x = 0.85)
-    # Door to cell at y = 0.5 to 1.7 (barred sliding door)
-    cell_door = ((0.7, 0.5, 0.0), (1.0, 1.7, 2.3))
+    # Wall dividing west rooms (stairs) from hallway (at x = 0.85); jail cell (y -2 to 3) has its own barred wall
     stairs_opening = ((0.7, -7.5, 0.0), (1.0, -4.5, TOP1))
-    k.wall((0.85, -7.85, F), (1.0, 3.0, TOP1), openings=[cell_door, stairs_opening],
+    k.wall((0.85, -7.85, F), (1.0, -2.0, TOP1), openings=[stairs_opening],
            color="white", base="wall_hall_west")
 
     # Wall dividing east rooms (lobby, locker room, armory) from hallway (at x = 2.85)
@@ -197,9 +195,9 @@ def build_interior(k):
     # Dividing wall between Lockers (y -2.5 to 3.0) and Armory (y -8.0 to -2.5)
     k.wall((3.0, -2.65, F), (10.85, -2.5, TOP1), color="white", base="wall_lockers_armory")
 
-    # Wall separating Lobby from Locker room (y = 3.0, x = 2.85 to 10.85)
+    # Wall separating Lobby from Locker room (y = 3.0, x = 3.0 to 10.85) - butts against hallway wall at x=3.0
     lobby_door = ((4.2, 2.85, 0.0), (5.4, 3.15, kit.DOOR_H))
-    k.wall((2.85, 2.85, F), (10.85, 3.0, TOP1), openings=[lobby_door], color="white", base="wall_lobby_east")
+    k.wall((3.0, 2.85, F), (10.85, 3.0, TOP1), openings=[lobby_door], color="white", base="wall_lobby_east")
 
     # ---- LOBBY & FRONT DESK ----
     # L-shaped front desk counter
@@ -208,7 +206,7 @@ def build_interior(k):
     k.box((3.95, 3.75, 1.1), (4.55, 6.25, 1.16), "wood_crate")
     # Return section
     k.solid((1.5, 3.8, F), (4.0, 4.3, 1.1), "gown_blue", base="counter_front")
-    k.box((1.45, 3.75, 1.1), (4.05, 4.35, 1.16), "wood_crate")
+    k.box((1.45, 3.75, 1.1), (3.95, 4.35, 1.16), "wood_crate")
 
     # Office computer monitor, keyboard, chair behind desk
     k.box((2.8, 3.9, 1.16), (3.2, 4.15, 1.55), "gun_black")
@@ -349,15 +347,15 @@ def build_upper_and_roof(k):
     k.collider((-4.1, -8.1, TOP2), (11.1, 7.1, TOP2 + 0.15), "roof_slab")
 
     # Parapet rim around roof
-    k.box((-4.15, 6.95, TOP2), (11.15, 7.15, ROOF_TOP), WALL_COLOR, roof=True)
-    k.box((-4.15, -8.15, TOP2), (11.15, -7.95, ROOF_TOP), WALL_COLOR, roof=True)
-    k.box((-4.15, -7.95, TOP2), (-3.95, 6.95, ROOF_TOP), WALL_COLOR, roof=True)
-    k.box((10.95, -7.95, TOP2), (11.15, 6.95, ROOF_TOP), WALL_COLOR, roof=True)
+    k.box((-4.15, 6.95, TOP2 + 0.15), (11.15, 7.15, ROOF_TOP), WALL_COLOR, roof=True)
+    k.box((-4.15, -8.15, TOP2 + 0.15), (11.15, -7.95, ROOF_TOP), WALL_COLOR, roof=True)
+    k.box((-4.15, -7.95, TOP2 + 0.15), (-3.95, 6.95, ROOF_TOP), WALL_COLOR, roof=True)
+    k.box((10.95, -7.95, TOP2 + 0.15), (11.15, 6.95, ROOF_TOP), WALL_COLOR, roof=True)
     # Parapet dark coping stone cap
-    k.box((-4.2, 6.92, ROOF_TOP - 0.05), (11.2, 7.18, ROOF_TOP + 0.02), TRIM_COLOR, roof=True)
-    k.box((-4.2, -8.18, ROOF_TOP - 0.05), (11.2, -7.92, ROOF_TOP + 0.02), TRIM_COLOR, roof=True)
-    k.box((-4.2, -7.92, ROOF_TOP - 0.05), (-3.92, 6.92, ROOF_TOP + 0.02), TRIM_COLOR, roof=True)
-    k.box((10.92, -7.92, ROOF_TOP - 0.05), (11.2, 6.92, ROOF_TOP + 0.02), TRIM_COLOR, roof=True)
+    k.box((-4.2, 6.92, ROOF_TOP), (11.2, 7.18, ROOF_TOP + 0.05), TRIM_COLOR, roof=True)
+    k.box((-4.2, -8.18, ROOF_TOP), (11.2, -7.92, ROOF_TOP + 0.05), TRIM_COLOR, roof=True)
+    k.box((-4.2, -7.92, ROOF_TOP), (-3.92, 6.92, ROOF_TOP + 0.05), TRIM_COLOR, roof=True)
+    k.box((10.92, -7.92, ROOF_TOP), (11.2, 6.92, ROOF_TOP + 0.05), TRIM_COLOR, roof=True)
 
     # Rooftop HVAC units and vents
     k.box((1.0, -1.0, TOP2 + 0.15), (3.5, 1.5, TOP2 + 1.1), "metal", roof=True)

@@ -25,22 +25,23 @@ def build(model):
     k = kit.Kit(model)
 
     # 1. Base floor slab (raised F=0.1 m above ground)
-    # Footprint: x [-7.6, 7.6], y [-7.6, 7.6]
-    k.solid((-7.6, -7.6, 0.0), (7.6, 7.6, F), "rock_mid", base="floor")
+    # Footprint: x [-7.6, 7.6], y [-7.6, 7.2]
+    k.solid((-7.6, -7.6, 0.0), (7.6, 7.2, F), "rock_mid", base="floor")
 
     # Front entrance stoop / apron (y 7.2 to 7.8)
     k.solid((-2.0, 7.2, 0.0), (-0.2, 7.8, F), "rock_light", base="stoop")
 
     # Corner base plinths (extending to +/-8.0 to define exact 16x16 footprint)
-    k.box((-8.0, -8.0, 0.0), (-7.5, -7.5, 0.6), "rock_dark")
-    k.box((-8.0, 7.2, 0.0), (-7.5, 7.7, 0.6), "rock_dark")
-    k.box((7.2, -8.0, 0.0), (7.7, -7.5, 0.6), "rock_dark")
+    k.box((-8.0, -8.0, 0.01), (-7.5, -7.5, 0.6), "rock_dark")
+    k.box((-8.0, 7.2, 0.01), (-7.5, 7.7, 0.6), "rock_dark")
+    k.box((7.2, -8.0, 0.01), (7.7, -7.5, 0.6), "rock_dark")
 
-    # Plinth base trims along walls
-    k.box((-7.6, 7.15, 0.0), (4.5, 7.25, 0.55), "rock_dark")
-    k.box((-7.6, -7.6, 0.0), (7.6, -7.5, 0.55), "rock_dark")
-    k.box((-7.6, -7.6, 0.0), (-7.5, 7.2, 0.55), "rock_dark")
-    k.box((7.5, -7.6, 0.0), (7.6, 4.5, 0.55), "rock_dark")
+    # Plinth base trims along walls (proud by 2-4cm, butted at corners, split for door and stoop)
+    k.box((-7.5, 7.2, 0.02), (-2.02, 7.24, 0.55), "rock_dark")
+    k.box((-0.18, 7.2, 0.02), (4.45, 7.24, 0.55), "rock_dark")
+    k.box((-7.5, -7.64, 0.02), (7.2, -7.6, 0.55), "rock_dark")
+    k.box((-7.64, -7.5, 0.02), (-7.6, 7.18, 0.55), "rock_dark")
+    k.box((7.6, -7.5, 0.02), (7.64, 4.45, 0.55), "rock_dark")
 
     # 2. Ground Floor Exterior Walls
     # Front entrance door (1.2 m wide: x in [-1.7, -0.5])
@@ -66,14 +67,14 @@ def build(model):
 
     # Entrance door frame & canopy
     k.frame(front_door, 7.2, 1, color="metal", t=0.08, depth=0.06, sill=False)
-    k.box((-2.1, 7.1, 2.45), (-0.1, 7.8, 2.6), "metal")  # entrance canopy
+    k.box((-2.1, 7.19, 2.45), (-0.1, 7.8, 2.6), "metal")  # entrance canopy
 
     # Back wall GF (z F to 3.2)
     k.solid((-7.6, -7.6, F), (7.6, -7.45, 3.2), "rock_mid", base="wall_back_gf")
-    # West wall GF
-    k.solid((-7.6, -7.6, F), (-7.45, 7.2, 3.2), "rock_mid", base="wall_west_gf")
-    # East wall GF (intact to x=4.5; past 4.5 rubble pile connects)
-    k.solid((7.45, -7.6, F), (7.6, 4.5, 3.2), "rock_mid", base="wall_east_gf")
+    # West wall GF (butted between back and front walls)
+    k.solid((-7.6, -7.45, F), (-7.45, 7.05, 3.2), "rock_mid", base="wall_west_gf")
+    # East wall GF (intact to y=4.5; past 4.5 rubble pile connects)
+    k.solid((7.45, -7.45, F), (7.6, 4.5, 3.2), "rock_mid", base="wall_east_gf")
     k.solid((4.5, 4.5, F), (7.6, 7.2, 3.2), "rock_dark", base="wall_corner_gf")
 
     # 3. Upper Floors (Floors 2, 3, 4: z 3.2 to 11.3)
@@ -83,25 +84,25 @@ def build(model):
         k.collider((-7.6, 7.05, flr_base), (7.6, 7.2, flr_top), f"wall_front_{int(flr_base)}")
         k.box((-7.6, -7.6, flr_base), (7.6, -7.45, flr_top), "rock_mid", roof=True)
         k.collider((-7.6, -7.6, flr_base), (7.6, -7.45, flr_top), f"wall_back_{int(flr_base)}")
-        k.box((-7.6, -7.6, flr_base), (-7.45, 7.2, flr_top), "rock_mid", roof=True)
-        k.collider((-7.6, -7.6, flr_base), (-7.45, 7.2, flr_top), f"wall_west_{int(flr_base)}")
-        k.box((7.45, -7.6, flr_base), (7.6, 7.2, flr_top), "rock_mid", roof=True)
-        k.collider((7.45, -7.6, flr_base), (7.6, 7.2, flr_top), f"wall_east_{int(flr_base)}")
+        k.box((-7.6, -7.45, flr_base), (-7.45, 7.05, flr_top), "rock_mid", roof=True)
+        k.collider((-7.6, -7.45, flr_base), (-7.45, 7.05, flr_top), f"wall_west_{int(flr_base)}")
+        k.box((7.45, -7.45, flr_base), (7.6, 7.05, flr_top), "rock_mid", roof=True)
+        k.collider((7.45, -7.45, flr_base), (7.6, 7.05, flr_top), f"wall_east_{int(flr_base)}")
 
     # Floor 4 (z 8.6 to 11.3): Collapsed top front-right corner!
     k.box((-7.6, -7.6, 8.6), (7.6, -7.45, WALL_TOP), "rock_mid", roof=True)
     k.collider((-7.6, -7.6, 8.6), (7.6, -7.45, WALL_TOP), "wall_back_f4")
 
-    k.box((-7.6, -7.6, 8.6), (-7.45, 7.2, WALL_TOP), "rock_mid", roof=True)
-    k.collider((-7.6, -7.6, 8.6), (-7.45, 7.2, WALL_TOP), "wall_west_f4")
+    k.box((-7.6, -7.45, 8.6), (-7.45, 7.05, WALL_TOP), "rock_mid", roof=True)
+    k.collider((-7.6, -7.45, 8.6), (-7.45, 7.05, WALL_TOP), "wall_west_f4")
 
     # Front wall Floor 4: intact up to x=3.5; collapsed from 3.5 to 7.6
     k.box((-7.6, 7.05, 8.6), (3.5, 7.2, WALL_TOP), "rock_mid", roof=True)
     k.collider((-7.6, 7.05, 8.6), (3.5, 7.2, WALL_TOP), "wall_front_f4")
 
     # East wall Floor 4: intact up to y=3.5; collapsed from 3.5 to 7.2
-    k.box((7.45, -7.6, 8.6), (7.6, 3.5, WALL_TOP), "rock_mid", roof=True)
-    k.collider((7.45, -7.6, 8.6), (7.6, 3.5, WALL_TOP), "wall_east_f4")
+    k.box((7.45, -7.45, 8.6), (7.6, 3.5, WALL_TOP), "rock_mid", roof=True)
+    k.collider((7.45, -7.45, 8.6), (7.6, 3.5, WALL_TOP), "wall_east_f4")
 
     # Jagged fracture edges on Floor 4
     k.box((3.5, 7.05, 8.6), (4.6, 7.2, 9.9), "rock_light", roof=True)
@@ -123,15 +124,17 @@ def build(model):
     glass_bands = [(2, 3.9, 5.2), (3, 6.6, 7.9), (4, 9.3, 10.6)]
 
     for flr, z0, z1 in glass_bands:
-        # Precast light concrete spandrel trim
-        k.box((-7.61, 7.16, z0 - 0.1), (7.61, 7.2, z0), "rock_light", roof=True)
-        k.box((-7.61, 7.16, z1), (7.61, 7.2, z1 + 0.1), "rock_light", roof=True)
-        k.box((-7.61, -7.6, z0 - 0.1), (7.61, -7.56, z0), "rock_light", roof=True)
-        k.box((-7.61, -7.6, z1), (7.61, -7.56, z1 + 0.1), "rock_light", roof=True)
-        k.box((-7.6, -7.61, z0 - 0.1), (-7.56, 7.21, z0), "rock_light", roof=True)
-        k.box((-7.6, -7.61, z1), (-7.56, 7.21, z1 + 0.1), "rock_light", roof=True)
-        k.box((7.56, -7.61, z0 - 0.1), (7.6, 7.21, z0), "rock_light", roof=True)
-        k.box((7.56, -7.61, z1), (7.6, 7.21, z1 + 0.1), "rock_light", roof=True)
+        x_hi = 3.5 if flr == 4 else 7.56
+        y_hi = 3.5 if flr == 4 else 7.23
+        # Precast light concrete spandrel trim (proud of wall, butted at corners)
+        k.box((-7.56, 7.16, z0 - 0.1), (x_hi, 7.23, z0), "rock_light", roof=True)
+        k.box((-7.56, 7.16, z1), (x_hi, 7.23, z1 + 0.1), "rock_light", roof=True)
+        k.box((-7.56, -7.63, z0 - 0.1), (7.56, -7.56, z0), "rock_light", roof=True)
+        k.box((-7.56, -7.63, z1), (7.56, -7.56, z1 + 0.1), "rock_light", roof=True)
+        k.box((-7.63, -7.63, z0 - 0.1), (-7.56, 7.23, z0), "rock_light", roof=True)
+        k.box((-7.63, -7.63, z1), (-7.56, 7.23, z1 + 0.1), "rock_light", roof=True)
+        k.box((7.56, -7.63, z0 - 0.1), (7.63, y_hi, z0), "rock_light", roof=True)
+        k.box((7.56, -7.63, z1), (7.63, y_hi, z1 + 0.1), "rock_light", roof=True)
 
         # Front glass band
         x_hi = 3.2 if flr == 4 else 7.2
@@ -166,20 +169,20 @@ def build(model):
     # 5. Rubble Pile at the foot of the collapsed corner (x in [4.5, 8.0], y in [4.5, 8.0])
     # Massive fallen concrete slabs and boulders piled up at the foot
     rubble_mounds = [
-        ((4.5, 4.5, 0.0), (8.0, 8.0, 0.9), "rock_dark", "rubble_base"),
-        ((5.0, 5.0, 0.9), (7.8, 7.8, 1.8), "rock_mid", "rubble_mid"),
-        ((5.5, 5.5, 1.8), (7.4, 7.4, 2.6), "rock_light", "rubble_top"),
+        ((4.52, 4.52, 0.03), (8.0, 8.0, 0.88), "rock_dark", "rubble_base"),
+        ((5.0, 5.0, 0.90), (7.8, 7.8, 1.78), "rock_mid", "rubble_mid"),
+        ((5.5, 5.5, 1.80), (7.4, 7.4, 2.6), "rock_light", "rubble_top"),
     ]
     for lo, hi, color, base in rubble_mounds:
         k.solid(lo, hi, color, base=base)
 
     # Scattered shattered blocks around the base
     debris = [
-        ((4.0, 6.5, 0.0), (5.0, 7.8, 0.7), "rock_light"),
-        ((6.5, 4.0, 0.0), (7.8, 5.0, 0.7), "rock_light"),
-        ((4.2, 5.2, 0.0), (5.2, 6.2, 0.5), "rock_mid"),
-        ((7.2, 6.8, 0.9), (7.9, 7.9, 2.1), "rock_dark"),
-        ((5.2, 6.2, 1.7), (6.5, 7.2, 2.4), "rock_light"),
+        ((4.0, 6.5, 0.05), (5.0, 7.8, 0.7), "rock_light"),
+        ((6.5, 4.0, 0.06), (7.8, 5.0, 0.7), "rock_light"),
+        ((4.2, 5.2, 0.07), (5.2, 6.2, 0.5), "rock_mid"),
+        ((7.2, 6.8, 0.92), (7.9, 7.9, 2.1), "rock_dark"),
+        ((5.2, 6.2, 1.7), (6.5, 7.18, 2.4), "rock_light"),
     ]
     for lo, hi, color in debris:
         k.solid(lo, hi, color, base="debris")
@@ -187,7 +190,7 @@ def build(model):
     # Bent rebar pieces sticking out of rubble pile
     k.box((5.6, 5.6, 2.2), (5.7, 5.7, 3.4), "rust")
     k.box((6.6, 6.2, 1.8), (6.7, 6.3, 3.1), "rust")
-    k.box((6.0, 7.1, 1.5), (6.1, 7.2, 2.7), "rust")
+    k.box((6.0, 7.05, 1.5), (6.1, 7.15, 2.7), "rust")
 
     # 6. Roof: concrete slab, low parapet, and rooftop elevator/HVAC penthouse
     # Main roof body (x [-7.6, 3.5], y [-7.6, 7.2])
@@ -198,24 +201,24 @@ def build(model):
     k.box((3.5, -7.6, WALL_TOP), (7.6, 3.5, WALL_TOP + 0.15), "rock_dark", roof=True)
     k.collider((3.5, -7.6, WALL_TOP), (7.6, 3.5, WALL_TOP + 0.15), "roof_slab_e")
 
-    # Parapet walls on roof
+    # Parapet walls on roof (butted at corners)
     k.box((-7.6, -7.6, WALL_TOP + 0.15), (7.6, -7.45, PARAPET_TOP), "rock_mid", roof=True)
     k.collider((-7.6, -7.6, WALL_TOP + 0.15), (7.6, -7.45, PARAPET_TOP), "parapet_back")
 
-    k.box((-7.6, -7.6, WALL_TOP + 0.15), (-7.45, 7.2, PARAPET_TOP), "rock_mid", roof=True)
-    k.collider((-7.6, -7.6, WALL_TOP + 0.15), (-7.45, 7.2, PARAPET_TOP), "parapet_west")
+    k.box((-7.6, -7.45, WALL_TOP + 0.15), (-7.45, 7.05, PARAPET_TOP), "rock_mid", roof=True)
+    k.collider((-7.6, -7.45, WALL_TOP + 0.15), (-7.45, 7.05, PARAPET_TOP), "parapet_west")
 
     k.box((-7.6, 7.05, WALL_TOP + 0.15), (3.5, 7.2, PARAPET_TOP), "rock_mid", roof=True)
     k.collider((-7.6, 7.05, WALL_TOP + 0.15), (3.5, 7.2, PARAPET_TOP), "parapet_front")
 
-    k.box((7.45, -7.6, WALL_TOP + 0.15), (7.6, 3.5, PARAPET_TOP), "rock_mid", roof=True)
-    k.collider((7.45, -7.6, WALL_TOP + 0.15), (7.6, 3.5, PARAPET_TOP), "parapet_east")
+    k.box((7.45, -7.45, WALL_TOP + 0.15), (7.6, 3.5, PARAPET_TOP), "rock_mid", roof=True)
+    k.collider((7.45, -7.45, WALL_TOP + 0.15), (7.6, 3.5, PARAPET_TOP), "parapet_east")
 
-    # Coping stones
+    # Coping stones (butted at corners)
     k.box((-7.62, -7.62, PARAPET_TOP), (7.62, -7.43, PARAPET_TOP + 0.08), "rock_light", roof=True)
-    k.box((-7.62, -7.62, PARAPET_TOP), (-7.43, 7.22, PARAPET_TOP + 0.08), "rock_light", roof=True)
+    k.box((-7.62, -7.43, PARAPET_TOP), (-7.43, 7.03, PARAPET_TOP + 0.08), "rock_light", roof=True)
     k.box((-7.62, 7.03, PARAPET_TOP), (3.55, 7.22, PARAPET_TOP + 0.08), "rock_light", roof=True)
-    k.box((7.43, -7.62, PARAPET_TOP), (7.62, 3.55, PARAPET_TOP + 0.08), "rock_light", roof=True)
+    k.box((7.43, -7.43, PARAPET_TOP), (7.62, 3.55, PARAPET_TOP + 0.08), "rock_light", roof=True)
 
     # Rooftop HVAC Penthouse (x in [-2.5, 1.5], y in [-2.5, 1.5])
     k.box((-2.5, -2.5, WALL_TOP + 0.15), (1.5, 1.5, 13.5), "rock_mid", roof=True)
@@ -231,7 +234,7 @@ def build(model):
     k.collider((-1.5, -5.5, WALL_TOP + 0.15), (1.0, -3.5, 12.6), "ac_unit_2")
 
     # 7. Ground Floor Interior: Open Lobby (x in [-7.2, 4.0], y in [-1.5, 7.0])
-    k.box((-7.2, -1.5, F), (4.0, 7.0, F + 0.02), "rock_light")
+    k.box((-7.15, -1.48, F + 0.008), (3.82, 7.0, F + 0.02), "rock_light")
     k.box((-7.2, -1.5, 3.2), (4.0, 7.0, 3.32), "white", roof=True)
 
     # Interior partition walls enclosing lobby
@@ -243,15 +246,15 @@ def build(model):
     k.solid((-0.5, 3.5, F), (2.0, 4.3, 1.15), "wood_crate", base="rec_front")
     k.box((-0.55, 3.45, 1.15), (2.05, 4.35, 1.2), "bark_dark")
     # Side return counter (x in [1.3, 2.0], y in [2.0, 3.5])
-    k.solid((1.3, 2.0, F), (2.0, 3.5, 1.15), "wood_crate", base="rec_side")
-    k.box((1.25, 1.95, 1.15), (2.05, 3.5, 1.2), "bark_dark")
+    k.solid((1.3, 2.0, F), (2.0, 3.45, 1.15), "wood_crate", base="rec_side")
+    k.box((1.25, 1.95, 1.15), (2.05, 3.45, 1.2), "bark_dark")
     # Computer monitor on desk
     k.box((0.4, 3.8, 1.2), (0.9, 3.86, 1.55), "gun_black")
     k.box((0.6, 3.82, 1.2), (0.7, 3.95, 1.25), "metal")
     # Swivel chair behind desk
     k.solid((0.4, 2.6, F), (0.9, 3.1, 0.45), "shirt_blue", base="chair_seat")
     k.box((0.4, 2.6, 0.45), (0.9, 2.75, 0.95), "shirt_blue")
-    k.box((0.62, 2.82, 0.0), (0.68, 2.88, 0.45), "metal")
+    k.box((0.62, 2.82, F), (0.68, 2.88, 0.45), "metal")
 
     # Waiting Area:
     # Sofa 1 (at x in [-6.5, -4.5], y in [4.2, 5.2])
@@ -272,21 +275,21 @@ def build(model):
 
     # Back Wall: Elevators & Stairwell (Barricaded shut, upper floors closed)
     # Elevator doors
-    k.box((-1.8, -1.52, F), (-0.4, -1.48, 2.3), "metal")
-    k.box((0.2, -1.52, F), (1.6, -1.48, 2.3), "metal")
-    k.box((-1.2, -1.49, 2.45), (-1.0, -1.47, 2.55), "brass")
-    k.box((0.8, -1.49, 2.45), (1.0, -1.47, 2.55), "brass")
+    k.box((-1.8, -1.50, F + 0.02), (-0.4, -1.46, 2.3), "metal")
+    k.box((0.2, -1.50, F + 0.02), (1.6, -1.46, 2.3), "metal")
+    k.box((-1.2, -1.45, 2.45), (-1.0, -1.43, 2.55), "brass")
+    k.box((0.8, -1.45, 2.45), (1.0, -1.43, 2.55), "brass")
 
     # Heavy timber boards barricading elevators
     k.box((-2.0, -1.45, 0.5), (1.8, -1.35, 0.75), "wood_crate")
     k.box((-2.0, -1.45, 1.2), (1.8, -1.35, 1.45), "wood_crate")
-    k.box((-1.7, -1.44, F), (1.5, -1.36, 2.2), "bark_dark")
+    k.box((-1.7, -1.44, F + 0.02), (1.5, -1.36, 2.2), "bark_dark")
 
     # Barricaded stairwell door
-    k.box((-5.0, -1.52, F), (-3.8, -1.48, 2.2), "metal")
-    k.solid((-4.8, -1.45, F), (-3.8, -0.8, 1.3), "metal", base="filing_cab_1")
+    k.box((-5.0, -1.50, F + 0.02), (-3.8, -1.46, 2.2), "metal")
+    k.solid((-4.8, -1.45, F + 0.02), (-3.8, -0.8, 1.3), "metal", base="filing_cab_1")
     k.solid((-4.2, -1.3, 1.3), (-3.6, -0.7, 2.1), "metal", base="filing_cab_2")
-    k.box((-4.6, -1.49, 2.35), (-4.2, -1.47, 2.55), "red_paint")
+    k.box((-4.6, -1.45, 2.35), (-4.2, -1.43, 2.55), "red_paint")
 
     # 8. Empties / Markers
     k.empty("lot_size", (0.0, 0.0, 0.0), scale=(18.0, 18.0, 1.0))

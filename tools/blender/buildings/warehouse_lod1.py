@@ -53,24 +53,25 @@ def build(model):
         col = "rock_dark" if i % 2 == 0 else "metal"
         k.box((x0, 4.35, F), (x1, 4.5, WALL_TOP), col)
 
-    # Left wall (X = -11.5)
+    # Left wall (X = -11.5) - between back and front wall inner faces
+    bw_left = (4.35 - (-6.35)) / 3
     for i in range(3):
-        y0 = -6.5 + i * 3.66
-        y1 = -6.5 + (i + 1) * 3.66
+        y0 = -6.35 + i * bw_left
+        y1 = -6.35 + (i + 1) * bw_left
         col = "metal" if i % 2 == 0 else "rock_dark"
         k.box((-11.5, y0, F), (-11.35, y1, WALL_TOP), col)
 
-    # Right wall (X = 11.5) with side door shape
-    k.box((11.35, -6.5, F), (11.5, -2.0, WALL_TOP), "rock_dark")
+    # Right wall (X = 11.5) with side door shape - between back and front wall inner faces
+    k.box((11.35, -6.35, F), (11.5, -2.0, WALL_TOP), "rock_dark")
     # Side door
     k.box((11.38, -2.0, F), (11.48, -0.8, kit.DOOR_H), "gun_black")
     k.box((11.35, -2.0, kit.DOOR_H), (11.5, -0.8, WALL_TOP), "metal")
-    k.box((11.35, -0.8, F), (11.5, 4.5, WALL_TOP), "metal")
+    k.box((11.35, -0.8, F), (11.5, 4.35, WALL_TOP), "metal")
 
     # 3. Loading Dock Platform (0.5 to 11.0, Y: 4.5 to 6.8, H: 0.7)
     dock_top = 0.7
     k.box((0.5, 4.5, 0.0), (11.0, 6.8, dock_top), "rock_mid")
-    k.box((0.5, 6.74, dock_top - 0.02), (11.0, 6.82, dock_top + 0.02), "brass")
+    k.box((0.51, 6.74, dock_top - 0.02), (10.99, 6.82, dock_top + 0.02), "brass")
     # Steps
     k.box((-0.3, 5.2, 0.0), (0.5, 6.8, 0.35), "rock_mid")
     # Dock canopy
@@ -81,7 +82,7 @@ def build(model):
     # 4. Shallow Gable Roof
     ridge = (0.0, -1.0, RIDGE_Z)
     k.roof(ridge, (0.0, -6.8, WALL_TOP), span=(1.0, 0.0, 0.0), width=23.6, color="metal", thick=0.14)
-    k.roof(ridge, (0.0, 4.8, WALL_TOP), span=(1.0, 0.0, 0.0), width=23.6, color="metal", thick=0.14)
+    k.roof(ridge, (0.0, 4.8, WALL_TOP), span=(1.0, 0.0, 0.0), width=23.58, color="metal", thick=0.14)
     k.ridge_cap((0.0, -1.0, RIDGE_Z), 0, 23.8, color="rock_dark")
 
     # Gable ends

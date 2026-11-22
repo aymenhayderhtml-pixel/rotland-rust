@@ -27,21 +27,21 @@ TRIM_COLOR = "rock_dark"
 def build(model):
     k = kit.Kit(model)
 
-    # Parking area pad (x -11 to -4, y -8 to 7)
-    k.box((-11.0, -8.0, 0.0), (-4.0, 7.0, 0.04), "rock_dark")
+    # Parking area pad (x -11 to -4, y -8 to 7) - sunken base to prevent Z=0 overlap with fixtures
+    k.box((-11.0, -8.0, -0.02), (-4.0, 7.0, 0.04), "rock_dark")
 
     # Low-poly parking fence (simplified rails)
     # West fence
-    k.box((-11.04, -8.0, 0.0), (-10.96, 7.0, 2.0), "metal")
-    # South fence
-    k.box((-11.0, -8.04, 0.0), (-4.0, -7.96, 2.0), "metal")
-    # North fence
-    k.box((-11.0, 6.96, 0.0), (-8.5, 7.04, 2.0), "metal")
+    k.box((-11.04, -8.04, 0.0), (-10.96, 7.04, 2.0), "metal")
+    # South fence (butts against west fence)
+    k.box((-10.96, -8.04, 0.0), (-4.0, -7.96, 2.0), "metal")
+    # North fence (butts against west fence)
+    k.box((-10.96, 6.96, 0.0), (-8.5, 7.04, 2.0), "metal")
     # Barrier housing & arm
     k.box((-4.5, 6.8, 0.0), (-4.1, 7.2, 1.1), "shirt_blue")
     k.box((-8.3, 6.95, 0.83), (-4.1, 7.05, 0.95), "white")
-    k.box((-7.5, 6.94, 0.82), (-7.0, 7.06, 0.96), "red_paint")
-    k.box((-6.0, 6.94, 0.82), (-5.5, 7.06, 0.96), "red_paint")
+    k.box((-7.5, 6.93, 0.81), (-7.0, 7.07, 0.97), "red_paint")
+    k.box((-6.0, 6.93, 0.81), (-5.5, 7.07, 0.97), "red_paint")
 
     # Dumpster
     k.box((-10.5, -7.2, 0.0), (-8.8, -5.8, 1.3), "shirt_blue")
@@ -58,11 +58,15 @@ def build(model):
     k.box((-4.02, -8.02, 5.4), (11.02, 7.02, 5.65), STRIPE_COLOR)
 
     # Roof slab and parapet
-    k.box((-4.1, -8.1, TOP2), (11.1, 7.1, ROOF_TOP), TRIM_COLOR)
-    k.box((-3.9, -7.9, ROOF_TOP - 0.2), (10.9, 6.9, ROOF_TOP), "rock_dark")
+    k.box((-4.1, -8.1, TOP2), (11.1, 7.1, TOP2 + 0.15), "rock_dark")
+    # Parapet rim sitting on the roof slab
+    k.box((-4.1, 6.9, TOP2 + 0.15), (11.1, 7.1, ROOF_TOP), TRIM_COLOR)
+    k.box((-4.1, -8.1, TOP2 + 0.15), (11.1, -7.9, ROOF_TOP), TRIM_COLOR)
+    k.box((-4.1, -7.9, TOP2 + 0.15), (-3.9, 6.9, ROOF_TOP), TRIM_COLOR)
+    k.box((10.9, -7.9, TOP2 + 0.15), (11.1, 6.9, ROOF_TOP), TRIM_COLOR)
 
     # Roof AC unit
-    k.box((1.0, -1.0, ROOF_TOP), (3.5, 1.5, ROOF_TOP + 1.0), "metal")
+    k.box((1.0, -1.0, TOP2 + 0.15), (3.5, 1.5, TOP2 + 1.1), "metal")
 
     # Front entrance steps
     k.solid((1.5, 7.0, 0.0), (4.5, 8.0, F), "rock_dark", base="steps")

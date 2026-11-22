@@ -36,7 +36,7 @@ def _make_awning(k, x0, x1, color, valance_color=None):
 
     # Vertical front valance strip
     v_col = valance_color or color
-    k.box((x0, 3.96, 2.30), (x1, 4.0, 2.45), v_col)
+    k.box((x0 + 0.01, 3.96, 2.30), (x1 - 0.01, 4.0, 2.45), v_col)
 
     # Metal support brackets at both ends and center
     for x in (x0 + 0.06, (x0 + x1) / 2, x1 - 0.06):
@@ -117,16 +117,16 @@ def build(model):
     k.frame(window_2, 3.2, 1, "metal")
     k.frame(back_window_1, -4.0, -1, "metal")
     k.frame(back_window_2, -4.0, -1, "metal")
-    k.frame(inner_door, 0.0, 1, "wood_crate")
+    k.frame(inner_door, 0.075, 1, "wood_crate")
 
     # Shop 1 big window: boarded up
-    k.box((-4.73, 3.12, 0.8), (-4.67, 3.24, 2.4), "metal")
-    k.box((-6.8, 3.12, 1.57), (-2.6, 3.24, 1.63), "metal")
+    k.box((-4.73, 3.12, 0.82), (-4.67, 3.24, 2.38), "metal")
+    k.box((-6.78, 3.11, 1.57), (-2.62, 3.25, 1.63), "metal")
     k.boards(window_1, 3.2, 1, color="bark_light", rows=(0.25, 0.5, 0.75))
 
     # Shop 2 big window: broken panes with divider mullions
-    k.box((4.67, 3.12, 0.8), (4.73, 3.24, 2.4), "metal")
-    k.box((2.6, 3.12, 1.57), (6.8, 3.24, 1.63), "metal")
+    k.box((4.67, 3.12, 0.82), (4.73, 3.24, 2.38), "metal")
+    k.box((2.62, 3.11, 1.57), (6.78, 3.25, 1.63), "metal")
     # Remaining broken glass shard in corner
     shard = common.make_box((0.8, 0.02, 0.6), color="rock_dark")
     common.transform(shard, loc=(2.8, 3.18, 2.0), rot=(0.0, 0.0, 0.1))
@@ -147,15 +147,15 @@ def build(model):
     # Left wall shelves
     k.solid((-7.85, -3.4, F), (-7.25, 1.5, 2.0), "bark_dark", base="shelf_wall_1")
     for z in (0.5, 0.9, 1.3, 1.7):
-        k.box((-7.85, -3.4, z), (-7.2, 1.5, z + 0.04), "bark_light")
+        k.box((-7.83, -3.38, z), (-7.2, 1.48, z + 0.04), "bark_light")
     # Some grocery boxes on wall shelves
     for y, col in ((-2.8, "red_paint"), (-1.8, "white"), (-0.8, "soda_purple"), (0.5, "brass")):
         k.box((-7.7, y - 0.2, 0.94), (-7.3, y + 0.2, 1.25), col)
 
     # Center gondola shelf
     k.solid((-5.6, -2.8, F), (-4.6, 0.4, 1.5), "metal", base="gondola_1")
-    k.box((-5.65, -2.8, 0.6), (-4.55, 0.4, 0.64), "rock_dark")
-    k.box((-5.65, -2.8, 1.05), (-4.55, 0.4, 1.09), "rock_dark")
+    k.box((-5.65, -2.78, 0.6), (-4.55, 0.38, 0.64), "rock_dark")
+    k.box((-5.65, -2.78, 1.05), (-4.55, 0.38, 1.09), "rock_dark")
     # Supplies on gondola shelf
     for y, col in ((-2.2, "wood_crate"), (-1.2, "shirt_blue"), (-0.2, "red_paint")):
         k.box((-5.4, y - 0.25, 1.09), (-4.8, y + 0.25, 1.35), col)
@@ -171,7 +171,7 @@ def build(model):
     # Right wall shelving
     k.solid((7.25, -3.4, F), (7.85, 1.5, 2.0), "metal", base="shelf_wall_2")
     for z in (0.5, 0.9, 1.3, 1.7):
-        k.box((7.2, -3.4, z), (7.85, 1.5, z + 0.04), "rock_mid")
+        k.box((7.2, -3.38, z), (7.83, 1.48, z + 0.04), "rock_mid")
 
     # Back wall shelving
     k.solid((1.0, -3.85, F), (6.8, -3.3, 1.8), "wood_crate", base="shelf_back_2")

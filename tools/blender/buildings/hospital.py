@@ -39,18 +39,19 @@ def build_ambulance_bay(k):
     k.box((-12.5, -6.5, 0.04), (-8.5, 6.5, 0.05), STRIPE_COLOR)
     # White border lines for parking box
     for y in (-6.5, 6.5):
-        k.box((-12.6, y - 0.06, 0.05), (-8.4, y + 0.06, 0.06), "white")
+        k.box((-12.44, y - 0.06, 0.05), (-8.56, y + 0.06, 0.06), "white")
     for x in (-12.5, -8.5):
-        k.box((x - 0.06, -6.5, 0.05), (x + 0.06, 6.5, 0.06), "white")
-    # White cross in center of bay
+        k.box((x - 0.06, -6.56, 0.05), (x + 0.06, 6.56, 0.06), "white")
+    # White cross in center of bay (non-overlapping boxes)
     k.box((-11.0, -1.5, 0.05), (-10.0, 1.5, 0.06), "white")
-    k.box((-11.5, -0.5, 0.05), (-9.5, 0.5, 0.06), "white")
+    k.box((-11.5, -0.5, 0.05), (-11.0, 0.5, 0.06), "white")
+    k.box((-10.0, -0.5, 0.05), (-9.5, 0.5, 0.06), "white")
 
     # 4 Support posts (z 0 to 3.8 m)
     posts = [(-13.5, -7.5), (-13.5, 7.5), (-7.5, -7.5), (-7.5, 7.5)]
     for px, py in posts:
         # Base concrete collar
-        k.solid((px - 0.32, py - 0.32, 0.0), (px + 0.32, py + 0.32, 0.4), "rock_mid", base="bay_post_base")
+        k.solid((px - 0.32, py - 0.32, 0.04), (px + 0.32, py + 0.32, 0.4), "rock_mid", base="bay_post_base")
         # Post shaft
         k.solid((px - 0.25, py - 0.25, 0.4), (px + 0.25, py + 0.25, 3.8), WALL_COLOR, base="bay_post")
 
@@ -59,16 +60,16 @@ def build_ambulance_bay(k):
     k.collider((-14.2, -8.7, 3.8), (-6.8, 8.7, 4.15), "canopy_roof")
     # Red fascia edge around canopy roof
     for lo, hi in [
-        ((-14.22, -8.72, 3.8), (-6.78, -8.68, 4.15)),
-        ((-14.22, 8.68, 3.8), (-6.78, 8.72, 4.15)),
-        ((-14.22, -8.72, 3.8), (-14.18, 8.72, 4.15)),
+        ((-14.18, -8.72, 3.78), (-6.78, -8.68, 4.17)),
+        ((-14.18, 8.68, 3.78), (-6.78, 8.72, 4.17)),
+        ((-14.22, -8.72, 3.78), (-14.18, 8.72, 4.17)),
     ]:
         k.box(lo, hi, STRIPE_COLOR, roof=True)
 
     # Red cross sign above emergency doors on the west hospital wall
-    k.box((-7.04, 0.0, 4.2), (-6.98, 1.0, 5.2), WALL_COLOR, roof=True)
-    k.box((-7.06, 0.38, 4.3), (-6.96, 0.62, 5.1), STRIPE_COLOR, roof=True)
-    k.box((-7.06, 0.1, 4.58), (-6.96, 0.9, 4.82), STRIPE_COLOR, roof=True)
+    k.box((-7.08, 0.0, 4.2), (-7.05, 1.0, 5.2), WALL_COLOR, roof=True)
+    k.box((-7.10, 0.38, 4.3), (-7.07, 0.62, 5.1), STRIPE_COLOR, roof=True)
+    k.box((-7.12, 0.1, 4.58), (-7.07, 0.9, 4.82), STRIPE_COLOR, roof=True)
 
 
 def build_exterior(k):
@@ -140,12 +141,12 @@ def build_exterior(k):
     # Main entrance canopy awning over front doors
     k.box((1.5, 9.0, 3.2), (6.0, 10.2, 3.35), WALL_COLOR)
     k.collider((1.5, 9.0, 3.2), (6.0, 10.2, 3.35), "entrance_canopy")
-    k.box((1.48, 10.18, 3.2), (6.02, 10.22, 3.35), STRIPE_COLOR)
+    k.box((1.48, 10.18, 3.19), (6.02, 10.22, 3.36), STRIPE_COLOR)
     # Two support posts
     for hx in (2.0, 5.5):
-        k.solid((hx - 0.08, 9.95, 0.0), (hx + 0.08, 10.11, 3.2), "metal", base="canopy_post")
+        k.solid((hx - 0.08, 9.95, F), (hx + 0.08, 10.11, 3.2), "metal", base="canopy_post")
     # Low entrance ramp in front of main doors
-    k.solid((1.5, 9.0, 0.0), (6.0, 10.0, F), "rock_mid", base="entrance_ramp")
+    k.solid((1.5, 9.02, 0.01), (6.0, 10.0, F), "rock_mid", base="entrance_ramp")
 
     # Front wide entrance double doors
     k.frame(main_door, 9.0, 1, color="metal", t=0.1)
@@ -165,7 +166,7 @@ def build_exterior(k):
     # White background panel
     k.box((2.2, 8.99, 6.8), (5.3, 9.06, 8.8), WALL_COLOR, roof=True)
     # Vertical red cross bar
-    k.box((3.3, 9.06, 7.0), (4.2, 9.15, 8.6), STRIPE_COLOR, roof=True)
+    k.box((3.3, 9.07, 7.0), (4.2, 9.14, 8.6), STRIPE_COLOR, roof=True)
     # Horizontal red cross bar
     k.box((2.5, 9.06, 7.55), (5.0, 9.15, 8.05), STRIPE_COLOR, roof=True)
 
@@ -185,11 +186,11 @@ def build_interior(k):
     k.wall((-6.85, -1.5, F), (13.85, -1.35, TOP1), openings=[ward_door, pharmacy_door],
            color=WALL_COLOR, base="wall_corr_south")
 
-    # Wall dividing Triage room from Reception (x = 1.5, y = 1.4 to 8.85)
-    k.wall((1.35, 1.4, F), (1.5, 8.85, TOP1), color=WALL_COLOR, base="wall_triage_reception")
+    # Wall dividing Triage room from Reception (x = 1.5, y = 1.5 to 8.85)
+    k.wall((1.35, 1.5, F), (1.5, 8.85, TOP1), color=WALL_COLOR, base="wall_triage_reception")
 
-    # Wall dividing Ward from Pharmacy (x = 1.5, y = -8.85 to -1.4)
-    k.wall((1.35, -8.85, F), (1.5, -1.4, TOP1), color=WALL_COLOR, base="wall_ward_pharmacy")
+    # Wall dividing Ward from Pharmacy (x = 1.5, y = -8.85 to -1.5)
+    k.wall((1.35, -8.85, F), (1.5, -1.5, TOP1), color=WALL_COLOR, base="wall_ward_pharmacy")
 
     # Wall enclosing closed stairwell / east wing (x = 7.5, y = 1.4 to 8.85)
     stairs_closed_door = ((7.35, 4.5, 0.0), (7.65, 6.0, kit.DOOR_H))
@@ -197,14 +198,14 @@ def build_interior(k):
            color=WALL_COLOR, base="wall_east_stairs")
 
     # Blue guide navigation line on corridor floor
-    k.box((-6.8, -0.1, F), (7.5, 0.1, F + 0.01), "water_blue")
+    k.box((-6.8, -0.1, F + 0.006), (7.5, 0.1, F + 0.016), "water_blue")
 
     # ---- RECEPTION & WAITING AREA (x 1.5 to 7.5, y 1.4 to 8.85) ----
     # L-shaped curved reception counter
     k.solid((4.5, 4.0, F), (7.2, 4.6, 1.1), WALL_COLOR, base="rec_counter_1")
     k.box((4.45, 3.95, 1.1), (7.25, 4.65, 1.16), "wood_crate")
     k.solid((4.5, 4.6, F), (5.1, 6.5, 1.1), WALL_COLOR, base="rec_counter_2")
-    k.box((4.45, 4.55, 1.1), (5.15, 6.55, 1.16), "wood_crate")
+    k.box((4.45, 4.65, 1.1), (5.15, 6.55, 1.16), "wood_crate")
 
     # Office computer monitor and chair behind counter
     k.box((5.8, 4.15, 1.16), (6.3, 4.4, 1.55), "gun_black")
@@ -226,16 +227,16 @@ def build_interior(k):
     k.solid((-6.2, 6.2, F), (-4.0, 7.6, 0.45), "metal", base="triage_bed1_base")
     k.box((-6.15, 6.25, 0.45), (-4.05, 7.55, 0.62), WALL_COLOR)   # mattress
     k.box((-4.6, 6.35, 0.62), (-4.1, 7.45, 0.72), WALL_COLOR)      # pillow
-    k.box((-6.1, 6.3, 0.45), (-4.7, 7.5, 0.64), "gown_blue")       # blanket
+    k.box((-6.1, 6.3, 0.62), (-4.7, 7.5, 0.64), "gown_blue")       # blanket
     # Bed wheels & headboard
-    k.box((-4.05, 6.2, F), (-3.95, 7.6, 0.9), "metal")
+    k.box((-4.0, 6.2, F), (-3.92, 7.6, 0.9), "metal")
 
     # Bed 2 (south wall of room)
     k.solid((-6.2, 2.5, F), (-4.0, 3.9, 0.45), "metal", base="triage_bed2_base")
     k.box((-6.15, 2.55, 0.45), (-4.05, 3.85, 0.62), WALL_COLOR)
     k.box((-4.6, 2.65, 0.62), (-4.1, 3.75, 0.72), WALL_COLOR)
-    k.box((-6.1, 2.6, 0.45), (-4.7, 3.8, 0.64), "gown_blue")
-    k.box((-4.05, 2.5, F), (-3.95, 3.9, 0.9), "metal")
+    k.box((-6.1, 2.6, 0.62), (-4.7, 3.8, 0.64), "gown_blue")
+    k.box((-4.0, 2.5, F), (-3.92, 3.9, 0.9), "metal")
 
     # Medical monitor carts beside beds
     k.solid((-3.5, 7.0, F), (-2.8, 7.6, 0.95), "metal", base="monitor_cart_1")
@@ -256,15 +257,15 @@ def build_interior(k):
     k.solid((-6.2, -4.6, F), (-4.0, -3.2, 0.45), "metal", base="ward_bed3_base")
     k.box((-6.15, -4.55, 0.45), (-4.05, -3.25, 0.62), WALL_COLOR)
     k.box((-4.6, -4.45, 0.62), (-4.1, -3.35, 0.72), WALL_COLOR)
-    k.box((-6.1, -4.5, 0.45), (-4.7, -3.3, 0.64), "gown_blue")
-    k.box((-4.05, -4.6, F), (-3.95, -3.2, 0.9), "metal")
+    k.box((-6.1, -4.5, 0.62), (-4.7, -3.3, 0.64), "gown_blue")
+    k.box((-4.0, -4.6, F), (-3.92, -3.2, 0.9), "metal")
 
     # Bed 4
     k.solid((-6.2, -8.2, F), (-4.0, -6.8, 0.45), "metal", base="ward_bed4_base")
     k.box((-6.15, -8.15, 0.45), (-4.05, -6.85, 0.62), WALL_COLOR)
     k.box((-4.6, -8.05, 0.62), (-4.1, -6.95, 0.72), WALL_COLOR)
-    k.box((-6.1, -8.1, 0.45), (-4.7, -6.9, 0.64), "gown_blue")
-    k.box((-4.05, -8.2, F), (-3.95, -6.8, 0.9), "metal")
+    k.box((-6.1, -8.1, 0.62), (-4.7, -6.9, 0.64), "gown_blue")
+    k.box((-4.0, -8.2, F), (-3.92, -6.8, 0.9), "metal")
 
     # Privacy curtain partition screens
     k.box((-3.8, -5.2, F), (-3.74, -2.6, 2.0), WALL_COLOR)
@@ -368,10 +369,10 @@ def build_upper_and_roof(k):
     k.collider((-7.1, -9.1, TOP3), (14.1, 9.1, TOP3 + 0.2), "roof_slab")
 
     # Parapet rim around roof
-    k.box((-7.15, 8.95, TOP3), (14.15, 9.15, ROOF_TOP), WALL_COLOR, roof=True)
-    k.box((-7.15, -9.15, TOP3), (14.15, -8.95, ROOF_TOP), WALL_COLOR, roof=True)
-    k.box((-7.15, -8.95, TOP3), (-6.95, 8.95, ROOF_TOP), WALL_COLOR, roof=True)
-    k.box((13.95, -8.95, TOP3), (14.15, 8.95, ROOF_TOP), WALL_COLOR, roof=True)
+    k.box((-7.15, 8.95, TOP3 + 0.2), (14.15, 9.15, ROOF_TOP), WALL_COLOR, roof=True)
+    k.box((-7.15, -9.15, TOP3 + 0.2), (14.15, -8.95, ROOF_TOP), WALL_COLOR, roof=True)
+    k.box((-7.15, -8.95, TOP3 + 0.2), (-6.95, 8.95, ROOF_TOP), WALL_COLOR, roof=True)
+    k.box((13.95, -8.95, TOP3 + 0.2), (14.15, 8.95, ROOF_TOP), WALL_COLOR, roof=True)
 
     # Parapet red fascia cap
     k.box((-7.2, 8.92, ROOF_TOP - 0.08), (14.2, 9.18, ROOF_TOP + 0.04), STRIPE_COLOR, roof=True)

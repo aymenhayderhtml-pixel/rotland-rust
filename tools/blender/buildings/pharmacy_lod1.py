@@ -39,10 +39,11 @@ def build(model):
     # Rooftop HVAC unit
     k.box((1.5, -1.8, TOP + 0.15), (3.0, -0.4, TOP + 0.75), "metal")
 
-    # Green cross sign above door (made of boxes)
+    # Green cross sign above door (made of non-overlapping boxes)
     k.box((2.15, 3.41, 2.35), (3.05, 3.44, 3.15), "white")
     k.box((2.45, 3.44, 2.45), (2.75, 3.48, 3.05), "leaf_mid")
-    k.box((2.25, 3.44, 2.65), (2.95, 3.48, 2.85), "leaf_mid")
+    k.box((2.25, 3.44, 2.65), (2.45, 3.48, 2.85), "leaf_mid")
+    k.box((2.75, 3.44, 2.65), (2.95, 3.48, 2.85), "leaf_mid")
 
     # Projecting green cross blade sign on corner bracket
     k.box((4.25, 3.4, 2.78), (4.35, 3.9, 2.84), "metal")
