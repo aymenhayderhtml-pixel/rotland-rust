@@ -11,6 +11,8 @@
   "waterLevelAboveShore": 0.3,
   "deckHeight": 0.4,
   "waterGridCell": 5.0,
+  "boatDraft": 0.18,
+  "buoyDraft": 0.2,
   "village": {
     "count": 8,
     "sizes": [
