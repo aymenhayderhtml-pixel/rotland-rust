@@ -227,3 +227,25 @@ fn director_config_custom_json_and_load_file() {
     assert_eq!(from_file.special_zombies.get("screamer").unwrap().call_radius, Some(60.0));
     assert_eq!(from_file.special_zombies.get("crawler").unwrap().hitbox_scale, Some(0.5));
 }
+
+#[test]
+fn director_hud_phase_change_events() {
+    let cfg = DirectorConfig::load_default().expect("data/director.json must load");
+    let mut director = Director::new(cfg);
+
+    assert_eq!(director.state(), DirectorState::Calm);
+
+    // Track state transitions as PlayState does
+    let input = DirectorInput::new(41.0);
+    let prev = director.state();
+    director.update(&input);
+    let cur = director.state();
+    assert_ne!(prev, cur);
+    assert_eq!(cur, DirectorState::Building);
+
+    let event = HordeEvent::PhaseChange { from: prev, to: cur };
+    assert_eq!(event, HordeEvent::PhaseChange {
+        from: DirectorState::Calm,
+        to: DirectorState::Building,
+    });
+}

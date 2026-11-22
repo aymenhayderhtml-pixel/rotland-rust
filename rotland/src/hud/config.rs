@@ -143,6 +143,8 @@ pub struct NotificationConfig {
     pub warning_color: String,
     #[serde(default = "default_danger_color")]
     pub danger_color: String,
+    #[serde(default = "default_horde_color")]
+    pub horde_color: String,
     #[serde(default = "default_notif_bg")]
     pub bg_color: String,
     #[serde(default = "default_notif_corner_radius")]
@@ -156,6 +158,7 @@ fn default_notif_font_size() -> f32 { 14.0 }
 fn default_info_color() -> String { "#38bdf8".to_string() }
 fn default_warning_color() -> String { "#fbbf24".to_string() }
 fn default_danger_color() -> String { "#ef4444".to_string() }
+fn default_horde_color() -> String { "#f97316".to_string() }
 fn default_notif_bg() -> String { "#121214f0".to_string() }
 fn default_notif_corner_radius() -> f32 { 15.0 }
 
@@ -169,8 +172,57 @@ impl Default for NotificationConfig {
             info_color: default_info_color(),
             warning_color: default_warning_color(),
             danger_color: default_danger_color(),
+            horde_color: default_horde_color(),
             bg_color: default_notif_bg(),
             corner_radius_px: default_notif_corner_radius(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HordeEventsConfig {
+    #[serde(default = "default_near_distance")]
+    pub near_distance_m: f32,
+    #[serde(default = "default_special_seen_distance")]
+    pub special_seen_distance_m: f32,
+    #[serde(default = "default_camp_wall_radius")]
+    pub camp_wall_radius_m: f32,
+    #[serde(default = "default_horde_min_size")]
+    pub horde_min_size: usize,
+    #[serde(default = "default_cooldown_horde_near")]
+    pub cooldown_horde_near_s: f32,
+    #[serde(default = "default_cooldown_special_seen")]
+    pub cooldown_special_seen_s: f32,
+    #[serde(default = "default_cooldown_camp_attack")]
+    pub cooldown_camp_attack_s: f32,
+    #[serde(default = "default_cooldown_wave")]
+    pub cooldown_wave_s: f32,
+    #[serde(default = "default_cooldown_phase")]
+    pub cooldown_phase_s: f32,
+}
+
+fn default_near_distance() -> f32 { 60.0 }
+fn default_special_seen_distance() -> f32 { 30.0 }
+fn default_camp_wall_radius() -> f32 { 20.0 }
+fn default_horde_min_size() -> usize { 5 }
+fn default_cooldown_horde_near() -> f32 { 30.0 }
+fn default_cooldown_special_seen() -> f32 { 20.0 }
+fn default_cooldown_camp_attack() -> f32 { 30.0 }
+fn default_cooldown_wave() -> f32 { 45.0 }
+fn default_cooldown_phase() -> f32 { 20.0 }
+
+impl Default for HordeEventsConfig {
+    fn default() -> Self {
+        Self {
+            near_distance_m: default_near_distance(),
+            special_seen_distance_m: default_special_seen_distance(),
+            camp_wall_radius_m: default_camp_wall_radius(),
+            horde_min_size: default_horde_min_size(),
+            cooldown_horde_near_s: default_cooldown_horde_near(),
+            cooldown_special_seen_s: default_cooldown_special_seen(),
+            cooldown_camp_attack_s: default_cooldown_camp_attack(),
+            cooldown_wave_s: default_cooldown_wave(),
+            cooldown_phase_s: default_cooldown_phase(),
         }
     }
 }
@@ -277,6 +329,8 @@ pub struct HudConfig {
     pub pickup_popup: PickupPopupConfig,
     #[serde(default)]
     pub notifications: NotificationConfig,
+    #[serde(default)]
+    pub horde_events: HordeEventsConfig,
     #[serde(default)]
     pub bars: HudBarsConfig,
 }

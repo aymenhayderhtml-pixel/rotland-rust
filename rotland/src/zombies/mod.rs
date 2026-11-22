@@ -15,8 +15,8 @@ use glam::Vec3;
 use physics::{CharacterMover, PhysicsWorld};
 
 pub use types::{
-    Look, Zombie, ZombieFrame, BODY_RADIUS, CORPSE_SECONDS, FAR_DISTANCE,
-    FAR_THINK_INTERVAL, FIRST_ID, FLOW_EVERY, GRAVITY,
+    Look, Zombie, ZombieEvent, ZombieEventTracker, ZombieFrame, BODY_RADIUS,
+    CORPSE_SECONDS, FAR_DISTANCE, FAR_THINK_INTERVAL, FIRST_ID, FLOW_EVERY, GRAVITY,
 };
 
 pub struct Zombies {
@@ -44,6 +44,12 @@ pub struct Zombies {
     pub hordes: game::horde::HordeSet,
     /// Lifetime kills counter for director input.
     pub total_kills: u64,
+    /// Alert tracking for hordes, specials, and camp attacks.
+    pub tracker: ZombieEventTracker,
+    /// Center of the camp/settlement safe zone if known.
+    pub camp_center: Option<Vec3>,
+    /// Camp wall radius for attack detection.
+    pub camp_wall_radius: f32,
 }
 
 impl Zombies {
@@ -51,34 +57,24 @@ impl Zombies {
         let mut look_names = Vec::new();
         for def in defs.types.values() {
             for m in &def.models {
-                if !look_names.contains(m) {
-                    look_names.push(m.clone());
-                }
+                if !look_names.contains(m) { look_names.push(m.clone()); }
             }
         }
-        for fallback in ["zombie_01", "zombie_02", "zombie_03"] {
-            if !look_names.iter().any(|n| n == fallback) {
-                look_names.push(fallback.to_string());
-            }
+        for fb in ["zombie_01", "zombie_02", "zombie_03"] {
+            if !look_names.iter().any(|n| n == fb) { look_names.push(fb.to_string()); }
         }
-        let looks = look_names
-            .iter()
-            .filter_map(|name| {
-                let m = pack.find(name)?;
-                let skel = m.skeleton.as_ref()?;
-                Some(Look {
-                    name: name.clone(),
-                    mesh: engine::render::GpuMesh::new(device, name, &m.vertices),
-                    rig: engine::anim::Rig::new(skel),
-                    clips: m.clips.clone(),
-                })
+        let looks = look_names.iter().filter_map(|name| {
+            let m = pack.find(name)?;
+            let skel = m.skeleton.as_ref()?;
+            Some(Look {
+                name: name.clone(),
+                mesh: engine::render::GpuMesh::new(device, name, &m.vertices),
+                rig: engine::anim::Rig::new(skel),
+                clips: m.clips.clone(),
             })
-            .collect();
+        }).collect();
         let herd_rad = defs.behaviour.herd_radius;
-        let crawler_mover = CharacterMover::new(
-            defs.behaviour.crawler_radius,
-            defs.behaviour.crawler_height,
-        );
+        let crawler_mover = CharacterMover::new(defs.behaviour.crawler_radius, defs.behaviour.crawler_height);
         Self {
             looks,
             list: Vec::new(),
@@ -99,6 +95,9 @@ impl Zombies {
             player_unreachable: false,
             hordes: game::horde::HordeSet::new(),
             total_kills: 0,
+            tracker: ZombieEventTracker::new(),
+            camp_center: None,
+            camp_wall_radius: 20.0, // data: hud.json horde_events camp_wall_radius_m
         }
     }
 
@@ -283,6 +282,20 @@ impl Zombies {
 
         self.nearby_buf = nearby_buf;
         self.list.retain(|z| z.dead_for < CORPSE_SECONDS);
+
+        self.tracker.evaluate(
+            self.hordes.hordes(),
+            &self.list,
+            player,
+            player_in_safe_zone,
+            self.camp_center,
+            self.camp_wall_radius,
+            60.0, // data: hud.json horde_events near_distance_m
+            30.0, // data: hud.json horde_events special_seen_distance_m
+            5,    // data: hud.json horde_events horde_min_size
+            &mut frame.events,
+        );
+
         frame
     }
 }

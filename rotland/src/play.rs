@@ -356,7 +356,9 @@ impl PlayState {
             in_city,
             player_in_camp,
         };
+        let prev_dir_state = self.director.state();
         let dir_out = self.director.update(&dir_input);
+        let cur_dir_state = self.director.state();
 
         let ctx = SpawnContext {
             player_position: player,
@@ -393,6 +395,11 @@ impl PlayState {
         }
 
         let mut frame_events = Vec::new();
+        if prev_dir_state != cur_dir_state {
+            let phase_evt = HordeEvent::PhaseChange { from: prev_dir_state, to: cur_dir_state };
+            frame_events.push(phase_evt);
+            self.pending_horde_events.push(phase_evt);
+        }
         for event in dir_out.events {
             let (event_size, is_camp_attack, hud_event) = match event {
                 game::director::DirectorEvent::WaveStart { size, .. } => (size, false, HordeEvent::HordeIncoming { size }),
