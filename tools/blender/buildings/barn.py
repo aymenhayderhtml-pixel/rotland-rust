@@ -25,17 +25,16 @@ def build(model):
     k.wall((-5.4, -3.85, F), (-5.25, 3.85, TOP), color="red_paint", base="wall_left")
     k.wall((5.25, -3.85, F), (5.4, 3.85, TOP), color="red_paint", base="wall_right")
 
-    # Closed double doors: two dark panels with a white trim bar, sitting proud of the front wall
+    # Closed double doors: two dark panels sitting proud of the front wall
     k.box((-2.6, 4.01, F), (-0.1, 4.04, 3.6), "bark_dark")
     k.box((0.1, 4.01, F), (2.6, 4.04, 3.6), "bark_dark")
-    k.box((-2.6, 4.04, 3.6), (2.6, 4.08, 3.7), "white")
 
     # Gable roof, ridge along X (the long way)
     ridge = (0.0, 0.0, 6.0)
     k.roof(ridge, (0.0, 4.0, 4.0), span=(1.0, 0.0, 0.0), width=11.4, color="rock_dark")
     k.roof(ridge, (0.0, -4.0, 4.0), span=(1.0, 0.0, 0.0), width=11.4, color="rock_dark")
     # Gables under 0.12 m roof slab, inset inside outer wall planes at x = ±5.4
-    for x, off_x in ((-5.38, 0.13), (5.25, 0.13)):
+    for x, off_x in ((-5.38, 0.11), (5.27, 0.11)):
         k.gable([(x, -4.0, 3.86), (x, 4.0, 3.86), (x, 0.0, 5.86)], (off_x, 0.0, 0.0), "white", roof=True)
 
     # Hay bales outside both ends: two on the ground and one stacked
@@ -46,7 +45,9 @@ def build(model):
 
     # Detail (visual plan step 7): white door trim and cross bars, white corner boards, darker board
     # lines on the long walls, a hayloft door on each gable and a ridge cap
-    k.frame(((-2.6, 3.9, F), (2.6, 4.1, 3.6)), 4.04, 1, "white", t=0.12)
+    k.box((-2.72, 4.04, F), (-2.60, 4.09, 3.6), "white")
+    k.box((2.60, 4.04, F), (2.72, 4.09, 3.6), "white")
+    k.box((-2.72, 4.04, 3.6), (2.72, 4.09, 3.72), "white")
     for x0, x1 in ((-2.6, -0.1), (0.1, 2.6)):
         k.box((x0, 4.05, 1.75), (x1, 4.09, 1.87), "white")
     for px, py in ((-5.4, -4.0), (5.4, -4.0), (-5.4, 4.0), (5.4, 4.0)):

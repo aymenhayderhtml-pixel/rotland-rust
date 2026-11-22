@@ -25,11 +25,13 @@ def build(model):
     k.solid((-4.5, -3.5, 0.0), (4.5, 3.0, F), "wood_crate", base="floor")
     k.solid((-4.48, 3.01, 0.0), (4.48, 3.51, F), "bark_light", base="deck")
 
+    WIN_Z0 = F + 3 * 0.3
+    WIN_Z1 = F + 6 * 0.3
     door = ((-2.5, 2.8, F), (-1.5, 3.1, kit.DOOR_H))  # 1.0 m wide: wider than the 0.9 m clearance check
-    front_window = ((1.5, 2.8, 1.0), (3.0, 3.1, 1.9))
-    back_window = ((1.5, -3.6, 1.0), (3.0, -3.2, 1.9))
-    left_window = ((-4.7, -2.0, 1.0), (-4.2, -0.5, 1.9))
-    right_window = ((4.2, -1.0, 1.0), (4.7, 0.5, 1.9))
+    front_window = ((1.5, 2.8, WIN_Z0), (3.0, 3.1, WIN_Z1))
+    back_window = ((1.5, -3.6, WIN_Z0), (3.0, -3.2, WIN_Z1))
+    left_window = ((-4.7, -2.0, WIN_Z0), (-4.2, -0.5, WIN_Z1))
+    right_window = ((4.2, -1.0, WIN_Z0), (4.7, 0.5, WIN_Z1))
     inner_door = ((-0.2, -0.5, F), (0.2, 0.5, kit.DOOR_H))
 
     k.wall((-4.5, 2.85, F), (4.5, 3.0, TOP), openings=[door, front_window], colors=SIDING, course=0.3, base="wall_front")
@@ -40,8 +42,8 @@ def build(model):
 
     # Gable roof with the ridge along X. The ridge sits over the body's centre (y = -0.25)
     ridge = (0.0, -0.25, 4.2)
-    k.roof(ridge, (0.0, -3.5, 2.4), span=(1.0, 0.0, 0.0), width=9.0, color="rock_dark")
-    k.roof(ridge, (0.0, 3.0, 2.4), span=(1.0, 0.0, 0.0), width=9.0, color="rock_dark")
+    k.roof(ridge, (0.0, -3.5, 2.4), span=(1.0, 0.0, 0.0), width=9.06, color="rock_dark")
+    k.roof(ridge, (0.0, 3.0, 2.4), span=(1.0, 0.0, 0.0), width=9.06, color="rock_dark")
     # Inset gables in X, lower ridge/eaves under roof slab
     for x, off_x in ((-4.48, 0.12), (4.36, 0.12)):
         k.gable([(x, -3.5, 2.26), (x, 3.0, 2.26), (x, -0.25, 4.06)], (off_x, 0.0, 0.0), "white", roof=True)
@@ -66,13 +68,32 @@ def build(model):
     k.box((2.3, 2.0, 0.62), (3.1, 2.3, 0.72), "white")
 
     # Detail (visual plan step 7): white trim, boarded windows, ridge cap, chimney, porch rail
-    k.frame(door, 3.02, 1)
-    k.frame(front_window, 3.02, 1)
+    def frame(opening, face, sign, color="white", t=0.08, depth=0.05, sill=True):
+        lo, hi = opening
+        axis = 0 if (hi[0] - lo[0]) < (hi[1] - lo[1]) else 1
+        u = 1 - axis
+        a, b = sorted((face, face + sign * depth))
+
+        def strip(u0, u1, z0, z1, extra=0.0):
+            p0, p1 = [0.0, 0.0, z0], [0.0, 0.0, z1]
+            p0[u], p1[u] = u0, u1
+            p0[axis], p1[axis] = (a - extra, b) if sign < 0 else (a, b + extra)
+            k.box(tuple(p0), tuple(p1), color)
+
+        window = lo[2] > F + 0.05
+        strip(lo[u] - t, lo[u], lo[2], hi[2])
+        strip(hi[u], hi[u] + t, lo[2], hi[2])
+        strip(lo[u] - t, hi[u] + t, hi[2], hi[2] + t)
+        if window and sill:
+            strip(lo[u] - t * 1.5, hi[u] + t * 1.5, lo[2] - t, lo[2], extra=0.04)
+
+    frame(door, 3.02, 1)
+    frame(front_window, 3.02, 1)
     k.boards(front_window, 3.03, 1)
-    k.frame(back_window, -3.52, -1)
-    k.frame(left_window, -4.52, -1)
+    frame(back_window, -3.52, -1)
+    frame(left_window, -4.52, -1)
     k.boards(left_window, -4.53, -1, rows=(0.3, 0.7))
-    k.frame(right_window, 4.52, 1)
+    frame(right_window, 4.52, 1)
     k.ridge_cap((0.0, -0.25, 4.2), 0, 9.3)
     k.chimney(2.5, -1.5, 3.3, 4.6)
     for x0, x1 in ((-4.3, -2.7), (-1.3, 4.2)):
