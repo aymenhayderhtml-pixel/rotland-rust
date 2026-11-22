@@ -26,3 +26,6 @@ Ask the owner whenever an open choice or design decision changes how the game *f
 ## Clean-up After Each Round
 After merging, testing, wiring, verifying screenshots, and committing the round:
 - Delete worker branches and worktrees so only `main` remains in the repository (owner's explicit wish).
+
+## Owner bug reports
+The owner reports problems in a separate session with the `report-issue` skill; they land in `docs/ISSUES.md` (pictures in `docs/issues/`). When planning a round, read the `open`/`checked` rows, turn them into tasks, and set them to `planned`, then `fixed` with the commit.
