@@ -18,45 +18,25 @@ pub use types::{part_display_name, part_model_name, PARTS_ORDER};
 #[allow(unused_imports)]
 pub use ui::draw_build_mode_ui;
 
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicPtr, Ordering};
 
-static GLOBAL_STATE: Mutex<Option<BuildModeState>> = Mutex::new(None);
+static ACTIVE_INSTANCE: AtomicPtr<BuildModeState> = AtomicPtr::new(std::ptr::null_mut());
 
-/// Executes a closure with mutable access to the global build mode state.
+/// Sets the active in-memory BuildModeState pointer from app state.
+pub fn set_active_instance(ptr: *mut BuildModeState) {
+    ACTIVE_INSTANCE.store(ptr, Ordering::SeqCst);
+}
+
+/// Executes a closure with mutable access to the active build mode state.
+/// Compatibility accessor for render_frame.rs until Claude wires &mut play.build_mode directly.
 pub fn with_state<R>(f: impl FnOnce(&mut BuildModeState) -> R) -> R {
-    let mut lock = GLOBAL_STATE.lock().unwrap();
-    let state = lock.get_or_insert_with(BuildModeState::new);
-    f(state)
-}
-
-/// Returns whether build mode is currently active.
-pub fn is_active() -> bool {
-    with_state(|s| s.active)
-}
-
-/// Sets build mode active state.
-pub fn set_active(active: bool) {
-    with_state(|s| s.set_active(active));
-}
-
-/// Toggles build mode active state.
-pub fn toggle() -> bool {
-    with_state(|s| s.toggle())
-}
-
-/// Checks the `--build-test` command-line argument:
-/// starts in build mode with 50 wood in the bag for screenshots.
-pub fn check_build_test_flag(inventory: Option<&mut game::Inventory>) {
-    with_state(|s| {
-        if !s.build_test_initialized {
-            let has_flag = std::env::args().any(|a| a == "--build-test");
-            if has_flag {
-                s.active = true;
-                if let Some(inv) = inventory {
-                    inv.add("wood", 50);
-                }
-                s.build_test_initialized = true;
-            }
-        }
-    });
+    let ptr = ACTIVE_INSTANCE.load(Ordering::SeqCst);
+    if !ptr.is_null() {
+        // SAFETY: Main thread game loop only.
+        let state = unsafe { &mut *ptr };
+        f(state)
+    } else {
+        let mut fallback = BuildModeState::new();
+        f(&mut fallback)
+    }
 }

@@ -119,7 +119,14 @@ pub fn process_input(
             None
         };
     }
-    build_mode::check_build_test_flag(play.play.as_mut().map(|p| &mut p.inventory));
+    build_mode::set_active_instance(&mut play.build_mode as *mut _);
+    if !play.build_mode.save_loaded
+        && let Some(file) = session.loaded_save.as_ref()
+        && let Some(base) = file.systems.base.as_ref()
+    {
+        play.build_mode.load_from_save(base);
+    }
+    play.build_mode.check_build_test_flag(play.play.as_mut().map(|p| &mut p.inventory));
 
     let build_key = ui
         .menus
@@ -133,8 +140,8 @@ pub fn process_input(
             && ui.camp_ui.is_none()
             && !ui.menus.as_ref().is_some_and(|m| m.is_open())
         {
-            build_mode::toggle();
-            if build_mode::is_active() {
+            play.build_mode.toggle();
+            if play.build_mode.active {
                 ui.cursor_captured = true;
             }
         }
@@ -169,8 +176,8 @@ pub fn process_input(
         }
     }
     let mut build_escaped = false;
-    if input.pressed(KeyCode::Escape) && build_mode::is_active() && !ui.screen_open() {
-        build_mode::set_active(false);
+    if input.pressed(KeyCode::Escape) && play.build_mode.active && !ui.screen_open() {
+        play.build_mode.set_active(false);
         build_escaped = true;
     }
     // Esc closes an open camp or hub screen (the screen itself sees the key), otherwise the menus
@@ -256,11 +263,11 @@ pub fn process_input(
             });
         }
     }
-    if build_mode::is_active() && !ui.screen_open() && !ui.menus.as_ref().is_some_and(|m| m.is_open()) {
+    if play.build_mode.active && !ui.screen_open() && !ui.menus.as_ref().is_some_and(|m| m.is_open()) {
         if input.wheel > 0.0 {
-            build_mode::with_state(|s| s.cycle_next());
+            play.build_mode.cycle_next();
         } else if input.wheel < 0.0 {
-            build_mode::with_state(|s| s.cycle_prev());
+            play.build_mode.cycle_prev();
         }
         for (idx, key) in [
             KeyCode::Digit1,
@@ -277,19 +284,20 @@ pub fn process_input(
         .enumerate()
         {
             if input.pressed(*key) {
-                build_mode::with_state(|s| s.select_slot(idx));
+                play.build_mode.select_slot(idx);
             }
         }
         if input.pressed(KeyCode::KeyR) {
-            build_mode::with_state(|s| s.rotate_90());
+            play.build_mode.rotate_90();
         }
         if ui.cursor_captured && input.mouse_pressed(MouseButton::Left) {
-            let placed = build_mode::with_state(|s| {
-                build_mode::try_place(s, play.play.as_mut().map(|p| &mut p.inventory))
-            });
+            let placed = build_mode::try_place(
+                &mut play.build_mode,
+                play.play.as_mut().map(|p| &mut p.inventory),
+            );
             if placed
                 && let (Some(toast), Some(play_state)) = (
-                    build_mode::with_state(|s| s.toast.clone()),
+                    play.build_mode.toast.clone(),
                     play.play.as_mut(),
                 )
             {
@@ -297,12 +305,13 @@ pub fn process_input(
             }
         }
         if ui.cursor_captured && input.mouse_pressed(MouseButton::Right) {
-            let removed = build_mode::with_state(|s| {
-                build_mode::try_remove(s, play.play.as_mut().map(|p| &mut p.inventory))
-            });
+            let removed = build_mode::try_remove(
+                &mut play.build_mode,
+                play.play.as_mut().map(|p| &mut p.inventory),
+            );
             if removed
                 && let (Some(toast), Some(play_state)) = (
-                    build_mode::with_state(|s| s.toast.clone()),
+                    play.build_mode.toast.clone(),
                     play.play.as_mut(),
                 )
             {
@@ -310,27 +319,27 @@ pub fn process_input(
             }
         }
         if input.pressed(keys.interact) {
-            let toggled = build_mode::with_state(build_mode::try_toggle_door);
+            let toggled = build_mode::try_toggle_door(&mut play.build_mode);
             if toggled
                 && let (Some(toast), Some(play_state)) = (
-                    build_mode::with_state(|s| s.toast.clone()),
+                    play.build_mode.toast.clone(),
                     play.play.as_mut(),
                 )
             {
                 play_state.show_toast(toast);
             }
         }
-        build_mode::with_state(|s| build_mode::update_raycast(s, &render.camera, &world.physics));
+        build_mode::update_raycast(&mut play.build_mode, &render.camera, &world.physics);
     }
 
     if !dev_typing
-        && !build_mode::is_active()
+        && !play.build_mode.active
         && let Some(change) = play.play.as_mut().and_then(|p| p.hotbar_keys(input, &keys.slots))
     {
         apply_hand(change, render, play, actors, world);
     }
     let attack = !dead
-        && !build_mode::is_active()
+        && !play.build_mode.active
         && !ui.screen_open()
         && (session.autoattack || (ui.cursor_captured && input.mouse_pressed(MouseButton::Left)));
 
