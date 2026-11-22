@@ -40,9 +40,9 @@ def _chassis_and_wheels():
         for wy in [WHEEL_Y_FRONT, WHEEL_Y_REAR]:
             tire = common.make_frustum(WHEEL_RADIUS, WHEEL_RADIUS, -0.10, 0.10, segments=10, color="tire_black")
             common.transform(tire, rot=(0.0, math.pi / 2, 0.0))
-            rim = common.make_frustum(0.16, 0.16, -0.105, 0.105, segments=8, color="rust")
+            rim = common.make_frustum(0.16, 0.16, -0.08, 0.08, segments=8, color="rust")
             common.transform(rim, rot=(0.0, math.pi / 2, 0.0))
-            hub = common.make_box((0.04, 0.10, 0.10), loc=(sign_x * 0.10, 0.0, 0.0), color="metal")
+            hub = common.make_box((0.04, 0.08, 0.08), loc=(sign_x * 0.09, 0.0, 0.0), color="metal")
             wheel = common.combine([tire, rim, hub])
             common.transform(wheel, loc=(wx, wy, WHEEL_RADIUS - 0.06))
             bms.append(wheel)
@@ -84,12 +84,12 @@ def _front_cab():
         bms.extend([f_top, f_front, f_rear])
 
     # Front grille & fascia
-    grille = common.make_box((2 * BODY_HALF_WIDTH - 0.20, 0.08, 0.42),
+    grille = common.make_box((2 * BODY_HALF_WIDTH - 0.24, 0.08, 0.42),
                              loc=(0.0, LENGTH_FRONT - 0.04, FLOOR_Z + 0.24), color="gun_black")
-    headlight_l = common.make_box((0.20, 0.09, 0.16),
-                                  loc=(-BODY_HALF_WIDTH + 0.22, LENGTH_FRONT - 0.03, FLOOR_Z + 0.32), color="rock_dark")
-    headlight_r = common.make_box((0.20, 0.09, 0.16),
-                                  loc=(BODY_HALF_WIDTH - 0.22, LENGTH_FRONT - 0.03, FLOOR_Z + 0.32), color="metal")
+    headlight_l = common.make_box((0.18, 0.04, 0.16),
+                                  loc=(-BODY_HALF_WIDTH + 0.24, LENGTH_FRONT + 0.01, FLOOR_Z + 0.32), color="rock_dark")
+    headlight_r = common.make_box((0.18, 0.04, 0.16),
+                                  loc=(BODY_HALF_WIDTH - 0.24, LENGTH_FRONT + 0.01, FLOOR_Z + 0.32), color="metal")
     bms.extend([grille, headlight_l, headlight_r])
 
     # Windshield A-pillars from cowl (y=1.28, z=1.12) to header (y=0.68, z=ROOF_Z)
@@ -107,10 +107,10 @@ def _front_cab():
     # Left driver door: closed with rusty paint and side mirror
     door_l = common.make_box((0.06, 0.52, BELT_Z - FLOOR_Z),
                              loc=(-BODY_HALF_WIDTH + 0.03, 0.74, (FLOOR_Z + BELT_Z) / 2), color="rust")
-    b_pillar_l = common.make_box((0.08, 0.08, ROOF_Z - BELT_Z),
-                                 loc=(-BODY_HALF_WIDTH + 0.04, CAB_PARTITION_Y, (BELT_Z + ROOF_Z) / 2), color="car_white")
-    cant_rail_l = common.make_box((0.08, 0.30, 0.08),
-                                  loc=(-BODY_HALF_WIDTH + 0.04, 0.58, ROOF_Z - 0.04), color="car_white")
+    b_pillar_l = common.make_box((0.06, 0.08, ROOF_Z - BELT_Z),
+                                 loc=(-BODY_HALF_WIDTH + 0.05, CAB_PARTITION_Y, (BELT_Z + ROOF_Z) / 2), color="car_white")
+    cant_rail_l = common.make_box((0.08, 0.24, 0.08),
+                                  loc=(-BODY_HALF_WIDTH + 0.04, 0.62, ROOF_Z - 0.04), color="car_white")
     mirror_l = common.make_box((0.04, 0.14, 0.20),
                                loc=(-BODY_HALF_WIDTH - 0.06, 1.15, BELT_Z + 0.08), color="gun_black")
     mirror_arm_l = common.make_box((0.08, 0.04, 0.04),
@@ -120,10 +120,10 @@ def _front_cab():
     # Right passenger cab door: closed with white paint and side mirror
     door_fr = common.make_box((0.06, 0.52, BELT_Z - FLOOR_Z),
                               loc=(BODY_HALF_WIDTH - 0.03, 0.74, (FLOOR_Z + BELT_Z) / 2), color="car_white")
-    b_pillar_r = common.make_box((0.08, 0.08, ROOF_Z - BELT_Z),
-                                 loc=(BODY_HALF_WIDTH - 0.04, CAB_PARTITION_Y, (BELT_Z + ROOF_Z) / 2), color="rust")
-    cant_rail_r = common.make_box((0.08, 0.30, 0.08),
-                                  loc=(BODY_HALF_WIDTH - 0.04, 0.58, ROOF_Z - 0.04), color="car_white")
+    b_pillar_r = common.make_box((0.06, 0.08, ROOF_Z - BELT_Z),
+                                 loc=(BODY_HALF_WIDTH - 0.05, CAB_PARTITION_Y, (BELT_Z + ROOF_Z) / 2), color="rust")
+    cant_rail_r = common.make_box((0.08, 0.24, 0.08),
+                                  loc=(BODY_HALF_WIDTH - 0.04, 0.62, ROOF_Z - 0.04), color="car_white")
     mirror_r = common.make_box((0.04, 0.14, 0.20),
                                loc=(BODY_HALF_WIDTH + 0.06, 1.15, BELT_Z + 0.08), color="metal")
     bms.extend([door_fr, b_pillar_r, cant_rail_r, mirror_r])
@@ -148,7 +148,7 @@ def _front_cab():
                              loc=(-BODY_HALF_WIDTH + 0.38, CAB_PARTITION_Y, (FLOOR_Z + ROOF_Z) / 2), color="metal")
     part_r = common.make_box((0.68, 0.04, ROOF_Z - FLOOR_Z),
                              loc=(BODY_HALF_WIDTH - 0.38, CAB_PARTITION_Y, (FLOOR_Z + ROOF_Z) / 2), color="metal")
-    part_top = common.make_box((2 * BODY_HALF_WIDTH - 0.20, 0.04, 0.22),
+    part_top = common.make_box((0.48, 0.04, 0.22),
                                loc=(0.0, CAB_PARTITION_Y, ROOF_Z - 0.13), color="metal")
     bms.extend([part_l, part_r, part_top])
 
@@ -174,8 +174,8 @@ def _cargo_bay_and_sliding_door():
     # Upper left wall (solid panel)
     wl_upper = common.make_box((0.06, 2.84, ROOF_Z - BELT_Z),
                                loc=(-BODY_HALF_WIDTH + 0.03, -0.94, (BELT_Z + ROOF_Z) / 2), color="car_white")
-    rust_patch = common.make_box((0.07, 0.90, 0.60),
-                                 loc=(-BODY_HALF_WIDTH + 0.03, -0.60, 1.20), color="rust")
+    rust_patch = common.make_box((0.03, 0.90, 0.60),
+                                 loc=(-BODY_HALF_WIDTH - 0.005, -0.60, 1.20), color="rust")
     bms.extend([wl_fwd, wl_arch, wl_rear, wl_upper, rust_patch])
 
     # 2. Right side body (+X):
@@ -198,8 +198,8 @@ def _cargo_bay_and_sliding_door():
     # 3. The Sliding Side Door: OPEN!
     # Slid back over the rear quarter panel (resting at y = -1.25 to -0.05), tilted slightly outward
     door_bm = common.make_box((0.06, 1.20, ROOF_Z - FLOOR_Z - 0.06), loc=(0.0, 0.0, 0.0), color="car_white")
-    d_handle = common.make_box((0.03, 0.12, 0.05), loc=(0.04, 0.45, 0.0), color="gun_black")
-    d_rust = common.make_box((0.065, 0.60, 0.50), loc=(0.0, -0.20, -0.30), color="rust")
+    d_handle = common.make_box((0.04, 0.12, 0.05), loc=(0.045, 0.45, 0.0), color="gun_black")
+    d_rust = common.make_box((0.03, 0.60, 0.50), loc=(0.035, -0.20, -0.30), color="rust")
     door_combined = common.combine([door_bm, d_handle, d_rust])
 
     common.transform(door_combined, rot=(0.0, math.radians(3.0), -math.radians(2.0)),
@@ -207,8 +207,8 @@ def _cargo_bay_and_sliding_door():
     bms.append(door_combined)
 
     # 4. Rear double doors (y = LENGTH_REAR):
-    rear_door_l = common.make_box((BODY_HALF_WIDTH - 0.05, 0.06, ROOF_Z - FLOOR_Z),
-                                  loc=(-BODY_HALF_WIDTH / 2 + 0.02, LENGTH_REAR + 0.03, (FLOOR_Z + ROOF_Z) / 2), color="rust")
+    rear_door_l = common.make_box((BODY_HALF_WIDTH - 0.07, 0.06, ROOF_Z - FLOOR_Z),
+                                  loc=(-(BODY_HALF_WIDTH - 0.07) / 2 - 0.005, LENGTH_REAR + 0.05, (FLOOR_Z + ROOF_Z) / 2), color="rust")
     rear_door_r = common.make_box((BODY_HALF_WIDTH - 0.05, 0.06, ROOF_Z - FLOOR_Z),
                                   loc=(0.0, 0.0, 0.0), color="car_white")
     common.transform(rear_door_r, rot=(0.0, 0.0, math.radians(12.0)),
@@ -231,7 +231,7 @@ def _cargo_bay_and_sliding_door():
     # 6. Cargo inside the bay:
     # A wooden loot crate and an old rusty barrel sitting inside visible through the open sliding door!
     crate = common.make_box((0.55, 0.55, 0.55), loc=(0.0, 0.0, 0.0), color="wood_crate")
-    common.transform(crate, rot=(0.0, 0.0, 0.25), loc=(-0.15, -0.10, FLOOR_Z + 0.28))
+    common.transform(crate, rot=(0.0, 0.0, 0.25), loc=(-0.15, -0.10, FLOOR_Z + 0.30))
     bms.append(crate)
 
     barrel = common.make_frustum(0.24, 0.24, 0.0, 0.72, segments=8, color="rust")
