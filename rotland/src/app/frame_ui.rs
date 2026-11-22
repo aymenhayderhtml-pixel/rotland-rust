@@ -94,8 +94,6 @@ pub fn draw_ui(
     ui: &mut UiState,
     session: &mut SessionState,
 ) {
-    super::frame_input::build_mode::set_active_instance(&mut play.build_mode as *mut _);
-
     let on_main = ui.menus.as_ref().is_some_and(|m| {
         matches!(
             m.screen(),

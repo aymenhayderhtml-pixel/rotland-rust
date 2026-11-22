@@ -17,26 +17,3 @@ pub use state::BuildModeState;
 pub use types::{part_display_name, part_model_name, PARTS_ORDER};
 #[allow(unused_imports)]
 pub use ui::draw_build_mode_ui;
-
-use std::sync::atomic::{AtomicPtr, Ordering};
-
-static ACTIVE_INSTANCE: AtomicPtr<BuildModeState> = AtomicPtr::new(std::ptr::null_mut());
-
-/// Sets the active in-memory BuildModeState pointer from app state.
-pub fn set_active_instance(ptr: *mut BuildModeState) {
-    ACTIVE_INSTANCE.store(ptr, Ordering::SeqCst);
-}
-
-/// Executes a closure with mutable access to the active build mode state.
-/// Compatibility accessor for render_frame.rs until Claude wires &mut play.build_mode directly.
-pub fn with_state<R>(f: impl FnOnce(&mut BuildModeState) -> R) -> R {
-    let ptr = ACTIVE_INSTANCE.load(Ordering::SeqCst);
-    if !ptr.is_null() {
-        // SAFETY: Main thread game loop only.
-        let state = unsafe { &mut *ptr };
-        f(state)
-    } else {
-        let mut fallback = BuildModeState::new();
-        f(&mut fallback)
-    }
-}

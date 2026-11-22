@@ -119,7 +119,6 @@ pub fn process_input(
             None
         };
     }
-    build_mode::set_active_instance(&mut play.build_mode as *mut _);
     if !play.build_mode.save_loaded
         && let Some(file) = session.loaded_save.as_ref()
         && let Some(base) = file.systems.base.as_ref()

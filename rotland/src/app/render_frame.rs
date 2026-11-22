@@ -133,16 +133,14 @@ pub fn render_frame(
     };
     // Base building: placed parts and ghost preview model
     if let Some(pack) = render.pack.as_ref() {
-        build_mode::with_state(|s| {
-            build_mode::render_placed_and_ghost(
-                s,
-                &gpu.device,
-                pack,
-                &mut render.library,
-                &mut beds,
-                &mut world.physics,
-            );
-        });
+        build_mode::render_placed_and_ghost(
+            &mut play.build_mode,
+            &gpu.device,
+            pack,
+            &mut render.library,
+            &mut beds,
+            &mut world.physics,
+        );
     }
     let (Some(renderer), Some(streamer)) = (render.renderer.as_mut(), world.streamer.as_ref()) else {
         render.scratch_beds = beds;
