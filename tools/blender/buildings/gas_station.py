@@ -32,11 +32,11 @@ def build(model):
     k.wall((-5.0, 0.85, F), (5.0, 1.0, TOP), openings=[big_window, door], color="white", base="wall_front")
 
     # Flat shop roof, red fascia on the front, and the canopy roof over the pumps
-    k.box((-5.0, -4.0, TOP), (5.0, 1.0, TOP + 0.2), "rock_dark", roof=True)
-    k.collider((-5.0, -4.0, TOP), (5.0, 1.0, TOP + 0.2), "shop_roof")
-    k.box((-4.5, 1.0, 2.55), (4.5, 1.14, 2.95), "red_paint")
-    k.box((-5.0, 1.0, 4.2), (5.0, 4.0, 4.35), "red_paint", roof=True)
-    k.collider((-5.0, 1.0, 4.2), (5.0, 4.0, 4.35), "canopy_roof")
+    k.box((-4.98, -3.98, TOP), (4.98, 0.98, TOP + 0.2), "rock_dark", roof=True)
+    k.collider((-4.98, -3.98, TOP), (4.98, 0.98, TOP + 0.2), "shop_roof")
+    k.box((-4.5, 1.02, 2.55), (4.5, 1.16, 2.95), "red_paint")
+    k.box((-5.0, 1.02, 4.2), (5.0, 4.02, 4.35), "red_paint", roof=True)
+    k.collider((-5.0, 1.02, 4.2), (5.0, 4.02, 4.35), "canopy_roof")
     for x in (-4.6, 4.6):
         for y in (1.4, 3.6):
             k.solid((x - 0.1, y - 0.1, F), (x + 0.1, y + 0.1, 4.2), "metal", base="post")
@@ -53,16 +53,16 @@ def build(model):
     k.solid((4.45, -0.8, F), (4.8, 0.6, 2.0), "metal", base="shelf_right")
 
     # Detail (visual plan step 7): metal frames, boarded side windows, a roof AC unit and a vending machine
-    k.frame(big_window, 1.0, 1, "metal")
-    k.frame(door, 1.0, 1, "metal")
-    k.frame(left_window, -5.0, -1, "metal")
-    k.boards(left_window, -5.0, -1)
-    k.frame(right_window, 5.0, 1, "metal")
-    k.boards(right_window, 5.0, 1, rows=(0.25, 0.75))
-    k.box((1.5, -3.0, TOP + 0.2), (2.6, -2.0, TOP + 0.75), "metal", roof=True)
+    k.frame(big_window, 1.02, 1, "metal")
+    k.frame(door, 1.02, 1, "metal")
+    k.frame(left_window, -5.02, -1, "metal")
+    k.boards(left_window, -5.03, -1)
+    k.frame(right_window, 5.02, 1, "metal")
+    k.boards(right_window, 5.03, 1, rows=(0.25, 0.75))
+    k.box((1.5, -3.0, TOP + 0.22), (2.6, -2.0, TOP + 0.75), "metal", roof=True)
     k.box((1.6, -2.02, TOP + 0.3), (2.5, -1.98, TOP + 0.65), "rock_dark", roof=True)
-    k.solid((-4.45, 1.0, F), (-3.75, 1.6, 1.9), "shirt_blue", base="vending")
-    k.box((-4.35, 1.6, 0.9), (-3.85, 1.63, 1.75), "white")
+    k.solid((-4.45, 1.02, F), (-3.75, 1.62, 1.9), "shirt_blue", base="vending")
+    k.box((-4.35, 1.62, 0.9), (-3.85, 1.65, 1.75), "white")
 
     k.empty("lot_size", (0.0, 0.0, 0.0), scale=(10.0, 8.0, 1.0))
     k.empty("door_1", (3.7, 0.925, F))

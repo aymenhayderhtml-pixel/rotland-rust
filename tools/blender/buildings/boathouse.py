@@ -30,9 +30,9 @@ def build(model):
 
     # Water half (+Y, Y: 0.0 to 5.0): walkways on left and right flanking open boat slip
     # Left walkway (X: -7.0 to -2.2)
-    k.solid((-7.0, 0.0, 0.0), (-2.2, 5.0, F), "wood_crate", base="walkway_left")
+    k.solid((-7.0, 0.01, 0.0), (-2.2, 5.0, F), "wood_crate", base="walkway_left")
     # Right walkway (X: 2.2 to 7.0)
-    k.solid((2.2, 0.0, 0.0), (7.0, 5.0, F), "wood_crate", base="walkway_right")
+    k.solid((2.2, 0.01, 0.0), (7.0, 5.0, F), "wood_crate", base="walkway_right")
 
     # Stilts / pilings under the water half (+Y) extending down to -2.5 m
     piling_spots = [
@@ -46,8 +46,8 @@ def build(model):
         k.model.add(post)
 
     # Water side bumper rub-rails along boat slip inner edges
-    k.box((-2.25, 0.0, F - 0.05), (-2.15, 5.0, F + 0.10), "bark_dark")
-    k.box((2.15, 0.0, F - 0.05), (2.25, 5.0, F + 0.10), "bark_dark")
+    k.box((-2.24, 0.02, F - 0.05), (-2.14, 4.98, F + 0.10), "bark_dark")
+    k.box((2.14, 0.02, F - 0.05), (2.24, 4.98, F + 0.10), "bark_dark")
 
     # Wall Openings:
     # 1. Big boat door on +Y (water side): 4.4 m wide, 2.9 m tall
@@ -74,10 +74,10 @@ def build(model):
     k.wall((6.85, -4.85, F), (7.0, 4.85, TOP), openings=[win_side_r],
            colors=WALL_COLORS, course=0.35, base="wall_right")
 
-    # Heavy timber frame for the big boat door
-    k.box((-2.35, 4.82, F), (-2.15, 5.03, 3.10), "bark_dark")
-    k.box((2.15, 4.82, F), (2.35, 5.03, 3.10), "bark_dark")
-    k.box((-2.35, 4.82, 2.95), (2.35, 5.03, 3.15), "bark_dark")
+    # Heavy timber frame for the big boat door (proud of front wall at y = 5.0)
+    k.box((-2.35, 4.82, F), (-2.15, 5.05, 3.10), "bark_dark")
+    k.box((2.15, 4.82, F), (2.35, 5.05, 3.10), "bark_dark")
+    k.box((-2.35, 4.82, 2.95), (2.35, 5.05, 3.15), "bark_dark")
 
     # Gable roof: ridge along Y (X = 0, Z = RIDGE_Z)
     ridge = (0.0, 0.0, RIDGE_Z)
@@ -86,23 +86,24 @@ def build(model):
     k.roof(ridge, eave_l, span=(0.0, 1.0, 0.0), width=10.4, color="rock_dark")
     k.roof(ridge, eave_r, span=(0.0, 1.0, 0.0), width=10.4, color="rock_dark")
 
-    # Gable triangle walls at +Y and -Y
-    k.gable([(-7.0, 4.85, TOP), (7.0, 4.85, TOP), (0.0, 4.85, RIDGE_Z)], (0.0, 0.15, 0.0), "bark_dark", roof=True)
-    k.gable([(-7.0, -5.0, TOP), (7.0, -5.0, TOP), (0.0, -5.0, RIDGE_Z)], (0.0, 0.15, 0.0), "bark_dark", roof=True)
+    # Gable triangle walls at +Y and -Y (gables under roof slab, inset inside outer walls)
+    k.gable([(-6.95, 4.86, 3.06), (6.95, 4.86, 3.06), (0.0, 4.86, 5.06)], (0.0, 0.12, 0.0), "bark_dark", roof=True)
+    k.gable([(-6.95, -4.98, 3.06), (6.95, -4.98, 3.06), (0.0, -4.98, 5.06)], (0.0, 0.12, 0.0), "bark_dark", roof=True)
 
     # Ridge cap along Y
     k.ridge_cap((0.0, 0.0, RIDGE_Z), 1, 10.5, "bark_dark")
 
     # Door and window trims
-    k.frame(player_door, -5.0, -1, "bark_dark")
-    k.frame(win_land_l, -5.0, -1, "bark_dark")
-    k.boards(win_land_l, -5.0, -1)
-    k.frame(win_land_r, -5.0, -1, "bark_dark")
-    k.frame(win_side_l, -7.0, -1, "bark_dark")
-    k.frame(win_side_r, 7.0, 1, "bark_dark")
+    k.frame(player_door, -5.02, -1, "bark_dark")
+    k.frame(win_land_l, -5.02, -1, "bark_dark")
+    k.boards(win_land_l, -5.03, -1)
+    k.frame(win_land_r, -5.02, -1, "bark_dark")
+    k.frame(win_side_l, -7.02, -1, "bark_dark")
+    k.frame(win_side_r, 7.02, 1, "bark_dark")
 
     # Corner timber posts
-    k.posts([(-7.0, -5.0), (7.0, -5.0), (-7.0, 5.0), (7.0, 5.0)], TOP, color="bark_dark", size=0.25)
+    for px, py in ((-7.0, -5.0), (7.0, -5.0), (-7.0, 5.0), (7.0, 5.0)):
+        k.box((px - 0.13, py - 0.13, 0.02), (px + 0.13, py + 0.13, TOP + 0.02), "bark_dark")
 
     # Ceiling cross-tie beams / roof trusses
     for ty in (-3.5, 0.0, 3.5):

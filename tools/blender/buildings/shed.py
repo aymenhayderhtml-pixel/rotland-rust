@@ -28,22 +28,24 @@ def build(model):
 
     # Gable roof, ridge along X
     ridge = (0.0, 0.0, 2.7)
-    k.roof(ridge, (0.0, 1.5, 2.0), span=(1.0, 0.0, 0.0), width=2.7, color="rock_dark")
-    k.roof(ridge, (0.0, -1.5, 2.0), span=(1.0, 0.0, 0.0), width=2.7, color="rock_dark")
+    k.roof(ridge, (0.0, 1.5, 2.0), span=(1.0, 0.0, 0.0), width=2.85, color="rock_dark")
+    k.roof(ridge, (0.0, -1.5, 2.0), span=(1.0, 0.0, 0.0), width=2.85, color="rock_dark")
     for x in (-1.35, 1.2):
-        k.gable([(x, -1.5, 2.0), (x, 1.5, 2.0), (x, 0.0, 2.7)], (0.15, 0.0, 0.0), "bark_dark", roof=True)
+        k.gable([(x, -1.38, 2.02), (x, 1.38, 2.02), (x, 0.0, 2.56)], (0.15, 0.0, 0.0), "bark_dark", roof=True)
 
-    # Tool rack outside the front wall: a board on two posts, with a shovel and a rake hung on it
-    k.solid((-1.0, 1.2, 0.6), (0.4, 1.32, 1.7), "wood_crate", base="rack")
-    k.box((-1.0, 1.2, 0.0), (-0.92, 1.32, 0.6), "bark_dark")
-    k.box((0.32, 1.2, 0.0), (0.4, 1.32, 0.6), "bark_dark")
-    k.box((-0.2, 1.32, 0.4), (-0.14, 1.36, 1.7), "bark_light")  # shovel handle
-    k.box((-0.3, 1.32, 0.2), (-0.04, 1.36, 0.5), "metal")  # shovel blade
-    k.box((0.1, 1.32, 1.3), (0.3, 1.36, 1.38), "metal")  # rake head
+    # Tool rack outside the front wall: a board on two posts, with a shovel and a rake hung on it (proud of wall y=1.2)
+    k.solid((-1.0, 1.22, 0.6), (0.4, 1.34, 1.7), "wood_crate", base="rack")
+    k.box((-1.0, 1.22, 0.0), (-0.92, 1.34, 0.6), "bark_dark")
+    k.box((0.32, 1.22, 0.0), (0.4, 1.34, 0.6), "bark_dark")
+    k.box((-0.2, 1.34, 0.4), (-0.14, 1.38, 1.7), "bark_light")  # shovel handle
+    k.box((-0.3, 1.38, 0.2), (-0.04, 1.42, 0.5), "metal")  # shovel blade proud of handle
+    k.box((0.1, 1.34, 1.3), (0.3, 1.38, 1.38), "metal")  # rake head
 
     # Detail (visual plan step 7): corner posts and a ridge cap
-    k.posts([(-1.2, -1.2), (1.2, -1.2), (-1.2, 1.2), (1.2, 1.2)], 2.0, "bark_dark", size=0.14)
-    k.ridge_cap((0.0, 0.0, 2.7), 0, 2.85, "bark_dark")
+    size = 0.14
+    for px, py in ((-1.2, -1.2), (1.2, -1.2), (-1.2, 1.2), (1.2, 1.2)):
+        k.box((px - size / 2, py - size / 2, 0.02), (px + size / 2, py + size / 2, 2.02), "bark_dark")
+    k.ridge_cap((0.0, 0.0, 2.7), 0, 2.89, "bark_dark")
 
     k.empty("lot_size", (0.0, 0.0, 0.0), scale=(3.0, 3.0, 1.0))
     k.empty("loot_1", (-1.3, 0.0, 0.0))  # behind the shed, on the grass

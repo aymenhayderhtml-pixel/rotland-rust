@@ -40,3 +40,4 @@ Don't change sizes, colors, colliders, markers (`lot_size`, `loot_N`, `spawn_N`)
 Check scope: `python3 -I tools/gate_checks.py --base main --task tasks/R19-08-zfight-camp-lake.md` must print `scope: PASS`. Commit once.
 
 ## Worker notes
+- (Claude, 2026-11-22) The worker hit its Gemini quota before committing. Claude rebuilt every edited script and re-ran the checker. Kept: all 13 camp models (now OK or <= 0.05 m2), shed (1.70 -> 0.01), watchtower (OK), barn (5.78 -> 2.96), cabin (5.66 -> 2.08), house_small (11.96 -> 8.28), boathouse (11.68 -> 11.51). Reverted fish_shack (got worse: 1.17 -> 2.97). STILL TO DO next round: boathouse, house_small, barn, cabin, gas_station (2.66, untouched), fish_shack.

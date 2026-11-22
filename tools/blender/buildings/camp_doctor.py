@@ -27,42 +27,42 @@ def build(model):
     # Corner tent frame posts
     for px in (-2.45, 2.45):
         for py in (-1.95, 1.95):
-            k.box((px - 0.04, py - 0.04, 0.06), (px + 0.04, py + 0.04, 1.75), "bark_dark")
-    # Rear ridge support post (at back wall, y = -1.95)
-    k.box((-0.04, -1.95, 0.06), (0.04, -1.87, 2.75), "bark_dark")
+            k.box((px - 0.04, py - 0.04, 0.05), (px + 0.04, py + 0.04, 1.77), "bark_dark")
+    # Rear ridge support post (inside back wall, clear of gable and wall)
+    k.box((-0.04, -1.91, 0.05), (0.04, -1.83, 2.75), "bark_dark")
     # Ridge beam along Y (z = 2.75 m)
     k.box((-0.05, -2.05, 2.70), (0.05, 2.05, 2.80), "bark_dark")
 
     # Front entrance doorframe posts (x = ±0.85, leaving a clear 1.7 m wide doorway in center!)
-    k.box((-0.89, 1.88, 0.06), (-0.81, 1.96, 2.10), "bark_dark")
-    k.box((0.81, 1.88, 0.06), (0.89, 1.96, 2.10), "bark_dark")
-    k.box((-0.89, 1.88, 2.05), (0.89, 1.96, 2.12), "bark_dark")        # entrance lintel
+    k.box((-0.90, 1.87, 0.05), (-0.82, 1.95, 2.15), "bark_dark")
+    k.box((0.82, 1.87, 0.05), (0.90, 1.95, 2.15), "bark_dark")
+    k.box((-0.91, 1.86, 2.05), (0.91, 1.96, 2.14), "bark_dark")        # entrance lintel
 
     # Tent Canvas Walls (height 1.75 m)
     # West wall (full length)
     k.solid((-2.50, -2.0, 0.06), (-2.42, 2.0, 1.75), "white", base="wall_west")
     # East wall (full length)
     k.solid((2.42, -2.0, 0.06), (2.50, 2.0, 1.75), "white", base="wall_east")
-    # South wall (rear, full width)
-    k.solid((-2.50, -2.0, 0.06), (2.50, -1.92, 1.75), "white", base="wall_south")
-    # Rear gable triangle (z from 1.75 to 2.75 m)
-    k.gable([(-2.50, -1.96, 1.75), (2.50, -1.96, 1.75), (0.0, -1.96, 2.75)],
-            (0.0, 0.08, 0.0), "white", roof=True)
+    # South wall (rear, fits between side walls)
+    k.solid((-2.42, -2.0, 0.06), (2.42, -1.92, 1.75), "white", base="wall_south")
+    # Rear gable triangle (fits under 0.12 m roof slab, clear of post and wall)
+    k.gable([(-2.38, -1.94, 1.76), (2.38, -1.94, 1.76), (0.0, -1.94, 2.61)],
+            (0.0, 0.05, 0.0), "white", roof=True)
 
     # Front wall (+Y: y = 2.0 m, entrance opening x: -0.85 to 0.85, open to z=2.1 m)
-    # Left front wall
-    k.solid((-2.50, 1.92, 0.06), (-0.85, 2.00, 1.75), "white", base="wall_north_w")
-    # Right front wall
-    k.solid((0.85, 1.92, 0.06), (2.50, 2.00, 1.75), "white", base="wall_north_e")
-    # Tied-back canvas door flaps
-    k.box((-0.90, 1.88, 0.06), (-0.80, 2.04, 1.95), "white")
-    k.box((-0.92, 1.86, 0.95), (-0.78, 2.06, 1.05), "bark_dark")     # tie band
-    k.box((0.80, 1.88, 0.06), (0.90, 2.04, 1.95), "white")
-    k.box((0.78, 1.86, 0.95), (0.92, 2.06, 1.05), "bark_dark")      # tie band
+    # Left front wall (fits between west wall and door)
+    k.solid((-2.42, 1.92, 0.06), (-0.85, 2.00, 1.75), "white", base="wall_north_w")
+    # Right front wall (fits between door and east wall)
+    k.solid((0.85, 1.92, 0.06), (2.42, 2.00, 1.75), "white", base="wall_north_e")
+    # Tied-back canvas door flaps (proud in Y of doorframe posts)
+    k.box((-0.94, 1.98, 0.06), (-0.82, 2.06, 1.95), "white")
+    k.box((-0.96, 1.97, 0.95), (-0.80, 2.07, 1.05), "bark_dark")     # tie band
+    k.box((0.82, 1.98, 0.06), (0.94, 2.06, 1.95), "white")
+    k.box((0.80, 1.97, 0.95), (0.96, 2.07, 1.05), "bark_dark")      # tie band
 
-    # Front gable triangle above entrance (z from 1.75 to 2.75 m)
-    k.gable([(-2.50, 1.92, 1.75), (2.50, 1.92, 1.75), (0.0, 1.92, 2.75)],
-            (0.0, 0.08, 0.0), "white", roof=True)
+    # Front gable triangle above entrance (fits under 0.12 m roof slab, clear of lintel)
+    k.gable([(-2.38, 1.89, 1.76), (2.38, 1.89, 1.76), (0.0, 1.89, 2.61)],
+            (0.0, 0.05, 0.0), "white", roof=True)
 
     # Sloped Canvas Roof (ridge along Y at z=2.75 m to eaves at z=1.75 m)
     ridge = (0.0, 0.0, 2.75)
@@ -71,29 +71,28 @@ def build(model):
 
     # ================= RED CROSS MARKINGS =================
     # 1. Bold Red Cross on front gable (above entrance, y = 2.01)
-    k.box((-0.10, 2.01, 2.10), (0.10, 2.03, 2.60), "red_paint")      # vertical bar
-    k.box((-0.30, 2.01, 2.27), (0.30, 2.03, 2.43), "red_paint")      # horizontal bar
+    k.box((-0.10, 2.01, 2.10), (0.10, 2.03, 2.55), "red_paint")      # vertical bar
+    k.box((-0.30, 2.04, 2.27), (0.30, 2.06, 2.43), "red_paint")      # horizontal bar proud
 
     # 2. Red Cross on rear gable (y = -2.01)
-    k.box((-0.10, -2.03, 2.10), (0.10, -2.01, 2.60), "red_paint")     # vertical bar
-    k.box((-0.30, -2.03, 2.27), (0.30, -2.01, 2.43), "red_paint")     # horizontal bar
+    k.box((-0.10, -2.03, 2.10), (0.10, -2.01, 2.55), "red_paint")     # vertical bar
+    k.box((-0.30, -2.06, 2.27), (0.30, -2.04, 2.43), "red_paint")     # horizontal bar proud
 
-    # 3. Red Cross on West canvas wall (x = -2.52)
-    k.box((-2.52, -0.10, 0.85), (-2.50, 0.10, 1.45), "red_paint")     # vertical bar
-    k.box((-2.52, -0.35, 1.05), (-2.50, 0.35, 1.25), "red_paint")     # horizontal bar
+    # 3. Red Cross on West canvas wall (proud of wall x = -2.50)
+    k.box((-2.53, -0.10, 0.85), (-2.51, 0.10, 1.45), "red_paint")     # vertical bar
+    k.box((-2.55, -0.35, 1.05), (-2.53, 0.35, 1.25), "red_paint")     # horizontal bar proud
 
-    # 4. Red Cross on East canvas wall (x = 2.50)
-    k.box((2.50, -0.10, 0.85), (2.52, 0.10, 1.45), "red_paint")      # vertical bar
-    k.box((2.50, -0.35, 1.05), (2.52, 0.35, 1.25), "red_paint")      # horizontal bar
+    # 4. Red Cross on East canvas wall (proud of wall x = 2.50)
+    k.box((2.51, -0.10, 0.85), (2.53, 0.10, 1.45), "red_paint")      # vertical bar
+    k.box((2.53, -0.35, 1.05), (2.55, 0.35, 1.25), "red_paint")      # horizontal bar proud
 
     # ================= INTERIOR: MEDICAL COT (x: -2.2 to -1.1, y: -0.7 to 1.1) =================
-    # Cot tubular steel frame
+    # Frame perimeter rails (non-overlapping corners)
     for cx in (-2.15, -1.15):
         for cy in (-0.65, 1.05):
-            k.box((cx - 0.02, cy - 0.02, 0.06), (cx + 0.02, cy + 0.02, 0.42), "metal")
-    # Frame perimeter rails
-    k.box((-2.17, -0.67, 0.38), (-1.13, -0.63, 0.42), "metal")
-    k.box((-2.17, 1.03, 0.38), (-1.13, 1.07, 0.42), "metal")
+            k.box((cx - 0.02, cy - 0.02, 0.06), (cx + 0.02, cy + 0.02, 0.38), "metal")
+    k.box((-2.13, -0.67, 0.38), (-1.17, -0.63, 0.42), "metal")
+    k.box((-2.13, 1.03, 0.38), (-1.17, 1.07, 0.42), "metal")
     k.box((-2.17, -0.67, 0.38), (-2.13, 1.07, 0.42), "metal")
     k.box((-1.17, -0.67, 0.38), (-1.13, 1.07, 0.42), "metal")
     # Mattress (solid collider)
@@ -122,9 +121,9 @@ def build(model):
     for sx in (-0.55, 0.65):
         for sy in (-1.88, -1.58):
             k.box((sx, sy, 0.06), (sx + 0.04, sy + 0.04, 1.80), "white")
-    # 4 shelf boards (solid collider)
+    # 4 shelf boards (solid collider, inset inside frame uprights)
     for sz in (0.15, 0.65, 1.15, 1.65):
-        k.solid((-0.55, -1.88, sz), (0.69, -1.54, sz + 0.04), "white", base="med_shelf")
+        k.solid((-0.50, -1.84, sz), (0.64, -1.58, sz + 0.04), "white", base="med_shelf")
 
     # Shelf stock:
     # Tier 1 (z=0.19): Wooden medical supply crates
@@ -150,19 +149,19 @@ def build(model):
     k.box((0.15, -1.80, 1.69), (0.55, -1.62, 1.78), "glass_tint")
 
     # ================= DOCTOR'S DESK (x: 1.1 to 2.2, y: -0.6 to 0.4) =================
-    # Desk body (solid collider)
-    k.solid((1.15, -0.55, 0.06), (2.15, 0.35, 0.78), "wood_crate", base="doctor_desk")
-    # Desk kneehole cutout
-    k.box((1.15, -0.55, 0.06), (1.20, 0.35, 0.74), "bark_dark")
-    k.box((2.10, -0.55, 0.06), (2.15, 0.35, 0.74), "bark_dark")
+    # Desk body (top slab and two side pedestals, no internal overlapping boxes)
+    k.solid((1.15, -0.55, 0.72), (2.15, 0.35, 0.78), "wood_crate", base="doctor_desk")
+    k.solid((1.17, -0.53, 0.06), (1.30, 0.33, 0.70), "bark_dark", base="desk_ped_l")
+    k.solid((2.00, -0.53, 0.06), (2.13, 0.33, 0.70), "bark_dark", base="desk_ped_r")
+    k.box((1.30, -0.55, 0.30), (2.00, -0.51, 0.72), "wood_crate")
     # Stool behind desk (x = 1.65, y = -0.9)
     k.solid((1.50, -1.05, 0.06), (1.80, -0.75, 0.48), "bark_dark", base="doctor_stool")
 
     # Items on doctor's desk:
     # First aid box with red cross
     k.box((1.25, -0.45, 0.78), (1.65, -0.15, 0.95), "white")
-    k.box((1.42, -0.46, 0.82), (1.48, -0.44, 0.91), "red_paint")
-    k.box((1.37, -0.46, 0.85), (1.53, -0.44, 0.88), "red_paint")
+    k.box((1.42, -0.47, 0.82), (1.48, -0.44, 0.91), "red_paint")
+    k.box((1.37, -0.48, 0.85), (1.53, -0.44, 0.88), "red_paint")
     # Medical clipboard
     k.box((1.75, -0.35, 0.78), (2.05, 0.10, 0.82), "bark_light")
     k.box((1.78, -0.32, 0.82), (2.02, 0.07, 0.83), "white")

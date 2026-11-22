@@ -72,46 +72,46 @@ def build(model):
     # 2. Structural steel posts at x = -2.0, 0.0, +2.0
     post_h = 3.12
     # Center post (x = 0.0)
-    k.box((-0.07, -0.08, 0.0), (0.07, 0.08, post_h), "gun_black")
+    k.box((-0.07, -0.08, 0.03), (0.07, 0.08, post_h), "gun_black")
     k.box((-0.11, -0.11, 0.0), (0.11, 0.11, 0.03), "rock_dark")  # base plate
 
     # Left post (x = -2.0, half on this section)
-    k.box((-HALF_L, -0.08, 0.0), (-HALF_L + 0.07, 0.08, post_h), "gun_black")
+    k.box((-HALF_L, -0.08, 0.03), (-HALF_L + 0.07, 0.08, post_h), "gun_black")
     k.box((-HALF_L, -0.11, 0.0), (-HALF_L + 0.11, 0.11, 0.03), "rock_dark")
 
     # Right post (x = +2.0, half on this section)
-    k.box((HALF_L - 0.07, -0.08, 0.0), (HALF_L, 0.08, post_h), "gun_black")
+    k.box((HALF_L - 0.07, -0.08, 0.03), (HALF_L, 0.08, post_h), "gun_black")
     k.box((HALF_L - 0.11, -0.11, 0.0), (HALF_L, 0.11, 0.03), "rock_dark")
 
     # 3. Horizontal steel cross-girts on the inside face (-Y)
     for gz in (0.45, 1.50, 2.65):
-        k.box((-HALF_L, -0.07, gz), (HALF_L, -0.03, gz + 0.08), "gun_black")
+        k.box((-HALF_L + 0.01, -0.07, gz), (HALF_L - 0.01, -0.03, gz + 0.08), "gun_black")
 
     # 4. Rusty patches and scrap metal repair plates
     # Patch 1: lower left (rust)
-    k.box((-1.45, 0.022, 0.65), (-0.75, 0.038, 1.55), "rust")
-    # Rivet trim
-    k.box((-1.47, 0.020, 0.63), (-1.43, 0.040, 1.57), "gun_black")
-    k.box((-0.77, 0.020, 0.63), (-0.73, 0.040, 1.57), "gun_black")
+    k.box((-1.45, 0.025, 0.65), (-0.75, 0.035, 1.55), "rust")
+    # Rivet trim (stands 2 cm proud of patch)
+    k.box((-1.47, 0.035, 0.63), (-1.43, 0.055, 1.57), "gun_black")
+    k.box((-0.77, 0.035, 0.63), (-0.73, 0.055, 1.57), "gun_black")
 
     # Patch 2: upper right (rust)
-    k.box((0.45, 0.022, 1.65), (1.15, 0.038, 2.45), "rust")
-    k.box((0.43, 0.020, 1.63), (0.47, 0.040, 2.47), "gun_black")
+    k.box((0.45, 0.025, 1.65), (1.15, 0.035, 2.45), "rust")
+    k.box((0.43, 0.035, 1.63), (0.47, 0.055, 2.47), "gun_black")
 
     # Patch 3: upper center (weathered red paint scrap)
-    k.box((-0.45, 0.024, 2.05), (0.35, 0.040, 2.85), "red_paint")
-    k.box((-0.47, 0.022, 2.03), (-0.43, 0.042, 2.87), "gun_black")
+    k.box((-0.45, 0.025, 2.05), (0.35, 0.035, 2.85), "red_paint")
+    k.box((-0.47, 0.035, 2.03), (-0.43, 0.055, 2.87), "gun_black")
 
     # Patch 4: lower right (dirt/corrosion patch)
-    k.box((1.20, 0.022, 0.35), (1.80, 0.036, 1.15), "dirt")
+    k.box((1.20, 0.025, 0.35), (1.80, 0.035, 1.15), "dirt")
 
     # 5. Barbed top wire and angled outriggers
     # Angled arms at each post extending upward and outward (+Y)
     for px in (-HALF_L + 0.035, 0.0, HALF_L - 0.035):
         # Angled steel outrigger bracket (from z=3.05, y=0.0 to z=3.42, y=0.22)
-        k.box((px - 0.02, 0.0, 3.05), (px + 0.02, 0.06, 3.18), "gun_black")
-        k.box((px - 0.02, 0.05, 3.16), (px + 0.02, 0.14, 3.30), "gun_black")
-        k.box((px - 0.02, 0.12, 3.28), (px + 0.02, 0.22, 3.42), "gun_black")
+        k.box((px - 0.02, 0.0, 3.05), (px + 0.02, 0.06, 3.15), "gun_black")
+        k.box((px - 0.017, 0.05, 3.15), (px + 0.017, 0.14, 3.27), "gun_black")
+        k.box((px - 0.02, 0.12, 3.27), (px + 0.02, 0.22, 3.42), "gun_black")
 
     # 3 strands of taut steel wire across the 4m span
     wire_points = [
@@ -121,7 +121,7 @@ def build(model):
     ]
     for wy, wz in wire_points:
         # Long wire strand
-        k.box((-HALF_L, wy - 0.007, wz - 0.007), (HALF_L, wy + 0.007, wz + 0.007), "metal")
+        k.box((-HALF_L + 0.01, wy - 0.007, wz - 0.007), (HALF_L - 0.01, wy + 0.007, wz + 0.007), "metal")
         # Barbs every 0.6 m
         for b_i in range(7):
             bx = -HALF_L + 0.25 + b_i * 0.60
@@ -130,7 +130,7 @@ def build(model):
 
     # 6. Inside diagonal kicker braces on -Y side
     for px in (-1.95, 0.0, 1.95):
-        k.box((px - 0.03, -0.40, 0.0), (px + 0.03, -0.05, 1.40), "gun_black")
+        k.box((px - 0.03, -0.40, 0.035), (px + 0.03, -0.09, 1.40), "gun_black")
 
     # 7. Colliders
     k.collider((-HALF_L, -0.15, 0.0), (HALF_L, 0.15, HEIGHT), base="metal_wall")

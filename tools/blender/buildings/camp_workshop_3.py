@@ -27,10 +27,10 @@ def build(model):
     # Perimeter posts: 2 front posts at corners (x: -2.85, 2.70), open wide entrance!
     # Front corner posts (+Y: y = 1.85, height 3.15 m)
     for px in (-2.85, 2.70):
-        k.solid((px, 1.75, 0.12), (px + 0.15, 1.90, 3.15), "metal", base="post_front")
+        k.solid((px, 1.75, 0.12), (px + 0.15, 1.90, 3.10), "metal", base="post_front")
     # Rear posts (-Y: y = -1.90, height 2.60 m)
     for px in (-2.85, 0.0, 2.70):
-        k.solid((px, -1.90, 0.12), (px + 0.15, -1.75, 2.60), "metal", base="post_rear")
+        k.solid((px, -1.90, 0.12), (px + 0.15, -1.75, 2.55), "metal", base="post_rear")
 
     # Front and rear top header beams
     k.box((-3.0, 1.75, 3.10), (3.0, 1.90, 3.25), "metal")
@@ -44,13 +44,13 @@ def build(model):
             y1 = 1.85 - f1 * 3.65
             z0 = 3.18 - f0 * 0.55
             z1 = 3.18 - f1 * 0.55
-            k.box((px, y1, min(z0, z1)), (px + 0.15, y0, max(z0, z1) + 0.08), "metal")
+            k.box((px + 0.01, y1, min(z0, z1)), (px + 0.14, y0, max(z0, z1) + 0.08), "metal")
 
     # Corrugated metal roof (sloped plane, ridge along X from -3.1 to 3.1)
     k.roof((0.0, 2.10, 3.30), (0.0, -2.15, 2.65), span=(1.0, 0.0, 0.0), width=6.3, color="rock_dark")
 
     # Solid back wall (corrugated metal panels along -Y)
-    k.solid((-2.9, -1.95, 0.12), (2.9, -1.85, 2.55), "rock_dark", base="wall_rear")
+    k.solid((-2.9, -2.00, 0.12), (2.9, -1.90, 2.55), "rock_dark", base="wall_rear")
     # Partial side walls
     k.solid((-2.95, -1.85, 0.12), (-2.85, 0.2, 2.80), "rock_dark", base="wall_side_w")
     k.solid((2.85, -1.85, 0.12), (2.95, -0.4, 2.80), "rock_dark", base="wall_side_e")
@@ -64,7 +64,7 @@ def build(model):
     k.solid((-1.0, -1.65, 0.12), (-0.4, -1.15, 0.85), "shirt_blue", base="lathe_head_base")
     k.solid((0.8, -1.65, 0.12), (1.3, -1.15, 0.85), "shirt_blue", base="lathe_tail_base")
     # Chip pan between pedestals
-    k.box((-1.0, -1.68, 0.80), (1.3, -1.12, 0.85), "rock_dark")
+    k.box((-0.98, -1.68, 0.80), (1.28, -1.12, 0.83), "rock_dark")
     # Twin prism lathe bed rails
     k.box((-0.4, -1.58, 0.85), (0.8, -1.46, 0.98), "metal")
     k.box((-0.4, -1.34, 0.85), (0.8, -1.22, 0.98), "metal")
@@ -78,13 +78,13 @@ def build(model):
     model.add(chuck)
     k.box((-0.30, -1.48, 1.06), (-0.22, -1.32, 1.14), "gun_black")
     # Carriage / apron
-    k.solid((-0.15, -1.65, 0.85), (0.25, -1.12, 1.05), "gun_black", base="lathe_carriage")
+    k.solid((-0.15, -1.65, 0.88), (0.25, -1.12, 1.05), "gun_black", base="lathe_carriage")
     k.box((-0.05, -1.50, 1.05), (0.15, -1.25, 1.18), "metal")
     k.box((0.02, -1.42, 1.18), (0.12, -1.32, 1.28), "gun_black")
     k.box((0.06, -1.34, 1.20), (0.10, -1.20, 1.24), "metal")
     k.box((-0.08, -1.11, 0.90), (0.06, -1.08, 1.02), "metal")         # handwheel
     # Tailstock (right)
-    k.solid((0.55, -1.58, 0.85), (0.85, -1.22, 1.18), "shirt_blue", base="lathe_tailstock")
+    k.solid((0.55, -1.56, 0.88), (0.85, -1.24, 1.18), "shirt_blue", base="lathe_tailstock")
     k.box((0.45, -1.42, 1.08), (0.55, -1.38, 1.12), "metal")
     k.box((0.85, -1.42, 1.08), (0.92, -1.38, 1.12), "metal")
     # Threaded lead screw
@@ -118,10 +118,10 @@ def build(model):
 
     # ================= 3. ENGINE ON ENGINE STAND (x: 0.1 to 1.3, y: 0.1 to 1.3) =================
     k.solid((0.15, 0.25, 0.12), (0.30, 1.25, 0.18), "red_paint", base="stand_base_front")
-    k.solid((0.25, 0.70, 0.12), (1.10, 0.80, 0.18), "red_paint", base="stand_spine")
+    k.solid((0.30, 0.71, 0.12), (1.05, 0.79, 0.18), "red_paint", base="stand_spine")
     k.solid((1.05, 0.35, 0.12), (1.20, 1.15, 0.18), "red_paint", base="stand_base_rear")
     for cx, cy in ((0.22, 0.30), (0.22, 1.20), (1.12, 0.40), (1.12, 1.10)):
-        k.box((cx - 0.04, cy - 0.04, 0.12), (cx + 0.04, cy + 0.04, 0.20), "gun_black")
+        k.box((cx - 0.03, cy - 0.03, 0.12), (cx + 0.03, cy + 0.03, 0.19), "gun_black")
     k.solid((1.03, 0.69, 0.18), (1.17, 0.81, 0.95), "red_paint", base="stand_column")
     k.box((0.65, 0.71, 0.18), (1.07, 0.79, 0.85), "red_paint")
     k.box((0.90, 0.65, 0.88), (1.10, 0.85, 1.02), "gun_black")

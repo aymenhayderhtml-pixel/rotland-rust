@@ -27,43 +27,43 @@ def build(model):
             k.box((lx, ly, 0.0), (lx + 0.12, ly + 0.12, 0.80), "bark_dark")
 
     # Lower shelf stretchers and slats (z=0.18 m)
-    k.box((-0.75, -0.36, 0.18), (1.35, -0.28, 0.24), "bark_dark")
-    k.box((-0.75, 0.28, 0.18), (1.35, 0.36, 0.24), "bark_dark")
-    k.box((-0.73, -0.28, 0.20), (1.33, 0.28, 0.24), "wood_crate")
+    k.box((-0.73, -0.36, 0.18), (1.33, -0.28, 0.24), "bark_dark")
+    k.box((-0.73, 0.28, 0.18), (1.33, 0.36, 0.24), "bark_dark")
+    k.box((-0.71, -0.28, 0.20), (1.31, 0.28, 0.24), "wood_crate")
 
     # Bench tabletop (solid collider)
     k.solid((-0.80, -0.45, 0.80), (1.40, 0.45, 0.88), "wood_crate", base="tabletop")
 
     # Pegboard uprights and backing (solid collider)
-    k.solid((-0.80, -0.45, 0.88), (-0.70, -0.38, 1.85), "bark_dark", base="peg_post_l")
-    k.solid((1.30, -0.45, 0.88), (1.40, -0.38, 1.85), "bark_dark", base="peg_post_r")
-    k.solid((-0.70, -0.44, 0.88), (1.30, -0.40, 1.85), "bark_light", base="pegboard")
-    k.box((-0.70, -0.42, 1.81), (1.30, -0.38, 1.85), "bark_dark")
-    k.box((-0.70, -0.42, 0.88), (1.30, -0.38, 0.92), "bark_dark")
+    k.solid((-0.80, -0.44, 0.88), (-0.70, -0.38, 1.85), "bark_dark", base="peg_post_l")
+    k.solid((1.30, -0.44, 0.88), (1.40, -0.38, 1.85), "bark_dark", base="peg_post_r")
+    k.solid((-0.70, -0.42, 0.92), (1.30, -0.40, 1.85), "bark_light", base="pegboard")
+    k.box((-0.70, -0.43, 1.85), (1.30, -0.37, 1.89), "bark_dark")
+    k.box((-0.70, -0.43, 0.88), (1.30, -0.37, 0.92), "bark_dark")
 
     # Hanging tools on pegboard:
     # Hammer
-    k.box((-0.52, -0.39, 1.25), (-0.48, -0.37, 1.65), "bark_light")
-    k.box((-0.56, -0.39, 1.62), (-0.44, -0.37, 1.68), "gun_black")
+    k.box((-0.52, -0.39, 1.25), (-0.48, -0.37, 1.62), "bark_light")
+    k.box((-0.56, -0.39, 1.62), (-0.44, -0.36, 1.68), "gun_black")
     # Saw
-    k.box((-0.25, -0.39, 1.20), (-0.15, -0.37, 1.68), "metal")
-    k.box((-0.27, -0.39, 1.60), (-0.13, -0.37, 1.72), "wood_crate")
+    k.box((-0.25, -0.39, 1.20), (-0.15, -0.38, 1.68), "metal")
+    k.box((-0.27, -0.38, 1.60), (-0.13, -0.36, 1.72), "wood_crate")
     # Wrenches
-    k.box((0.10, -0.39, 1.35), (0.14, -0.37, 1.62), "metal")
+    k.box((0.10, -0.39, 1.35), (0.14, -0.37, 1.60), "metal")
     k.box((0.08, -0.39, 1.60), (0.16, -0.37, 1.66), "metal")
     k.box((0.25, -0.39, 1.30), (0.29, -0.37, 1.55), "metal")
     # Screwdrivers
-    k.box((0.45, -0.39, 1.48), (0.49, -0.37, 1.60), "red_paint")
+    k.box((0.45, -0.38, 1.48), (0.49, -0.36, 1.60), "red_paint")
     k.box((0.46, -0.39, 1.36), (0.48, -0.37, 1.48), "metal")
-    k.box((0.55, -0.39, 1.46), (0.59, -0.37, 1.58), "shirt_blue")
+    k.box((0.55, -0.38, 1.46), (0.59, -0.36, 1.58), "shirt_blue")
     k.box((0.56, -0.39, 1.38), (0.58, -0.37, 1.46), "metal")
 
     # ================= 1. BENCH VICE (front-right corner x = 1.05, y = 0.35) =================
     k.solid((0.92, 0.26, 0.88), (1.18, 0.44, 0.94), "gun_black", base="vice_base")
-    k.box((0.96, 0.30, 0.94), (1.14, 0.40, 1.08), "gun_black")
-    k.box((0.94, 0.36, 1.04), (1.16, 0.40, 1.10), "metal")
-    k.box((0.96, 0.40, 0.94), (1.14, 0.48, 1.08), "gun_black")
-    k.box((0.94, 0.40, 1.04), (1.16, 0.44, 1.10), "metal")
+    k.box((0.96, 0.30, 0.94), (1.14, 0.39, 1.08), "gun_black")
+    k.box((0.94, 0.36, 1.04), (1.16, 0.39, 1.10), "metal")
+    k.box((0.96, 0.43, 0.94), (1.14, 0.50, 1.08), "gun_black")
+    k.box((0.94, 0.43, 1.04), (1.16, 0.46, 1.10), "metal")
     k.box((1.02, 0.28, 0.98), (1.06, 0.53, 1.02), "metal")
     k.box((0.94, 0.52, 0.92), (1.14, 0.54, 1.08), "metal")
 
@@ -104,7 +104,7 @@ def build(model):
 
     # 4 metal shelf tiers
     for sz in (0.15, 0.65, 1.15, 1.65):
-        k.solid((-1.75, -0.45, sz), (-1.00, 0.45, sz + 0.04), "metal", base="shelf_tier")
+        k.solid((-1.74, -0.44, sz), (-1.01, 0.44, sz + 0.04), "metal", base="shelf_tier")
 
     # Shelf items:
     # Bottom shelf (z=0.19): Car battery and heavy gear

@@ -113,7 +113,7 @@ def build(model):
 
     # Rebar 2: tall vertical spine with slight bend
     _make_rebar_segment(k, (0.95, 0.04, 2.65), (0.96, 0.05, 3.38), width=0.024, color="rust")
-    _make_rebar_segment(k, (0.96, 0.05, 3.38), (1.02, 0.03, 3.52), width=0.022, color="gun_black")
+    _make_rebar_segment(k, (0.96, 0.05, 3.41), (1.02, 0.03, 3.52), width=0.022, color="gun_black")
 
     # Rebar 3: curled bent bar
     _make_rebar_segment(k, (1.10, 0.07, 2.65), (1.12, 0.08, 3.12), width=0.024, color="rust")

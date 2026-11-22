@@ -28,22 +28,22 @@ def build(model):
     for z in (2.0, 4.0, 5.6):
         k.box((-1.35, 1.3, z), (1.35, 1.4, z + 0.12), "bark_light")
         k.box((-1.35, -1.4, z), (1.35, -1.3, z + 0.12), "bark_light")
-        k.box((-1.4, -1.35, z), (-1.3, 1.35, z + 0.12), "bark_light")
-        k.box((1.3, -1.35, z), (1.4, 1.35, z + 0.12), "bark_light")
+        k.box((-1.4, -1.3, z), (-1.3, 1.3, z + 0.12), "bark_light")
+        k.box((1.3, -1.3, z), (1.4, 1.3, z + 0.12), "bark_light")
 
     k.solid((-1.5, -1.5, PLATFORM_Z - 0.2), (1.5, 1.5, PLATFORM_Z), "wood_crate", base="platform")
     rail_top = PLATFORM_Z + 0.9
-    k.box((-1.5, -1.5, PLATFORM_Z), (1.5, -1.42, rail_top), "bark_dark")
-    k.box((-1.5, 1.42, PLATFORM_Z), (1.5, 1.5, rail_top), "bark_dark")
-    k.box((-1.5, -1.5, PLATFORM_Z), (-1.42, 1.5, rail_top), "bark_dark")
-    k.box((1.42, -1.5, PLATFORM_Z), (1.5, 1.5, rail_top), "bark_dark")
+    k.box((-1.5, -1.5, PLATFORM_Z + 0.02), (1.5, -1.42, rail_top), "bark_dark")
+    k.box((-1.5, 1.42, PLATFORM_Z + 0.02), (1.5, 1.5, rail_top), "bark_dark")
+    k.box((-1.5, -1.42, PLATFORM_Z + 0.02), (-1.42, 1.42, rail_top), "bark_dark")
+    k.box((1.42, -1.42, PLATFORM_Z + 0.02), (1.5, 1.42, rail_top), "bark_dark")
 
     # Ladder on the +Y side, between the front legs (visual only)
-    k.box((-0.32, 1.2, 0.0), (-0.26, 1.3, PLATFORM_Z - 0.2), "bark_light")
-    k.box((0.26, 1.2, 0.0), (0.32, 1.3, PLATFORM_Z - 0.2), "bark_light")
+    k.box((-0.32, 1.2, 0.02), (-0.26, 1.3, PLATFORM_Z - 0.22), "bark_light")
+    k.box((0.26, 1.2, 0.02), (0.32, 1.3, PLATFORM_Z - 0.22), "bark_light")
     z = 0.4
     while z < PLATFORM_Z - 0.4:
-        k.box((-0.32, 1.2, z), (0.32, 1.3, z + 0.05), "bark_light")
+        k.box((-0.25, 1.22, z), (0.25, 1.28, z + 0.05), "bark_light")
         z += 0.4
 
     # Climb markers for the ladder above: foot 0.4 m in front of it (+Y), facing it (-Y);

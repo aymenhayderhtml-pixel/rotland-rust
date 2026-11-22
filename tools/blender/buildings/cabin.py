@@ -30,12 +30,12 @@ def build(model):
     k.wall((-3.0, -2.35, F), (-2.85, 2.35, TOP), openings=[win_left], colors=LOG, course=0.35, base="wall_left")
     k.wall((2.85, -2.35, F), (3.0, 2.35, TOP), openings=[win_right], colors=LOG, course=0.35, base="wall_right")
 
-    # Gable roof, ridge along Y: two slabs and a triangle at each end
+    # Gable roof, ridge along Y: two slabs and a triangle at each end (gables under roof slab)
     ridge = (0.0, 0.0, 3.3)
     k.roof(ridge, (3.3, 0.0, 2.4), span=(0.0, 1.0, 0.0), width=5.0, color="rock_dark")
     k.roof(ridge, (-3.3, 0.0, 2.4), span=(0.0, 1.0, 0.0), width=5.0, color="rock_dark")
-    k.gable([(-3.3, 2.35, 2.4), (3.3, 2.35, 2.4), (0.0, 2.35, 3.3)], (0.0, 0.15, 0.0), "bark_dark", roof=True)
-    k.gable([(-3.3, -2.5, 2.4), (3.3, -2.5, 2.4), (0.0, -2.5, 3.3)], (0.0, 0.15, 0.0), "bark_dark", roof=True)
+    k.gable([(-3.2, 2.36, 2.26), (3.2, 2.36, 2.26), (0.0, 2.36, 3.16)], (0.0, 0.12, 0.0), "bark_dark", roof=True)
+    k.gable([(-3.2, -2.48, 2.26), (3.2, -2.48, 2.26), (0.0, -2.48, 3.16)], (0.0, 0.12, 0.0), "bark_dark", roof=True)
 
     # Inside: table, bed frame with mattress, shelf against the back wall
     k.solid((1.0, -0.4, F), (2.0, 0.4, 0.75), "bark_dark", base="table")
@@ -46,11 +46,12 @@ def build(model):
         k.box((-1.0, -2.0, z), (0.4, -1.98, z + 0.05), "wood_crate")
 
     # Detail (visual plan step 7): frames, a boarded window, log-end corner posts, ridge cap, chimney
-    k.frame(door, 2.5, 1, "bark_dark")
-    k.frame(win_left, -3.0, -1, "bark_dark")
-    k.boards(win_left, -3.0, -1)
-    k.frame(win_right, 3.0, 1, "bark_dark")
-    k.posts([(-3.0, -2.5), (3.0, -2.5), (-3.0, 2.5), (3.0, 2.5)], 2.45)
+    k.frame(door, 2.52, 1, "bark_dark")
+    k.frame(win_left, -3.02, -1, "bark_dark")
+    k.boards(win_left, -3.03, -1)
+    k.frame(win_right, 3.02, 1, "bark_dark")
+    for px, py in ((-3.0, -2.5), (3.0, -2.5), (-3.0, 2.5), (3.0, 2.5)):
+        k.box((px - 0.11, py - 0.11, 0.02), (px + 0.11, py + 0.11, 2.46), "bark_dark")
     k.ridge_cap((0.0, 0.0, 3.3), 1, 5.0, "bark_dark")
     k.chimney(-1.6, -1.2, 2.7, 3.8, "rock_mid")
     k.crate(2.5, -1.9, 0.5)
