@@ -42,7 +42,7 @@ def build(model):
         (2.25, 1.8), (2.25, 3.5), (2.25, 4.9),
     ]
     for px, py in piling_spots:
-        post = common.make_frustum(0.14, 0.14, -2.5, 0.1, segments=6, center=(px, py), color="bark_dark")
+        post = common.make_frustum(0.14, 0.14, -2.5, 0.08, segments=6, center=(px, py), color="bark_dark")
         k.model.add(post)
 
     # Water side bumper rub-rails along boat slip inner edges
@@ -53,13 +53,15 @@ def build(model):
     # 1. Big boat door on +Y (water side): 4.4 m wide, 2.9 m tall
     boat_door = ((-2.2, 4.85, F), (2.2, 5.15, 2.95))
     # 2. Player entry door on -Y (land side): 1.2 m wide, 2.2 m tall
-    player_door = ((-0.6, -5.15, F), (0.6, -4.85, kit.DOOR_H))
+    # Top aligned to wall course (F + 6 * 0.35) to prevent floating-point coplanar slicing
+    DOOR_H = F + 6 * 0.35
+    player_door = ((-0.6, -5.15, F), (0.6, -4.85, DOOR_H))
     # Windows on land side
-    win_land_l = ((-5.0, -5.15, 1.2), (-3.2, -4.85, 2.2))
-    win_land_r = ((3.2, -5.15, 1.2), (5.0, -4.85, 2.2))
+    win_land_l = ((-5.0, -5.15, 1.2), (-3.2, -4.85, DOOR_H))
+    win_land_r = ((3.2, -5.15, 1.2), (5.0, -4.85, DOOR_H))
     # Side windows
-    win_side_l = ((-7.15, -1.0, 1.2), (-6.85, 0.8, 2.2))
-    win_side_r = ((6.85, -1.0, 1.2), (7.15, 0.8, 2.2))
+    win_side_l = ((-7.15, -1.0, 1.2), (-6.85, 0.8, DOOR_H))
+    win_side_r = ((6.85, -1.0, 1.2), (7.15, 0.8, DOOR_H))
 
     # Exterior walls
     # Front (+Y, water side)
@@ -75,9 +77,10 @@ def build(model):
            colors=WALL_COLORS, course=0.35, base="wall_right")
 
     # Heavy timber frame for the big boat door (proud of front wall at y = 5.0)
-    k.box((-2.35, 4.82, F), (-2.15, 5.05, 3.10), "bark_dark")
-    k.box((2.15, 4.82, F), (2.35, 5.05, 3.10), "bark_dark")
-    k.box((-2.35, 4.82, 2.95), (2.35, 5.05, 3.15), "bark_dark")
+    # Starts at 0.08 (inside floor slab) to avoid coplanar bottom face with wall at F=0.1
+    k.box((-2.35, 4.82, 0.08), (-2.15, 5.05, 3.15), "bark_dark")
+    k.box((2.15, 4.82, 0.08), (2.35, 5.05, 3.15), "bark_dark")
+    k.box((-2.15, 4.82, 2.93), (2.15, 5.05, 3.15), "bark_dark")
 
     # Gable roof: ridge along Y (X = 0, Z = RIDGE_Z)
     ridge = (0.0, 0.0, RIDGE_Z)
@@ -94,20 +97,39 @@ def build(model):
     k.ridge_cap((0.0, 0.0, RIDGE_Z), 1, 10.5, "bark_dark")
 
     # Door and window trims
-    k.frame(player_door, -5.02, -1, "bark_dark")
-    k.frame(win_land_l, -5.02, -1, "bark_dark")
+    def frame(opening, face, sign, color="bark_dark", t=0.08, depth=0.05, sill=True):
+        lo, hi = opening
+        axis = 0 if (hi[0] - lo[0]) < (hi[1] - lo[1]) else 1
+        u = 1 - axis
+        a, b = sorted((face, face + sign * depth))
+
+        def strip(u0, u1, z0, z1, extra=0.0):
+            p0, p1 = [0.0, 0.0, z0], [0.0, 0.0, z1]
+            p0[u], p1[u] = u0, u1
+            p0[axis], p1[axis] = (a - extra, b) if sign < 0 else (a, b + extra)
+            k.box(tuple(p0), tuple(p1), color)
+
+        window = lo[2] > F + 0.05
+        strip(lo[u] - t, lo[u], lo[2], hi[2])
+        strip(hi[u], hi[u] + t, lo[2], hi[2])
+        strip(lo[u] - t, hi[u] + t, hi[2], hi[2] + t)
+        if window and sill:
+            strip(lo[u] - t * 1.5, hi[u] + t * 1.5, lo[2] - t, lo[2], extra=0.04)
+
+    frame(player_door, -5.02, -1, "bark_dark")
+    frame(win_land_l, -5.02, -1, "bark_dark")
     k.boards(win_land_l, -5.03, -1)
-    k.frame(win_land_r, -5.02, -1, "bark_dark")
-    k.frame(win_side_l, -7.02, -1, "bark_dark")
-    k.frame(win_side_r, 7.02, 1, "bark_dark")
+    frame(win_land_r, -5.02, -1, "bark_dark")
+    frame(win_side_l, -7.02, -1, "bark_dark")
+    frame(win_side_r, 7.02, 1, "bark_dark")
 
     # Corner timber posts
     for px, py in ((-7.0, -5.0), (7.0, -5.0), (-7.0, 5.0), (7.0, 5.0)):
         k.box((px - 0.13, py - 0.13, 0.02), (px + 0.13, py + 0.13, TOP + 0.02), "bark_dark")
 
-    # Ceiling cross-tie beams / roof trusses
+    # Ceiling cross-tie beams / roof trusses (inside walls, x=-6.84..6.84)
     for ty in (-3.5, 0.0, 3.5):
-        k.box((-7.0, ty - 0.08, TOP - 0.10), (7.0, ty + 0.08, TOP + 0.05), "bark_dark", roof=True)
+        k.box((-6.84, ty - 0.08, TOP - 0.10), (6.84, ty + 0.08, TOP + 0.05), "bark_dark", roof=True)
 
     # Boat hoist winch hanging from center rafter over the boat slip
     k.box((-0.25, 2.5 - 0.25, TOP - 0.60), (0.25, 2.5 + 0.25, TOP), "metal", roof=True)
@@ -116,23 +138,30 @@ def build(model):
     # Interior clutter & props:
     # 1. Long workbench along land side wall
     k.solid((2.2, -4.8, F), (5.5, -4.0, 0.88), "wood_crate", base="workbench")
-    k.box((2.15, -4.85, 0.88), (5.55, -3.95, 0.94), "bark_dark")
-    # Tackle box and lantern on workbench
-    k.box((2.8, -4.5, 0.94), (3.3, -4.2, 1.14), "metal")
-    k.box((4.2, -4.5, 0.94), (4.5, -4.2, 1.25), "brass")
+    k.box((2.15, -4.83, 0.88), (5.55, -3.95, 0.94), "bark_dark")
+    # Tackle box and lantern on workbench (sitting proud at z=0.95)
+    k.box((2.8, -4.5, 0.95), (3.3, -4.2, 1.14), "metal")
+    k.box((4.2, -4.5, 0.95), (4.5, -4.2, 1.25), "brass")
 
     # 2. Shelves on left wall
-    k.solid((-6.85, -4.0, F), (-6.0, -1.5, 2.1), "bark_dark", base="shelf_left")
+    k.collider((-6.85, -4.0, F), (-6.0, -1.5, 2.1), "shelf_left")
+    k.box((-6.83, -4.0, F), (-6.78, -3.95, 2.1), "bark_dark")
+    k.box((-6.05, -4.0, F), (-6.0, -3.95, 2.1), "bark_dark")
+    k.box((-6.83, -1.55, F), (-6.78, -1.5, 2.1), "bark_dark")
+    k.box((-6.05, -1.55, F), (-6.0, -1.5, 2.1), "bark_dark")
     for sz in (0.6, 1.1, 1.6):
-        k.box((-6.85, -4.0, sz), (-5.95, -1.5, sz + 0.05), "wood_crate")
-    # Some supplies on shelves
-    k.box((-6.7, -3.5, 1.15), (-6.2, -3.0, 1.45), "red_paint")
-    k.box((-6.7, -2.6, 1.15), (-6.1, -1.8, 1.50), "metal")
+        k.box((-6.80, -3.98, sz), (-6.02, -1.52, sz + 0.05), "wood_crate")
+    # Some supplies on shelves (sitting proud at z=1.16)
+    k.box((-6.7, -3.5, 1.16), (-6.2, -3.0, 1.45), "red_paint")
+    k.box((-6.7, -2.6, 1.16), (-6.1, -1.8, 1.50), "metal")
 
     # 3. Crates and barrels on right walkway
     k.crate(5.5, 2.0, 0.6, "wood_crate", z=F)
     k.crate(5.5, 2.7, 0.5, "wood_crate", z=F)
-    k.barrel(5.6, 3.8, "red_paint")
+    k.model.add(common.make_frustum(0.3, 0.3, F, F + 0.9, segments=10, center=(5.6, 3.8), color="red_paint"))
+    for bz in (F + 0.15, F + 0.7):
+        k.model.add(common.make_frustum(0.32, 0.32, bz, bz + 0.05, segments=10, center=(5.6, 3.8), color="rock_dark"))
+    k.collider((5.3, 3.5, F), (5.9, 4.1, F + 0.9), "barrel")
 
     # 4. Life preserver ring on interior wall
     ring = common.make_frustum(0.25, 0.25, -0.04, 0.04, segments=6, color="red_paint")
