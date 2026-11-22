@@ -2,8 +2,9 @@ use glam::{Mat4, Vec3};
 use pack::Marker;
 
 use game::ladders::{
-    climb_tick, ladders_from_markers, ClimbInput, ClimbPhase, LadderClimb, LadderRail,
-    CLIMB_SPEED, GRAB_RANGE, SETTLE_LIFT, START_GRACE, TRANSITION_SECONDS,
+    climb_tick, ladder_prompt, ladders_from_markers, nearest_ladder_end, ClimbInput, ClimbPhase,
+    LadderClimb, LadderEnd, LadderRail, CLIMB_SPEED, GRAB_RANGE, SETTLE_LIFT, START_GRACE,
+    TRANSITION_SECONDS,
 };
 use game::Player;
 
@@ -232,4 +233,86 @@ fn test_constants_and_interaction_geometry() {
     assert_eq!(rail.foot_interaction_point(), Vec3::new(0.0, 0.9, 0.0));
     assert_eq!(rail.deck_interaction_point(), Vec3::new(0.0, 4.9, 2.0));
     assert_eq!(rail.facing(), Vec3::new(0.0, 0.0, 1.0));
+}
+
+#[test]
+fn test_ladder_prompt_at_ends_far_away_and_while_climbing() {
+    let foot = Vec3::new(0.0, 0.0, 0.0);
+    let deck = Vec3::new(0.0, 5.0, 0.0);
+    let rail1 = LadderRail::new(foot, deck, "");
+    let rail2 = LadderRail::new(Vec3::new(10.0, 0.0, 0.0), Vec3::new(10.0, 5.0, 0.0), "_2");
+    let rails = [rail1.clone(), rail2];
+
+    // 1. Standing near ladder foot (not climbing): "[E] Climb ladder"
+    let prompt_foot = ladder_prompt(foot, &rails, false);
+    assert_eq!(prompt_foot, Some("[E] Climb ladder"));
+
+    let near_foot = foot + Vec3::new(0.8, 0.0, 0.5);
+    assert_eq!(
+        ladder_prompt(near_foot, &rails, false),
+        Some("[E] Climb ladder")
+    );
+
+    let foot_interact = rail1.foot_interaction_point();
+    assert_eq!(
+        ladder_prompt(foot_interact, &rails, false),
+        Some("[E] Climb ladder")
+    );
+
+    // 2. Standing near ladder deck (not climbing): "[E] Climb down"
+    let prompt_deck = ladder_prompt(deck, &rails, false);
+    assert_eq!(prompt_deck, Some("[E] Climb down"));
+
+    let near_deck = deck + Vec3::new(0.5, 0.0, 0.5);
+    assert_eq!(
+        ladder_prompt(near_deck, &rails, false),
+        Some("[E] Climb down")
+    );
+
+    let deck_interact = rail1.deck_interaction_point();
+    assert_eq!(
+        ladder_prompt(deck_interact, &rails, false),
+        Some("[E] Climb down")
+    );
+
+    // 3. Far away from all ladders: None
+    let far_away = Vec3::new(50.0, 0.0, 50.0);
+    assert_eq!(ladder_prompt(far_away, &rails, false), None);
+
+    // Just outside GRAB_RANGE (2.5m)
+    let beyond_range = foot + Vec3::new(3.0, 0.0, 0.0);
+    assert_eq!(ladder_prompt(beyond_range, &rails, false), None);
+
+    // 4. While climbing: None
+    assert_eq!(ladder_prompt(foot, &rails, true), None);
+    assert_eq!(ladder_prompt(deck, &rails, true), None);
+    let mid_rung = foot + Vec3::new(0.0, 2.5, 0.0);
+    assert_eq!(ladder_prompt(mid_rung, &rails, true), None);
+
+    // 5. Multiple rails: picks the nearest ladder end
+    let near_rail2_foot = Vec3::new(9.8, 0.0, 0.1);
+    assert_eq!(
+        ladder_prompt(near_rail2_foot, &rails, false),
+        Some("[E] Climb ladder")
+    );
+    let (nearest_end, dist) = nearest_ladder_end(near_rail2_foot, &rails, false).unwrap();
+    assert_eq!(nearest_end.rail.suffix, "_2");
+    assert!(!nearest_end.is_top);
+    assert!(dist < 0.5);
+
+    let near_rail2_deck = Vec3::new(10.1, 5.0, 0.0);
+    assert_eq!(
+        ladder_prompt(near_rail2_deck, &rails, false),
+        Some("[E] Climb down")
+    );
+    let (nearest_end2, dist2) = nearest_ladder_end(near_rail2_deck, &rails, false).unwrap();
+    assert_eq!(nearest_end2.rail.suffix, "_2");
+    assert!(nearest_end2.is_top);
+    assert!(dist2 < 0.5);
+
+    // Ensure LadderEnd properties and methods match
+    assert_eq!(LadderEnd::new(rail1.clone(), false).prompt(), "[E] Climb ladder");
+    assert_eq!(LadderEnd::new(rail1.clone(), true).prompt(), "[E] Climb down");
+    assert!(LadderEnd::new(rail1.clone(), false).can_interact(false));
+    assert!(!LadderEnd::new(rail1, false).can_interact(true));
 }

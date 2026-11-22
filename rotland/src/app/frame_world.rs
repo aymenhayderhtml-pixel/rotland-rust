@@ -158,12 +158,14 @@ pub fn update_world_interactions(
 
         // A car within reach: E drives it; with a fuel can, F pours it in (Godot CarDriver / CarFuel)
         let mut car_prompt = None;
+        let mut car_dist = f32::INFINITY;
         // The back of a parked car: E opens its trunk (Godot PlayerInteractor / TrunkScreen)
         if let (None, Some(cars)) = (&npc, actors.cars.as_ref())
             && cars.driven_car_id.is_none()
             && let Some(id) = trunk_play::trunk_in_front(cars, p.position, facing, render.car_markers.trunk)
         {
             car_prompt = Some(trunk_play::OPEN_TRUNK_PROMPT.to_string());
+            car_dist = 2.5;
             if pressed {
                 actors.open_trunk = Some(id);
                 ui.hub = Some(hub_ui::HubUiState::new(hub_ui::HubScreen::Trunk));
@@ -175,7 +177,7 @@ pub fn update_world_interactions(
         if let (None, None, Some(cars)) = (&npc, &car_prompt, actors.cars.as_mut())
             && cars.driven_car_id.is_none()
             // Parked-car interaction matches drivable and wrecked cars (repairs can revive a wreck)
-            && let Some(id) = cars
+            && let Some(car) = cars
                 .live_cars()
                 .filter(|c| c.body.position.distance(p.position) < 3.5)
                 .min_by(|a, b| {
@@ -184,8 +186,9 @@ pub fn update_world_interactions(
                         .distance(p.position)
                         .total_cmp(&b.body.position.distance(p.position))
                 })
-                .map(|c| c.id.clone())
         {
+            let id = car.id.clone();
+            car_dist = car.body.position.distance(p.position);
             let can_drive = cars.get(&id).is_some_and(|c| !c.condition.is_wrecked());
             let can_fuel = can_drive
                 && play_state.inventory.has("fuel_can", 1)
@@ -224,12 +227,14 @@ pub fn update_world_interactions(
                     "W/S drive, A/D steer, Space handbrake, L lights, H horn, V camera, E exit".into(),
                 );
                 car_prompt = None;
+                car_dist = f32::INFINITY;
             }
         }
         let npc = if car_prompt.is_some() { None } else { npc };
 
         // A corpse in front (or one being butchered) comes next: E starts the butchering timer
         let mut corpse_prompt = None;
+        let mut corpse_dist = f32::INFINITY;
         if let (None, Some(w)) = (&npc, actors.wildlife.as_mut()) {
             let (prompt, toast) = w.butcher_tick(
                 dt,
@@ -243,11 +248,15 @@ pub fn update_world_interactions(
                 play_state.show_toast(t);
                 play_state.hotbar.on_inventory_changed(&play_state.inventory);
             }
+            if prompt.is_some() {
+                corpse_dist = 2.0;
+            }
             corpse_prompt = prompt;
         }
 
         // A campfire in front: E cooks (opens the bag's crafting) or relights it with wood
         let mut fire_prompt = None;
+        let mut fire_dist = f32::INFINITY;
         let mut open_crafting = false;
         if npc.is_none() && corpse_prompt.is_none() {
             let fires = play_state.camp.campfires.campfires_mut();
@@ -259,6 +268,7 @@ pub fn update_world_interactions(
                         .total_cmp(&b.distance_flat(p.position))
                 })
             {
+                fire_dist = fire.distance_flat(p.position);
                 fire_prompt = Some(fire.prompt(Some(&play_state.inventory)).to_string());
                 if pressed {
                     match fire.interact(&mut play_state.inventory) {
@@ -279,12 +289,22 @@ pub fn update_world_interactions(
             hub.set_status("Cooking at the campfire");
             ui.hub = Some(hub);
         }
+        let mut other_dist = corpse_dist.min(fire_dist).min(car_dist);
         let corpse_prompt = corpse_prompt.or(fire_prompt).or(car_prompt);
         let free = npc.is_none() && corpse_prompt.is_none();
 
         // A bed in front comes before crates; tilling with a hoe only when nothing else is offered
         let bed = free && play_state.camp.bed_in_front(p.position, facing).is_some();
         play_state.interact_tick(dt, pressed && free && !bed, p.position, facing, &world.near_crates_scratch);
+        if play_state.has_prompt()
+            && let Some(target) = crate::crates::find_target(p.position, facing, &world.near_crates_scratch, &play_state.world_items)
+        {
+            let d = match target {
+                crate::crates::InteractTarget::Crate(s) => s.position.distance(p.position),
+                crate::crates::InteractTarget::WorldItem(_, w) => w.position.distance(p.position),
+            };
+            other_dist = other_dist.min(d);
+        }
         if free && (bed || !play_state.has_prompt()) {
             let physics = &world.physics;
             let ground = |spot: Vec3| {
@@ -302,6 +322,7 @@ pub fn update_world_interactions(
             ) {
                 if !prompt.is_empty() {
                     play_state.set_prompt(prompt);
+                    other_dist = other_dist.min(2.0);
                 }
                 if let Some(t) = toast {
                     play_state.show_toast(t);
@@ -321,6 +342,7 @@ pub fn update_world_interactions(
             && let Some((_, name)) = d.own_dog_in_front(p.position, facing)
         {
             play_state.set_prompt(format!("[E] {name}"));
+            other_dist = other_dist.min(2.0);
             if pressed {
                 ui.hub = Some(hub_ui::HubUiState::new(hub_ui::HubScreen::DogMenu));
             }
@@ -335,6 +357,7 @@ pub fn update_world_interactions(
             } else {
                 format!("[E] Buy a puppy (${price})")
             });
+            other_dist = other_dist.min(2.0);
             if pressed {
                 let now = (play.clock.day as f64 - 1.0) * 24.0 + play.clock.hour as f64;
                 let text = match d.sim.buy_from_breeder(
@@ -349,7 +372,7 @@ pub fn update_world_interactions(
                 };
                 play_state.show_toast(text);
             }
-        } else if let Some((_, role, mut prompt)) = npc {
+        } else if let Some((id, role, mut prompt)) = npc {
             let mut screen = match role.as_str() {
                 "trader" => Some(camp_ui::CampScreen::Shop),
                 "banker" => Some(camp_ui::CampScreen::Bank),
@@ -366,9 +389,28 @@ pub fn update_world_interactions(
                 }
             }
             play_state.set_prompt(prompt);
+            let npc_d = actors.camp_npcs.as_ref().and_then(|c| {
+                c.director.fixed_npcs().iter().find(|n| n.id == id).map(|n| n.position.distance(p.position))
+                    .or_else(|| c.director.residents().iter().find(|r| r.id == id).map(|r| r.position.distance(p.position)))
+            }).unwrap_or(2.5);
+            other_dist = other_dist.min(npc_d);
             if let (true, Some(s)) = (pressed, screen) {
                 ui.camp_ui = Some(camp_ui::CampUiState::new(s));
             }
+        }
+
+        // Ladder prompt: show when in reach of a rail, choosing the nearest interactable
+        let empty_rails = [];
+        let rails = world
+            .streamer
+            .as_ref()
+            .map(|s| s.ladders.as_slice())
+            .unwrap_or(&empty_rails);
+        if let Some((ladder_end, ladder_dist)) =
+            game::nearest_ladder_end(p.position, rails, actors.climb.is_active())
+            && ladder_dist < other_dist
+        {
+            play_state.set_prompt(ladder_end.prompt().to_string());
         }
     }
 

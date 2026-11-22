@@ -12,6 +12,6 @@ pub use climb::{
     ClimbInput, ClimbPhase, LadderClimb, CLIMB_SPEED, GRAB_RANGE, SETTLE_LIFT, START_GRACE,
     TRANSITION_SECONDS,
 };
-pub use end::LadderEnd;
+pub use end::{ladder_prompt, nearest_ladder_end, LadderEnd};
 pub use rail::LadderRail;
 pub use tick::climb_tick;
