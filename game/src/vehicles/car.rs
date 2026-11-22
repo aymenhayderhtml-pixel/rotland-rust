@@ -7,6 +7,7 @@ use crate::vehicles::config::VehicleConfigData;
 use crate::vehicles::controls::{CarControls, CarInput};
 use crate::vehicles::fuel::CarFuel;
 use crate::vehicles::health::CarHealth;
+use crate::vehicles::zombie_damage::CarDamageBox;
 
 pub const WHEEL_RADIUS: f32 = 0.30;
 /// Radius of the wheel `.glb` the renderer draws (the 4x4's chunky off-road tyre).
@@ -137,6 +138,16 @@ impl Car {
 
     pub fn forward_speed(&self) -> f32 {
         self.body.forward_speed()
+    }
+
+    pub fn damage_box(&self, cfg: &VehicleConfigData) -> CarDamageBox {
+        CarDamageBox::new(
+            &self.id,
+            self.body.position,
+            self.body.rotation,
+            cfg.car_half_size(),
+            self.condition.is_wrecked(),
+        )
     }
 
     pub fn compression(&self, wheel: usize) -> f32 {

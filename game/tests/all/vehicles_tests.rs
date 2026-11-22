@@ -65,7 +65,13 @@ fn test_config_loads_completely() {
     assert_eq!(config.colours.len(), 2);
     assert_eq!(config.colours[0], "red");
     assert_eq!(config.colours[1], "blue");
-    compared += 43;
+    assert_eq!(config.zombie_hit_damage, 2.0);
+    assert_eq!(config.zombie_hit_seconds, 1.2);
+    assert_eq!(config.zombie_hit_reach, 1.5);
+    assert_eq!(config.car_half_width, 0.8);
+    assert_eq!(config.car_half_height, 1.2);
+    assert_eq!(config.car_half_length, 1.9);
+    compared += 49;
 
     println!("Verified {compared} fields in data/vehicles.json");
     assert!(compared > 0, "Comparison count must be non-zero");

@@ -37,5 +37,11 @@
   "spawnFuelMaxFrac": 0.3,
   "campFuelFrac": 0.5,
   "campColour": "red",
-  "colours": ["red", "blue"]
+  "colours": ["red", "blue"],
+  "zombieHitDamage": 2.0,
+  "zombieHitSeconds": 1.2,
+  "zombieHitReach": 1.5,
+  "carHalfWidth": 0.8,
+  "carHalfHeight": 1.2,
+  "carHalfLength": 1.9
 }
