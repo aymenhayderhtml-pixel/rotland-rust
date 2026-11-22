@@ -25,17 +25,18 @@ def build(model):
     k.wall((-5.4, -3.85, F), (-5.25, 3.85, TOP), color="red_paint", base="wall_left")
     k.wall((5.25, -3.85, F), (5.4, 3.85, TOP), color="red_paint", base="wall_right")
 
-    # Closed double doors: two dark panels with a white trim bar, sitting just proud of the front wall
-    k.box((-2.6, 4.0, F), (-0.1, 4.03, 3.6), "bark_dark")
-    k.box((0.1, 4.0, F), (2.6, 4.03, 3.6), "bark_dark")
-    k.box((-2.6, 4.0, 3.6), (2.6, 4.03, 3.7), "white")
+    # Closed double doors: two dark panels with a white trim bar, sitting proud of the front wall
+    k.box((-2.6, 4.01, F), (-0.1, 4.04, 3.6), "bark_dark")
+    k.box((0.1, 4.01, F), (2.6, 4.04, 3.6), "bark_dark")
+    k.box((-2.6, 4.04, 3.6), (2.6, 4.08, 3.7), "white")
 
     # Gable roof, ridge along X (the long way)
     ridge = (0.0, 0.0, 6.0)
     k.roof(ridge, (0.0, 4.0, 4.0), span=(1.0, 0.0, 0.0), width=11.4, color="rock_dark")
     k.roof(ridge, (0.0, -4.0, 4.0), span=(1.0, 0.0, 0.0), width=11.4, color="rock_dark")
-    for x in (5.4, -5.55):
-        k.gable([(x, -4.0, 4.0), (x, 4.0, 4.0), (x, 0.0, 6.0)], (0.15, 0.0, 0.0), "white", roof=True)
+    # Gables under 0.12 m roof slab, inset inside outer wall planes at x = ±5.4
+    for x, off_x in ((-5.38, 0.13), (5.25, 0.13)):
+        k.gable([(x, -4.0, 3.86), (x, 4.0, 3.86), (x, 0.0, 5.86)], (off_x, 0.0, 0.0), "white", roof=True)
 
     # Hay bales outside both ends: two on the ground and one stacked
     for x0, x1 in ((5.4, 6.0), (-6.0, -5.4)):
@@ -45,10 +46,11 @@ def build(model):
 
     # Detail (visual plan step 7): white door trim and cross bars, white corner boards, darker board
     # lines on the long walls, a hayloft door on each gable and a ridge cap
-    k.frame(((-2.6, 3.9, F), (2.6, 4.1, 3.6)), 4.03, 1, "white", t=0.12)
+    k.frame(((-2.6, 3.9, F), (2.6, 4.1, 3.6)), 4.04, 1, "white", t=0.12)
     for x0, x1 in ((-2.6, -0.1), (0.1, 2.6)):
-        k.box((x0, 4.03, 1.75), (x1, 4.07, 1.87), "white")
-    k.posts([(-5.4, -4.0), (5.4, -4.0), (-5.4, 4.0), (5.4, 4.0)], 4.0, "white", size=0.2)
+        k.box((x0, 4.05, 1.75), (x1, 4.09, 1.87), "white")
+    for px, py in ((-5.4, -4.0), (5.4, -4.0), (-5.4, 4.0), (5.4, 4.0)):
+        k.box((px - 0.1, py - 0.1, 0.02), (px + 0.1, py + 0.1, 4.02), "white")
     for y, sign in ((4.0, 1), (-4.0, -1)):
         x = -5.0
         while x < 5.1:
@@ -57,7 +59,7 @@ def build(model):
                 k.box((x - 0.03, a, F), (x + 0.03, b, 4.0), "blood_dark")
             x += 0.8
     for x, sign in ((5.4, 1), (-5.4, -1)):
-        a, b = sorted((x, x + sign * 0.18))
+        a, b = (5.40, 5.48) if sign == 1 else (-5.48, -5.40)
         k.box((a, -0.8, 4.3), (b, 0.8, 5.3), "bark_dark")
     k.ridge_cap((0.0, 0.0, 6.0), 0, 11.7)
 

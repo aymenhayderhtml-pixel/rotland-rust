@@ -24,7 +24,7 @@ def build(model):
     for x in (-1.25, 1.25):
         for y in (-1.25, 1.25):
             # Base plate on the ground
-            k.solid((x - 0.2, y - 0.2, 0.0), (x + 0.2, y + 0.2, 0.05), "metal", base="baseplate")
+            k.solid((x - 0.18, y - 0.18, 0.0), (x + 0.18, y + 0.18, 0.05), "metal", base="baseplate")
             # Steel scaffolding leg
             k.solid((x - 0.08, y - 0.08, 0.05), (x + 0.08, y + 0.08, PLATFORM_Z - 0.2), "metal", base="leg")
 
@@ -33,11 +33,11 @@ def build(model):
     for z in cross_levels:
         k.box((-1.25, 1.2, z), (1.25, 1.28, z + 0.08), "metal")
         k.box((-1.25, -1.28, z), (1.25, -1.2, z + 0.08), "metal")
-        k.box((-1.28, -1.25, z), (-1.2, 1.25, z + 0.08), "metal")
-        k.box((1.2, -1.25, z), (1.28, 1.25, z + 0.08), "metal")
+        k.box((-1.28, -1.20, z), (-1.2, 1.20, z + 0.08), "metal")
+        k.box((1.2, -1.20, z), (1.28, 1.20, z + 0.08), "metal")
 
     # Clean diagonal X-braces for 3 structural tiers (z=0..1.75, 1.75..3.5, 3.5..5.25)
-    tiers = ((0.1, 1.75), (1.83, 3.5), (3.58, 5.25))
+    tiers = ((0.12, 1.73), (1.85, 3.48), (3.60, 5.23))
     steps = 4
     for z0, z1 in tiers:
         dz = z1 - z0
@@ -70,19 +70,19 @@ def build(model):
         shift = tier * 0.25
         for i in range(4):
             bx = -1.35 + shift + i * 0.65
-            k.solid((bx, -1.75, z0), (bx + 0.6, -1.35, z0 + 0.25), "dirt", base="base_sandbag_s")
+            k.solid((bx, -1.82, z0), (bx + 0.6, -1.45, z0 + 0.25), "dirt", base="base_sandbag_s")
     # West base sandbag wall
     for tier, z0 in enumerate((0.0, 0.25)):
         shift = tier * 0.25
         for i in range(4):
             by = -1.35 + shift + i * 0.65
-            k.solid((-1.75, by, z0), (-1.35, by + 0.6, z0 + 0.25), "dirt", base="base_sandbag_w")
+            k.solid((-1.82, by, z0), (-1.45, by + 0.6, z0 + 0.25), "dirt", base="base_sandbag_w")
     # East base sandbag wall
     for tier, z0 in enumerate((0.0, 0.25)):
         shift = tier * 0.25
         for i in range(4):
             by = -1.35 + shift + i * 0.65
-            k.solid((1.35, by, z0), (1.75, by + 0.6, z0 + 0.25), "dirt", base="base_sandbag_e")
+            k.solid((1.45, by, z0), (1.82, by + 0.6, z0 + 0.25), "dirt", base="base_sandbag_e")
 
     # Platform deck at z=7.0 m (support frame from z=6.8 m)
     k.box((-1.45, -1.45, PLATFORM_Z - 0.2), (1.45, 1.45, PLATFORM_Z - 0.1), "metal")
@@ -93,40 +93,41 @@ def build(model):
 
     # Metal railings (z=7.0 to 8.0 m)
     rail_top = PLATFORM_Z + 1.0
+    stanchion_top = rail_top + 0.02
     for x in (-1.45, 1.45):
         for y in (-1.45, 1.45):
-            k.box((x - 0.05, y - 0.05, PLATFORM_Z), (x + 0.05, y + 0.05, rail_top), "metal")
+            k.box((x - 0.04, y - 0.04, PLATFORM_Z), (x + 0.04, y + 0.04, stanchion_top), "metal")
     # Intermediate railing stanchions
-    k.box((-0.05, -1.45, PLATFORM_Z), (0.05, -1.4, rail_top), "metal")
-    k.box((-1.45, -0.05, PLATFORM_Z), (-1.4, 0.05, rail_top), "metal")
-    k.box((1.4, -0.05, PLATFORM_Z), (1.45, 0.05, rail_top), "metal")
-    k.box((-0.35, 1.4, PLATFORM_Z), (-0.3, 1.45, rail_top), "metal")
-    k.box((0.3, 1.4, PLATFORM_Z), (0.35, 1.45, rail_top), "metal")
+    k.box((-0.03, -1.46, PLATFORM_Z), (0.03, -1.39, stanchion_top), "metal")
+    k.box((-1.46, -0.03, PLATFORM_Z), (-1.39, 0.03, stanchion_top), "metal")
+    k.box((1.39, -0.03, PLATFORM_Z), (1.46, 0.03, stanchion_top), "metal")
+    k.box((-0.35, 1.39, PLATFORM_Z), (-0.29, 1.46, stanchion_top), "metal")
+    k.box((0.29, 1.39, PLATFORM_Z), (0.35, 1.46, stanchion_top), "metal")
 
-    # Handrails (top rail and mid rail)
+    # Handrails (top rail and mid rail, side rails fit between south and north rails)
     for rz in (PLATFORM_Z + 0.5, rail_top):
-        k.box((-1.45, -1.45, rz - 0.04), (1.45, -1.4, rz), "metal")
-        k.box((-1.45, -1.45, rz - 0.04), (-1.4, 1.45, rz), "metal")
-        k.box((1.4, -1.45, rz - 0.04), (1.45, 1.45, rz), "metal")
-        k.box((-1.45, 1.4, rz - 0.04), (-0.35, 1.45, rz), "metal")
-        k.box((0.35, 1.4, rz - 0.04), (1.45, 1.45, rz), "metal")
+        k.box((-1.45, -1.44, rz - 0.04), (1.45, -1.41, rz), "metal")
+        k.box((-1.44, -1.40, rz - 0.04), (-1.41, 1.40, rz), "metal")
+        k.box((1.41, -1.40, rz - 0.04), (1.44, 1.40, rz), "metal")
+        k.box((-1.45, 1.41, rz - 0.04), (-0.35, 1.44, rz), "metal")
+        k.box((0.35, 1.41, rz - 0.04), (1.45, 1.44, rz), "metal")
 
     # Sandbags on platform railing (front +Y side and sides for guard cover)
     for tier, z0 in enumerate((PLATFORM_Z, PLATFORM_Z + 0.22)):
         # West side of front rail
-        k.solid((-1.35, 1.15, z0), (-0.45, 1.4, z0 + 0.22), "dirt", base="plat_sandbag_nw")
+        k.solid((-1.35, 1.15, z0), (-0.45, 1.38, z0 + 0.22), "dirt", base="plat_sandbag_nw")
         # East side of front rail
-        k.solid((0.45, 1.15, z0), (1.35, 1.4, z0 + 0.22), "dirt", base="plat_sandbag_ne")
+        k.solid((0.45, 1.15, z0), (1.35, 1.38, z0 + 0.22), "dirt", base="plat_sandbag_ne")
         # Corner sandbags on south side
-        k.solid((-1.35, -1.4, z0), (-0.75, -1.15, z0 + 0.22), "dirt", base="plat_sandbag_sw")
-        k.solid((0.75, -1.4, z0), (1.35, -1.15, z0 + 0.22), "dirt", base="plat_sandbag_se")
+        k.solid((-1.35, -1.38, z0), (-0.75, -1.15, z0 + 0.22), "dirt", base="plat_sandbag_sw")
+        k.solid((0.75, -1.38, z0), (1.35, -1.15, z0 + 0.22), "dirt", base="plat_sandbag_se")
 
     # Ladder on +Y side (visual only)
-    k.box((-0.32, 1.28, 0.0), (-0.26, 1.36, PLATFORM_Z), "metal")
-    k.box((0.26, 1.28, 0.0), (0.32, 1.36, PLATFORM_Z), "metal")
+    k.box((-0.32, 1.28, 0.02), (-0.26, 1.36, PLATFORM_Z - 0.02), "metal")
+    k.box((0.26, 1.28, 0.02), (0.32, 1.36, PLATFORM_Z - 0.02), "metal")
     z = 0.35
     while z < PLATFORM_Z - 0.1:
-        k.box((-0.32, 1.29, z), (0.32, 1.35, z + 0.04), "metal")
+        k.box((-0.25, 1.29, z), (0.25, 1.35, z + 0.04), "metal")
         z += 0.35
 
     # Spotlight on the front rail (+Y, center at x=0.0, mounted on a bracket over the hatch)
@@ -136,19 +137,15 @@ def build(model):
     k.box((-0.18, 1.40, spot_z - 0.06), (0.18, 1.46, spot_z + 0.06), "gun_black")
 
     # Spotlight cylinder housing (pointing +Y):
-    # Built centered at (0, 0) in XY, from z=0 to z=0.30.
-    # Rotated by -pi/2 around X so Z becomes +Y.
-    spot = common.make_frustum(0.18, 0.18, 0.0, 0.30, segments=12, center=(0.0, 0.0), color="gun_black")
+    spot = common.make_frustum(0.18, 0.18, 0.0, 0.25, segments=12, center=(0.0, 0.0), color="gun_black")
     common.transform(spot, rot=(-math.pi / 2, 0.0, 0.0), loc=(0.0, 1.42, spot_z))
     model.add(spot)
-    # Spotlight lens at the front face
+    # Spotlight lens at the front face (recessed inside housing)
     lens = common.make_frustum(0.16, 0.16, 0.0, 0.02, segments=12, center=(0.0, 0.0), color="white")
-    common.transform(lens, rot=(-math.pi / 2, 0.0, 0.0), loc=(0.0, 1.72, spot_z))
+    common.transform(lens, rot=(-math.pi / 2, 0.0, 0.0), loc=(0.0, 1.69, spot_z))
     model.add(lens)
-    # Spotlight rim at the front face
-    rim = common.make_frustum(0.19, 0.19, 0.0, 0.04, segments=12, center=(0.0, 0.0), color="metal")
-    common.transform(rim, rot=(-math.pi / 2, 0.0, 0.0), loc=(0.0, 1.70, spot_z))
-    model.add(rim)
+    # Protective metal visor / hood over top of spotlight
+    k.box((-0.18, 1.58, spot_z + 0.16), (0.18, 1.74, spot_z + 0.20), "metal")
 
     # Empties
     k.empty("light_1", (0.0, 1.76, spot_z), rot_z=0.0)

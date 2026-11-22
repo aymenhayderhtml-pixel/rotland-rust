@@ -32,50 +32,52 @@ def _make_metal_gate_leaf(side="l"):
     """Build one 3.0 m wide, 3.0 m tall corrugated steel gate leaf with frame, patches, and barbed wire."""
     bm_leaf = common.new_bm()
     x_start = -HALF_OPENING if side == "l" else 0.0
-    x_end = 0.0 if side == "l" else HALF_OPENING
+    x_start = -HALF_OPENING + 0.04 if side == "l" else 0.02
+    x_end = -0.02 if side == "l" else HALF_OPENING - 0.04
+    leaf_w = x_end - x_start
     cen_x = (x_start + x_end) / 2.0
 
     # 1. Outer steel perimeter frame (tubular square steel 0.08 x 0.08)
     tf = 0.04
     # Bottom rail
-    r_bot = common.make_box((HALF_OPENING, 0.08, 0.08), loc=(cen_x, 0.0, 0.08), color="gun_black")
+    r_bot = common.make_box((leaf_w, 0.08, 0.08), loc=(cen_x, 0.0, 0.04), color="gun_black")
     # Top rail
-    r_top = common.make_box((HALF_OPENING, 0.08, 0.08), loc=(cen_x, 0.0, GATE_H - 0.04), color="gun_black")
-    # Side rails
+    r_top = common.make_box((leaf_w, 0.08, 0.08), loc=(cen_x, 0.0, GATE_H - 0.04), color="gun_black")
+    # Side rails (fit between top and bottom rails)
     s_hinge_x = x_start + tf if side == "l" else x_end - tf
     s_meet_x = x_end - tf if side == "l" else x_start + tf
-    s1 = common.make_box((0.08, 0.08, GATE_H), loc=(s_hinge_x, 0.0, GATE_H / 2.0), color="gun_black")
-    s2 = common.make_box((0.08, 0.08, GATE_H), loc=(s_meet_x, 0.0, GATE_H / 2.0), color="gun_black")
-    # Mid-height horizontal girt
-    r_mid = common.make_box((HALF_OPENING, 0.06, 0.06), loc=(cen_x, 0.0, GATE_H / 2.0), color="gun_black")
+    s1 = common.make_box((0.08, 0.08, GATE_H - 0.16), loc=(s_hinge_x, 0.0, GATE_H / 2.0), color="gun_black")
+    s2 = common.make_box((0.08, 0.08, GATE_H - 0.16), loc=(s_meet_x, 0.0, GATE_H / 2.0), color="gun_black")
+    # Mid-height horizontal girt (on back of leaf)
+    r_mid = common.make_box((leaf_w - 0.18, 0.03, 0.06), loc=(cen_x, -0.02, GATE_H / 2.0), color="gun_black")
     bm_leaf = common.combine([bm_leaf, r_bot, r_top, s1, s2, r_mid])
 
     # 2. Corrugated / ribbed sheeting panels inside frame
     # 3 vertical panels per leaf (each 0.95 m wide)
-    panel_w = (HALF_OPENING - 0.16) / 3.0
+    panel_w = (leaf_w - 0.18) / 3.0
     for p_i in range(3):
-        px0 = x_start + 0.08 + p_i * panel_w
+        px0 = x_start + 0.09 + p_i * panel_w
         px1 = px0 + panel_w
         p_cen = (px0 + px1) / 2.0
-        # Main sheet
-        sheet = common.make_box((panel_w - 0.01, 0.02, GATE_H - 0.16),
+        # Main sheet (inset slightly in Z)
+        sheet = common.make_box((panel_w - 0.01, 0.015, GATE_H - 0.20),
                                 loc=(p_cen, 0.01, GATE_H / 2.0),
                                 color="metal")
         bm_leaf = common.combine([bm_leaf, sheet])
 
-        # Vertical ribs on sheet
+        # Vertical ribs on sheet (inset in Z inside sheet)
         for rib_i in range(3):
             rx = px0 + (rib_i + 0.5) * (panel_w / 3.0)
-            rib = common.make_box((0.03, 0.02, GATE_H - 0.16),
-                                  loc=(rx, 0.022, GATE_H / 2.0),
+            rib = common.make_box((0.03, 0.015, GATE_H - 0.24),
+                                  loc=(rx, 0.025, GATE_H / 2.0),
                                   color="rock_mid")
             bm_leaf = common.combine([bm_leaf, rib])
 
-    # 3. Rusty patches and scrap plate repairs
+    # 3. Rusty patches and scrap plate repairs (proud of ribs)
     patch1_x = cen_x - 0.40 if side == "l" else cen_x + 0.40
-    p1 = common.make_box((0.70, 0.02, 0.80), loc=(patch1_x, 0.025, 0.90), color="rust")
+    p1 = common.make_box((0.70, 0.02, 0.80), loc=(patch1_x, 0.05, 0.90), color="rust")
     patch2_x = cen_x + 0.35 if side == "l" else cen_x - 0.35
-    p2 = common.make_box((0.60, 0.02, 0.70), loc=(patch2_x, 0.025, 2.10), color="red_paint")
+    p2 = common.make_box((0.60, 0.02, 0.70), loc=(patch2_x, 0.05, 2.10), color="red_paint")
     bm_leaf = common.combine([bm_leaf, p1, p2])
 
     # 4. Barbed top wire extension
@@ -96,15 +98,15 @@ def _make_metal_gate_leaf(side="l"):
 
     # 5. Heavy steel hinge barrels on hinge side
     for hz in (0.60, 2.40):
-        hinge_barrel = common.make_box((0.12, 0.12, 0.22), loc=(s_hinge_x, -0.02, hz), color="gun_black")
+        hinge_barrel = common.make_box((0.12, 0.10, 0.22), loc=(s_hinge_x, -0.03, hz), color="gun_black")
         hinge_strap = common.make_box((0.50, 0.02, 0.08),
-                                      loc=(s_hinge_x + (0.25 if side == "l" else -0.25), 0.04, hz),
+                                      loc=(s_hinge_x + (0.25 if side == "l" else -0.25), 0.055, hz),
                                       color="rust")
         bm_leaf = common.combine([bm_leaf, hinge_barrel, hinge_strap])
 
     # 6. Locking bar mechanism at meeting edge
     latch_x = -0.15 if side == "l" else 0.15
-    latch = common.make_box((0.30, 0.06, 0.10), loc=(latch_x, 0.04, 1.40), color="gun_black")
+    latch = common.make_box((0.30, 0.06, 0.10), loc=(latch_x, 0.06, 1.40), color="gun_black")
     bm_leaf = common.combine([bm_leaf, latch])
 
     return bm_leaf
@@ -119,30 +121,33 @@ def _build_metal_tower(k, model, x_lo, x_hi):
     # 4 vertical steel square columns
     for px in (cx - half_w + 0.08, cx + half_w - 0.08):
         for py in (-half_d + 0.08, half_d - 0.08):
-            k.box((px - 0.06, py - 0.06, 0.0), (px + 0.06, py + 0.06, TOWER_H), "gun_black")
-            k.box((px - 0.10, py - 0.10, 0.0), (px + 0.10, py + 0.10, 0.04), "rock_dark")  # base plate
+            k.box((px - 0.03, py - 0.04, 0.04), (px + 0.03, py + 0.04, TOWER_H), "gun_black")
+            k.box((px - 0.09, py - 0.09, 0.0), (px + 0.09, py + 0.09, 0.04), "rock_dark")  # base plate
 
-    # Horizontal girts on all four sides at z = 1.0, 2.2, 3.4
-    for gz in (1.0, 2.2, 3.4):
-        # Front and back
-        k.box((x_lo, -half_d + 0.04, gz), (x_hi, -half_d + 0.10, gz + 0.08), "gun_black")
-        k.box((x_lo, half_d - 0.10, gz), (x_hi, half_d - 0.04, gz + 0.08), "gun_black")
-        # Outer side
-        outer_x = x_lo if x_lo < 0 else x_hi - 0.10
-        k.box((outer_x, -half_d, gz), (outer_x + 0.08, half_d, gz + 0.08), "gun_black")
+    # Horizontal girts on all four sides at z = 1.0, 2.2 (platform at 3.40 serves as top girt)
+    for gz in (1.0, 2.2):
+        # Front and back (faces at ±0.41 and ±0.45, completely clear of column faces at ±0.38 and ±0.46)
+        k.box((x_lo, -half_d + 0.05, gz), (x_hi, -half_d + 0.09, gz + 0.08), "gun_black")
+        k.box((x_lo, half_d - 0.09, gz), (x_hi, half_d - 0.05, gz + 0.08), "gun_black")
+        # Outer side (ends inside front/back girts)
+        outer_x = (x_lo + 0.06) if x_lo < 0 else (x_hi - 0.12)
+        k.box((outer_x, -half_d + 0.10, gz), (outer_x + 0.06, half_d - 0.10, gz + 0.08), "gun_black")
 
-    # Corrugated sheet cladding on outer side and back
-    outer_wall_x = x_lo if x_lo < 0 else x_hi - 0.05
+    # Corrugated sheet cladding on outer side and back (inset from outer edge)
+    outer_wall_x = (x_lo) if x_lo < 0 else (x_hi - 0.04)
     k.box((outer_wall_x, -half_d + 0.08, 0.05), (outer_wall_x + 0.04, half_d - 0.08, 3.4), "metal")
-    # Rust patch on outer wall
-    k.box((outer_wall_x - 0.01, -0.20, 1.2), (outer_wall_x + 0.05, 0.25, 2.2), "rust")
+    # Rust patch on outer wall (proud by 2 cm)
+    rx0 = outer_wall_x - 0.03 if x_lo < 0 else outer_wall_x + 0.02
+    rx1 = outer_wall_x + 0.01 if x_lo < 0 else outer_wall_x + 0.06
+    k.box((rx0, -0.20, 1.2), (rx1, 0.25, 2.2), "rust")
 
     # Top platform at z = 3.4 m
     k.box((x_lo, -half_d, 3.40), (x_hi, half_d, 3.48), "rock_dark")
-    # Handrails around top
+    # Handrails around top (inset outer rail between front/back rails)
     k.box((x_lo, -half_d, 3.48), (x_hi, -half_d + 0.05, TOWER_H), "gun_black")
     k.box((x_lo, half_d - 0.05, 3.48), (x_hi, half_d, TOWER_H), "gun_black")
-    k.box((outer_x, -half_d, 3.48), (outer_x + 0.05, half_d, TOWER_H), "gun_black")
+    outer_rx = x_lo if x_lo < 0 else x_hi - 0.05
+    k.box((outer_rx, -half_d + 0.05, 3.48), (outer_rx + 0.05, half_d - 0.05, TOWER_H), "gun_black")
 
     # Barbed wire outriggers on tower top
     for px in (cx - half_w + 0.08, cx + half_w - 0.08):

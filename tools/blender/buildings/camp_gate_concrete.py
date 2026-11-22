@@ -30,63 +30,62 @@ GATE_H = 3.2
 
 
 def _make_concrete_gate_leaf(side="l"):
-    """Build one 3.0 m wide, 3.2 m tall heavy industrial steel blast gate leaf."""
+    """Build one ~2.95 m wide, 3.2 m tall heavy industrial steel blast gate leaf."""
     bm_leaf = common.new_bm()
-    x_start = -HALF_OPENING if side == "l" else 0.0
-    x_end = 0.0 if side == "l" else HALF_OPENING
+    x_start = -HALF_OPENING + 0.04 if side == "l" else 0.02
+    x_end = -0.02 if side == "l" else HALF_OPENING - 0.04
+    leaf_w = x_end - x_start
     cen_x = (x_start + x_end) / 2.0
-    half_leaf = HALF_OPENING / 2.0
 
-    # 1. Main armored blast-plate slab
-    # Main face
-    slab = common.make_box((HALF_OPENING - 0.04, 0.08, GATE_H),
+    # 1. Main armored blast-plate slab (fits inside frame channels)
+    slab = common.make_box((leaf_w - 0.20, 0.08, GATE_H - 0.20),
                            loc=(cen_x, 0.0, GATE_H / 2.0),
                            color="metal")
     bm_leaf = common.combine([bm_leaf, slab])
 
     # 2. Outer structural steel frame channel (top, bottom, and vertical edges)
     # Top channel
-    f_top = common.make_box((HALF_OPENING, 0.12, 0.08), loc=(cen_x, 0.0, GATE_H - 0.04), color="gun_black")
+    f_top = common.make_box((leaf_w, 0.12, 0.08), loc=(cen_x, 0.0, GATE_H - 0.04), color="gun_black")
     # Bottom channel
-    f_bot = common.make_box((HALF_OPENING, 0.12, 0.08), loc=(cen_x, 0.0, 0.04), color="gun_black")
-    # Hinge-side vertical channel
+    f_bot = common.make_box((leaf_w, 0.12, 0.08), loc=(cen_x, 0.0, 0.04), color="gun_black")
+    # Hinge-side vertical channel (fits between top and bottom channels)
     s_hinge_x = x_start + 0.05 if side == "l" else x_end - 0.05
-    f_hinge = common.make_box((0.10, 0.12, GATE_H), loc=(s_hinge_x, 0.0, GATE_H / 2.0), color="gun_black")
-    # Meeting-side vertical channel
+    f_hinge = common.make_box((0.10, 0.12, GATE_H - 0.16), loc=(s_hinge_x, 0.0, GATE_H / 2.0), color="gun_black")
+    # Meeting-side vertical channel (fits between top and bottom channels)
     s_meet_x = x_end - 0.05 if side == "l" else x_start + 0.05
-    f_meet = common.make_box((0.10, 0.12, GATE_H), loc=(s_meet_x, 0.0, GATE_H / 2.0), color="gun_black")
+    f_meet = common.make_box((0.10, 0.12, GATE_H - 0.16), loc=(s_meet_x, 0.0, GATE_H / 2.0), color="gun_black")
     bm_leaf = common.combine([bm_leaf, f_top, f_bot, f_hinge, f_meet])
 
     # 3. Diagonal stiffener ribs on front face
-    rib_d = common.make_box((HALF_OPENING * 0.85, 0.04, 0.10),
-                            loc=(cen_x, 0.05, GATE_H * 0.35),
+    rib_d = common.make_box((leaf_w * 0.85, 0.04, 0.10),
+                            loc=(cen_x, 0.065, GATE_H * 0.35),
                             color="gun_black")
-    rib_d2 = common.make_box((HALF_OPENING * 0.85, 0.04, 0.10),
-                             loc=(cen_x, 0.05, GATE_H * 0.75),
+    rib_d2 = common.make_box((leaf_w * 0.85, 0.04, 0.10),
+                             loc=(cen_x, 0.065, GATE_H * 0.75),
                              color="gun_black")
     bm_leaf = common.combine([bm_leaf, rib_d, rib_d2])
 
-    # 4. Armored vision port / viewing slit at eye level (z = 1.7 m)
+    # 4. Armored vision port / viewing slit at eye level (z = 1.7 m, proud of frame)
     slit_x = cen_x
-    slit_frame = common.make_box((0.80, 0.14, 0.22), loc=(slit_x, 0.0, 1.70), color="gun_black")
-    slit_open = common.make_box((0.65, 0.15, 0.12), loc=(slit_x, 0.0, 1.70), color="rock_dark")
+    slit_frame = common.make_box((0.80, 0.16, 0.22), loc=(slit_x, 0.0, 1.70), color="gun_black")
+    slit_open = common.make_box((0.65, 0.20, 0.12), loc=(slit_x, 0.0, 1.70), color="rock_dark")
     # Iron bars in viewing slit
-    bar1 = common.make_box((0.02, 0.15, 0.12), loc=(slit_x - 0.15, 0.0, 1.70), color="metal")
-    bar2 = common.make_box((0.02, 0.15, 0.12), loc=(slit_x + 0.15, 0.0, 1.70), color="metal")
+    bar1 = common.make_box((0.02, 0.22, 0.14), loc=(slit_x - 0.15, 0.0, 1.70), color="metal")
+    bar2 = common.make_box((0.02, 0.22, 0.14), loc=(slit_x + 0.15, 0.0, 1.70), color="metal")
     bm_leaf = common.combine([bm_leaf, slit_frame, slit_open, bar1, bar2])
 
     # 5. Painted hazard stripe across the gate leaf (z = 1.35 to 1.65, aligned with wall & pier)
     num_s = 6
-    sw = HALF_OPENING / num_s
+    sw = leaf_w / num_s
     for si in range(num_s):
         sx = x_start + (si + 0.5) * sw
         scol = "red_paint" if (si % 2 == (0 if side == "l" else 1)) else "white"
-        stripe = common.make_box((sw - 0.01, 0.02, 0.28), loc=(sx, 0.05, 1.45), color=scol)
+        stripe = common.make_box((sw - 0.01, 0.02, 0.28), loc=(sx, 0.065, 1.45), color=scol)
         bm_leaf = common.combine([bm_leaf, stripe])
 
     # 6. Spiked anti-climb teeth along the top rail (z = 3.2 to 3.45)
     num_spikes = 7
-    sp_step = HALF_OPENING / num_spikes
+    sp_step = leaf_w / num_spikes
     for spi in range(num_spikes):
         spx = x_start + (spi + 0.5) * sp_step
         spike = common.make_box((0.03, 0.03, 0.22), loc=(spx, 0.0, GATE_H + 0.10), color="gun_black")
@@ -94,14 +93,14 @@ def _make_concrete_gate_leaf(side="l"):
 
     # 7. Heavy industrial pivot hinge blocks at hinge side
     for hz in (0.60, 2.60):
-        h_block = common.make_box((0.16, 0.16, 0.25), loc=(s_hinge_x, 0.0, hz), color="gun_black")
+        h_block = common.make_box((0.14, 0.16, 0.25), loc=(s_hinge_x, 0.0, hz), color="gun_black")
         h_pin = common.make_box((0.06, 0.06, 0.35), loc=(s_hinge_x, 0.0, hz), color="metal")
         bm_leaf = common.combine([bm_leaf, h_block, h_pin])
 
     # 8. Heavy central locking bar mechanism at meeting edge
     latch_x = -0.18 if side == "l" else 0.18
-    latch_bar = common.make_box((0.35, 0.08, 0.14), loc=(latch_x, 0.06, 1.45), color="gun_black")
-    latch_handle = common.make_box((0.06, 0.12, 0.24), loc=(latch_x, 0.10, 1.45), color="rust")
+    latch_bar = common.make_box((0.35, 0.08, 0.14), loc=(latch_x, 0.065, 1.45), color="gun_black")
+    latch_handle = common.make_box((0.06, 0.12, 0.24), loc=(latch_x, 0.105, 1.45), color="rust")
     bm_leaf = common.combine([bm_leaf, latch_bar, latch_handle])
 
     return bm_leaf
@@ -156,12 +155,9 @@ def _build_concrete_pier(k, x_lo, x_hi, broken=False):
     # Embedded steel hinge mounting plates facing the 6m opening
     hinge_x = x_hi if x_lo < 0 else x_lo
     for hz in (0.60, 2.60):
-        # Steel mounting plate anchored into concrete
-        k.box((hinge_x - 0.06 if x_lo < 0 else hinge_x, -0.20, hz - 0.15),
-              (hinge_x if x_lo < 0 else hinge_x + 0.06, 0.20, hz + 0.15), "gun_black")
-        # Heavy pivot hinge pin
-        k.box((hinge_x - 0.03 if x_lo < 0 else hinge_x, -0.06, hz - 0.20),
-              (hinge_x + 0.08 if x_lo < 0 else hinge_x - 0.08, 0.06, hz + 0.20), "metal")
+        hx0 = hinge_x - 0.06 if x_lo < 0 else hinge_x + 0.01
+        hx1 = hinge_x - 0.01 if x_lo < 0 else hinge_x + 0.06
+        k.box((hx0, -0.20, hz - 0.15), (hx1, 0.20, hz + 0.15), "gun_black")
 
 
 def build(model):
