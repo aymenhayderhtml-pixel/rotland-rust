@@ -12,6 +12,10 @@ use crate::camp_ui::CampAction;
 use game::camp_upgrades::{CampEffects, CampUpgradeState, CampUpgradesConfig, UpgradeLine};
 use game::{FarmManager, FarmRules, Bank, BountyManager, CancelReason, CraftUpdate, CraftingSystem, RecipeRegistry, DeathRule, DifficultyConfigData, DifficultySettings, EconomyConfigData, Inventory, ItemRegistry, SkillSystem, TraderStock, Wallet};
 
+#[path = "camp_upgrade_view.rs"]
+pub mod camp_upgrade_view;
+pub use camp_upgrade_view::CampUpgradeView;
+
 pub struct Camp {
     pub economy: EconomyConfigData,
     pub wallet: Wallet,
@@ -32,6 +36,8 @@ pub struct Camp {
     /// Camp upgrade progression (walls, guards, workshop, traders).
     pub upgrades: CampUpgradeState,
     pub upgrades_config: CampUpgradesConfig,
+    /// Visual and collider representation of camp upgrades in the 3D world.
+    pub upgrade_view: CampUpgradeView,
     /// Where the player stands (set each frame): campfire recipes need a lit fire near.
     pub player_at: Vec3,
 }
@@ -41,6 +47,13 @@ impl Camp {
         let economy = EconomyConfigData::from_repo().map_err(|e| format!("data/economy.json: {e:?}"))?;
         let difficulty_config = DifficultyConfigData::from_repo().map_err(|e| format!("data/difficulty.json: {e}"))?;
         let upgrades_config = CampUpgradesConfig::load_default().map_err(|e| format!("data/camp_upgrades.json: {e}"))?;
+        let mut upgrades = CampUpgradeState::default();
+        if let Some(levels) = camp_upgrade_view::override_levels() {
+            upgrades.walls_level = levels.walls;
+            upgrades.guards_level = levels.guards;
+            upgrades.workshop_level = levels.workshop;
+            upgrades.traders_level = levels.traders;
+        }
         Ok(Self {
             wallet: Wallet::new(economy.start_dollars),
             bank: Bank::with_slots_and_registry(economy.bank_slots, items),
@@ -53,8 +66,9 @@ impl Camp {
             farm: FarmManager::from_repo().map_err(|e| format!("data/farming.json: {e:?}"))?,
             campfires: game::CampfireManager::new(),
             settlements: game::SettlementWatcher::new(),
-            upgrades: CampUpgradeState::default(),
+            upgrades,
             upgrades_config,
+            upgrade_view: CampUpgradeView::default(),
             player_at: Vec3::ZERO,
             difficulty_config,
             economy,
@@ -300,6 +314,12 @@ impl Camp {
         } else if let Some(v) = sys.extra.get("settlements") {
             self.settlements.from_save(v);
         }
+        if let Some(levels) = camp_upgrade_view::override_levels() {
+            self.upgrades.walls_level = levels.walls;
+            self.upgrades.guards_level = levels.guards;
+            self.upgrades.workshop_level = levels.workshop;
+            self.upgrades.traders_level = levels.traders;
+        }
         warnings
     }
 
@@ -313,6 +333,15 @@ impl Camp {
 
     pub fn tick_upgrades(&mut self, game_hours: f32) -> Option<(UpgradeLine, u8)> {
         game::camp_upgrades::tick(&mut self.upgrades, &self.upgrades_config, game_hours)
+    }
+
+    pub fn levels(&self) -> world::CampLevels {
+        world::CampLevels {
+            walls: self.upgrades.walls_level,
+            guards: self.upgrades.guards_level,
+            workshop: self.upgrades.workshop_level,
+            traders: self.upgrades.traders_level,
+        }
     }
 
     pub fn upgrade_name(&self, line: UpgradeLine, level: u8) -> String {
@@ -561,5 +590,25 @@ mod tests {
         assert_eq!(finished, Some((UpgradeLine::Walls, 1)));
         assert_eq!(loaded_camp.upgrades.walls_level, 1);
         assert!(loaded_camp.upgrades.wall_hp > 0.0);
+    }
+
+    #[test]
+    fn camp_levels_matches_upgrades() {
+        let items = Arc::new(ItemRegistry::from_repo().unwrap());
+        let mut camp = Camp::new(42, items).unwrap();
+        assert_eq!(camp.levels(), world::CampLevels::default());
+        camp.upgrades.walls_level = 2;
+        camp.upgrades.guards_level = 1;
+        camp.upgrades.workshop_level = 3;
+        camp.upgrades.traders_level = 2;
+        assert_eq!(
+            camp.levels(),
+            world::CampLevels {
+                walls: 2,
+                guards: 1,
+                workshop: 3,
+                traders: 2,
+            }
+        );
     }
 }

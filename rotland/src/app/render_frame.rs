@@ -62,6 +62,26 @@ pub fn render_frame(
             actors.player,
         );
     }
+    // Camp upgrades: walls, gates, towers, workshop, doctor, mechanic
+    let camp_site = world
+        .world_gen
+        .as_ref()
+        .and_then(|g| g.settlements().first().cloned());
+    if let (Some(play_state), Some(pack), Some(site)) = (
+        play.play.as_mut(),
+        render.pack.as_ref(),
+        camp_site.as_ref(),
+    ) {
+        let levels = play_state.camp.levels();
+        play_state.camp.upgrade_view.update(
+            &gpu.device,
+            pack,
+            &mut render.library,
+            &mut world.physics,
+            site,
+            levels,
+        );
+    }
     // Farm beds: the soil, and the crop's model for its stage (Godot PlotNode)
     let mut beds = std::mem::take(&mut render.scratch_beds);
     beds.clear();
@@ -145,11 +165,18 @@ pub fn render_frame(
         .as_ref()
         .map(|b| b.placed_instances.as_slice())
         .unwrap_or(&empty_bench);
+    let empty_upgrade = [];
+    let upgrade_placed: &[crate::props::Placed] = play
+        .play
+        .as_ref()
+        .map(|p| p.camp.upgrade_view.placed())
+        .unwrap_or(&empty_upgrade);
     let placed = streamer
         .chunks
         .values()
         .flat_map(|c| c.placed.iter())
         .chain(beds.iter())
+        .chain(upgrade_placed.iter())
         .chain(bench_placed.iter());
     let (mut main, mut shadow) = render.library.batches(
         placed,
