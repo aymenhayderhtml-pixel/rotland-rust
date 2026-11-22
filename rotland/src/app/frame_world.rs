@@ -355,6 +355,7 @@ pub fn update_world_interactions(
                 "banker" => Some(camp_ui::CampScreen::Bank),
                 r if r.starts_with("bounty") => Some(camp_ui::CampScreen::Bounties),
                 "board" | "camp_board" | "upgrades" => Some(camp_ui::CampScreen::Upgrades),
+                "guild" => Some(camp_ui::CampScreen::Guild),
                 _ => None,
             };
             if role == "trader" {

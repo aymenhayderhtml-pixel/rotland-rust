@@ -8,10 +8,6 @@ use game::{
 };
 use glam::Vec3;
 
-#[allow(dead_code)]
-#[path = "../guild_play.rs"]
-pub mod guild_play;
-
 /// Default refund fraction when cancelling an in-progress camp upgrade.
 pub const DEFAULT_UPGRADE_REFUND_RATIO: f32 = 0.5; // data: camp_upgrades.json refundRatio
 
@@ -149,20 +145,8 @@ pub struct CampView<'a> {
     pub near_lit_campfire: bool,
     pub player_pos: Vec3,
     pub is_dead: bool,
-}
-
-static GUILD_CONTEXT: std::sync::RwLock<Option<GuildManager>> = std::sync::RwLock::new(None);
-
-#[allow(dead_code)]
-pub fn set_guild_context(manager: GuildManager) {
-    if let Ok(mut lock) = GUILD_CONTEXT.write() {
-        *lock = Some(manager);
-    }
-}
-
-#[allow(dead_code)]
-pub fn get_guild_context() -> Option<GuildManager> {
-    GUILD_CONTEXT.read().ok().and_then(|lock| lock.clone())
+    /// The guild (task board, recruits, shop) for the Guild tab.
+    pub guild: Option<&'a GuildManager>,
 }
 
 impl<'a> Default for CampView<'a> {
@@ -182,6 +166,7 @@ impl<'a> Default for CampView<'a> {
             near_lit_campfire: false,
             player_pos: Vec3::ZERO,
             is_dead: false,
+            guild: None,
         }
     }
 }
@@ -191,8 +176,8 @@ impl<'a> CampView<'a> {
         Self::default()
     }
 
-    pub fn guild(&self) -> Option<GuildManager> {
-        get_guild_context()
+    pub fn guild(&self) -> Option<&'a GuildManager> {
+        self.guild
     }
 
     pub fn player_dollars(&self) -> i32 {

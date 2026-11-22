@@ -19,7 +19,7 @@ mod view;
 #[cfg(test)]
 mod tests;
 
-pub use action::CampAction;
+pub use action::{CampAction, GuildCampAction};
 pub use draw::draw;
 pub use draw_bounties::draw_bounty_tracker;
 pub use screen::CampScreen;

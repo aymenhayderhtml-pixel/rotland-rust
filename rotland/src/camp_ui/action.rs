@@ -39,6 +39,8 @@ pub enum CampAction {
     MechanicRepair,
     /// Close the camp screen.
     Close,
+    /// A button on the Guild tab.
+    Guild(GuildCampAction),
 }
 
 /// Guild action variants triggered by interactions on the Guild camp board screen.

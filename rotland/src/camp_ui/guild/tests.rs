@@ -10,7 +10,7 @@ use crate::camp_ui::action::GuildCampAction;
 use crate::camp_ui::draw::draw;
 use crate::camp_ui::screen::CampScreen;
 use crate::camp_ui::state::CampUiState;
-use crate::camp_ui::view::{set_guild_context, CampView};
+use crate::camp_ui::view::CampView;
 
 use super::draw_guild;
 use super::recruits_ui::{role_badge, state_label};
@@ -125,9 +125,7 @@ fn test_draw_guild_screen_headless() {
     let mut manager = GuildManager::new(42, config);
     let mut funds = 500;
     manager.refresh_morning(1, 7.0, Some(&mut funds));
-    set_guild_context(manager);
-
-    let view = CampView::default();
+    let view = CampView { guild: Some(&manager), ..CampView::default() };
 
     let mut out2 = ctx.run_pass(Default::default(), |ctx| {
         egui::Area::new(egui::Id::unique("guild_test_populated")).show(ctx, |ui| {

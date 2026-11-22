@@ -12,6 +12,10 @@ use crate::camp_ui::CampAction;
 use game::camp_upgrades::{CampEffects, CampUpgradeState, CampUpgradesConfig, UpgradeLine};
 use game::{FarmManager, FarmRules, Bank, BountyManager, CancelReason, CraftUpdate, CraftingSystem, RecipeRegistry, DeathRule, DifficultyConfigData, DifficultySettings, EconomyConfigData, Inventory, ItemRegistry, SkillSystem, TraderStock, Wallet};
 
+#[path = "guild_play.rs"]
+pub mod guild_play;
+pub use guild_play::GuildPlay;
+
 #[path = "camp_upgrade_view.rs"]
 pub mod camp_upgrade_view;
 pub use camp_upgrade_view::CampUpgradeView;
@@ -38,6 +42,8 @@ pub struct Camp {
     pub upgrades_config: CampUpgradesConfig,
     /// Visual and collider representation of camp upgrades in the 3D world.
     pub upgrade_view: CampUpgradeView,
+    /// The guild: task board, recruits and guild shop (camp board Guild tab).
+    pub guild: GuildPlay,
     /// Where the player stands (set each frame): campfire recipes need a lit fire near.
     pub player_at: Vec3,
 }
@@ -69,6 +75,7 @@ impl Camp {
             upgrades,
             upgrades_config,
             upgrade_view: CampUpgradeView::default(),
+            guild: GuildPlay::new(seed),
             player_at: Vec3::ZERO,
             difficulty_config,
             economy,
@@ -79,11 +86,17 @@ impl Camp {
     pub fn tick(&mut self, day: i32, hour: f32) {
         self.trader.tick_with_config(day, hour as u32, &self.economy);
         self.bounties.on_hour_changed(day, hour);
+        // Guild board rerolls and wages are paid once each morning
+        let mut dollars = self.wallet.dollars();
+        if self.guild.refresh_morning(day, hour, Some(&mut dollars)).is_some() {
+            self.wallet.set(dollars);
+        }
     }
 
     /// A zombie of this type died by the player's hand.
-    pub fn on_zombie_killed(&mut self, kind: &str, night: bool) {
+    pub fn on_zombie_killed(&mut self, kind: &str, night: bool, in_city: bool) {
         self.bounties.on_zombie_killed_night(kind, night);
+        self.guild.on_kill(kind, in_city);
     }
 
     /// The death penalty (Godot DeathPenalty): the wallet empties and the backpack follows the
@@ -167,6 +180,7 @@ impl Camp {
             CampAction::DoctorHeal => None,
             CampAction::MechanicRepair => None,
             CampAction::Close => None,
+            CampAction::Guild(g) => Some(self.apply_guild(g, bag, items)),
         }
     }
 
@@ -257,6 +271,9 @@ impl Camp {
         sys.extra.insert("trader".into(), self.trader.to_save());
         sys.extra.insert("skills".into(), self.skills.to_save());
         sys.extra.insert("bounties".into(), self.bounties.to_save());
+        if let Ok(v) = serde_json::to_value(self.guild.to_state()) {
+            sys.extra.insert("guild".into(), v);
+        }
         let mut visited: Vec<String> = self.settlements.visited().iter().cloned().collect();
         visited.sort();
         sys.settlements = Some(save::SettlementsSaveData {
@@ -306,6 +323,12 @@ impl Camp {
             log::warn!("bounties not loaded: {e:?}");
             warnings.push("Bounty data was damaged and was reset".to_string());
         }
+        if let Some(v) = sys.extra.get("guild") {
+            match serde_json::from_value(v.clone()) {
+                Ok(st) => self.guild.apply_state(st),
+                Err(e) => log::warn!("guild not loaded: {e}"),
+            }
+        }
         if let Some(st) = &sys.settlements {
             self.load_upgrades_from_save(&st.camp_upgrades);
             if let Ok(v) = serde_json::to_value(st) {
@@ -333,6 +356,54 @@ impl Camp {
 
     pub fn tick_upgrades(&mut self, game_hours: f32) -> Option<(UpgradeLine, u8)> {
         game::camp_upgrades::tick(&mut self.upgrades, &self.upgrades_config, game_hours)
+    }
+
+    /// Applies a Guild tab button; returns the status line.
+    fn apply_guild(&mut self, action: crate::camp_ui::GuildCampAction, bag: &mut Inventory, items: &ItemRegistry) -> String {
+        use crate::camp_ui::GuildCampAction as G;
+        let mut dollars = self.wallet.dollars();
+        let msg = match action {
+            G::AcceptTask { task_id } => match self.guild.accept_task(&task_id) {
+                Ok(t) => format!("Accepted: {}", t.title),
+                Err(e) => e,
+            },
+            G::AbandonTask { task_id } => {
+                if self.guild.abandon_task(&task_id) { "Task abandoned".into() } else { "Can't abandon that".into() }
+            }
+            G::ClaimTask { task_id } => match self.guild.claim_task(&task_id) {
+                Ok(r) => {
+                    dollars += r.dollars;
+                    let mut text = format!("Reward: ${} and {} reputation", r.dollars, r.reputation);
+                    if let Some((id, n)) = r.item {
+                        let got = bag.add(&id, n);
+                        text.push_str(&format!(", {got} {}", label(items, &id)));
+                    }
+                    text
+                }
+                Err(e) => e,
+            },
+            G::HireRecruit { recruit_id } => match self.guild.hire_recruit(&recruit_id, &mut dollars) {
+                Ok(()) => "Recruit hired".into(),
+                Err(e) => e,
+            },
+            G::DismissRecruit { recruit_id } => match self.guild.dismiss_recruit(&recruit_id) {
+                Ok(()) => "Recruit dismissed".into(),
+                Err(e) => e,
+            },
+            G::SetRecruitOrder { recruit_id, order } => match self.guild.set_recruit_order(&recruit_id, order) {
+                Ok(()) => format!("Order: {order:?}"),
+                Err(e) => e,
+            },
+            G::BuyItem { item_id, count } => match self.guild.buy_shop_item(&item_id, count, &mut dollars) {
+                Ok(n) => {
+                    let got = bag.add(&item_id, n);
+                    format!("Bought {got} {}", label(items, &item_id))
+                }
+                Err(e) => format!("Can't buy: {e:?}"),
+            },
+        };
+        self.wallet.set(dollars);
+        msg
     }
 
     pub fn levels(&self) -> world::CampLevels {

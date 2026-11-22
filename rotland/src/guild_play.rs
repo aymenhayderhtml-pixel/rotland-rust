@@ -148,7 +148,7 @@ impl GuildPlay {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use game::guild::{GuildTaskKind, RecruitOrder, RecruitRole};
+    use game::guild::{GuildTaskKind, RecruitOrder};
 
     #[test]
     fn test_guild_play_creation_and_morning_refresh() {

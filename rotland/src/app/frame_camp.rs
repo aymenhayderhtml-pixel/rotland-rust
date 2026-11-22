@@ -127,7 +127,8 @@ pub fn update_camp_and_stats(
         play_state.stats.record_day(play.clock.day);
         for (kind, headshot) in z.take_kills() {
             play_state.stats.record_kill(&kind, headshot);
-            play_state.camp.on_zombie_killed(&kind, night);
+            let in_city = world.world_gen.as_ref().and_then(|g| g.city()).is_some_and(|c| c.contains(glam::Vec2::new(actors.player.x, actors.player.z)));
+            play_state.camp.on_zombie_killed(&kind, night, in_city);
             if let Some(a) = audio.audio.as_mut() {
                 a.event("zombieDeath", Some(actors.player));
             }

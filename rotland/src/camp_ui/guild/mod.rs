@@ -29,7 +29,7 @@ pub fn draw_guild(
     view: &CampView,
 ) -> Option<CampAction> {
     let guild_opt = view.guild();
-    let guild = match &guild_opt {
+    let guild = match guild_opt {
         Some(g) => g,
         None => {
             ui.vertical_centered(|ui| {
@@ -140,5 +140,5 @@ pub fn draw_guild(
         }
     }
 
-    None
+    action.map(CampAction::Guild)
 }

@@ -255,6 +255,7 @@ pub fn draw_ui(
                 near_lit_campfire: play_state.camp.campfires.near_campfire(actors.player),
                 player_pos: actors.player,
                 is_dead: dead,
+                guild: Some(play_state.camp.guild.manager()),
             };
             camp_ui::draw_bounty_tracker(ctx, &view);
             match ui.camp_ui.as_mut() {
