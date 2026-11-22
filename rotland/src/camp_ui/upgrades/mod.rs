@@ -109,37 +109,28 @@ fn draw_board_contents(
     if let Some(_upgrades) = &view.upgrades {
         let layout = card_layout(avail_for_cards);
 
-        if layout.columns == 4 {
-            // Single row with 4 columns
-            ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-                ui.spacing_mut().item_spacing = vec2(layout.gap, 0.0);
-                for line_id in UpgradeLine::ALL {
-                    let card_act = draw_line_card(ui, line_id, view, state, &layout, scale);
-                    if let Some(act) = card_act {
-                        action = Some(act);
-                    }
-                }
-            });
-        } else {
-            // 2x2 grid (2 columns, 2 rows)
-            let lines_row1 = [UpgradeLine::Walls, UpgradeLine::Guards];
-            let lines_row2 = [UpgradeLine::Workshop, UpgradeLine::Traders];
-
-            for (row_idx, row_lines) in [lines_row1, lines_row2].iter().enumerate() {
-                if row_idx > 0 {
-                    ui.add_space(layout.gap);
-                }
-                ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-                    ui.spacing_mut().item_spacing = vec2(layout.gap, 0.0);
-                    for &line_id in row_lines {
-                        let card_act = draw_line_card(ui, line_id, view, state, &layout, scale);
-                        if let Some(act) = card_act {
-                            action = Some(act);
-                        }
-                    }
-                });
+        // Each card gets its own fixed rect and a top-down child ui: inside a left-to-right row the
+        // card's contents would otherwise flow sideways (text wrapped one letter per line).
+        let origin = ui.cursor().min;
+        for (i, line_id) in UpgradeLine::ALL.into_iter().enumerate() {
+            let (col, row) = (i % layout.columns, i / layout.columns);
+            let min = origin
+                + vec2(
+                    col as f32 * (layout.card_width + layout.gap),
+                    row as f32 * (layout.card_height + layout.gap),
+                );
+            let rect = egui::Rect::from_min_size(min, layout.card_size());
+            let mut card_ui = ui.new_child(
+                egui::UiBuilder::new()
+                    .max_rect(rect)
+                    .layout(egui::Layout::top_down(egui::Align::Min)),
+            );
+            card_ui.set_clip_rect(rect.intersect(ui.clip_rect()));
+            if let Some(act) = draw_line_card(&mut card_ui, line_id, view, state, &layout, scale) {
+                action = Some(act);
             }
         }
+        ui.allocate_space(vec2(layout.total_width(), layout.total_height()));
     } else {
         ui.centered_and_justified(|ui| {
             ui.label(
