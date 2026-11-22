@@ -13,6 +13,7 @@ The guild logic exists (`game::guild::GuildManager`) but nothing in the game use
    Show the player's rank and reputation at the top. New `CampAction` variants for each button. Must fit 1280x720 and 1920x986.
 3. Test flag `--camp-screen=guild` must open it (follow how `--camp-screen=upgrades` works; if the parser is in a file you don't own, put the line in Wiring notes).
 4. Wiring notes for Claude: exactly where to create the `GuildPlay` in app state, where to call the kill / day-change hooks (`rotland/src/app/frame_sim.rs`, `frame_camp.rs`), how to apply each new `CampAction`, and the save field (`save` crate) with `#[serde(default)]`.
+`rotland/src/camp_ui/mod.rs` belongs to lane R19-01: put your `mod guild;` / `pub use` lines in Wiring notes.
 Recruits following the player in the 3D world is NOT in this task (next round).
 
 ## Worker notes
