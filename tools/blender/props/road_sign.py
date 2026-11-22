@@ -19,7 +19,7 @@ def build(model):
     # The sign: red back plate, white face, tilted with the bend. Its centre sits at the bent top.
     top = (0.0, -0.9 * math.sin(0.25) * 0.5, 2.0 + 0.9 * math.cos(0.25) * 0.5)
     back = common.make_box((0.8, 0.03, 0.8), loc=(0.0, 0.0, 0.0), color="red_paint")
-    face = common.make_box((0.66, 0.05, 0.66), loc=(0.0, -0.01, 0.0), color="white")
+    face = common.make_box((0.66, 0.02, 0.66), loc=(0.0, -0.02, 0.0), color="white")
     holes = [common.make_box((0.04, 0.02, 0.04), loc=(x, -0.04, z), color="gun_black")
              for x, z in ((-0.15, 0.12), (0.18, -0.05), (0.05, 0.2), (-0.08, -0.18))]
     bolts = [common.make_box((0.03, 0.03, 0.03), loc=(0.0, -0.045, z), color="metal") for z in (-0.25, 0.25)]
