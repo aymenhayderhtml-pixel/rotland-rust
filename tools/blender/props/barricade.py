@@ -25,7 +25,7 @@ def _make_sawhorse(x_center, rot_z=0.0, tilt_x=0.0):
     parts = []
     beam_len = 0.70
     # Top heavy crossbeam (runs along Y)
-    beam = common.make_box((0.10, beam_len, 0.12), loc=(0.0, 0.0, 0.94), color="wood_crate")
+    beam = common.make_box((0.09, beam_len, 0.12), loc=(0.0, 0.0, 0.94), color="wood_crate")
     parts.append(beam)
 
     # 4 splayed legs: A-frame
@@ -75,10 +75,10 @@ def build(model):
         x_stripe = -1.80 + i * stripe_w
         c = stripe_colors[i % 2]
         # Upper rail stripe
-        parts.append(common.make_box((stripe_w + 0.005, 0.04, 0.16), loc=(x_stripe, rail_y, 0.94), color=c))
+        parts.append(common.make_box((stripe_w, 0.04, 0.16), loc=(x_stripe, rail_y, 0.94), color=c))
         # Lower rail stripe (stop before the broken right end at i=9)
         if i < 9:
-            parts.append(common.make_box((stripe_w + 0.005, 0.04, 0.16), loc=(x_stripe, rail_y, 0.68), color=c))
+            parts.append(common.make_box((stripe_w, 0.04, 0.16), loc=(x_stripe, rail_y, 0.68), color=c))
 
     # Broken/splintered splinter hanging off right end of lower rail
     splinter = common.make_box((0.25, 0.03, 0.06), color="wood_crate")
@@ -86,10 +86,11 @@ def build(model):
     parts.append(splinter)
 
     # Central metal warning sign mounted between rails: "STOP" / "ROAD CLOSED"
-    sign_back = common.make_box((0.70, 0.02, 0.36), loc=(0.0, rail_y - 0.03, 0.81), color="white")
-    sign_border = common.make_box((0.66, 0.025, 0.04), loc=(0.0, rail_y - 0.035, 0.95), color="red_paint")
-    sign_border_b = common.make_box((0.66, 0.025, 0.04), loc=(0.0, rail_y - 0.035, 0.67), color="red_paint")
-    sign_text_bar = common.make_box((0.54, 0.025, 0.14), loc=(0.0, rail_y - 0.035, 0.81), color="red_paint")
+    # Offset sign_back proud of rails (rail front is at -0.18) and sign elements proud of sign_back
+    sign_back = common.make_box((0.70, 0.012, 0.36), loc=(0.0, rail_y - 0.035, 0.81), color="white")
+    sign_border = common.make_box((0.66, 0.008, 0.04), loc=(0.0, rail_y - 0.048, 0.95), color="red_paint")
+    sign_border_b = common.make_box((0.66, 0.008, 0.04), loc=(0.0, rail_y - 0.048, 0.67), color="red_paint")
+    sign_text_bar = common.make_box((0.54, 0.008, 0.14), loc=(0.0, rail_y - 0.048, 0.81), color="red_paint")
     parts.extend([sign_back, sign_border, sign_border_b, sign_text_bar])
 
     # 3. Sandbag row stacked in front of the barricade (at Y = -0.32, spanning ~3.6 m across)
@@ -97,26 +98,27 @@ def build(model):
     c1_xs = [-1.55, -1.10, -0.66, -0.22, 0.22, 0.66, 1.10, 1.55]
     for idx, x in enumerate(c1_xs):
         color = "cloth_olive" if idx in (2, 6) else "canvas_khaki"
-        rot = 0.03 if idx % 2 == 0 else -0.04
+        rot = 0.04 if idx % 2 == 0 else -0.04
         parts.append(_make_sandbag(0.46, 0.26, 0.14, loc=(x, -0.32, 0.07), rot_z=rot, color=color))
 
-    # Course 2 (Second layer, staggered, Z = 0.20): 7 sandbags
+    # Course 2 (Second layer, staggered, Z = 0.21): 7 sandbags
     c2_xs = [-1.32, -0.88, -0.44, 0.0, 0.44, 0.88, 1.32]
     for idx, x in enumerate(c2_xs):
         color = "shirt_zombie" if idx == 3 else ("cloth_olive" if idx == 1 else "canvas_khaki")
-        rot = -0.04 if idx % 2 == 0 else 0.03
-        parts.append(_make_sandbag(0.45, 0.25, 0.13, loc=(x, -0.32, 0.20), rot_z=rot, color=color))
+        rot = -0.08 if idx % 2 == 0 else 0.07
+        parts.append(_make_sandbag(0.45, 0.25, 0.13, loc=(x, -0.32, 0.21), rot_z=rot, color=color))
 
-    # Course 3 (Third top layer, Z = 0.32): 5 sandbags in center
+    # Course 3 (Third top layer, Z = 0.34): 5 sandbags in center
     c3_xs = [-0.88, -0.44, 0.0, 0.44, 0.88]
     for idx, x in enumerate(c3_xs):
         color = "canvas_khaki"
-        rot = 0.05 if idx % 2 == 0 else -0.03
-        parts.append(_make_sandbag(0.44, 0.24, 0.12, loc=(x, -0.32, 0.32), rot_z=rot, color=color))
+        rot = 0.12 if idx % 2 == 0 else -0.11
+        parts.append(_make_sandbag(0.44, 0.24, 0.12, loc=(x, -0.32, 0.34), rot_z=rot, color=color))
 
     # One burst sandbag on far right with spilled dirt on ground
-    burst_bag = _make_sandbag(0.42, 0.26, 0.10, loc=(1.80, -0.28, 0.05), rot_z=0.35, color="canvas_khaki")
-    spilled_dirt = common.make_frustum(0.22, 0.08, 0.0, 0.06, segments=6, center=(1.85, -0.38), color="dirt")
+    # Lift burst bag bottom slightly (z=0.01) and sink dirt bottom slightly (z=-0.01) so they don't coplanar with ground z=0
+    burst_bag = _make_sandbag(0.42, 0.26, 0.10, loc=(1.80, -0.28, 0.06), rot_z=0.35, color="canvas_khaki")
+    spilled_dirt = common.make_frustum(0.22, 0.08, -0.01, 0.06, segments=6, center=(1.85, -0.38), color="dirt")
     parts.extend([burst_bag, spilled_dirt])
 
     model.add(common.combine(parts))
