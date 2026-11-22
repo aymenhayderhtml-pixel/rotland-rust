@@ -1,3 +1,4 @@
+pub mod base;
 pub mod difficulty;
 pub mod inventory;
 pub mod player;
@@ -9,6 +10,7 @@ pub mod weapons;
 pub mod world;
 pub mod worldstate;
 
+pub use base::{BasePartSaveData, BaseSaveData};
 pub use difficulty::{DeathRule, DifficultySaveData};
 pub use inventory::{InventorySaveData, SavedSlot};
 pub use player::{PlayerSaveData, Vec3Data};

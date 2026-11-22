@@ -19,6 +19,7 @@ pub struct BuildModeState {
     pub aimed_part_id: Option<u32>,
     pub part_colliders: HashMap<u32, ColliderHandle>,
     pub build_test_initialized: bool,
+    pub save_loaded: bool,
     pub toast: Option<String>,
 }
 
@@ -43,7 +44,81 @@ impl BuildModeState {
             aimed_part_id: None,
             part_colliders: HashMap::new(),
             build_test_initialized: false,
+            save_loaded: false,
             toast: None,
+        }
+    }
+
+    /// Resets the build mode state (e.g. on new game or load).
+    pub fn reset(&mut self) {
+        self.active = false;
+        self.selected_index = 0;
+        self.rotation = 0;
+        self.base = BaseState::default();
+        self.current_placement = None;
+        self.last_error = None;
+        self.aimed_part_id = None;
+        self.part_colliders.clear();
+        self.build_test_initialized = false;
+        self.save_loaded = false;
+        self.toast = None;
+    }
+
+    /// Serializes placed base parts to save format.
+    pub fn to_save(&self) -> save::BaseSaveData {
+        let parts = self
+            .base
+            .parts
+            .iter()
+            .map(|p| save::BasePartSaveData {
+                id: p.id,
+                part: p.part.clone(),
+                cell_x: p.cell.x,
+                cell_z: p.cell.y,
+                floor: p.floor,
+                rot: p.rot,
+                hp: p.hp,
+                door_open: p.door_open,
+                position: save::Vec3Data::new(p.position.x, p.position.y, p.position.z),
+                yaw: p.yaw,
+            })
+            .collect();
+        save::BaseSaveData::new(self.base.next_id, parts)
+    }
+
+    /// Loads placed base parts from save format.
+    pub fn load_from_save(&mut self, save_data: &save::BaseSaveData) {
+        self.base.next_id = save_data.next_id;
+        self.base.parts.clear();
+        for p in &save_data.parts {
+            self.base.parts.push(game::building::PlacedPart {
+                id: p.id,
+                part: p.part.clone(),
+                cell: glam::IVec2::new(p.cell_x, p.cell_z),
+                floor: p.floor,
+                rot: p.rot,
+                hp: p.hp,
+                door_open: p.door_open,
+                position: glam::Vec3::new(p.position.x, p.position.y, p.position.z),
+                yaw: p.yaw,
+            });
+        }
+        self.part_colliders.clear();
+        self.save_loaded = true;
+    }
+
+    /// Checks the `--build-test` command-line argument:
+    /// starts in build mode with 50 wood in the bag for screenshots.
+    pub fn check_build_test_flag(&mut self, inventory: Option<&mut game::Inventory>) {
+        if !self.build_test_initialized {
+            let has_flag = std::env::args().any(|a| a == "--build-test");
+            if has_flag {
+                self.active = true;
+                if let Some(inv) = inventory {
+                    inv.add("wood", 50);
+                }
+                self.build_test_initialized = true;
+            }
         }
     }
 
@@ -194,5 +269,60 @@ mod tests {
         assert_eq!(state.base.len(), 0);
         // Refund is 50% of 4 wood = 2 wood
         assert_eq!(inv.count("wood"), 8);
+    }
+
+    #[test]
+    fn test_build_mode_save_load_roundtrip() {
+        let mut state = BuildModeState::new();
+        state.base.next_id = 4;
+        state.base.parts.push(game::building::PlacedPart {
+            id: 1,
+            part: "floor".into(),
+            cell: glam::IVec2::new(1, 2),
+            floor: 0,
+            rot: 0,
+            hp: 100.0,
+            door_open: false,
+            position: glam::Vec3::new(2.0, 0.0, 4.0),
+            yaw: 0.0,
+        });
+        state.base.parts.push(game::building::PlacedPart {
+            id: 2,
+            part: "wall".into(),
+            cell: glam::IVec2::new(1, 2),
+            floor: 0,
+            rot: 1,
+            hp: 150.0,
+            door_open: false,
+            position: glam::Vec3::new(3.0, 0.0, 4.0),
+            yaw: -std::f32::consts::FRAC_PI_2,
+        });
+        state.base.parts.push(game::building::PlacedPart {
+            id: 3,
+            part: "wall_door".into(),
+            cell: glam::IVec2::new(1, 3),
+            floor: 0,
+            rot: 2,
+            hp: 120.0,
+            door_open: true,
+            position: glam::Vec3::new(2.0, 0.0, 6.0),
+            yaw: -std::f32::consts::PI,
+        });
+
+        let saved = state.to_save();
+        assert_eq!(saved.next_id, 4);
+        assert_eq!(saved.parts.len(), 3);
+
+        let mut loaded_state = BuildModeState::new();
+        loaded_state.load_from_save(&saved);
+
+        assert_eq!(loaded_state.base.next_id, 4);
+        assert_eq!(loaded_state.base.len(), 3);
+        assert_eq!(loaded_state.base.parts[0].part, "floor");
+        assert_eq!(loaded_state.base.parts[0].cell, glam::IVec2::new(1, 2));
+        assert_eq!(loaded_state.base.parts[1].part, "wall");
+        assert_eq!(loaded_state.base.parts[1].rot, 1);
+        assert_eq!(loaded_state.base.parts[2].part, "wall_door");
+        assert!(loaded_state.base.parts[2].door_open);
     }
 }

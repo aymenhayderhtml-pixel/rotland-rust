@@ -94,6 +94,8 @@ pub fn draw_ui(
     ui: &mut UiState,
     session: &mut SessionState,
 ) {
+    super::frame_input::build_mode::set_active_instance(&mut play.build_mode as *mut _);
+
     let on_main = ui.menus.as_ref().is_some_and(|m| {
         matches!(
             m.screen(),
@@ -225,6 +227,15 @@ pub fn draw_ui(
         if let (Some(t), false) = (&play.hint_text, c.is_dead()) {
             hud::hint::draw_hint(ctx, t);
         }
+    }
+
+    if !on_main {
+        super::frame_input::build_mode::draw_build_mode_ui(
+            ctx,
+            &play.build_mode,
+            play.play.as_ref().map(|p| &p.inventory),
+            &render.camera,
+        );
     }
 
     // Camp screens over the game (not over the main menu)

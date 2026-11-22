@@ -68,6 +68,8 @@ pub fn save_now(
         respawn: play_state.camp.settlements.respawn_id().map(|s| s.to_string()),
         camp_upgrades: play_state.camp.upgrades_to_save(),
     });
+    // Base building saving: placed base parts
+    file.systems.base = Some(play.build_mode.to_save());
     match slots.write(session.active_slot as usize, &file) {
         Ok(()) => {
             log::info!(
@@ -96,7 +98,7 @@ pub fn menu_action(
     session: &mut SessionState,
     world: &WorldState,
     actors: &ActorsState,
-    play: &PlaySide,
+    play: &mut PlaySide,
     ui: &mut UiState,
 ) {
     use menus::MenuAction;
@@ -114,6 +116,7 @@ pub fn menu_action(
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_or(42, |d| d.as_nanos() as i32);
             session.pending_world = Some((seed, None));
+            play.build_mode.reset();
             close_menus(ui);
         }
         MenuAction::Continue { slot } => {
@@ -121,6 +124,11 @@ pub fn menu_action(
             match read {
                 Some(Ok(file)) => {
                     session.active_slot = slot;
+                    if let Some(base) = &file.systems.base {
+                        play.build_mode.load_from_save(base);
+                    } else {
+                        play.build_mode.reset();
+                    }
                     session.pending_world = Some((
                         session::seed_of(&file).unwrap_or(session.seed),
                         Some(file),

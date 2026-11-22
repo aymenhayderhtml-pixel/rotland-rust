@@ -3,11 +3,11 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use save::{
-    godot_save_dir, import_godot_from, CampUpgradesSaveData, CampfireData, DeathRule,
-    DifficultySaveData, DroppedItemData, InventorySaveData, PlayerSaveData, SaveError, SaveFile,
-    SavedSlot, SettlementsSaveData, SlotState, Slots, StatsSaveData, TimeSaveData,
-    UpgradeInProgressSaveData, Vec3Data, WalletSaveData, WeaponsSaveData, WorldSaveData,
-    WorldStateSaveData, FORMAT_VERSION,
+    godot_save_dir, import_godot_from, BasePartSaveData, BaseSaveData, CampUpgradesSaveData,
+    CampfireData, DeathRule, DifficultySaveData, DroppedItemData, InventorySaveData, PlayerSaveData,
+    SaveError, SaveFile, SavedSlot, SettlementsSaveData, SlotState, Slots, StatsSaveData,
+    TimeSaveData, UpgradeInProgressSaveData, Vec3Data, WalletSaveData, WeaponsSaveData,
+    WorldSaveData, WorldStateSaveData, FORMAT_VERSION,
 };
 
 static TEST_DIR_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -707,5 +707,83 @@ fn slot_4_and_out_of_bounds_slots_rejected() {
 
     assert!(compared > 0, "comparison test compared 0 items");
     assert_eq!(compared, 20);
+}
+
+#[test]
+fn roundtrip_base_parts() {
+    let temp = TempDirGuard::new("base_parts");
+    let slots = Slots::new(temp.path());
+
+    let mut save = SaveFile::new_populated(123);
+    save.systems.base = Some(BaseSaveData {
+        next_id: 4,
+        parts: vec![
+            BasePartSaveData {
+                id: 1,
+                part: "floor".to_string(),
+                cell_x: 0,
+                cell_z: 0,
+                floor: 0,
+                rot: 0,
+                hp: 100.0,
+                door_open: false,
+                position: Vec3Data::new(0.0, 0.0, 0.0),
+                yaw: 0.0,
+            },
+            BasePartSaveData {
+                id: 2,
+                part: "wall".to_string(),
+                cell_x: 0,
+                cell_z: 0,
+                floor: 0,
+                rot: 1,
+                hp: 150.0,
+                door_open: false,
+                position: Vec3Data::new(1.0, 0.0, 0.0),
+                yaw: -std::f32::consts::FRAC_PI_2,
+            },
+            BasePartSaveData {
+                id: 3,
+                part: "wall_door".to_string(),
+                cell_x: 0,
+                cell_z: 1,
+                floor: 0,
+                rot: 0,
+                hp: 120.0,
+                door_open: true,
+                position: Vec3Data::new(0.0, 0.0, 1.0),
+                yaw: 0.0,
+            },
+        ],
+    });
+
+    slots.write(1, &save).expect("write base save");
+    let loaded = slots.read(1).expect("read base save");
+
+    let b = loaded.systems.base.expect("base system missing");
+    assert_eq!(b.next_id, 4);
+    assert_eq!(b.parts.len(), 3);
+    assert_eq!(b.parts[0].part, "floor");
+    assert_eq!(b.parts[0].id, 1);
+    assert_eq!(b.parts[1].part, "wall");
+    assert_eq!(b.parts[1].rot, 1);
+    assert_eq!(b.parts[2].part, "wall_door");
+    assert!(b.parts[2].door_open);
+}
+
+#[test]
+fn old_save_loads_without_base_parts() {
+    let json = r#"{
+        "version": 1,
+        "savedAtUtc": "2026-11-21T00:00:00Z",
+        "systems": {
+            "player": {
+                "health": 100.0
+            }
+        }
+    }"#;
+
+    let save: SaveFile = serde_json::from_str(json).expect("deserialize old save");
+    assert!(save.systems.base.is_none() || save.systems.base.unwrap().parts.is_empty());
 }
 

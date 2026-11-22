@@ -194,6 +194,7 @@ pub struct PlaySide {
     pub hint_ctx: HintContext,
     pub hint_inventory_hash: u64,
     pub active_hint_id: Option<String>,
+    pub build_mode: super::frame_input::build_mode::BuildModeState,
 }
 
 impl Default for PlaySide {
@@ -211,6 +212,7 @@ impl Default for PlaySide {
             hint_ctx: HintContext::default(),
             hint_inventory_hash: 0,
             active_hint_id: None,
+            build_mode: super::frame_input::build_mode::BuildModeState::new(),
         }
     }
 }
