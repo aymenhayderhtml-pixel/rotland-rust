@@ -126,6 +126,16 @@ pub fn draw_tasks_column(
                                             });
                                         }
                                     } else {
+                                        if matches!(task.kind, GuildTaskKind::Fetch { .. }) {
+                                            let hand_in_btn = egui::Button::new(
+                                                RichText::new("Hand in items").size(12.0),
+                                            );
+                                            if ui.add(hand_in_btn).clicked() {
+                                                action = Some(GuildCampAction::HandIn {
+                                                    task_id: task.id.clone(),
+                                                });
+                                            }
+                                        }
                                         let abandon_btn = egui::Button::new(
                                             RichText::new("Abandon")
                                                 .size(12.0)

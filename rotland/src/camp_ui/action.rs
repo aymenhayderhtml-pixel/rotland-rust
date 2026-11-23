@@ -53,6 +53,8 @@ pub enum GuildCampAction {
     AbandonTask { task_id: String },
     /// Claim rewards for a completed guild task.
     ClaimTask { task_id: String },
+    /// Hand the items a fetch task needs from the bag in at the guild (R24-N6; handled by the frame, which owns the hooks).
+    HandIn { task_id: String },
     /// Hire an available teammate recruit.
     HireRecruit { recruit_id: String },
     /// Dismiss a hired teammate recruit.

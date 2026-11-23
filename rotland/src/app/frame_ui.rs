@@ -241,6 +241,10 @@ pub fn draw_ui(
                 r.width() / r.height().max(1.0)
             };
             super::frame_team::draw_hud(ctx, &play.team.figures, render.camera.view_proj(aspect), actors.player);
+            // Guild task tracker under the clock (R24-N6); hidden behind menus, camp screens and the hub
+            if !super::frame_siege::menu_open(ui) && !on_main && ui.camp_ui.is_none() && ui.hub.is_none() {
+                crate::guild_task_view::draw_task_tracker(ctx, &play.guild_panel.rows);
+            }
         }
         super::minimap::draw_minimap_hud(ctx, world, actors, play_state, ui);
         if let (Some(t), false) = (&play.hint_text, c.is_dead()) {
@@ -321,6 +325,29 @@ pub fn draw_ui(
                     }
                 } else if let Some(state) = ui.camp_ui.as_mut() {
                     state.set_status("Mechanic: Not enough cash ($50 needed)");
+                }
+            }
+            Some(camp_ui::CampAction::Guild(camp_ui::GuildCampAction::HandIn { task_id })) => {
+                let guild_pos = super::frame_team::camp_point(world.world_gen.as_deref());
+                let status = match (play.guild_hooks.as_mut(), guild_pos) {
+                    (Some(hooks), Some(at)) => {
+                        let (text, events) = super::frame_guild::hand_in(
+                            hooks,
+                            play_state.camp.guild.manager_mut(),
+                            &mut play_state.inventory,
+                            at,
+                            actors.player,
+                            &task_id,
+                        );
+                        play_state.hotbar.on_inventory_changed(&play_state.inventory);
+                        super::frame_guild::announce(&events, &mut ui.hud);
+                        play.guild_panel.request_refresh();
+                        text
+                    }
+                    _ => "The guild is not open for hand-ins".into(),
+                };
+                if let Some(state) = ui.camp_ui.as_mut() {
+                    state.set_status(status);
                 }
             }
             Some(a) => {

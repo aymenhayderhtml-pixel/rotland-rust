@@ -34,6 +34,7 @@ mod props;
 mod session;
 mod settings;
 mod siege_view;
+mod guild_task_view;
 mod swim_view;
 mod shooting;
 mod streaming;

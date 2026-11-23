@@ -9,6 +9,7 @@ mod recruits;
 mod roller;
 mod save;
 mod shop;
+pub mod task_hooks;
 mod tasks;
 
 pub use board::{GuildAcceptError, GuildBoard, GuildClaimError};
@@ -28,4 +29,8 @@ pub use recruits::{
 pub use roller::GuildTaskRoller;
 pub use save::GuildState;
 pub use shop::{GuildShop, GuildShopItem, ShopBuyError};
+pub use task_hooks::{
+    GuildTaskEvent, GuildTaskHookConfig, GuildTaskHooks, HandIn, NamedPlace, TaskRow,
+    tracker_rows,
+};
 pub use tasks::{GuildReward, GuildTask, GuildTaskKind};

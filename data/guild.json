@@ -2,6 +2,9 @@
   "reset_hour": 6.0,
   "max_offered": 5,
   "max_active": 3,
+  "hand_in_radius": 6.0,
+  "place_radius": 12.0,
+  "hook_check_seconds": 0.5,
   "ranks": [
     {
       "id": "rookie",
@@ -157,7 +160,7 @@
       "id": "clear_supermarket",
       "kind": "clear",
       "title": "Reclaim Grocery Mart",
-      "poi_id": "supermarket",
+      "poi_id": "shop",
       "target_range": [1, 1],
       "dollars_range": [60, 90],
       "rep_range": [35, 60],

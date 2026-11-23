@@ -10,6 +10,7 @@ pub mod frame_actors;
 pub mod frame_audio;
 pub mod frame_camp;
 pub mod frame_cars;
+pub mod frame_guild;
 pub mod frame_input;
 pub mod frame_water;
 pub mod frame_sim;

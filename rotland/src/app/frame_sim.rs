@@ -219,6 +219,11 @@ pub fn update_sim(
             if let Some(play_state) = play.play.as_mut() {
                 for poi in &cleared {
                     play_state.camp.bounties.on_poi_cleared(poi);
+                    // The guild names buildings by type (data/guild.json poi_id), not by the spot's own id
+                    let building = world.poi_zombie_sites.iter().find(|s| s.poi_id == *poi).map(|s| s.building_id.as_str());
+                    if let Some(building) = building {
+                        play_state.camp.guild.on_poi_cleared(building);
+                    }
                     play.pois_cleared += 1;
                 }
             }
@@ -510,6 +515,8 @@ pub fn update_sim(
             &mut ui.hud,
             actors.team_models.as_mut(),
         );
+        // Guild task hooks: explore places, clear and ready checks, tracker rows (R24-N6)
+        super::frame_guild::update(play, world, actors.player, dt, &mut ui.hud);
         actors.zombie_status_scratch = zombie_status;
         actors.noises_scratch = noises_scratch;
 
@@ -523,6 +530,7 @@ pub fn update_sim(
                     let seed = (session.time * 1000.0) as u64 ^ session.seed as u64;
                     play_state.camp.on_death(&mut play_state.inventory, seed);
                     play_state.hotbar.on_inventory_changed(&play_state.inventory);
+                    super::frame_guild::clear_hooks(&mut play.guild_hooks);
                 }
                 log::info!("the player died (kills so far: {})", c.kills);
             } else if ev.bitten {
@@ -574,6 +582,7 @@ pub fn update_sim(
                     let seed = (session.time * 1000.0) as u64 ^ session.seed as u64;
                     play_state.camp.on_death(&mut play_state.inventory, seed);
                     play_state.hotbar.on_inventory_changed(&play_state.inventory);
+                    super::frame_guild::clear_hooks(&mut play.guild_hooks);
                 }
                 log::info!("the player drowned");
             } else if let Some(a) = audio.audio.as_mut() {

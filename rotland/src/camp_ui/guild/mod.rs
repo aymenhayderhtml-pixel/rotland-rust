@@ -133,6 +133,7 @@ pub fn draw_guild(
             GuildCampAction::AcceptTask { task_id } => state.set_status(format!("Accepted task: {task_id}")),
             GuildCampAction::AbandonTask { task_id } => state.set_status(format!("Abandoned task: {task_id}")),
             GuildCampAction::ClaimTask { task_id } => state.set_status(format!("Claimed task: {task_id}")),
+            GuildCampAction::HandIn { task_id } => state.set_status(format!("Handing in items for: {task_id}")),
             GuildCampAction::HireRecruit { recruit_id } => state.set_status(format!("Hired recruit: {recruit_id}")),
             GuildCampAction::DismissRecruit { recruit_id } => state.set_status(format!("Dismissed recruit: {recruit_id}")),
             GuildCampAction::SetRecruitOrder { recruit_id, order } => state.set_status(format!("Order for {recruit_id}: {order:?}")),

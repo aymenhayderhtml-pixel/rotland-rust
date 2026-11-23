@@ -385,6 +385,8 @@ impl Camp {
                 }
                 Err(e) => e,
             },
+            // The frame hands items in (it owns the guild hooks and the hotbar); this is only a fallback line.
+            G::HandIn { .. } => "Stand at the guild to hand in items".into(),
             G::HireRecruit { recruit_id } => match self.guild.hire_recruit(&recruit_id, &mut dollars) {
                 Ok(()) => "Recruit hired".into(),
                 Err(e) => e,

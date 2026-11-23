@@ -42,6 +42,7 @@ pub fn start_world(
     actors.combat = None;
     play.play = None;
     super::frame_team::reset(play);
+    super::frame_guild::reset(play);
     actors.player_visual = None;
     actors.player_ctrl = None;
     actors.camera_rig = None;

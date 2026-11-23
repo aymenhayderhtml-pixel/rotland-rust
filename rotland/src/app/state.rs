@@ -204,6 +204,10 @@ pub struct PlaySide {
     pub companions: Option<game::guild::companion::CompanionSquad>,
     /// Reused buffers and the guild sync key for the teammates.
     pub team: super::frame_team::TeamScratch,
+    /// Guild task hooks (fetch hand-ins, explore places, ready notices); `None` when data/guild.json fails to load (R24-N6).
+    pub guild_hooks: Option<game::guild::GuildTaskHooks>,
+    /// Tracker rows and named places for the guild hooks (R24-N6).
+    pub guild_panel: super::frame_guild::GuildTaskPanel,
 }
 
 impl Default for PlaySide {
@@ -226,6 +230,8 @@ impl Default for PlaySide {
             siege: super::frame_siege::load_system(),
             companions: super::frame_team::load_squad(),
             team: super::frame_team::TeamScratch::default(),
+            guild_hooks: super::frame_guild::load_hooks(),
+            guild_panel: super::frame_guild::GuildTaskPanel::default(),
         }
     }
 }
