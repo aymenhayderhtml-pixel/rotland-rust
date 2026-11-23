@@ -196,6 +196,8 @@ pub struct PlaySide {
     pub active_hint_id: Option<String>,
     pub build_mode: super::frame_input::build_mode::BuildModeState,
     pub water: super::frame_water::WaterPlay,
+    /// Base siege simulation (zombies hitting the player's walls); `None` when data/siege.json fails to load.
+    pub siege: Option<game::building::siege::SiegeSystem>,
 }
 
 impl Default for PlaySide {
@@ -215,6 +217,7 @@ impl Default for PlaySide {
             active_hint_id: None,
             build_mode: super::frame_input::build_mode::BuildModeState::new(),
             water: super::frame_water::WaterPlay::default(),
+            siege: super::frame_siege::load_system(),
         }
     }
 }

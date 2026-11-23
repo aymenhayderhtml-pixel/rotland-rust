@@ -1,0 +1,16 @@
+{
+  "activeRange": 60.0,
+  "reach": 1.6,
+  "hitInterval": 1.2,
+  "doorMultiplier": 1.5,
+  "alertSeconds": 5.0,
+  "maxAttackers": 24,
+  "damage": {
+    "walker": 2.0,
+    "runner": 1.5,
+    "crawler": 1.0,
+    "screamer": 0.8,
+    "brute": 18.0
+  },
+  "defaultDamage": 1.5
+}

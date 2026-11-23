@@ -135,6 +135,7 @@ pub fn process_input(
         && let Some(base) = file.systems.base.as_ref()
     {
         play.build_mode.load_from_save(base);
+        super::frame_siege::clear(play);
     }
     play.build_mode.check_build_test_flag(play.play.as_mut().map(|p| &mut p.inventory));
 

@@ -31,6 +31,7 @@ mod poi_links;
 mod props;
 mod session;
 mod settings;
+mod siege_view;
 mod swim_view;
 mod shooting;
 mod streaming;

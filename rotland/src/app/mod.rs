@@ -13,6 +13,7 @@ pub mod frame_cars;
 pub mod frame_input;
 pub mod frame_water;
 pub mod frame_sim;
+pub mod frame_siege;
 pub mod frame_ui;
 pub mod frame_world;
 pub mod render_frame;

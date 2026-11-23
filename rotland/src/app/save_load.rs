@@ -117,6 +117,7 @@ pub fn menu_action(
                 .map_or(42, |d| d.as_nanos() as i32);
             session.pending_world = Some((seed, None));
             play.build_mode.reset();
+            super::frame_siege::clear(play);
             close_menus(ui);
         }
         MenuAction::Continue { slot } => {
@@ -129,6 +130,7 @@ pub fn menu_action(
                     } else {
                         play.build_mode.reset();
                     }
+                    super::frame_siege::clear(play);
                     session.pending_world = Some((
                         session::seed_of(&file).unwrap_or(session.seed),
                         Some(file),

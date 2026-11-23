@@ -3,6 +3,7 @@
 mod def;
 mod plan;
 mod state;
+pub mod siege;
 
 pub use def::*;
 pub use plan::*;

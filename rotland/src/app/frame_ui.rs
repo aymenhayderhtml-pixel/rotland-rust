@@ -227,6 +227,14 @@ pub fn draw_ui(
                 crate::fishing_view::draw_fishing_hint(ctx);
             }
             crate::fishing_view::draw_fishing_bar(ctx, play.water.fishing.machine());
+            if let Some(siege) = play.siege.as_ref() {
+                crate::siege_view::draw_base_alert(ctx, siege.alert_fraction());
+            }
+            if !super::frame_siege::menu_open(ui) && !on_main
+                && let Some((name, fraction)) = super::frame_siege::aimed_damaged_part(&play.build_mode.base, &play.build_mode.config, &render.camera)
+            {
+                crate::siege_view::draw_part_health(ctx, &name, fraction);
+            }
         }
         super::minimap::draw_minimap_hud(ctx, world, actors, play_state, ui);
         if let (Some(t), false) = (&play.hint_text, c.is_dead()) {

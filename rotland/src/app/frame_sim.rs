@@ -408,6 +408,17 @@ pub fn update_sim(
             cars.apply_zombie_damage(&zombie_attackers, dt);
         }
 
+        // Base siege: zombies chasing the player hit the player's walls (R22-N4)
+        super::frame_siege::update_siege(
+            dt,
+            render.pack.as_ref(),
+            play,
+            &mut world.physics,
+            Some(&*z),
+            actors.player,
+            alive,
+        );
+
         // The dog follows, barks and bites zombies and animals (Godot Dog / DogCombat)
         // Buildings near the player go on the map (Godot MapBuilding / WorldMap)
         if let (Some(st), Some(play_state), Some(g)) = (
