@@ -107,6 +107,8 @@ pub struct ItemDef {
     pub weapon_id: String,
     /// For ammo items: the ammo type, e.g. "pistol".
     pub ammo_type: String,
+    /// A tool held in hand like a weapon
+    pub holdable: bool,
 }
 
 impl Default for ItemDef {
@@ -124,6 +126,7 @@ impl Default for ItemDef {
             effects: ItemEffects::default(),
             weapon_id: String::new(),
             ammo_type: String::new(),
+            holdable: false,
         }
     }
 }

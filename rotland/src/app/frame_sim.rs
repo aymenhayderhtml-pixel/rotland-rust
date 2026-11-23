@@ -523,7 +523,7 @@ pub fn update_sim(
         let p_pos2 = glam::Vec2::new(p.position.x, p.position.z);
         let zone = lake.zone_at(p_pos2);
         let on_dock = game::swimming::is_on_dock(lake, p_pos2);
-        let swim_cfg = game::swimming::SwimmingConfig::default();
+        let swim_cfg = play.water.swim_cfg;
         let water_res = game::swimming::evaluate_water(
             p.position,
             zone,
@@ -534,15 +534,8 @@ pub fn update_sim(
             dt,
         );
         p.apply_water_movement(&water_res);
-
-        if water_res.disarm_weapons {
-            if let Some(c) = actors.combat.as_mut() {
-                c.set_weapon(None);
-            }
-            if let Some(pv) = actors.player_visual.as_mut() {
-                pv.animator.set_weapon(None);
-            }
-        }
+        // Hands are stowed by frame_water (update_water_play) from this flag
+        play.water.in_deep = water_res.disarm_weapons;
 
         if water_res.drowning_damage > 0.0 && alive
             && let Some(c) = actors.combat.as_mut()
@@ -562,5 +555,7 @@ pub fn update_sim(
                 a.event("playerHurt", None);
             }
         }
+    } else {
+        play.water.in_deep = false;
     }
 }

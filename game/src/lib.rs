@@ -45,6 +45,7 @@ pub mod skills;
 pub mod spawner;
 pub mod spawner_config;
 pub mod survival;
+pub mod swim_hands;
 pub mod swimming;
 pub mod trees;
 pub mod weapons;
@@ -69,7 +70,11 @@ pub use director::*;
 pub use dogs::*;
 pub use economy::*;
 pub use farming::*;
-pub use fishing::{can_fish_at, FishingConfig, FishingMachine, FishingPhase};
+pub use fishing::{
+    can_fish_at, FishingConfig, FishingEvent, FishingInput, FishingMachine, FishingPhase,
+    FishingSession,
+};
+pub use swim_hands::{SwimHands, SwimHandsChange};
 pub use health::{DamageResult, Health, HealthEvent, IgnoredReason};
 pub use hints::*;
 pub use horde::*;

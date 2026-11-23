@@ -36,7 +36,7 @@ pub fn weapon_hand_offset(hold_pos: Vec3, hold_rot_deg: Vec3) -> Mat4 {
 pub fn weapon_hold_for(weapon: &str) -> (Vec3, Vec3) {
     match weapon {
         "bat" | "axe" | "crowbar" | "katana" | "knife" | "pistol" | "shotgun" | "rifle"
-        | "ak47" | "smg" | "dagger" | "bow" => {
+        | "ak47" | "smg" | "dagger" | "bow" | "fishing_rod" => {
             // data: weapons.json knife
             (Vec3::ZERO, Vec3::new(90.0, 0.0, 0.0))
         }

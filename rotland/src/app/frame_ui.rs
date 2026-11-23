@@ -221,6 +221,13 @@ pub fn draw_ui(
         }
         ui.hud.populate_state(&mut state);
         hud::draw_hud(ctx, &state, &mut ui.icons);
+        if !c.is_dead() {
+            crate::swim_view::draw_water_warning(ctx, play.water.warning, play.water.stamina_fraction);
+            if play.water.fishing.machine().phase == game::FishingPhase::Idle && play.water.has_rod && play.water.can_fish {
+                crate::fishing_view::draw_fishing_hint(ctx);
+            }
+            crate::fishing_view::draw_fishing_bar(ctx, play.water.fishing.machine());
+        }
         super::minimap::draw_minimap_hud(ctx, world, actors, play_state, ui);
         if let (Some(t), false) = (&play.hint_text, c.is_dead()) {
             hud::hint::draw_hint(ctx, t);

@@ -41,6 +41,17 @@ pub fn apply_hand(
             render.flashlight_on = !render.flashlight_on;
             return;
         }
+        play::HandChange::Tool(id) => {
+            // A holdable tool (fishing rod) is shown in hand; it is not a melee or gun weapon
+            render.pending_weapon_model = Some(Some(id));
+            if let Some(play_state) = play.play.as_mut() {
+                play_state.gun = None;
+            }
+            if let Some(c) = actors.combat.as_mut() {
+                c.set_weapon(None);
+            }
+            return;
+        }
         play::HandChange::PlaceCampfire => {
             // Godot CampfirePlacer: 1.5 m in front on flat ground, away from other fires
             if let (Some(play_state), Some(p)) = (play.play.as_mut(), actors.player_ctrl.as_ref()) {

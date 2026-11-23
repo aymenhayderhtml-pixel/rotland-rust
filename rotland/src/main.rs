@@ -17,6 +17,7 @@ mod crates;
 mod display;
 mod dev_panel;
 mod dog_view;
+mod fishing_view;
 mod fp_weapon;
 mod hub_ui;
 mod hud;
@@ -30,6 +31,7 @@ mod poi_links;
 mod props;
 mod session;
 mod settings;
+mod swim_view;
 mod shooting;
 mod streaming;
 mod terrain;
@@ -95,6 +97,15 @@ impl Game for R0 {
                 &mut self.ui,
                 &mut self.session,
                 &mut self.audio.audio,
+            );
+            app::frame_water::update_water_play(
+                dt,
+                attack,
+                f64::from(self.session.time),
+                &mut self.render,
+                &mut self.play,
+                &mut self.actors,
+                &self.world,
             );
         } else {
             app::frame_actors::update_walk_or_free(

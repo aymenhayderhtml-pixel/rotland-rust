@@ -4,5 +4,6 @@
   "castWaitMax": 5.0,
   "biteDuration": 2.0,
   "sweetSpotMin": 0.35,
-  "sweetSpotMax": 0.65
+  "sweetSpotMax": 0.65,
+  "resultSeconds": 2.0
 }

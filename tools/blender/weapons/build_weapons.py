@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(HERE, ".."))
 WEAPONS = [
     "bat", "machete", "pistol", "knife", "axe", "shotgun", "rifle", "ak47", "smg", "crowbar", "katana",
     "bow", "arrow", "spear", "dagger", "hammer", "pipe", "fire_axe",
+    "fishing_rod",
 ]
 
 

@@ -85,6 +85,8 @@ pub enum HandChange {
     Health(f32),
     /// The campfire kit was used: place a fire in front (needs the ground, so main.rs does it).
     PlaceCampfire,
+    /// A holdable tool (such as the fishing rod) was taken out; the value is its model id.
+    Tool(String),
 }
 
 impl PlayState {
@@ -235,6 +237,13 @@ impl PlayState {
                     (Some(HandChange::ToggleFlashlight), None)
                 } else if id == "campfire_kit" {
                     (Some(HandChange::PlaceCampfire), None)
+                } else if self.items.get(&id).is_some_and(|d| d.holdable) {
+                    // A holdable tool (fishing rod) goes in hand instead of being used up
+                    if self.hotbar.toggle_equip_item(&id, &self.inventory, &self.items) {
+                        (Some(self.equipped_hand_change()), None)
+                    } else {
+                        (None, Some("Can't hold that".into()))
+                    }
                 } else {
                     let before = self.inventory.count(&id);
                     let change = self.use_item(&id);
@@ -245,8 +254,7 @@ impl PlayState {
             HubAction::EquipItem { slot } => {
                 let Some(id) = self.inventory.slot(*slot).map(|s| s.item_id.clone()) else { return (None, None) };
                 if self.hotbar.toggle_equip_item(&id, &self.inventory, &self.items) {
-                    let weapon = self.hotbar.equipped_item_id().and_then(|w| self.weapons.get(w)).cloned();
-                    (Some(HandChange::Weapon(weapon)), None)
+                    (Some(self.equipped_hand_change()), None)
                 } else {
                     (None, Some("Not a weapon".into()))
                 }
@@ -312,9 +320,12 @@ impl PlayState {
             .cloned()
     }
 
-    /// Hand change representing the current hotbar equipped weapon.
+    /// Hand change representing the current hotbar equipped item (a holdable tool or a weapon).
     pub fn equipped_hand_change(&self) -> HandChange {
-        HandChange::Weapon(self.equipped_weapon())
+        match self.hotbar.equipped_item_id() {
+            Some(id) if self.items.get(id).is_some_and(|d| d.holdable) => HandChange::Tool(id.to_string()),
+            _ => HandChange::Weapon(self.equipped_weapon()),
+        }
     }
 
     /// Hotbar keys 1-6: take out or put away the item in that slot.
@@ -325,6 +336,7 @@ impl PlayState {
 
     pub fn press(&mut self, key: usize) -> Option<HandChange> {
         match self.hotbar.press(key, &self.inventory, &self.items) {
+            HotbarAction::EquipWeapon { weapon_id, item_id } if weapon_id.is_empty() => Some(HandChange::Tool(item_id)),
             HotbarAction::EquipWeapon { weapon_id, .. } => Some(HandChange::Weapon(self.weapons.get(&weapon_id).cloned())),
             HotbarAction::UnequipWeapon { .. } => Some(HandChange::Weapon(None)),
             // Godot's ItemUse: using the flashlight item switches it on and off

@@ -195,6 +195,7 @@ pub struct PlaySide {
     pub hint_inventory_hash: u64,
     pub active_hint_id: Option<String>,
     pub build_mode: super::frame_input::build_mode::BuildModeState,
+    pub water: super::frame_water::WaterPlay,
 }
 
 impl Default for PlaySide {
@@ -213,6 +214,7 @@ impl Default for PlaySide {
             hint_inventory_hash: 0,
             active_hint_id: None,
             build_mode: super::frame_input::build_mode::BuildModeState::new(),
+            water: super::frame_water::WaterPlay::default(),
         }
     }
 }

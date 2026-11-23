@@ -1,5 +1,11 @@
 use serde::{Deserialize, Serialize};
+
 use super::config::FishingConfig;
+
+fn default_result_duration() -> f32 {
+    // data: fishing.json resultSeconds
+    2.0
+}
 
 /// Current phase of the fishing cycle.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -22,6 +28,8 @@ pub struct FishingMachine {
     pub sweet_spot_min: f32,
     pub sweet_spot_max: f32,
     pub result_timer: f32,
+    #[serde(default = "default_result_duration")]
+    pub result_duration: f32,
 }
 
 impl FishingMachine {
@@ -35,6 +43,7 @@ impl FishingMachine {
             sweet_spot_min: cfg.sweet_spot_min,
             sweet_spot_max: cfg.sweet_spot_max,
             result_timer: 0.0,
+            result_duration: cfg.result_seconds,
         }
     }
 
@@ -43,7 +52,7 @@ impl FishingMachine {
         if self.phase == FishingPhase::Idle {
             self.phase = FishingPhase::Waiting;
             self.wait_timer = 0.0;
-            self.wait_duration = wait_duration;
+            self.wait_duration = wait_duration.max(0.0);
             self.bite_timer = 0.0;
             self.result_timer = 0.0;
             true
@@ -58,6 +67,15 @@ impl FishingMachine {
             (self.bite_timer / self.bite_duration).clamp(0.0, 1.0)
         } else {
             0.0
+        }
+    }
+
+    /// Progress through the result display window in [0.0, 1.0].
+    pub fn result_progress(&self) -> f32 {
+        if self.result_duration > 0.0 {
+            (self.result_timer / self.result_duration).clamp(0.0, 1.0)
+        } else {
+            1.0
         }
     }
 
@@ -82,8 +100,9 @@ impl FishingMachine {
                 }
             }
             FishingPhase::Waiting => {
-                // Pulled too early before a bite
+                // Pulled too early before a bite: reel in with no penalty.
                 self.phase = FishingPhase::Idle;
+                self.wait_timer = 0.0;
                 false
             }
             _ => false,
@@ -98,8 +117,9 @@ impl FishingMachine {
         self.result_timer = 0.0;
     }
 
-    /// Updates fishing timers. Returns Some(FishingPhase) on transitions into Caught or Escaped.
+    /// Updates fishing timers. Returns Some(FishingPhase) on transitions into Bite or Escaped.
     pub fn update(&mut self, dt: f32) -> Option<FishingPhase> {
+        let dt = dt.max(0.0);
         match self.phase {
             FishingPhase::Idle => None,
             FishingPhase::Waiting => {
@@ -115,7 +135,7 @@ impl FishingMachine {
             FishingPhase::Bite => {
                 self.bite_timer += dt;
                 if self.bite_timer >= self.bite_duration {
-                    // Time ran out, fish got away
+                    // Time ran out, fish got away.
                     self.phase = FishingPhase::Escaped;
                     self.result_timer = 0.0;
                     Some(FishingPhase::Escaped)
@@ -125,8 +145,9 @@ impl FishingMachine {
             }
             FishingPhase::Caught | FishingPhase::Escaped => {
                 self.result_timer += dt;
-                if self.result_timer >= 2.0 {
+                if self.result_timer >= self.result_duration {
                     self.phase = FishingPhase::Idle;
+                    self.result_timer = 0.0;
                 }
                 None
             }

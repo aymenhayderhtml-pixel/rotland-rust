@@ -11,6 +11,7 @@ pub struct FishingConfig {
     pub bite_duration: f32,
     pub sweet_spot_min: f32,
     pub sweet_spot_max: f32,
+    pub result_seconds: f32,
 }
 
 impl Default for FishingConfig {
@@ -28,6 +29,8 @@ impl Default for FishingConfig {
             sweet_spot_min: 0.35,
             // data: fishing.json sweetSpotMax
             sweet_spot_max: 0.65,
+            // data: fishing.json resultSeconds
+            result_seconds: 2.0,
         }
     }
 }

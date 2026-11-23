@@ -356,7 +356,7 @@ pub fn start_world(
         let count = ring;
         z.spawn_ring("walker", actors.player, count, 15.0, 40.0, &world.physics);
     }
-    let has_weapon = play.play.as_ref().is_some_and(|p| p.gun.is_some())
+    let has_weapon = play.play.as_ref().is_some_and(|p| p.gun.is_some() || p.hotbar.equipped_item_id().is_some())
         || actors.combat.as_ref().is_some_and(|c| c.weapon_id().is_some());
     if !has_weapon
         && let Some(change) = play.play.as_mut().and_then(|p| p.equip_first())

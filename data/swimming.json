@@ -4,5 +4,6 @@
   "swimStaminaDrainPerSec": 8.0,
   "drowningDamagePerSec": 10.0,
   "chestHeight": 1.2,
-  "dirtyWaterCooldownSec": 2.0
+  "dirtyWaterCooldownSec": 2.0,
+  "tiredStaminaFraction": 0.3
 }

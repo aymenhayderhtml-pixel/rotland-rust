@@ -21,6 +21,7 @@ pub struct SwimmingConfig {
     pub drowning_damage_per_sec: f32,
     pub chest_height: f32,
     pub dirty_water_cooldown_sec: f32,
+    pub tired_stamina_fraction: f32,
 }
 
 impl Default for SwimmingConfig {
@@ -38,6 +39,8 @@ impl Default for SwimmingConfig {
             chest_height: 1.2,
             // data: swimming.json dirtyWaterCooldownSec
             dirty_water_cooldown_sec: 2.0,
+            // data: swimming.json tiredStaminaFraction
+            tired_stamina_fraction: 0.3,
         }
     }
 }
@@ -58,6 +61,42 @@ impl SwimmingConfig {
     }
 }
 
+/// Warning state shown when swimming in deep water with low or depleted stamina.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum WaterWarning {
+    None,
+    Tired,
+    Drowning,
+}
+
+/// Evaluates the swimming stamina warning for the current frame.
+///
+/// Only warns in deep water: [`WaterWarning::Drowning`] at 0 stamina,
+/// [`WaterWarning::Tired`] below `cfg.tired_stamina_fraction`, and
+/// [`WaterWarning::None`] otherwise.
+pub fn water_warning(
+    stamina_current: f32,
+    stamina_max: f32,
+    deep: bool,
+    cfg: &SwimmingConfig,
+) -> WaterWarning {
+    if !deep {
+        return WaterWarning::None;
+    }
+    if stamina_current <= 0.0 {
+        return WaterWarning::Drowning;
+    }
+    if stamina_max <= 0.0 {
+        return WaterWarning::None;
+    }
+    let fraction = (stamina_current / stamina_max).clamp(0.0, 1.0);
+    if fraction < cfg.tired_stamina_fraction {
+        WaterWarning::Tired
+    } else {
+        WaterWarning::None
+    }
+}
+
 /// Result of evaluating water physics on the player.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WaterMovementResult {
@@ -73,14 +112,18 @@ pub struct WaterMovementResult {
 
 /// Checks if a 2D position is on any dock in the lake.
 pub fn is_on_dock(lake: &LakeLayout, p: Vec2) -> bool {
-    let half_w = lake.config.docks.width * 0.5 + 0.5;
+    // new: DECISIONS 2026-11-23
+    let edge_pad = 0.5;
+    // new: DECISIONS 2026-11-23
+    let end_pad = 1.0;
+    let half_w = lake.config.docks.width * 0.5 + edge_pad;
     for dock in &lake.docks {
         let dir = dock.forward();
         let perp = Vec2::new(-dir.y, dir.x);
         let to_p = p - dock.start;
         let along = to_p.dot(dir);
         let across = to_p.dot(perp).abs();
-        if along >= -1.0 && along <= dock.length() + 1.0 && across <= half_w {
+        if along >= -end_pad && along <= dock.length() + end_pad && across <= half_w {
             return true;
         }
     }
