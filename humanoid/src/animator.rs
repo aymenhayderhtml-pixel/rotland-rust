@@ -10,6 +10,7 @@ use glam::{Mat4, Vec3};
 use pack::{Clip, Skeleton};
 
 use crate::action::ActionState;
+use crate::aim::{AimController, AimJoints};
 use crate::anim_config::AnimConfig;
 use crate::blend::{
     lod_interval, sample_locomotion_into, tempo_for, Locomotion, LocomotionClips, RUN_BLEND,
@@ -40,6 +41,8 @@ pub struct HumanoidAnimator {
     two_handed: bool,
     off_hand_grip: Option<Vec3>,
     stance: StanceController,
+    aim: AimController,
+    aim_joints: AimJoints,
     blend_pos: f32,
     tempo_scale: f32,
     time_idle: f32,
@@ -67,6 +70,7 @@ impl HumanoidAnimator {
         let n = skeleton.joints.len();
         let joint_names: Vec<&str> = skeleton.joints.iter().map(|j| j.name.as_str()).collect();
         let masks = BoneMasks::new(&joint_names);
+        let aim_joints = AimJoints::from_names(&joint_names);
         let parents: Vec<Option<usize>> = skeleton
             .joints
             .iter()
@@ -91,6 +95,8 @@ impl HumanoidAnimator {
             two_handed: false,
             off_hand_grip: None,
             stance: StanceController::new(),
+            aim: AimController::new(),
+            aim_joints,
             blend_pos: 0.0,
             tempo_scale: 1.0, // new: DECISIONS 2026-11-23
             time_idle: 0.0,
@@ -110,20 +116,31 @@ impl HumanoidAnimator {
 
     /// Sets the equipped weapon model name (e.g. "bat", "knife", "pistol").
     pub fn set_weapon(&mut self, weapon: Option<&str>) {
+        let weapon_changed = self.weapon_name.as_deref() != weapon;
         let had_stance_aim = self.stance.aim_clip().is_some();
+        let mut aim_class = None;
         if let Some(name) = weapon {
-            if self.weapon_name.as_deref() != Some(name) {
+            if weapon_changed {
                 self.weapon_name = Some(name.to_string());
             }
             self.two_handed = crate::weapon::is_two_handed(name);
             self.off_hand_grip = crate::weapon::off_hand_grip_for(name);
             let def = StanceTable::load_shared().for_weapon(name);
+            aim_class = def.map(|d| d.class);
             self.stance.set_weapon(def);
         } else {
             self.weapon_name = None;
             self.two_handed = false;
             self.off_hand_grip = None;
             self.stance.set_weapon(None);
+        }
+        if weapon_changed {
+            if self.aim.is_reloading() {
+                self.action = None;
+                self.layers.get_mut(LayerId::Action).weight = 0.0;
+                self.layers.set_clip(LayerId::Action, None);
+            }
+            self.aim.set_class(aim_class);
         }
 
         let next_ready = self.stance.ready_clip();
@@ -150,6 +167,30 @@ impl HumanoidAnimator {
     pub fn set_aiming(&mut self, aiming: bool) {
         self.stance.set_aiming(aiming);
         self.dirty = true;
+    }
+
+    /// Sets camera look pitch in radians (positive looks up).
+    pub fn set_look_pitch(&mut self, radians: f32) {
+        self.aim.set_look_pitch(radians);
+        self.dirty = true;
+    }
+
+    /// Triggers weapon recoil kick for a fired shot.
+    pub fn on_gun_fired(&mut self) {
+        self.aim.fire();
+        self.dirty = true;
+    }
+
+    /// Starts the active weapon class's reload clip scaled to last `seconds`.
+    pub fn on_reload_started(&mut self, seconds: f32) {
+        let clips = &self.clips;
+        let started = self
+            .aim
+            .start_reload(seconds, |name| clips.get(name).map(|c| c.duration))
+            .map(|(clip, speed)| (clip.to_owned(), speed));
+        if let Some((clip, speed)) = started {
+            self.play_action(&clip, speed);
+        }
     }
 
     /// Returns the blended weapon hold transform when a stance is active, or `None` for legacy hold.
@@ -205,6 +246,7 @@ impl HumanoidAnimator {
         self.layers.advance(step);
         self.time_idle += step;
 
+        self.aim.tick(step);
         self.advance_action(step);
         self.advance_stance(step);
         self.advance_full_body(step);
@@ -456,6 +498,8 @@ impl HumanoidAnimator {
         self.apply_action_stage(rig);
         // 7. Additive layer
         self.apply_layer(rig, LayerId::Additive);
+        // 7b. Aim pitch and recoil (before left-hand IK so off-hand follows the gun)
+        self.aim.apply(&self.aim_joints, self.pool.get_mut(0), self.stance.aim_weight());
         // 8. Left-hand IK
         self.apply_ik_stage(rig);
         // 9. Full-body override (including death fade)
@@ -528,7 +572,11 @@ impl HumanoidAnimator {
             return;
         }
 
-        let ik_weight = self.stance.left_ik_weight();
+        let ik_weight = if self.aim.is_reloading() {
+            0.0 // new: DECISIONS 2026-11-23
+        } else {
+            self.stance.left_ik_weight()
+        };
         if ik_weight > LAYER_EPSILON
             && let Some(grip_offset) = self.stance.off_hand_grip()
         {
@@ -563,7 +611,11 @@ impl HumanoidAnimator {
         }
 
         let aim_amount = self.layers.get(LayerId::Aim).weight;
-        if self.two_handed && aim_amount > LAYER_EPSILON {
+        if self.two_handed
+            && !self.aim.is_reloading()
+            && self.stance.off_hand_grip().is_none()
+            && aim_amount > LAYER_EPSILON
+        {
             let grip_offset = self.off_hand_grip.unwrap_or(DEFAULT_OFF_HAND_GRIP);
             let wname = self.weapon_name.as_deref().unwrap_or("bat");
             let (hold_pos, hold_rot) = crate::weapon::weapon_hold_for(wname);

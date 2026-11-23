@@ -16,6 +16,7 @@ Bone entries can be:
   (for the hips: local X = world X, local Y = world up, local Z = world -Y)
 """
 from poses_actions import CLIPS as _ACTIONS
+from poses_aim import CLIPS as _AIM
 from poses_camp import CLIPS as _CAMP
 from poses_combat import CLIPS as _COMBAT
 from poses_combat import PLAYER_ONLY_CLIPS as _PLAYER_ONLY
@@ -25,6 +26,6 @@ from poses_stance import CLIPS as _STANCE
 from poses_zombie import CLIPS as _ZOMBIE
 
 CLIPS = {**_LOCOMOTION, **_ACTIONS, **_COMBAT, **_ZOMBIE, **_CAMP}
-# Clips only the player gets (V12-04 gun clips + A02 weapon stances). Looked up through ALL_CLIPS, never CLIPS alone.
-PLAYER_ONLY_CLIPS = {**_PLAYER_ONLY, **_STANCE}
+# Clips only the player gets (V12-04 gun clips + A02 weapon stances + A03 aim/reload). Looked up through ALL_CLIPS, never CLIPS alone.
+PLAYER_ONLY_CLIPS = {**_PLAYER_ONLY, **_STANCE, **_AIM}
 ALL_CLIPS = {**CLIPS, **PLAYER_ONLY_CLIPS}

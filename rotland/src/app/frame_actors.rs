@@ -459,7 +459,7 @@ pub fn update_actors(
         // A gun's aim zoom (the rifle scope zooms much further, CameraRig/GunHandler); moot while driving
         let aiming = !driving && ui.cursor_captured && input.mouse_held(MouseButton::Right);
         ui.right_held = aiming;
-        if let Some(pv) = actors.player_visual.as_mut() { pv.animator.set_aiming(aiming); }
+        if let Some(pv) = actors.player_visual.as_mut() { pv.animator.set_aiming(aiming); pv.animator.set_look_pitch(rig.pitch); }
         if let (true, Some(gun)) = (aiming, play.play.as_ref().and_then(|pl| pl.gun.as_ref()))
             && let Some(fov) = shooting::aim_fov(gun, rig.is_first_person)
         {

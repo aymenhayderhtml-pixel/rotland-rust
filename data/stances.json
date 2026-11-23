@@ -6,7 +6,7 @@
   "classes": {
     "pistol": {
       "readyClip": "stance_pistol_ready",
-      "aimClip": "pistol_aim",
+      "aimClip": "aim_pistol_two_hand",
       "leftHandGrip": false,
       "gripWhenAiming": false,
       "readyHold": {
@@ -36,7 +36,7 @@
     },
     "rifle": {
       "readyClip": "stance_rifle_ready",
-      "aimClip": "rifle_aim",
+      "aimClip": "aim_rifle_shoulder",
       "leftHandGrip": true,
       "gripWhenAiming": true,
       "readyHold": {
@@ -58,15 +58,15 @@
           0.0
         ],
         "rot": [
-          0.0,
-          0.0,
-          0.0
+          26,
+          0,
+          0
         ]
       }
     },
     "shotgun": {
       "readyClip": "stance_shotgun_ready",
-      "aimClip": "rifle_aim",
+      "aimClip": "aim_shotgun_shoulder",
       "leftHandGrip": true,
       "gripWhenAiming": true,
       "readyHold": {
@@ -88,9 +88,9 @@
           0.0
         ],
         "rot": [
-          0.0,
-          0.0,
-          0.0
+          24,
+          0,
+          0
         ]
       }
     },
@@ -183,7 +183,7 @@
     },
     "bow": {
       "readyClip": "stance_bow_ready",
-      "aimClip": "rifle_aim",
+      "aimClip": "aim_bow_draw",
       "leftHandGrip": false,
       "gripWhenAiming": true,
       "readyHold": {

@@ -110,3 +110,307 @@ Compact with a hand-made skeleton: `data/aim.json` parses; every gun class in it
 Every new number in Rust code needs a source tag on its line (`// data: aim.json key` or `// new: DECISIONS 2026-11-23`).
 
 ## Worker notes
+
+## Neon notes
+
+Sign convention used for pitch & recoil
+
+  - PITCH_SIGN = 1.0 in humanoid/src/aim.rs, applying
+    Quat::from_rotation_x(PITCH_SIGN * angle) * local[idx].1.
+  - In right-handed Y-up model space (+X right, +Y up, -Z forward), a positive
+    rotation around +X pitches forward (-Z) upward toward +Y and tilts upright
+    spine/chest (+Y) backward toward +Z (matching stances.json where
+    readyHold.rot = [-35, 0, 0] pitches the barrel down and poses_stance.py
+    where inhaling increases chest X from -4 to -3). Recoil translation adds
+    +kick_back to chest local .z (+Z = backward). If visual inspection in-game
+    shows any inverted joint X axis on human_player.glb, flipping PITCH_SIGN to
+    -1.0 reverses it in one place.
+
+Exact edits to apply
+
+1. tools/blender/characters/poses.py
+
+Find:
+
+from poses_actions import CLIPS as _ACTIONS
+from poses_camp import CLIPS as _CAMP
+
+Replace with:
+
+from poses_actions import CLIPS as _ACTIONS
+from poses_aim import CLIPS as _AIM
+from poses_camp import CLIPS as _CAMP
+
+Find:
+
+# Clips only the player gets (V12-04 gun clips + A02 weapon stances). Looked up through ALL_CLIPS, never CLIPS alone.
+PLAYER_ONLY_CLIPS = {**_PLAYER_ONLY, **_STANCE}
+
+Replace with:
+
+# Clips only the player gets (V12-04 gun clips + A02 weapon stances + A03 aim/reload). Looked up through ALL_CLIPS, never CLIPS alone.
+PLAYER_ONLY_CLIPS = {**_PLAYER_ONLY, **_STANCE, **_AIM}
+
+2. humanoid/src/lib.rs
+
+(Note: humanoid/src/lib.rs was not included in the Read pack; insert these
+alongside pub mod stance;, #[cfg(test)] mod stance_tests;, and pub use
+stance::....)
+
+Add module declarations:
+
+pub mod aim;
+#[cfg(test)]
+mod aim_tests;
+
+Add public exports:
+
+pub use aim::{AimClassConfig, AimConfig, AimController, AimJoints, PitchBones};
+
+3. humanoid/src/animator.rs
+
+Find:
+
+use crate::action::ActionState;
+use crate::anim_config::AnimConfig;
+
+Replace with:
+
+use crate::action::ActionState;
+use crate::aim::{AimController, AimJoints};
+use crate::anim_config::AnimConfig;
+
+Find:
+
+    off_hand_grip: Option<Vec3>,
+    stance: StanceController,
+    blend_pos: f32,
+
+Replace with:
+
+    off_hand_grip: Option<Vec3>,
+    stance: StanceController,
+    aim: AimController,
+    aim_joints: AimJoints,
+    blend_pos: f32,
+
+Find:
+
+        let joint_names: Vec<&str> = skeleton.joints.iter().map(|j| j.name.as_str()).collect();
+        let masks = BoneMasks::new(&joint_names);
+
+Replace with:
+
+        let joint_names: Vec<&str> = skeleton.joints.iter().map(|j| j.name.as_str()).collect();
+        let masks = BoneMasks::new(&joint_names);
+        let aim_joints = AimJoints::from_names(&joint_names);
+
+Find:
+
+            off_hand_grip: None,
+            stance: StanceController::new(),
+            blend_pos: 0.0,
+
+Replace with:
+
+            off_hand_grip: None,
+            stance: StanceController::new(),
+            aim: AimController::new(),
+            aim_joints,
+            blend_pos: 0.0,
+
+Find:
+
+    /// Sets the equipped weapon model name (e.g. "bat", "knife", "pistol").
+    pub fn set_weapon(&mut self, weapon: Option<&str>) {
+        let had_stance_aim = self.stance.aim_clip().is_some();
+        if let Some(name) = weapon {
+            if self.weapon_name.as_deref() != Some(name) {
+                self.weapon_name = Some(name.to_string());
+            }
+            self.two_handed = crate::weapon::is_two_handed(name);
+            self.off_hand_grip = crate::weapon::off_hand_grip_for(name);
+            let def = StanceTable::load_shared().for_weapon(name);
+            self.stance.set_weapon(def);
+        } else {
+            self.weapon_name = None;
+            self.two_handed = false;
+            self.off_hand_grip = None;
+            self.stance.set_weapon(None);
+        }
+
+Replace with:
+
+    /// Sets the equipped weapon model name (e.g. "bat", "knife", "pistol").
+    pub fn set_weapon(&mut self, weapon: Option<&str>) {
+        let weapon_changed = self.weapon_name.as_deref() != weapon;
+        let had_stance_aim = self.stance.aim_clip().is_some();
+        let mut aim_class = None;
+        if let Some(name) = weapon {
+            if weapon_changed {
+                self.weapon_name = Some(name.to_string());
+            }
+            self.two_handed = crate::weapon::is_two_handed(name);
+            self.off_hand_grip = crate::weapon::off_hand_grip_for(name);
+            let def = StanceTable::load_shared().for_weapon(name);
+            aim_class = def.map(|d| d.class);
+            self.stance.set_weapon(def);
+        } else {
+            self.weapon_name = None;
+            self.two_handed = false;
+            self.off_hand_grip = None;
+            self.stance.set_weapon(None);
+        }
+        if weapon_changed {
+            if self.aim.is_reloading() {
+                self.action = None;
+                self.layers.get_mut(LayerId::Action).weight = 0.0;
+                self.layers.set_clip(LayerId::Action, None);
+            }
+            self.aim.set_class(aim_class);
+        }
+
+Find:
+
+    /// Sets whether the character is aiming the currently equipped weapon.
+    pub fn set_aiming(&mut self, aiming: bool) {
+        self.stance.set_aiming(aiming);
+        self.dirty = true;
+    }
+
+Replace with:
+
+    /// Sets whether the character is aiming the currently equipped weapon.
+    pub fn set_aiming(&mut self, aiming: bool) {
+        self.stance.set_aiming(aiming);
+        self.dirty = true;
+    }
+
+    /// Sets camera look pitch in radians (positive looks up).
+    pub fn set_look_pitch(&mut self, radians: f32) {
+        self.aim.set_look_pitch(radians);
+        self.dirty = true;
+    }
+
+    /// Triggers weapon recoil kick for a fired shot.
+    pub fn on_gun_fired(&mut self) {
+        self.aim.fire();
+        self.dirty = true;
+    }
+
+    /// Starts the active weapon class's reload clip scaled to last `seconds`.
+    pub fn on_reload_started(&mut self, seconds: f32) {
+        let clips = &self.clips;
+        let started = self
+            .aim
+            .start_reload(seconds, |name| clips.get(name).map(|c| c.duration))
+            .map(|(clip, speed)| (clip.to_owned(), speed));
+        if let Some((clip, speed)) = started {
+            self.play_action(&clip, speed);
+        }
+    }
+
+Find:
+
+        self.advance_action(step);
+        self.advance_stance(step);
+        self.advance_full_body(step);
+
+Replace with:
+
+        self.aim.tick(step);
+        self.advance_action(step);
+        self.advance_stance(step);
+        self.advance_full_body(step);
+
+Find:
+
+        // 7. Additive layer
+        self.apply_layer(rig, LayerId::Additive);
+        // 8. Left-hand IK
+        self.apply_ik_stage(rig);
+
+Replace with:
+
+        // 7. Additive layer
+        self.apply_layer(rig, LayerId::Additive);
+        // 7b. Aim pitch and recoil (before left-hand IK so off-hand follows the gun)
+        self.aim.apply(&self.aim_joints, self.pool.get_mut(0), self.stance.aim_weight());
+        // 8. Left-hand IK
+        self.apply_ik_stage(rig);
+
+Find:
+
+        let ik_weight = self.stance.left_ik_weight();
+        if ik_weight > LAYER_EPSILON
+            && let Some(grip_offset) = self.stance.off_hand_grip()
+
+Replace with:
+
+        let ik_weight = if self.aim.is_reloading() {
+            0.0 // new: DECISIONS 2026-11-23
+        } else {
+            self.stance.left_ik_weight()
+        };
+        if ik_weight > LAYER_EPSILON
+            && let Some(grip_offset) = self.stance.off_hand_grip()
+
+Find:
+
+        let aim_amount = self.layers.get(LayerId::Aim).weight;
+        if self.two_handed && aim_amount > LAYER_EPSILON {
+
+Replace with:
+
+        let aim_amount = self.layers.get(LayerId::Aim).weight;
+        if self.two_handed
+            && !self.aim.is_reloading()
+            && self.stance.off_hand_grip().is_none()
+            && aim_amount > LAYER_EPSILON
+        {
+
+4. rotland/src/app/frame_actors.rs
+
+Find:
+
+        if let Some(pv) = actors.player_visual.as_mut() { pv.animator.set_aiming(aiming); }
+
+Replace with:
+
+        if let Some(pv) = actors.player_visual.as_mut() { pv.animator.set_aiming(aiming); pv.animator.set_look_pitch(rig.pitch); }
+
+5. rotland/src/app/frame_world.rs
+
+Find:
+
+            c.shots += ev.shots_fired;
+
+Replace with:
+
+            c.shots += ev.shots_fired;
+            if let Some(pv) = actors.player_visual.as_mut() {
+                for _ in 0..ev.shots_fired { pv.animator.on_gun_fired(); }
+                if ev.reload_started
+                    && let Some(gun) = play_state.gun.as_ref()
+                {
+                    pv.animator.on_reload_started(gun.reload_time);
+                }
+            }
+
+Follow-up steps for caller
+
+  - Re-export assets/models/characters/human_player.glb via the Blender
+    character build script so the 7 new clips from poses_aim.py are baked into
+    the GLB.
+  - Run cargo test -p humanoid and cargo clippy --all-targets -- -D warnings.
+    === END ===
+
+## Gate report
+- date: 2026-11-23
+- base: main
+- files changed (27): assets/models/buildings/settlement.glb, assets/models/characters/human_player.glb, assets/models/_previews/car_hatchback_blue.png, assets/models/_previews/car_hatchback_blue_rear.png, assets/models/_previews/car_hatchback_blue_side.png, assets/models/_previews/car_hatchback_olive.png, assets/models/_previews/car_hatchback_olive_rear.png, assets/models/_previews/car_hatchback_olive_side.png, assets/models/_previews/car_hatchback_red.png, assets/models/_previews/car_hatchback_red_rear.png, assets/models/_previews/car_hatchback_red_side.png, assets/models/vehicles/car_hatchback_blue.glb, assets/models/vehicles/car_hatchback_olive.glb, assets/models/vehicles/car_hatchback_red.glb, data/aim.json, data/stances.json, humanoid/src/aim.rs, humanoid/src/aim_tests.rs, humanoid/src/animator.rs, humanoid/src/lib.rs, rotland/src/app/frame_actors.rs, rotland/src/app/frame_world.rs, tasks/A03-aim-shoot.md, tools/blender/buildings/settlement.py, tools/blender/characters/poses_aim.py, tools/blender/characters/poses.py, tools/blender/vehicles/car_parts.py
+- tests passed: 599
+- clippy: PASS
+- test: FAIL
+- checks: SKIP
+- gate: FAIL (test)

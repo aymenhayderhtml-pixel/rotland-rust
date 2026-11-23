@@ -105,6 +105,14 @@ pub fn update_world_interactions(
         {
             c.kills += ev.kills;
             c.shots += ev.shots_fired;
+            if let Some(pv) = actors.player_visual.as_mut() {
+                for _ in 0..ev.shots_fired { pv.animator.on_gun_fired(); }
+                if ev.reload_started
+                    && let Some(gun) = play_state.gun.as_ref()
+                {
+                    pv.animator.on_reload_started(gun.reload_time);
+                }
+            }
             if ev.shots_fired > 0 {
                 actors.fp_sway.trigger_shot();
             }

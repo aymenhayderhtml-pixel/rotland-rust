@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "maxPitchUpDeg": 55,
+  "maxPitchDownDeg": 50,
+  "pitchBones": { "spine": 0.2, "chest": 0.35, "neck": 0.2, "head": 0.25 },
+  "carryPitchFraction": 0.25,
+  "pitchRate": 18.0,
+  "classes": {
+    "pistol": { "kickDeg": 7, "kickBack": 0.018, "stiffness": 170, "damping": 20, "reloadClip": "reload_pistol" },
+    "rifle":  { "kickDeg": 4, "kickBack": 0.025, "stiffness": 190, "damping": 22, "reloadClip": "reload_rifle" },
+    "shotgun":{ "kickDeg": 13, "kickBack": 0.05, "stiffness": 120, "damping": 15, "reloadClip": "reload_shotgun" },
+    "bow":    { "kickDeg": 1.5, "kickBack": 0.005, "stiffness": 150, "damping": 20 }
+  },
+  "maxKickDeg": 22
+}

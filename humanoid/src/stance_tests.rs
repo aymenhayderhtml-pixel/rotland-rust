@@ -37,7 +37,7 @@ fn real_stances_json_parses_and_matches_defaults() {
     let rifle = table.for_weapon("rifle").expect("rifle stance");
     assert_eq!(rifle.class, StanceClass::Rifle);
     assert_eq!(rifle.off_hand_grip, off_hand_grip_for("rifle"));
-    assert_eq!(rifle.aim_clip.as_deref(), Some("rifle_aim"));
+    assert_eq!(rifle.aim_clip.as_deref(), Some("aim_rifle_shoulder"));
 }
 
 #[test]
@@ -189,7 +189,7 @@ fn weapon_swap_resets_aim_and_clears_old_clips() {
     assert_eq!(ctrl.aim_weight(), 0.0); // new: DECISIONS 2026-11-23
     assert_eq!(ctrl.left_ik_weight(), 0.0); // new: DECISIONS 2026-11-23
     assert_eq!(ctrl.ready_clip(), Some("stance_pistol_ready"));
-    assert_eq!(ctrl.aim_clip(), Some("pistol_aim"));
+    assert_eq!(ctrl.aim_clip(), Some("aim_pistol_two_hand"));
 
     // Swapping to melee removes any aim clip.
     ctrl.set_weapon(table.for_weapon("bat"));
@@ -230,7 +230,7 @@ fn overrides_replace_only_specified_fields() {
         "classes": {
             "rifle": {
                 "readyClip": "stance_rifle_ready",
-                "aimClip": "rifle_aim",
+                "aimClip": "aim_rifle_shoulder",
                 "leftHandGrip": true,
                 "gripWhenAiming": true,
                 "readyHold": { "pos": [1.0, 2.0, 3.0], "rot": [90.0, 0.0, 0.0] },

@@ -63,6 +63,9 @@ impl Game for HumanoidView {
         let mut visual = PlayerVisual::load(&gpu.device, &pack, "human_player", held);
         visual.animator.set_weapon(held);
         visual.animator.set_aiming(args.flag("--aim"));
+        if let Some(deg) = args.value("--pitch").and_then(|v| v.parse::<f32>().ok()) {
+            visual.animator.set_look_pitch(deg.to_radians());
+        }
         self.visual = Some(visual);
         self.fixed_speed = args.value("--speed").and_then(|v| v.parse().ok());
         let angle = args.value("--cam-angle").and_then(|v| v.parse::<f32>().ok()).unwrap_or(0.0).to_radians();

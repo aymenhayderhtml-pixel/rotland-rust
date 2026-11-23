@@ -4,6 +4,9 @@
 //! and matrix attachment calculations for weapons held in the right hand.
 
 pub mod action;
+pub mod aim;
+#[cfg(test)]
+mod aim_tests;
 pub mod anim_config;
 pub mod animator;
 pub mod blend;
@@ -20,6 +23,7 @@ pub mod swing;
 pub mod weapon;
 
 pub use action::ActionState;
+pub use aim::{AimClassConfig, AimConfig, AimController, AimJoints, PitchBones};
 pub use anim_config::{AnimConfig, ClipEventDef};
 pub use animator::HumanoidAnimator;
 pub use blend::{
