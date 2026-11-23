@@ -21,9 +21,10 @@ from poses_combat import CLIPS as _COMBAT
 from poses_combat import PLAYER_ONLY_CLIPS as _PLAYER_ONLY
 from poses_locomotion import CLIPS as _LOCOMOTION
 from poses_shared import ARM_DOWN_OFFSET  # noqa: F401  (re-exported for build_characters)
+from poses_stance import CLIPS as _STANCE
 from poses_zombie import CLIPS as _ZOMBIE
 
 CLIPS = {**_LOCOMOTION, **_ACTIONS, **_COMBAT, **_ZOMBIE, **_CAMP}
-# Clips only the player gets (V12-04 gun clips). Looked up through ALL_CLIPS, never CLIPS alone.
-PLAYER_ONLY_CLIPS = dict(_PLAYER_ONLY)
+# Clips only the player gets (V12-04 gun clips + A02 weapon stances). Looked up through ALL_CLIPS, never CLIPS alone.
+PLAYER_ONLY_CLIPS = {**_PLAYER_ONLY, **_STANCE}
 ALL_CLIPS = {**CLIPS, **PLAYER_ONLY_CLIPS}

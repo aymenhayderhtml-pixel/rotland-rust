@@ -13,6 +13,9 @@ pub mod ik;
 pub mod layers;
 pub mod mask;
 pub mod pose_buffer;
+pub mod stance;
+#[cfg(test)]
+mod stance_tests;
 pub mod swing;
 pub mod weapon;
 
@@ -29,6 +32,7 @@ pub use ik::{apply_two_hand_left_grip_ik, solve_two_bone_ik, LEFT_ELBOW_POLE};
 pub use layers::{AnimLayer, LayerBlend, LayerId, LayerStack};
 pub use mask::{BoneMasks, MaskId};
 pub use pose_buffer::{add_pose_masked, blend_pose_masked, LocalTransform, PosePool};
+pub use stance::{HoldTransform, StanceClass, StanceController, StanceDef, StanceTable};
 pub use swing::{
     apply_two_hand_swing_pose, evaluate_two_hand_swing, swing_head_roll_deg, swing_spine_pitch_deg,
     swing_spine_yaw_deg, SwingPose,

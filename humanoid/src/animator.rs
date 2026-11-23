@@ -17,8 +17,9 @@ use crate::blend::{
 use crate::clip_events::{ClipEvent, ClipEventTable, EventQueue, EventSpan};
 use crate::full_body::{FullBodyOptions, FullBodyState};
 use crate::layers::{LayerBlend, LayerId, LayerStack};
-use crate::mask::BoneMasks;
+use crate::mask::{BoneMasks, MaskId};
 use crate::pose_buffer::{add_pose_masked, blend_pose_masked, PosePool};
+use crate::stance::{HoldTransform, StanceController, StanceTable};
 
 const POSE_POOL_BUFFERS: usize = 3; // new: DECISIONS 2026-11-23
 const LAYER_EPSILON: f32 = 0.001; // godot: HumanoidAnimTree.cs:210
@@ -38,6 +39,7 @@ pub struct HumanoidAnimator {
     weapon_name: Option<String>,
     two_handed: bool,
     off_hand_grip: Option<Vec3>,
+    stance: StanceController,
     blend_pos: f32,
     tempo_scale: f32,
     time_idle: f32,
@@ -88,6 +90,7 @@ impl HumanoidAnimator {
             weapon_name: None,
             two_handed: false,
             off_hand_grip: None,
+            stance: StanceController::new(),
             blend_pos: 0.0,
             tempo_scale: 1.0, // new: DECISIONS 2026-11-23
             time_idle: 0.0,
@@ -107,18 +110,51 @@ impl HumanoidAnimator {
 
     /// Sets the equipped weapon model name (e.g. "bat", "knife", "pistol").
     pub fn set_weapon(&mut self, weapon: Option<&str>) {
+        let had_stance_aim = self.stance.aim_clip().is_some();
         if let Some(name) = weapon {
             if self.weapon_name.as_deref() != Some(name) {
                 self.weapon_name = Some(name.to_string());
             }
             self.two_handed = crate::weapon::is_two_handed(name);
             self.off_hand_grip = crate::weapon::off_hand_grip_for(name);
+            let def = StanceTable::load_shared().for_weapon(name);
+            self.stance.set_weapon(def);
         } else {
             self.weapon_name = None;
             self.two_handed = false;
             self.off_hand_grip = None;
+            self.stance.set_weapon(None);
+        }
+
+        let next_ready = self.stance.ready_clip();
+        let ready_changed = self.layers.get(LayerId::Stance).clip.as_deref() != next_ready;
+        self.layers.set_clip(LayerId::Stance, next_ready);
+        let st = self.layers.get_mut(LayerId::Stance);
+        st.mask = MaskId::Upper;
+        st.weight = self.stance.ready_weight();
+        st.target = st.weight;
+        if ready_changed {
+            st.time = 0.0; // new: DECISIONS 2026-11-23
+        }
+        if had_stance_aim || self.stance.aim_clip().is_some() {
+            self.layers.set_clip(LayerId::Aim, self.stance.aim_clip());
+            let aim = self.layers.get_mut(LayerId::Aim);
+            aim.mask = MaskId::Upper;
+            aim.weight = self.stance.aim_weight();
+            aim.target = aim.weight;
         }
         self.dirty = true;
+    }
+
+    /// Sets whether the character is aiming the currently equipped weapon.
+    pub fn set_aiming(&mut self, aiming: bool) {
+        self.stance.set_aiming(aiming);
+        self.dirty = true;
+    }
+
+    /// Returns the blended weapon hold transform when a stance is active, or `None` for legacy hold.
+    pub fn weapon_hold(&self) -> Option<HoldTransform> {
+        self.stance.ready_clip().map(|_| self.stance.hold())
     }
 
     /// Explicitly sets two-handed mode and off-hand grip offset.
@@ -170,6 +206,7 @@ impl HumanoidAnimator {
         self.time_idle += step;
 
         self.advance_action(step);
+        self.advance_stance(step);
         self.advance_full_body(step);
     }
 
@@ -329,6 +366,28 @@ impl HumanoidAnimator {
         }
     }
 
+    fn advance_stance(&mut self, step: f32) {
+        let table = StanceTable::load_shared();
+        let rates = (table.ready_rate(), table.aim_rate(), table.ik_rate());
+        let is_melee_2h = self.action.as_ref().is_some_and(|a| a.clip_name == "melee_2h");
+        let action_active = self.is_action_active() && !is_melee_2h;
+        self.stance.tick(step, rates, action_active);
+
+        self.layers.set_clip(LayerId::Stance, self.stance.ready_clip());
+        let st = self.layers.get_mut(LayerId::Stance);
+        st.mask = MaskId::Upper;
+        st.weight = self.stance.ready_weight();
+        st.target = st.weight;
+
+        if let Some(aim_clip) = self.stance.aim_clip() {
+            self.layers.set_clip(LayerId::Aim, Some(aim_clip));
+            let aim = self.layers.get_mut(LayerId::Aim);
+            aim.mask = MaskId::Upper;
+            aim.weight = self.stance.aim_weight();
+            aim.target = aim.weight;
+        }
+    }
+
     fn advance_full_body(&mut self, step: f32) {
         let Some(fb) = &mut self.full_body else {
             return;
@@ -443,9 +502,68 @@ impl HumanoidAnimator {
 
     fn apply_ik_stage(&mut self, rig: &Rig) {
         let is_swinging = self.action.as_ref().is_some_and(|a| a.clip_name == "melee_2h");
-        let is_two_handed_active = self.two_handed || (self.weapon_name.is_none() && is_swinging);
+        let is_two_handed_active = self.two_handed
+            || self.stance.off_hand_grip().is_some()
+            || (self.weapon_name.is_none() && is_swinging);
+        if is_two_handed_active && is_swinging {
+            let grip_offset = self
+                .off_hand_grip
+                .or_else(|| self.stance.off_hand_grip())
+                .unwrap_or(DEFAULT_OFF_HAND_GRIP);
+            let (hold_pos, hold_rot) = if let Some(hold) = self.weapon_hold() {
+                (hold.pos, hold.rot_deg)
+            } else {
+                let wname = self.weapon_name.as_deref().unwrap_or("bat");
+                crate::weapon::weapon_hold_for(wname)
+            };
+            crate::ik::apply_two_hand_left_grip_ik(
+                &self.parents,
+                &self.order,
+                self.pool.get_mut(0),
+                rig,
+                hold_pos,
+                hold_rot,
+                grip_offset,
+            );
+            return;
+        }
+
+        let ik_weight = self.stance.left_ik_weight();
+        if ik_weight > LAYER_EPSILON
+            && let Some(grip_offset) = self.stance.off_hand_grip()
+        {
+            let hold = self.stance.hold();
+            if ik_weight >= 1.0 - LAYER_EPSILON {
+                // new: DECISIONS 2026-11-23
+                crate::ik::apply_two_hand_left_grip_ik(
+                    &self.parents,
+                    &self.order,
+                    self.pool.get_mut(0),
+                    rig,
+                    hold.pos,
+                    hold.rot_deg,
+                    grip_offset,
+                );
+            } else {
+                let mask = self.masks.weights(MaskId::LeftArm);
+                let (base, scratch) = self.pool.pair_mut(0, 1);
+                scratch.copy_from_slice(base);
+                crate::ik::apply_two_hand_left_grip_ik(
+                    &self.parents,
+                    &self.order,
+                    scratch,
+                    rig,
+                    hold.pos,
+                    hold.rot_deg,
+                    grip_offset,
+                );
+                blend_pose_masked(base, scratch, ik_weight, mask);
+            }
+            return;
+        }
+
         let aim_amount = self.layers.get(LayerId::Aim).weight;
-        if is_two_handed_active && (is_swinging || aim_amount > LAYER_EPSILON) {
+        if self.two_handed && aim_amount > LAYER_EPSILON {
             let grip_offset = self.off_hand_grip.unwrap_or(DEFAULT_OFF_HAND_GRIP);
             let wname = self.weapon_name.as_deref().unwrap_or("bat");
             let (hold_pos, hold_rot) = crate::weapon::weapon_hold_for(wname);

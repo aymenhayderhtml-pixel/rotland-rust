@@ -1,0 +1,315 @@
+{
+  "version": 1,
+  "readyBlendRate": 10.0,
+  "aimBlendRate": 14.0,
+  "ikBlendRate": 14.0,
+  "classes": {
+    "pistol": {
+      "readyClip": "stance_pistol_ready",
+      "aimClip": "pistol_aim",
+      "leftHandGrip": false,
+      "gripWhenAiming": false,
+      "readyHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          -35,
+          0,
+          0
+        ]
+      },
+      "aimHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "rifle": {
+      "readyClip": "stance_rifle_ready",
+      "aimClip": "rifle_aim",
+      "leftHandGrip": true,
+      "gripWhenAiming": true,
+      "readyHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          -30,
+          0,
+          0
+        ]
+      },
+      "aimHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "shotgun": {
+      "readyClip": "stance_shotgun_ready",
+      "aimClip": "rifle_aim",
+      "leftHandGrip": true,
+      "gripWhenAiming": true,
+      "readyHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          -35,
+          0,
+          0
+        ]
+      },
+      "aimHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "melee_1h": {
+      "readyClip": "stance_melee1h_ready",
+      "leftHandGrip": false,
+      "gripWhenAiming": false,
+      "readyHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          90.0,
+          0.0,
+          0.0
+        ]
+      },
+      "aimHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          90.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "melee_2h": {
+      "readyClip": "stance_melee2h_ready",
+      "leftHandGrip": true,
+      "gripWhenAiming": false,
+      "readyHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          90.0,
+          0.0,
+          0.0
+        ]
+      },
+      "aimHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          90.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "spear": {
+      "readyClip": "stance_spear_ready",
+      "leftHandGrip": true,
+      "gripWhenAiming": false,
+      "readyHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          90.0,
+          0.0,
+          0.0
+        ]
+      },
+      "aimHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          90.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "bow": {
+      "readyClip": "stance_bow_ready",
+      "aimClip": "rifle_aim",
+      "leftHandGrip": false,
+      "gripWhenAiming": true,
+      "readyHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          90.0,
+          0.0,
+          0.0
+        ]
+      },
+      "aimHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "rod": {
+      "readyClip": "stance_rod_ready",
+      "leftHandGrip": true,
+      "gripWhenAiming": false,
+      "readyHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          90.0,
+          0.0,
+          0.0
+        ]
+      },
+      "aimHold": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rot": [
+          90.0,
+          0.0,
+          0.0
+        ]
+      }
+    }
+  },
+  "weapons": {
+    "pistol": "pistol",
+    "rifle": "rifle",
+    "ak47": "rifle",
+    "smg": "rifle",
+    "shotgun": "shotgun",
+    "knife": "melee_1h",
+    "dagger": "melee_1h",
+    "machete": "melee_1h",
+    "pipe": "melee_1h",
+    "bat": "melee_2h",
+    "axe": "melee_2h",
+    "fire_axe": "melee_2h",
+    "hammer": "melee_2h",
+    "crowbar": "melee_2h",
+    "katana": "melee_2h",
+    "spear": "spear",
+    "bow": "bow",
+    "fishing_rod": "rod"
+  },
+  "overrides": {
+    "shotgun": {
+      "readyHold": {
+        "pos": [
+          0,
+          0,
+          0
+        ],
+        "rot": [
+          -35,
+          0,
+          0
+        ]
+      }
+    },
+    "spear": {
+      "offHandGrip": [
+        0.0,
+        0.0,
+        0.3
+      ]
+    },
+    "hammer": {
+      "offHandGrip": [
+        0.0,
+        0.0,
+        0.2
+      ]
+    },
+    "fire_axe": {
+      "offHandGrip": [
+        0.0,
+        0.0,
+        0.25
+      ]
+    },
+    "bow": {
+      "offHandGrip": [
+        0.0,
+        0.0,
+        -0.2
+      ]
+    },
+    "fishing_rod": {
+      "offHandGrip": [
+        0.0,
+        0.0,
+        0.18
+      ]
+    }
+  }
+}

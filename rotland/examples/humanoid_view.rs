@@ -27,6 +27,8 @@ struct HumanoidView {
     time: f32,
     current_speed: f32,
     bones: Vec<Mat4>,
+    /// `--speed=N` holds one speed instead of cycling idle, walk and run.
+    fixed_speed: Option<f32>,
 }
 
 fn make_ground(device: &wgpu::Device) -> GpuMesh {
@@ -46,7 +48,7 @@ fn make_ground(device: &wgpu::Device) -> GpuMesh {
 }
 
 impl Game for HumanoidView {
-    fn init(&mut self, gpu: &Gpu, _args: &EngineArgs) {
+    fn init(&mut self, gpu: &Gpu, args: &EngineArgs) {
         self.renderer = Some(LitRenderer::new(gpu));
         self.ground = Some(make_ground(&gpu.device));
 
@@ -55,10 +57,18 @@ impl Game for HumanoidView {
             .or_else(|_| ModelPack::load("assets/models.pack"))
             .expect("failed to load models.pack; run baker first");
 
-        self.visual = Some(PlayerVisual::load(&gpu.device, &pack, "human_player", Some("bat")));
+        // Test options: --weapon=rifle (or none), --aim, --speed=4, --cam-angle=45 (degrees around the player)
+        let weapon = args.value("--weapon").unwrap_or("bat");
+        let held = (weapon != "none").then_some(weapon);
+        let mut visual = PlayerVisual::load(&gpu.device, &pack, "human_player", held);
+        visual.animator.set_weapon(held);
+        visual.animator.set_aiming(args.flag("--aim"));
+        self.visual = Some(visual);
+        self.fixed_speed = args.value("--speed").and_then(|v| v.parse().ok());
+        let angle = args.value("--cam-angle").and_then(|v| v.parse::<f32>().ok()).unwrap_or(0.0).to_radians();
 
         // Camera 3 m in front of player (human_player faces -Z, so 3 m in front is at -Z looking at +Z)
-        self.camera.position = Vec3::new(0.0, 1.1, -3.0);
+        self.camera.position = Vec3::new(3.0 * angle.sin(), 1.1, -3.0 * angle.cos());
         self.camera.look_at(Vec3::new(0.0, 1.0, 0.0));
     }
 
@@ -77,6 +87,9 @@ impl Game for HumanoidView {
             1 => 4.0,
             _ => 7.0,
         };
+        if let Some(speed) = self.fixed_speed {
+            self.current_speed = speed;
+        }
     }
 
     fn render(&mut self, gpu: &Gpu, target: &FrameTarget, encoder: &mut wgpu::CommandEncoder) {

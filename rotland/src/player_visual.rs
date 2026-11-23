@@ -4,7 +4,7 @@
 use engine::anim::Rig;
 use engine::render::{GpuMesh, SkinInstance, SkinnedBatch};
 use glam::{Mat4, Vec3};
-use humanoid::{weapon_world_matrix_named, HumanoidAnimator, Locomotion};
+use humanoid::{weapon_world_matrix, weapon_world_matrix_named, HumanoidAnimator, Locomotion};
 use pack::{Joint, ModelPack, PackVertex, Skeleton};
 
 /// Pure helper: returns the requested model from `pack`, or falls back to `fallback_name` if missing.
@@ -168,6 +168,7 @@ impl PlayerVisual {
         let joints = self.rig.joint_count();
         bones.resize(base + joints, Mat4::IDENTITY);
         self.animator.write_skin(&self.rig, &mut bones[base..]);
+        let weapon_hold = self.animator.weapon_hold();
 
         let char_world = Mat4::from_translation(pos) * Mat4::from_rotation_y(yaw);
         let body_batch = SkinnedBatch {
@@ -177,13 +178,24 @@ impl PlayerVisual {
 
         let weapon_batch = self.weapon_mesh.as_ref().map(|wmesh| {
             let name = self.weapon_name.as_deref().unwrap_or("");
-            let weapon_world = weapon_world_matrix_named(
-                char_world,
-                &self.rig,
-                &bones[base..],
-                self.hand_joint,
-                name,
-            );
+            let weapon_world = if let Some(hold) = weapon_hold {
+                weapon_world_matrix(
+                    char_world,
+                    &self.rig,
+                    &bones[base..],
+                    self.hand_joint,
+                    hold.pos,
+                    hold.rot_deg,
+                )
+            } else {
+                weapon_world_matrix_named(
+                    char_world,
+                    &self.rig,
+                    &bones[base..],
+                    self.hand_joint,
+                    name,
+                )
+            };
             SkinnedBatch {
                 mesh: wmesh,
                 instances: vec![SkinInstance::new(weapon_world, 0)],
