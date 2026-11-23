@@ -1,6 +1,6 @@
 # STATUS (read this first; keep it under ~80 lines)
 
-Updated: 2026-11-21 by Claude (after R13).
+Updated: 2026-11-23 by Claude (after R25).
 
 ## Where we are
 - Version 0.1 = Godot parity in Rust, done (R0-R10). History: `docs/archive/RUST_QUEUE.md`.
@@ -18,6 +18,7 @@ Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zomb
 - R19 (2026-11-22, all 9 MERGED): camp board layout (Claude fixed sideways card text), build mode panel/tint + base saved (state in PlaySide, raw-pointer global removed), camp upgrade models placed (`--camp-levels=W,G,K,T`), guild tab wired by Claude (`--camp-screen=guild`, actions, save `extra["guild"]`, kill + morning hooks), HUD horde/special/camp-attack/wave warnings, lake: docks above water + shore-following watertight water mesh, lake on big map + minimap, z-fight cleanup (city buildings ~99% less; camp models OK). 760 tests pass. FPS: Ashford core avg 75 / worst 1% 40, camp 111 / 72.
 - White line + water over the player FIXED (Claude): lit pass discarded depth, the water pass read garbage depth; now stored.
 - R20 (2026-11-22, all 9 MERGED): owner issues 001-008 (docs/ISSUES.md) fixed except 003 tower colliders (settlement.py has unsaved work); hotbar now decides the hand item; z-fight: boathouse, house_small, barn, cabin, gas_station, fish_shack and all props under 0.05 m2. 773 tests pass. Owner binary: target/play/rotland.
+- R21-R25 (2026-11-23, Neon writes, Haiku wires): fishing + swim hands, zombies attack built parts (`data/siege.json`), teammates follow/guard/fight and are down until morning (`data/companions.json`), guild deliver/explore/clear + tracker, brute charge/screamer call/crawler lunge (`data/special_zombies.json`). 849 tests pass. NOT yet play-tested by the owner: siege hits, hand-in click, special zombie moves, followers beside the player. Known: "Task ready" notice overlaps the "IN CAMP" label; `game/src/zombie/specials.rs` is 531 lines (split it).
 - Small leftovers: tire_pile tyres look like solid discs (6 cm black hole); ladder prompt and car health not yet seen in a screenshot.
 - NEXT round: guild fetch ("deliver") and explore tasks have no hooks yet; recruits in the 3D world.
 - Z-fighting flicker: apartment fixed (window details now 2 cm out of the wall). CHECK the other 7 city buildings + camp/lake buildings for details flush with walls (office glass bands, police stripes, hospital stripes, shop signs...).
