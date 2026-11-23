@@ -1,0 +1,29 @@
+{
+  "walkSpeed": 2.4,
+  "runSpeed": 4.6,
+  "runDistance": 7.0,
+  "followDistance": 2.6,
+  "followSpread": 1.8,
+  "teleportDistance": 45.0,
+  "fightRange": 11.0,
+  "attackRange": 1.7,
+  "attackCooldown": 1.3,
+  "guardRadius": 14.0,
+  "guardLeash": 20.0,
+  "patrolPauseSeconds": 4.0,
+  "retargetSeconds": 0.4,
+  "healPerSecond": 1.5,
+  "recoverHealthFraction": 0.5,
+  "scavengerFleeRange": 4.0,
+  "damage": {
+    "fighter": 22.0,
+    "guard": 16.0,
+    "scavenger": 8.0
+  },
+  "damagePerLevel": 3.0,
+  "damageTakenMultiplier": {
+    "fighter": 1.0,
+    "guard": 0.7,
+    "scavenger": 1.1
+  }
+}

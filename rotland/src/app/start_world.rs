@@ -41,6 +41,7 @@ pub fn start_world(
     actors.zombies = None;
     actors.combat = None;
     play.play = None;
+    super::frame_team::reset(play);
     actors.player_visual = None;
     actors.player_ctrl = None;
     actors.camera_rig = None;
@@ -48,6 +49,7 @@ pub fn start_world(
     actors.camp_guards = None;
     actors.wildlife = None;
     actors.dogs = None;
+    actors.team_models = None;
     actors.cars = None;
     actors.car_solids = car_solid::ParkedCarSolids::default();
     actors.zombie_voices = Some(game::ZombieVoices::new(session.seed));
@@ -131,6 +133,7 @@ pub fn start_world(
                 Ok(d) => actors.dogs = Some(d),
                 Err(e) => log::warn!("data/dog.json: {e}"),
             }
+            actors.team_models = Some(crate::companion_model::CompanionModels::new(&gpu.device, pack));
             match play::PlayState::new(session.seed as u64) {
                 Ok(state) => play.play = Some(state),
                 Err(e) => log::warn!("play systems not loaded: {e}"),

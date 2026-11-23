@@ -8,8 +8,10 @@ pub fn save_now(
     session: &mut SessionState,
     world: &WorldState,
     actors: &ActorsState,
-    play: &PlaySide,
+    play: &mut PlaySide,
 ) {
+    // Teammates' health goes onto their recruits first, so the guild saves it (R23-N5)
+    super::frame_team::write_health_back(play);
     let (Some(slots), Some(p), Some(rig), Some(c), Some(play_state), Some(w)) = (
         session.slots.as_ref(),
         actors.player_ctrl.as_ref(),

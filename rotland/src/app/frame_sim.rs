@@ -496,6 +496,20 @@ pub fn update_sim(
             actors.animal_status_scratch = animal_status;
         }
 
+        // Hired teammates walk with the player, guard the camp and fight; zombies hit them back (R23-N5)
+        super::frame_team::update(
+            &super::frame_team::TeamFrame {
+                dt,
+                player: actors.player,
+                player_yaw: actors.player_ctrl.as_ref().map_or(0.0, |p| p.yaw),
+                camp: super::frame_team::camp_point(world.world_gen.as_deref()),
+            },
+            z,
+            &world.physics,
+            play,
+            &mut ui.hud,
+            actors.team_models.as_mut(),
+        );
         actors.zombie_status_scratch = zombie_status;
         actors.noises_scratch = noises_scratch;
 

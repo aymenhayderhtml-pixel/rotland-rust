@@ -235,6 +235,12 @@ pub fn draw_ui(
             {
                 crate::siege_view::draw_part_health(ctx, &name, fraction);
             }
+            // Hired teammates: party panel and name tags (R23-N5)
+            let aspect = {
+                let r = ctx.content_rect();
+                r.width() / r.height().max(1.0)
+            };
+            super::frame_team::draw_hud(ctx, &play.team.figures, render.camera.view_proj(aspect), actors.player);
         }
         super::minimap::draw_minimap_hud(ctx, world, actors, play_state, ui);
         if let (Some(t), false) = (&play.hint_text, c.is_dead()) {

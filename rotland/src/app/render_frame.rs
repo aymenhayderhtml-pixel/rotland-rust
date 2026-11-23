@@ -256,6 +256,9 @@ pub fn render_frame(
             .map(|d| d.pose(&mut render.bones))
             .unwrap_or_default(),
     );
+    if let Some(models) = actors.team_models.as_ref() {
+        animals.extend(models.pose(&play.team.figures, &mut render.bones));
+    }
     shadow.extend(zombies.iter().map(|b| engine::render::SkinnedBatch {
         mesh: b.mesh,
         instances: b.instances.clone(),

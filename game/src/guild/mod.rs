@@ -1,6 +1,7 @@
 //! Guild core module: task board, recruit teammates, reputation ranks, and guild shop.
 
 mod board;
+pub mod companion;
 mod config;
 mod manager;
 mod rank;

@@ -508,7 +508,7 @@ pub fn check_scripted_timers(
     session: &mut SessionState,
     world: &WorldState,
     actors: &mut ActorsState,
-    play: &PlaySide,
+    play: &mut PlaySide,
 ) {
     if let (Some(t), Some(c)) = (session.die_at, actors.combat.as_mut())
         && session.time >= t

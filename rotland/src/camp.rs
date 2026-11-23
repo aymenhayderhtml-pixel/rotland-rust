@@ -83,14 +83,17 @@ impl Camp {
     }
 
     /// Once a frame: the trader restocks and the bounty board refreshes on new days.
-    pub fn tick(&mut self, day: i32, hour: f32) {
+    /// Returns true on the frame the guild's morning reset ran.
+    pub fn tick(&mut self, day: i32, hour: f32) -> bool {
         self.trader.tick_with_config(day, hour as u32, &self.economy);
         self.bounties.on_hour_changed(day, hour);
         // Guild board rerolls and wages are paid once each morning
         let mut dollars = self.wallet.dollars();
-        if self.guild.refresh_morning(day, hour, Some(&mut dollars)).is_some() {
+        let morning = self.guild.refresh_morning(day, hour, Some(&mut dollars)).is_some();
+        if morning {
             self.wallet.set(dollars);
         }
+        morning
     }
 
     /// A zombie of this type died by the player's hand.

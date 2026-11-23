@@ -133,7 +133,12 @@ pub fn update_camp_and_stats(
                 a.event("zombieDeath", Some(actors.player));
             }
         }
-        play_state.camp.tick(play.clock.day, play.hour);
+        let morning = play_state.camp.tick(play.clock.day, play.hour);
+        if morning {
+            // Downed teammates get back up at camp (R23-N5)
+            let camp = super::frame_team::camp_point(world.world_gen.as_deref());
+            super::frame_team::on_morning(&mut play.companions, &mut play.team, camp, &mut ui.hud);
+        }
         if let Some((line, lvl)) = play_state.camp.tick_upgrades(play.elapsed_hours) {
             let name = play_state.camp.upgrade_name(line, lvl);
             ui.hud.notify(format!("Upgrade finished: {name}"), crate::hud::NotificationKind::Info);

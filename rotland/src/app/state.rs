@@ -136,6 +136,8 @@ pub struct ActorsState {
     pub zombies: Option<zombies::Zombies>,
     pub wildlife: Option<wildlife::Wildlife>,
     pub dogs: Option<dog_view::DogView>,
+    /// Teammates' person models on screen (R23-N5).
+    pub team_models: Option<crate::companion_model::CompanionModels>,
     pub cars: Option<game::Cars>,
     pub car_input: game::CarInput,
     pub car_camera: game::CarCamera,
@@ -198,6 +200,10 @@ pub struct PlaySide {
     pub water: super::frame_water::WaterPlay,
     /// Base siege simulation (zombies hitting the player's walls); `None` when data/siege.json fails to load.
     pub siege: Option<game::building::siege::SiegeSystem>,
+    /// Hired teammates' runtime bodies (R23-N5); `None` when data/companions.json fails to load.
+    pub companions: Option<game::guild::companion::CompanionSquad>,
+    /// Reused buffers and the guild sync key for the teammates.
+    pub team: super::frame_team::TeamScratch,
 }
 
 impl Default for PlaySide {
@@ -218,6 +224,8 @@ impl Default for PlaySide {
             build_mode: super::frame_input::build_mode::BuildModeState::new(),
             water: super::frame_water::WaterPlay::default(),
             siege: super::frame_siege::load_system(),
+            companions: super::frame_team::load_squad(),
+            team: super::frame_team::TeamScratch::default(),
         }
     }
 }

@@ -13,6 +13,8 @@ mod car_lights;
 mod car_solid;
 mod car_visuals;
 mod combat;
+mod companion_model;
+mod companion_view;
 mod crates;
 mod display;
 mod dev_panel;
@@ -123,7 +125,7 @@ impl Game for R0 {
             &mut self.session,
             &self.world,
             &mut self.actors,
-            &self.play,
+            &mut self.play,
         );
 
         app::frame_world::update_needs(
