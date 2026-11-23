@@ -11,6 +11,7 @@ pub mod herd;
 pub mod hideouts;
 mod rng;
 pub mod senses;
+pub mod specials;
 pub mod state;
 pub mod steering;
 
@@ -21,5 +22,6 @@ pub use defs::{ZombieBehaviourDef, ZombieDef, ZombieDefs};
 pub use grid::SpatialGrid;
 pub use herd::{find_chasing_near, HerdZombie, ZombieHorde};
 pub use senses::{hears, Noise, Senses};
+pub use specials::{SpecialConfig, SpecialDirective, SpecialKind, SpecialState};
 pub use state::ZombieState;
 pub use steering::ZombieSteering;

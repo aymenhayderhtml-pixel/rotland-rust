@@ -40,6 +40,7 @@ mod poi_zombies_tests;
 mod profile_stats_tests;
 mod projectiles_tests;
 mod siege_tests;
+mod special_zombie_tests;
 mod skills_tests;
 mod spawner_city_tests;
 mod spawner_tests;

@@ -9,6 +9,7 @@ use super::Zombies;
 impl Zombies {
     /// Applies a hit from the player. Returns true if it killed the zombie.
     pub fn hit(&mut self, id: u64, mut damage: DamageInfo, knockback: Vec3) -> bool {
+        let vulnerable_multiplier = self.special_cfg.as_deref().map_or(1.0, |c| c.vulnerable_multiplier);
         let Some(z) = self.list.iter_mut().find(|z| z.id == id) else {
             return false;
         };
@@ -19,7 +20,13 @@ impl Zombies {
         {
             damage.leg_hit = true;
         }
+        if z.special_vulnerable {
+            damage.amount *= vulnerable_multiplier;
+        }
         let result = z.health.take_damage(damage.clone());
+        if let Some(special) = z.special.as_mut() {
+            special.on_hit(result.died_now);
+        }
         if result.dealt > 0.0 {
             z.knock += Vec3::new(knockback.x, 0.0, knockback.z);
             z.pending_hit = Some(damage);

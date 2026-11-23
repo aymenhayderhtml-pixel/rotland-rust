@@ -3,16 +3,20 @@
 
 mod combat_glue;
 mod rendering;
+mod specials;
 mod spawning;
 pub mod types;
 
+use std::sync::Arc;
+
 use game::zombie::{
-    AnimClip, BrainInput, BrainOutput, HerdZombie, Noise, SpatialGrid,
+    AnimClip, BrainInput, BrainOutput, HerdZombie, Noise, SpatialGrid, SpecialConfig,
     ZombieCorpses, ZombieDefs,
 };
 use game::FlowField;
 use glam::Vec3;
 use physics::{CharacterMover, PhysicsWorld};
+use specials::PendingCall;
 
 pub use types::{
     Look, Zombie, ZombieEvent, ZombieEventTracker, ZombieFrame, BODY_RADIUS,
@@ -50,6 +54,8 @@ pub struct Zombies {
     pub camp_center: Option<Vec3>,
     /// Camp wall radius for attack detection.
     pub camp_wall_radius: f32,
+    /// data/special_zombies.json, loaded once; None if it failed (specials then act as plain zombies).
+    pub special_cfg: Option<Arc<SpecialConfig>>,
 }
 
 impl Zombies {
@@ -75,6 +81,13 @@ impl Zombies {
         }).collect();
         let herd_rad = defs.behaviour.herd_radius;
         let crawler_mover = CharacterMover::new(defs.behaviour.crawler_radius, defs.behaviour.crawler_height);
+        let special_cfg = match SpecialConfig::from_repo() {
+            Ok(cfg) => Some(Arc::new(cfg)),
+            Err(e) => {
+                log::warn!("data/special_zombies.json not loaded, specials use the old behaviour: {e}");
+                None
+            }
+        };
         Self {
             looks,
             list: Vec::new(),
@@ -98,6 +111,7 @@ impl Zombies {
             tracker: ZombieEventTracker::new(),
             camp_center: None,
             camp_wall_radius: 20.0, // data: hud.json horde_events camp_wall_radius_m
+            special_cfg,
         }
     }
 
@@ -168,7 +182,8 @@ impl Zombies {
         );
 
         let mut nearby_buf = std::mem::take(&mut self.nearby_buf);
-        let mut screamer_calls = Vec::new();
+        let mut calls: Vec<PendingCall> = Vec::new();
+        let mut roll_state = (self.game_time.to_bits() ^ self.rng) | 1;
 
         for z in &mut self.list {
             let dead = z.health.is_dead();
@@ -176,7 +191,7 @@ impl Zombies {
             let far = effective_player.is_some() && distance > FAR_DISTANCE;
             z.think_accumulator += dt;
 
-            let out = if far && z.think_accumulator < FAR_THINK_INTERVAL && !dead {
+            let mut out = if far && z.think_accumulator < FAR_THINK_INTERVAL && !dead {
                 z.last_out.unwrap_or(BrainOutput {
                     velocity: Vec3::ZERO,
                     yaw: z.yaw,
@@ -223,6 +238,12 @@ impl Zombies {
                 o
             };
 
+            if let (Some(cfg), Some(p), false, true) =
+                (self.special_cfg.as_deref(), effective_player, dead, z.special.is_some())
+            {
+                let roll = specials::next_roll(&mut roll_state);
+                specials::step(z, cfg, physics, p, dt, roll, &mut out, &mut frame, &mut calls);
+            }
             if let Some(bite) = out.attack_hit {
                 frame.bites.push(bite);
             }
@@ -233,8 +254,13 @@ impl Zombies {
                 });
                 frame.screams.push(z.position);
                 if z.kind == "screamer" || z.brain.is_screamer() {
-                    let call_target = effective_player.unwrap_or(z.position);
-                    screamer_calls.push((call_target, z.position, 60.0));
+                    calls.push(PendingCall {
+                        source: z.id,
+                        origin: z.position,
+                        target: effective_player.unwrap_or(z.position),
+                        radius: specials::LEGACY_CALL_RADIUS,
+                        max: usize::MAX,
+                    });
                 }
             }
 
@@ -257,6 +283,7 @@ impl Zombies {
                 &self.mover
             };
             let moved = mover.move_and_slide(physics, z.position, wanted, dt);
+            specials::note_wall(z, walk, moved.position, dt);
             z.position = moved.position;
             z.velocity = moved.velocity;
             z.on_floor = moved.on_floor;
@@ -271,14 +298,7 @@ impl Zombies {
             }
         }
 
-        for (target_spot, screamer_pos, radius) in screamer_calls {
-            let rad_sq = radius * radius;
-            for other in &mut self.list {
-                if !other.health.is_dead() && (other.position - screamer_pos).length_squared() <= rad_sq {
-                    other.brain.alert_chase(target_spot);
-                }
-            }
-        }
+        specials::apply_calls(&mut self.list, &calls);
 
         self.nearby_buf = nearby_buf;
         self.list.retain(|z| z.dead_for < CORPSE_SECONDS);

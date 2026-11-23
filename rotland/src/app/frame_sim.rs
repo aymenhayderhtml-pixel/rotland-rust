@@ -61,6 +61,12 @@ pub fn update_sim(
         let mut bites = std::mem::take(&mut actors.bites_scratch);
         bites.clear();
         bites.extend(frame.bites.iter().map(|b| b.damage));
+        bites.extend(frame.special_hits.iter().map(|h| h.amount));
+        if let (true, Some(pc)) = (alive, actors.player_ctrl.as_mut()) {
+            for h in &frame.special_hits {
+                pc.push(h.knockback);
+            }
+        }
         if alive {
             for z_actor in &z.list {
                 if z_actor.last_out.as_ref().is_some_and(|o| o.attack_hit.is_some()) {

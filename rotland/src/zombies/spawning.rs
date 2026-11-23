@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use game::zombie::{ZombieBehaviourDef, ZombieBrain, ZombieDef, ZombieHorde};
+use game::zombie::{SpecialKind, SpecialState, ZombieBehaviourDef, ZombieBrain, ZombieDef, ZombieHorde};
 use game::Health;
 use glam::Vec3;
 use physics::PhysicsWorld;
@@ -66,8 +66,13 @@ impl Zombies {
         if kind == "crawler" {
             brain.set_crawler(true);
         }
+        // With data/special_zombies.json loaded, a special's own call replaces the brain's once-per-life scream.
+        let special = self.special_cfg.as_ref().and_then(|_| SpecialKind::from_id(kind)).map(SpecialState::new);
         if kind == "screamer" {
-            brain.set_screamer(true);
+            brain.set_screamer(special.is_none());
+            if special.is_some() {
+                brain.set_scream_chance(0.0);
+            }
         }
         if let Some(h) = horde {
             brain.set_horde(Some(h));
@@ -91,6 +96,11 @@ impl Zombies {
             pending_hit: None,
             think_accumulator: 0.0,
             last_out: None,
+            special,
+            special_vulnerable: false,
+            special_hit_wall: false,
+            special_los: false,
+            special_sight_timer: 0.0,
         });
     }
 

@@ -1,0 +1,36 @@
+{
+  "vulnerableMultiplier": 2.0,
+  "brute": {
+    "chargeMinRange": 6.0,
+    "chargeMaxRange": 16.0,
+    "windupSeconds": 0.9,
+    "chargeSeconds": 1.8,
+    "chargeSpeed": 6.0,
+    "turnRateDeg": 25.0,
+    "hitRange": 1.6,
+    "hitDamage": 25.0,
+    "knockbackSpeed": 5.0,
+    "stunSeconds": 2.0,
+    "cooldownSeconds": 14.0
+  },
+  "screamer": {
+    "triggerRange": 24.0,
+    "windupSeconds": 1.2,
+    "callRadius": 25.0,
+    "callMaxZombies": 6,
+    "callCooldownSeconds": 20.0,
+    "retreatSeconds": 2.5,
+    "retreatSpeed": 1.8
+  },
+  "crawler": {
+    "lurkRange": 14.0,
+    "lungeTriggerRange": 3.0,
+    "lungeSpeed": 7.0,
+    "lungeSeconds": 0.35,
+    "hitRange": 1.0,
+    "lungeDamage": 8.0,
+    "lungeChance": 0.6,
+    "recoverSeconds": 1.2,
+    "retrySeconds": 2.0
+  }
+}

@@ -95,6 +95,8 @@ impl Stamina {
 pub struct Player {
     pub position: Vec3,
     pub velocity: Vec3,
+    /// Horizontal push from special zombie hits (m/s), fading out each frame.
+    pub knock: Vec3,
     pub yaw: f32,
     pub on_floor: bool,
     pub crouching: bool,
@@ -112,12 +114,21 @@ pub struct Player {
     pub gravity: f32,
 }
 
+/// How fast a special zombie's push fades (per second, linear factor). // new: DECISIONS 2026-11-23
+const KNOCK_DECAY: f32 = 6.0;
+
 impl Player {
+    /// Adds a horizontal push (the y part is ignored), e.g. from a brute's hit.
+    pub fn push(&mut self, horizontal: Vec3) {
+        self.knock += Vec3::new(horizontal.x, 0.0, horizontal.z);
+    }
+
     /// Spawns a player at the given world position.
     pub fn new(position: Vec3) -> Self {
         Self {
             position,
             velocity: Vec3::ZERO,
+            knock: Vec3::ZERO,
             yaw: 0.0,
             on_floor: true,
             crouching: false,
@@ -229,7 +240,12 @@ impl Player {
         let target_h = Vec2::new(target_vel.x, target_vel.z);
         let smoothed_h = current_h.lerp(target_h, weight);
 
-        let mut vel = Vec3::new(smoothed_h.x, self.velocity.y, smoothed_h.y);
+        let mut vel = Vec3::new(
+            smoothed_h.x + self.knock.x,
+            self.velocity.y,
+            smoothed_h.y + self.knock.z,
+        );
+        self.knock *= (1.0 - KNOCK_DECAY * dt).max(0.0);
 
         // Ground snap and gravity
         if self.on_floor {

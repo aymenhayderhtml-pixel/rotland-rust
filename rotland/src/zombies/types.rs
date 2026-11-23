@@ -2,7 +2,8 @@
 
 use engine::anim::Rig;
 use engine::render::GpuMesh;
-use game::zombie::{AnimClip, AttackHit, BrainOutput, Noise, ZombieBrain, ZombieDef};
+use game::zombie::specials::SpecialHit;
+use game::zombie::{AnimClip, AttackHit, BrainOutput, Noise, SpecialState, ZombieBrain, ZombieDef};
 use game::{DamageInfo, Health};
 use glam::Vec3;
 
@@ -56,12 +57,23 @@ pub struct Zombie {
     /// Accumulated delta time for distant throttled thinking (Godot Zombie.cs:285).
     pub think_accumulator: f32,
     pub last_out: Option<BrainOutput>,
+    /// Brute, screamer or crawler only (None for walkers and runners, zero cost).
+    pub special: Option<SpecialState>,
+    /// From the last special directive: open to extra damage (stunned or recovering).
+    pub special_vulnerable: bool,
+    /// The mover hit a wall last frame (only read by specials).
+    pub special_hit_wall: bool,
+    /// Last sight check for specials (throttled).
+    pub special_los: bool,
+    pub special_sight_timer: f32,
 }
 
 /// What happened to the world / player this frame.
 #[derive(Default)]
 pub struct ZombieFrame {
     pub bites: Vec<AttackHit>,
+    /// Hits by special zombies this frame (the player takes the damage and the push).
+    pub special_hits: Vec<SpecialHit>,
     /// Sounds emitted by zombies (e.g. screams).
     pub noises: Vec<Noise>,
     /// Positions where zombies started screaming this frame, for audio trigger.
