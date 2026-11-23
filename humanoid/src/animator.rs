@@ -17,6 +17,7 @@ use crate::blend::{
     LocomotionClips, RUN_BLEND,
 };
 use crate::clip_events::{ClipEvent, ClipEventTable, EventQueue, EventSpan};
+use crate::foot_ik::{FootIkState, FootJoints};
 use crate::full_body::{FullBodyOptions, FullBodyState};
 use crate::layers::{LayerBlend, LayerId, LayerStack};
 use crate::mask::{BoneMasks, MaskId};
@@ -47,6 +48,9 @@ pub struct HumanoidAnimator {
     aim_joints: AimJoints,
     motion: MotionState,
     motion_joints: MotionJoints,
+    foot_ik: FootIkState,
+    foot_joints: Option<FootJoints>,
+    foot_globals: Vec<Mat4>,
     blend_pos: f32,
     tempo_scale: f32,
     time_idle: f32,
@@ -76,6 +80,7 @@ impl HumanoidAnimator {
         let masks = BoneMasks::new(&joint_names);
         let aim_joints = AimJoints::from_names(&joint_names);
         let motion_joints = MotionJoints::from_names(&joint_names);
+        let foot_joints = FootJoints::from_names(&joint_names);
         let parents: Vec<Option<usize>> = skeleton
             .joints
             .iter()
@@ -104,6 +109,9 @@ impl HumanoidAnimator {
             aim_joints,
             motion: MotionState::new(),
             motion_joints,
+            foot_ik: FootIkState::new(),
+            foot_joints,
+            foot_globals: vec![Mat4::IDENTITY; n],
             blend_pos: 0.0,
             tempo_scale: 1.0, // new: DECISIONS 2026-11-23
             time_idle: 0.0,
@@ -236,10 +244,14 @@ impl HumanoidAnimator {
 
         self.dirty = true;
         if self.held_pose.is_some() {
+            self.foot_ik.set_active(false);
+            self.foot_ik.tick(step, self.blend_pos);
             self.pose_time += step;
             return;
         }
         if self.dying {
+            self.foot_ik.set_active(false);
+            self.foot_ik.tick(step, self.blend_pos);
             self.advance_full_body(step);
             return;
         }
@@ -258,6 +270,8 @@ impl HumanoidAnimator {
         self.advance_action(step);
         self.advance_stance(step);
         self.advance_full_body(step);
+        self.foot_ik.set_active(locomotion.on_floor && self.full_body.is_none());
+        self.foot_ik.tick(step, self.blend_pos);
     }
 
     /// The body's velocity and facing this frame, for side and backward steps and leaning.
@@ -388,6 +402,7 @@ impl HumanoidAnimator {
     pub fn is_dying(&self) -> bool { self.dying }
     pub fn layers(&self) -> &LayerStack { &self.layers }
     pub fn layers_mut(&mut self) -> &mut LayerStack { self.dirty = true; &mut self.layers }
+    pub fn foot_ik_mut(&mut self) -> &mut FootIkState { self.dirty = true; &mut self.foot_ik }
     pub fn event_table_mut(&mut self) -> &mut ClipEventTable { &mut self.events }
 
     /// Writes character skin matrices into `out`.
@@ -476,6 +491,9 @@ impl HumanoidAnimator {
         if self.cached_skin.len() != n {
             self.cached_skin.resize(n, Mat4::IDENTITY);
         }
+        if self.foot_globals.len() != n {
+            self.foot_globals.resize(n, Mat4::IDENTITY);
+        }
         self.pool.resize(n);
 
         if let Some(pose_name) = &self.held_pose
@@ -524,6 +542,16 @@ impl HumanoidAnimator {
         // 7b. Aim pitch and recoil (before left-hand IK so off-hand follows the gun)
         self.aim.apply(&self.aim_joints, self.pool.get_mut(0), self.stance.aim_weight());
         self.motion.apply_lean(&self.motion_joints, self.pool.get_mut(0));
+        // 7c. Foot IK (before left-hand IK so off-hand follows when hips drop)
+        if let Some(fj) = self.foot_joints {
+            self.foot_ik.apply(
+                &fj,
+                &self.parents,
+                &self.order,
+                self.pool.get_mut(0),
+                &mut self.foot_globals,
+            );
+        }
         // 8. Left-hand IK
         self.apply_ik_stage(rig);
         // 9. Full-body override (including death fade)

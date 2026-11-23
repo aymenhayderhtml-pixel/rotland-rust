@@ -190,6 +190,18 @@ pub fn render_frame(
             crouching: pose.crouching,
         };
         pv.animator.set_move_velocity(pose.velocity, pose.yaw);
+        if pose.on_floor && !pose.first_person {
+            let physics = &world.physics;
+            let (up, down) = {
+                let c = humanoid::foot_ik::FootIkConfig::load_shared();
+                (c.ray_up, c.ray_down)
+            };
+            pv.update_foot_ground(pose.position, pose.yaw, |p| {
+                physics
+                    .raycast(Vec3::new(p.x, pose.position.y + up, p.z), Vec3::NEG_Y, up + down)
+                    .map(|h| humanoid::foot_ik::GroundHit { point: h.point, normal: h.normal })
+            });
+        }
         // The player's yaw already uses the model's facing (checked in a screenshot: no extra turn)
         let (body, weapon) = pv.pose(session.last_dt, pose.position, pose.yaw, loco, &mut render.bones);
         // First person: the body only casts its shadow (like Godot's shadows-only body)

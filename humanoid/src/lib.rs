@@ -16,8 +16,11 @@ pub mod ik;
 pub mod layers;
 pub mod mask;
 pub mod motion;
+pub mod foot_ik;
 #[cfg(test)]
 mod motion_tests;
+#[cfg(test)]
+mod foot_ik_tests;
 pub mod pose_buffer;
 pub mod stance;
 #[cfg(test)]
@@ -35,6 +38,7 @@ pub use blend::{
 };
 pub use clip_events::{ClipEvent, ClipEventTable};
 pub use full_body::{FullBodyOptions, FullBodyPhase, FullBodyState};
+pub use foot_ik::{FootIkConfig, FootIkState, FootJoints, GroundHit, LegJoints};
 pub use ik::{apply_two_hand_left_grip_ik, solve_two_bone_ik, LEFT_ELBOW_POLE};
 pub use layers::{AnimLayer, LayerBlend, LayerId, LayerStack};
 pub use mask::{BoneMasks, MaskId};

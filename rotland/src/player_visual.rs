@@ -97,7 +97,7 @@ impl PlayerVisual {
         char_name: &str,
         weapon_model: Option<&str>,
     ) -> Self {
-        let (body_mesh, rig, animator) = match pack.find(char_name) {
+        let (body_mesh, rig, mut animator) = match pack.find(char_name) {
             Some(char_model) => match &char_model.skeleton {
                 Some(skeleton) => {
                     let rig = Rig::new(skeleton);
@@ -141,6 +141,8 @@ impl PlayerVisual {
             },
             None => (None, None),
         };
+        // The first weapon needs its stance too; set_weapon returns early when the model is unchanged
+        animator.set_weapon(weapon_name.as_deref());
 
         Self {
             body_mesh,
@@ -203,6 +205,28 @@ impl PlayerVisual {
         });
 
         (body_batch, weapon_batch)
+    }
+
+    /// Probes ground surfaces under both feet and feeds them to the animator's foot IK.
+    #[allow(dead_code)] // unused by the humanoid_view example, which includes this file
+    pub fn update_foot_ground(
+        &mut self,
+        pos: Vec3,
+        yaw: f32,
+        ground: impl Fn(Vec3) -> Option<humanoid::foot_ik::GroundHit>,
+    ) {
+        const MAX_PROBE_DIST_SQ: f32 = 4.0; // new: DECISIONS 2026-11-23
+        let char_world = Mat4::from_translation(pos) * Mat4::from_rotation_y(yaw);
+        let [left_probe, right_probe] = match self.animator.foot_ik_mut().probe_points() {
+            Some([l, r]) => [
+                if l.distance_squared(pos) > MAX_PROBE_DIST_SQ { pos } else { l },
+                if r.distance_squared(pos) > MAX_PROBE_DIST_SQ { pos } else { r },
+            ],
+            None => [pos, pos],
+        };
+        let left = ground(left_probe);
+        let right = ground(right_probe);
+        self.animator.foot_ik_mut().set_ground(left, right, char_world);
     }
 
     /// Swaps the model held in the right hand (None: empty hand).

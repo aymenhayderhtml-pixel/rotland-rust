@@ -102,3 +102,13 @@ Compact, with a hand-made leg skeleton: `data/foot_ik.json` parses; never-called
 Every new number in Rust code needs a source tag on its line (`// data: foot_ik.json key` or `// new: DECISIONS 2026-11-23`).
 
 ## Worker notes
+
+## Gate report
+- date: 2026-11-23
+- base: main
+- files changed (23): assets/models/buildings/settlement.glb, assets/models/_previews/car_hatchback_blue.png, assets/models/_previews/car_hatchback_blue_rear.png, assets/models/_previews/car_hatchback_blue_side.png, assets/models/_previews/car_hatchback_olive.png, assets/models/_previews/car_hatchback_olive_rear.png, assets/models/_previews/car_hatchback_olive_side.png, assets/models/_previews/car_hatchback_red.png, assets/models/_previews/car_hatchback_red_rear.png, assets/models/_previews/car_hatchback_red_side.png, assets/models/vehicles/car_hatchback_blue.glb, assets/models/vehicles/car_hatchback_olive.glb, assets/models/vehicles/car_hatchback_red.glb, data/foot_ik.json, humanoid/src/animator.rs, humanoid/src/foot_ik.rs, humanoid/src/foot_ik_tests.rs, humanoid/src/lib.rs, rotland/src/app/render_frame.rs, rotland/src/player_visual.rs, tasks/A05-feet-on-ground.md, tools/blender/buildings/settlement.py, tools/blender/vehicles/car_parts.py
+- tests passed: 901
+- clippy: PASS
+- test: PASS
+- checks: FAIL
+- gate: FAIL (checks)

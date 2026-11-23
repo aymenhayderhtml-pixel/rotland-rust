@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "enabled": true,
+  "rayUp": 0.6,
+  "rayDown": 0.9,
+  "footHeight": 0.07,
+  "maxFootLift": 0.45,
+  "maxHipDrop": 0.32,
+  "maxFootTiltDeg": 28,
+  "footRate": 16.0,
+  "hipRate": 10.0,
+  "weightRate": 8.0,
+  "swingLiftThreshold": 0.07,
+  "maxSpeedFullWeight": 4.0,
+  "minWeightAtRun": 0.35
+}
