@@ -29,6 +29,8 @@ struct HumanoidView {
     bones: Vec<Mat4>,
     /// `--speed=N` holds one speed instead of cycling idle, walk and run.
     fixed_speed: Option<f32>,
+    /// `--vel=x,z` moves the body this way (model faces -Z), to check side and back steps.
+    velocity: Option<Vec3>,
 }
 
 fn make_ground(device: &wgpu::Device) -> GpuMesh {
@@ -68,6 +70,10 @@ impl Game for HumanoidView {
         }
         self.visual = Some(visual);
         self.fixed_speed = args.value("--speed").and_then(|v| v.parse().ok());
+        self.velocity = args.value("--vel").and_then(|v| {
+            let (x, z) = v.split_once(',')?;
+            Some(Vec3::new(x.parse().ok()?, 0.0, z.parse().ok()?))
+        });
         let angle = args.value("--cam-angle").and_then(|v| v.parse::<f32>().ok()).unwrap_or(0.0).to_radians();
 
         // Camera 3 m in front of player (human_player faces -Z, so 3 m in front is at -Z looking at +Z)
@@ -105,6 +111,9 @@ impl Game for HumanoidView {
         self.bones.clear();
         self.bones.push(Mat4::IDENTITY); // Joint 0 is identity for static meshes
 
+        if let Some(v) = self.velocity {
+            visual.animator.set_move_velocity(v, 0.0);
+        }
         let dt = 1.0 / 60.0;
         let (body_batch, weapon_batch) = visual.pose(
             dt,

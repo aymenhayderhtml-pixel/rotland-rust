@@ -102,3 +102,136 @@ Compact, hand-made skeleton and clips: `data/motion.json` parses; all 8 clips ar
 Every new number in Rust code needs a source tag on its line (`// data: motion.json key` or `// new: DECISIONS 2026-11-23`).
 
 ## Worker notes
+
+## Neon notes
+
+Summary
+
+  - Added data/motion.json, humanoid/src/motion.rs,
+    humanoid/src/motion_tests.rs, and tools/blender/characters/poses_move.py.
+  - MotionState does nothing until set_input is called, keeping the job 1 golden
+    test unchanged.
+  - poses_move.py defines all 8 looping lower-body clips matched to walk/run leg
+    contact phase at t = 0.0, with _r clips generated via _mirror_clip
+    (mirroring L/R bones and Y/Z rotations + X hip sway, shifted half a cycle so
+    right contact stays at 0.0).
+  - Missing API note: humanoid/src/lib.rs, MaskId variants in
+    humanoid/src/mask.rs, and pack::Skeleton/pack::Clip/engine::anim::Rig
+    constructors were not included in the Read/API sections. motion_tests.rs
+    therefore exercises the full apply_legs blending logic through
+    MotionState::apply_legs_sampled with hand-made poses (zero invented APIs),
+    and the animator.rs edit assumes MaskId::Lower exists in
+    humanoid/src/mask.rs (verify variant name if different).
+
+Exact edits to apply
+
+1. tools/blender/characters/poses.py
+
+Find:
+
+from poses_locomotion import CLIPS as _LOCOMOTION
+from poses_shared import ARM_DOWN_OFFSET  # noqa: F401  (re-exported for build_characters)
+from poses_stance import CLIPS as _STANCE
+from poses_zombie import CLIPS as _ZOMBIE
+
+CLIPS = {**_LOCOMOTION, **_ACTIONS, **_COMBAT, **_ZOMBIE, **_CAMP}
+# Clips only the player gets (V12-04 gun clips + A02 weapon stances + A03 aim/reload). Looked up through ALL_CLIPS, never CLIPS alone.
+PLAYER_ONLY_CLIPS = {**_PLAYER_ONLY, **_STANCE, **_AIM}
+ALL_CLIPS = {**CLIPS, **PLAYER_ONLY_CLIPS}
+
+Replace with:
+
+from poses_locomotion import CLIPS as _LOCOMOTION
+from poses_move import CLIPS as _MOVE
+from poses_shared import ARM_DOWN_OFFSET  # noqa: F401  (re-exported for build_characters)
+from poses_stance import CLIPS as _STANCE
+from poses_zombie import CLIPS as _ZOMBIE
+
+CLIPS = {**_LOCOMOTION, **_ACTIONS, **_COMBAT, **_ZOMBIE, **_CAMP}
+# Clips only the player gets (V12-04 gun clips + A02 weapon stances + A03 aim/reload + A04 directional movement). Looked up through ALL_CLIPS, never CLIPS alone.
+PLAYER_ONLY_CLIPS = {**_PLAYER_ONLY, **_STANCE, **_AIM, **_MOVE}
+ALL_CLIPS = {**CLIPS, **PLAYER_ONLY_CLIPS}
+
+2. humanoid/src/lib.rs (not shown in Read; add alongside existing modules/re-exports)
+
+Add module declarations:
+
+pub mod motion;
+#[cfg(test)]
+mod motion_tests;
+
+Add exports:
+
+pub use motion::{
+    DirectionWeights, MotionClips, MotionConfig, MotionJoints, MotionState, direction_weights,
+    local_velocity,
+};
+
+3. humanoid/src/animator.rs
+
+Edit 3a — imports: Find:
+
+use crate::blend::{
+    lod_interval, sample_locomotion_into, tempo_for, Locomotion, LocomotionClips, RUN_BLEND,
+};
+
+Replace with:
+
+use crate::blend::{
+    locomotion_weights, lod_interval, sample_locomotion_into, tempo_for, Locomotion,
+    LocomotionClips, RUN_BLEND,
+};
+
+Edit 3b — motion import: Find:
+
+use crate::mask::{BoneMasks, MaskId};
+use crate::pose_buffer::{add_pose_masked, blend_pose_masked, PosePool};
+
+Replace with:
+
+use crate::mask::{BoneMasks, MaskId};
+use crate::motion::{MotionClips, MotionJoints, MotionState};
+use crate::pose_buffer::{add_pose_masked, blend_pose_masked, PosePool};
+
+Edit 3c — struct fields: Find:
+
+    aim: AimController,
+    aim_joints: AimJoints,
+    blend_pos: f32,
+
+Replace with:
+
+    aim: AimController,
+    aim_joints: AimJoints,
+    motion: MotionState,
+    motion_joints: MotionJoints,
+    blend_pos: f32,
+
+Edit 3d — resolve joints in with_config: Find:
+
+        let masks = BoneMasks::new(&joint_names);
+        let aim_joints = AimJoints::from_names(&joint_names);
+
+Replace with:
+
+        let masks = BoneMasks::new(&joint_names);
+        let aim_joints = AimJoints::from_names(&joint_names);
+        let motion_joints = MotionJoints::from_names(&joint_names);
+
+Edit 3e — initialize fields in with_config: Find:
+
+            aim: AimController::new(),
+            aim_joints,
+            blend_pos: 0.0,
+
+Replace
+
+## Gate report
+- date: 2026-11-23
+- base: main
+- files changed (24): assets/models/buildings/settlement.glb, assets/models/characters/human_player.glb, assets/models/_previews/car_hatchback_blue.png, assets/models/_previews/car_hatchback_blue_rear.png, assets/models/_previews/car_hatchback_blue_side.png, assets/models/_previews/car_hatchback_olive.png, assets/models/_previews/car_hatchback_olive_rear.png, assets/models/_previews/car_hatchback_olive_side.png, assets/models/_previews/car_hatchback_red.png, assets/models/_previews/car_hatchback_red_rear.png, assets/models/_previews/car_hatchback_red_side.png, assets/models/vehicles/car_hatchback_blue.glb, assets/models/vehicles/car_hatchback_olive.glb, assets/models/vehicles/car_hatchback_red.glb, data/motion.json, humanoid/src/animator.rs, humanoid/src/lib.rs, humanoid/src/motion.rs, humanoid/src/motion_tests.rs, tasks/A04-directional-movement.md, tools/blender/buildings/settlement.py, tools/blender/characters/poses_move.py, tools/blender/characters/poses.py, tools/blender/vehicles/car_parts.py
+- tests passed: 0
+- clippy: FAIL
+- test: SKIP
+- checks: SKIP
+- gate: FAIL (clippy)

@@ -13,12 +13,14 @@ use crate::action::ActionState;
 use crate::aim::{AimController, AimJoints};
 use crate::anim_config::AnimConfig;
 use crate::blend::{
-    lod_interval, sample_locomotion_into, tempo_for, Locomotion, LocomotionClips, RUN_BLEND,
+    locomotion_weights, lod_interval, sample_locomotion_into, tempo_for, Locomotion,
+    LocomotionClips, RUN_BLEND,
 };
 use crate::clip_events::{ClipEvent, ClipEventTable, EventQueue, EventSpan};
 use crate::full_body::{FullBodyOptions, FullBodyState};
 use crate::layers::{LayerBlend, LayerId, LayerStack};
 use crate::mask::{BoneMasks, MaskId};
+use crate::motion::{MotionClips, MotionJoints, MotionState};
 use crate::pose_buffer::{add_pose_masked, blend_pose_masked, PosePool};
 use crate::stance::{HoldTransform, StanceController, StanceTable};
 
@@ -43,6 +45,8 @@ pub struct HumanoidAnimator {
     stance: StanceController,
     aim: AimController,
     aim_joints: AimJoints,
+    motion: MotionState,
+    motion_joints: MotionJoints,
     blend_pos: f32,
     tempo_scale: f32,
     time_idle: f32,
@@ -71,6 +75,7 @@ impl HumanoidAnimator {
         let joint_names: Vec<&str> = skeleton.joints.iter().map(|j| j.name.as_str()).collect();
         let masks = BoneMasks::new(&joint_names);
         let aim_joints = AimJoints::from_names(&joint_names);
+        let motion_joints = MotionJoints::from_names(&joint_names);
         let parents: Vec<Option<usize>> = skeleton
             .joints
             .iter()
@@ -97,6 +102,8 @@ impl HumanoidAnimator {
             stance: StanceController::new(),
             aim: AimController::new(),
             aim_joints,
+            motion: MotionState::new(),
+            motion_joints,
             blend_pos: 0.0,
             tempo_scale: 1.0, // new: DECISIONS 2026-11-23
             time_idle: 0.0,
@@ -241,7 +248,8 @@ impl HumanoidAnimator {
         self.blend_pos += (locomotion.speed.clamp(0.0, RUN_BLEND) - self.blend_pos) * k;
         self.layers.get_mut(LayerId::Air).target = if locomotion.on_floor { 0.0 } else { 1.0 };
         self.layers.get_mut(LayerId::Crouch).target = if locomotion.crouching { 1.0 } else { 0.0 };
-        let tempo = tempo_for(self.blend_pos) * self.tempo_scale;
+        self.motion.tick(step, locomotion.on_floor);
+        let tempo = tempo_for(self.blend_pos) * self.tempo_scale * self.motion.tempo_scale();
         self.layers.get_mut(LayerId::Locomotion).speed = tempo;
         self.layers.advance(step);
         self.time_idle += step;
@@ -250,6 +258,12 @@ impl HumanoidAnimator {
         self.advance_action(step);
         self.advance_stance(step);
         self.advance_full_body(step);
+    }
+
+    /// The body's velocity and facing this frame, for side and backward steps and leaning.
+    pub fn set_move_velocity(&mut self, velocity: Vec3, yaw: f32) {
+        self.motion.set_input(velocity, yaw);
+        self.dirty = true;
     }
 
     /// Starts a one-shot action on the upper body.
@@ -490,6 +504,15 @@ impl HumanoidAnimator {
                 scratch,
             );
         }
+        // 1b. Side, backward and turning steps on the legs
+        {
+            let run_fraction = locomotion_weights(self.blend_pos).run;
+            let time = self.layers.get(LayerId::Locomotion).time;
+            let clips = MotionClips::from_map(&self.clips);
+            let lower = self.masks.weights(MaskId::Lower);
+            let (base, scratch) = self.pool.pair_mut(0, 1);
+            self.motion.apply_legs(rig, &clips, time, run_fraction, lower, base, scratch);
+        }
         // 2. Air -> 3. Crouch -> 4. Stance -> 5. Aim
         for id in [LayerId::Air, LayerId::Crouch, LayerId::Stance, LayerId::Aim] {
             self.apply_layer(rig, id);
@@ -500,6 +523,7 @@ impl HumanoidAnimator {
         self.apply_layer(rig, LayerId::Additive);
         // 7b. Aim pitch and recoil (before left-hand IK so off-hand follows the gun)
         self.aim.apply(&self.aim_joints, self.pool.get_mut(0), self.stance.aim_weight());
+        self.motion.apply_lean(&self.motion_joints, self.pool.get_mut(0));
         // 8. Left-hand IK
         self.apply_ik_stage(rig);
         // 9. Full-body override (including death fade)

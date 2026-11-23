@@ -15,6 +15,9 @@ pub mod full_body;
 pub mod ik;
 pub mod layers;
 pub mod mask;
+pub mod motion;
+#[cfg(test)]
+mod motion_tests;
 pub mod pose_buffer;
 pub mod stance;
 #[cfg(test)]
@@ -35,6 +38,10 @@ pub use full_body::{FullBodyOptions, FullBodyPhase, FullBodyState};
 pub use ik::{apply_two_hand_left_grip_ik, solve_two_bone_ik, LEFT_ELBOW_POLE};
 pub use layers::{AnimLayer, LayerBlend, LayerId, LayerStack};
 pub use mask::{BoneMasks, MaskId};
+pub use motion::{
+    DirectionWeights, MotionClips, MotionConfig, MotionJoints, MotionState, direction_weights,
+    local_velocity,
+};
 pub use pose_buffer::{add_pose_masked, blend_pose_masked, LocalTransform, PosePool};
 pub use stance::{HoldTransform, StanceClass, StanceController, StanceDef, StanceTable};
 pub use swing::{

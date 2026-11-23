@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "directionRate": 10.0,
+  "strafeSpeedScale": 0.85,
+  "backSpeedScale": 0.8,
+  "minMoveSpeed": 0.25,
+  "leanMaxDeg": 9.0,
+  "leanPerRadPerSec": 3.5,
+  "leanRate": 8.0,
+  "accelLeanDeg": 6.0,
+  "accelLeanPerMps2": 0.35,
+  "stopSettleDeg": 3.0,
+  "turnInPlaceDegPerSec": 45.0,
+  "turnStepRate": 8.0,
+  "maxYawRateRad": 8.0
+}

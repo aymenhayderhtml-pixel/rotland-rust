@@ -189,6 +189,7 @@ pub fn render_frame(
             on_floor: pose.on_floor,
             crouching: pose.crouching,
         };
+        pv.animator.set_move_velocity(pose.velocity, pose.yaw);
         // The player's yaw already uses the model's facing (checked in a screenshot: no extra turn)
         let (body, weapon) = pv.pose(session.last_dt, pose.position, pose.yaw, loco, &mut render.bones);
         // First person: the body only casts its shadow (like Godot's shadows-only body)
