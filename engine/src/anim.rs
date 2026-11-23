@@ -47,6 +47,11 @@ impl Rig {
         self.inverse_bind.len()
     }
 
+    /// Returns the skeleton's rest pose as `(translation, rotation, scale)` per joint.
+    pub fn rest_pose(&self) -> &[(Vec3, Quat, Vec3)] {
+        &self.rest
+    }
+
     /// Writes the skin matrices of `clip` at `time` (looped) into `out` (one per joint).
     pub fn sample(&self, clip: &Clip, time: f32, out: &mut [Mat4]) {
         let local = self.local_pose(clip, time);
@@ -72,11 +77,11 @@ impl Rig {
         self.skin(&pa, out);
     }
 
-    /// Each joint's own translation, rotation and scale for `clip` at `time` (looped).
-    pub fn local_pose(&self, clip: &Clip, time: f32) -> Vec<(Vec3, Quat, Vec3)> {
-        let n = self.joint_count();
+    /// Writes each joint's own translation, rotation and scale for `clip` at `time` (looped) into `out`.
+    pub fn local_pose_into(&self, clip: &Clip, time: f32, out: &mut [(Vec3, Quat, Vec3)]) {
+        let n = self.joint_count().min(out.len());
+        out[..n].copy_from_slice(&self.rest[..n]);
         let t = if clip.duration > 0.0 { time.rem_euclid(clip.duration) } else { 0.0 };
-        let mut local = self.rest.clone();
         for ch in &clip.channels {
             let j = ch.joint as usize;
             if j >= n {
@@ -84,11 +89,17 @@ impl Rig {
             }
             let v = sample_channel(ch.interpolation, ch.kind, &ch.times, &ch.values, t);
             match ch.kind {
-                ChannelKind::Translation => local[j].0 = Vec3::new(v[0], v[1], v[2]),
-                ChannelKind::Rotation => local[j].1 = Quat::from_array(v).normalize(),
-                ChannelKind::Scale => local[j].2 = Vec3::new(v[0], v[1], v[2]),
+                ChannelKind::Translation => out[j].0 = Vec3::new(v[0], v[1], v[2]),
+                ChannelKind::Rotation => out[j].1 = Quat::from_array(v).normalize(),
+                ChannelKind::Scale => out[j].2 = Vec3::new(v[0], v[1], v[2]),
             }
         }
+    }
+
+    /// Each joint's own translation, rotation and scale for `clip` at `time` (looped).
+    pub fn local_pose(&self, clip: &Clip, time: f32) -> Vec<(Vec3, Quat, Vec3)> {
+        let mut local = vec![(Vec3::ZERO, Quat::IDENTITY, Vec3::ONE); self.joint_count()];
+        self.local_pose_into(clip, time, &mut local);
         local
     }
 

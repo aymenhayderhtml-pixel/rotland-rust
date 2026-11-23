@@ -115,3 +115,72 @@ Every new number in Rust code needs a source tag on its line (`// data: animatio
 In `=== NOTES ===` list anything not done, any allocation that remains in the frame path and why, and what A02 (weapon stances) should call.
 
 ## Worker notes
+
+## Gate report
+- date: 2026-11-23
+- base: main
+- files changed (31): assets/models/buildings/settlement.glb, assets/models/_previews/car_hatchback_blue.png, assets/models/_previews/car_hatchback_blue_rear.png, assets/models/_previews/car_hatchback_blue_side.png, assets/models/_previews/car_hatchback_olive.png, assets/models/_previews/car_hatchback_olive_rear.png, assets/models/_previews/car_hatchback_olive_side.png, assets/models/_previews/car_hatchback_red.png, assets/models/_previews/car_hatchback_red_rear.png, assets/models/_previews/car_hatchback_red_side.png, assets/models/vehicles/car_hatchback_blue.glb, assets/models/vehicles/car_hatchback_olive.glb, assets/models/vehicles/car_hatchback_red.glb, Cargo.lock, data/animation.json, engine/src/anim.rs, humanoid/Cargo.toml, humanoid/src/action.rs, humanoid/src/animator.rs, humanoid/src/anim_config.rs, humanoid/src/blend.rs, humanoid/src/clip_events.rs, humanoid/src/core_tests.rs, humanoid/src/full_body.rs, humanoid/src/layers.rs, humanoid/src/lib.rs, humanoid/src/mask.rs, humanoid/src/pose_buffer.rs, tasks/A01-anim-core.md, tools/blender/buildings/settlement.py, tools/blender/vehicles/car_parts.py
+- tests passed: 859
+- clippy: PASS
+- test: PASS
+- checks: FAIL
+- gate: FAIL (checks)
+
+- What was wired:
+
+      - engine/src/anim.rs: added Rig::rest_pose and non-allocating
+        Rig::local_pose_into, and routed Rig::local_pose through it.
+      - humanoid/src/mask.rs: added MaskId and BoneMasks (Upper derives directly
+        from UPPER_BONES; unknown bones get 0.0 outside Full).
+      - humanoid/src/pose_buffer.rs: added LocalTransform, reusable PosePool (3
+        buffers), shortest-path blend_pose_masked, and rest-relative
+        add_pose_masked.
+      - humanoid/src/layers.rs: added LayerId, LayerBlend, AnimLayer, and
+        fixed-order LayerStack with zero-alloc set_clip when unchanged.
+      - humanoid/src/full_body.rs: added FullBodyOptions, FullBodyPhase, and
+        FullBodyState supporting fade-in, hold-last, auto fade-out, explicit
+        stop fade-out, and crossfading between full-body clips.
+      - humanoid/src/clip_events.rs: added ClipEvent, ClipEventTable, and
+        bounded EventQueue (MAX_QUEUED_EVENTS = 64), handling large dt,
+        arbitrary playback speeds, multi-wrap loops, and LOD throttling.
+      - humanoid/src/anim_config.rs & data/animation.json: added camelCase serde
+        config with optional keys, built-in defaults matching legacy constants,
+        and once-warned OnceLock loading via
+        paths::repo_path("data/animation.json").
+      - humanoid/src/animator.rs: rewrote recompute_skin into the staged
+        pipeline (locomotion -> air -> crouch -> stance -> aim -> action/swing
+        -> additive -> left-hand IK -> full body -> skin), routed play_die
+        through full-body fade-in (dieFadeIn = 0.15), and kept every existing
+        public API and signature intact (rotland/ requires no changes).
+      - humanoid/src/core_tests.rs: added hand-built skeleton/clip unit tests
+        covering every required scenario including the golden equivalence test
+        against legacy math.
+
+  - Remaining frame-path allocations:
+
+      - Normal locomotion, air, crouch, stance, aim, non-IK actions, additive,
+        and full-body frames perform zero heap allocations after initialization
+        (aside from emitting ClipEvent strings when an event actually fires, and
+        set_clip/state transitions when a clip name changes).
+      - humanoid/src/ik.rs::apply_two_hand_left_grip_ik (not in Files:, so left
+        untouched) allocates one small Vec<Mat4> of size rig.joint_count() for
+        forward kinematics, only on frames where two-handed IK is actively
+        engaged (is_two_handed_active && (is_swinging || aim_amount > 0.001)). A
+        future cleanup can accept a caller-owned &mut [Mat4] buffer in ik.rs to
+        eliminate that allocation as well.
+
+  - What A02 (weapon stances) should call:
+
+      - Use animator.layers_mut().set_clip(LayerId::Stance, Some(stance_clip))
+        (no allocation when clip name is unchanged) and set
+        animator.layers_mut().get_mut(LayerId::Stance).target = 1.0 (or 0.0 to
+        fade back out to base locomotion).
+      - Optionally adjust LayerId::Stance's mask (defaults to MaskId::Upper, or
+        MaskId::Arms / MaskId::RightArm) and rate (defaults to cfg.blend_rate).
+      - LayerId::Stance is already wired in recompute_skin right between Crouch
+        and Aim, so aiming (LayerId::Aim) and one-shot actions (LayerId::Action)
+        automatically layer cleanly over the weapon stance, and left-hand
+        two-handed IK runs after them.
+      - For breathing/recoil in later jobs, use LayerId::Additive the same way
+        (LayerBlend::Additive is already set and evaluated after Action and
+        before IK).

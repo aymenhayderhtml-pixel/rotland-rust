@@ -4,19 +4,31 @@
 //! and matrix attachment calculations for weapons held in the right hand.
 
 pub mod action;
+pub mod anim_config;
 pub mod animator;
 pub mod blend;
+pub mod clip_events;
+pub mod full_body;
 pub mod ik;
+pub mod layers;
+pub mod mask;
+pub mod pose_buffer;
 pub mod swing;
 pub mod weapon;
 
 pub use action::ActionState;
+pub use anim_config::{AnimConfig, ClipEventDef};
 pub use animator::HumanoidAnimator;
 pub use blend::{
     locomotion_weights, tempo_for, Locomotion, LocomotionWeights, ACTION_FADE_IN, ACTION_FADE_OUT,
     BLEND_RATE, RUN_BLEND, RUN_CLIP_SPEED, UPPER_BONES, WALK_BLEND, WALK_CLIP_SPEED,
 };
+pub use clip_events::{ClipEvent, ClipEventTable};
+pub use full_body::{FullBodyOptions, FullBodyPhase, FullBodyState};
 pub use ik::{apply_two_hand_left_grip_ik, solve_two_bone_ik, LEFT_ELBOW_POLE};
+pub use layers::{AnimLayer, LayerBlend, LayerId, LayerStack};
+pub use mask::{BoneMasks, MaskId};
+pub use pose_buffer::{add_pose_masked, blend_pose_masked, LocalTransform, PosePool};
 pub use swing::{
     apply_two_hand_swing_pose, evaluate_two_hand_swing, swing_head_roll_deg, swing_spine_pitch_deg,
     swing_spine_yaw_deg, SwingPose,
@@ -26,6 +38,9 @@ pub use weapon::{
     weapon_world_matrix_named, HAND_GRIP_OFFSET, HAND_GRIP_ROT_DEG, REST_POSE_DEG,
     TWO_HANDED_WEAPONS,
 };
+
+#[cfg(test)]
+mod core_tests;
 
 #[cfg(test)]
 mod tests {
@@ -147,4 +162,3 @@ mod tests {
         }
     }
 }
-

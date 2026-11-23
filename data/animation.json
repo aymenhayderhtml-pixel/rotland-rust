@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "blendRate": 8.0,
+  "actionFadeIn": 0.05,
+  "actionFadeOut": 0.15,
+  "dieFadeIn": 0.15,
+  "fullBodyFadeIn": 0.15,
+  "fullBodyFadeOut": 0.2,
+  "events": {}
+}

@@ -1,7 +1,7 @@
-//! Humanoid skeletal animator and state machine.
+//! Humanoid skeletal animator and layered pose pipeline.
 //!
-//! Blends idle/walk/run, air and crouch, layers one-shot actions and aim hold
-//! onto the upper body, and evaluates skin matrices via `engine::anim::Rig`.
+//! Evaluates base locomotion -> air -> crouch -> stance -> aim -> action/swing ->
+//! additive -> left-hand IK -> full-body override -> skin matrices without per-frame allocations.
 
 use std::collections::HashMap;
 
@@ -10,35 +10,42 @@ use glam::{Mat4, Vec3};
 use pack::{Clip, Skeleton};
 
 use crate::action::ActionState;
+use crate::anim_config::AnimConfig;
 use crate::blend::{
-    blend_local_poses, lod_interval, sample_locomotion, tempo_for, Locomotion, BLEND_RATE,
-    RUN_BLEND, UPPER_BONES,
+    lod_interval, sample_locomotion_into, tempo_for, Locomotion, LocomotionClips, RUN_BLEND,
 };
+use crate::clip_events::{ClipEvent, ClipEventTable, EventQueue, EventSpan};
+use crate::full_body::{FullBodyOptions, FullBodyState};
+use crate::layers::{LayerBlend, LayerId, LayerStack};
+use crate::mask::BoneMasks;
+use crate::pose_buffer::{add_pose_masked, blend_pose_masked, PosePool};
+
+const POSE_POOL_BUFFERS: usize = 3; // new: DECISIONS 2026-11-23
+const LAYER_EPSILON: f32 = 0.001; // godot: HumanoidAnimTree.cs:210
+const MIN_TEMPO_SCALE: f32 = 0.05; // godot: HumanoidAnimTree.cs:112
+const SWING_MAX_TIME: f32 = 0.70; // godot: poses_combat.py:47
+const DEFAULT_OFF_HAND_GRIP: Vec3 = Vec3::new(0.0, 0.0, 0.10); // godot: HumanoidVisual.cs:95
 
 /// Per-character humanoid animation state machine.
 pub struct HumanoidAnimator {
+    config: AnimConfig,
     clips: HashMap<String, Clip>,
-    is_upper: Vec<bool>,
+    masks: BoneMasks,
+    layers: LayerStack,
+    pool: PosePool,
     parents: Vec<Option<usize>>,
     order: Vec<usize>,
     weapon_name: Option<String>,
     two_handed: bool,
     off_hand_grip: Option<Vec3>,
     blend_pos: f32,
-    air_amount: f32,
-    crouch_amount: f32,
-    aim_amount: f32,
-    aim_target: f32,
-    aim_clip: Option<String>,
     tempo_scale: f32,
-    time_loco: f32,
     time_idle: f32,
-    time_air: f32,
-    time_crouch: f32,
-    time_aim: f32,
     action: Option<ActionState>,
+    full_body: Option<FullBodyState>,
+    events: ClipEventTable,
+    event_queue: EventQueue,
     dying: bool,
-    die_time: f32,
     held_pose: Option<String>,
     pose_time: f32,
     update_interval: f32,
@@ -48,41 +55,62 @@ pub struct HumanoidAnimator {
 }
 
 impl HumanoidAnimator {
+    /// Creates an animator loading shared tuning from `data/animation.json`.
     pub fn new(skeleton: &Skeleton, clips: &[Clip]) -> Self {
+        Self::with_config(skeleton, clips, AnimConfig::load_shared().clone())
+    }
+
+    /// Creates an animator using an explicit `AnimConfig` (preferred for tests).
+    pub fn with_config(skeleton: &Skeleton, clips: &[Clip], config: AnimConfig) -> Self {
         let n = skeleton.joints.len();
-        let is_upper = skeleton
-            .joints
-            .iter()
-            .map(|j| UPPER_BONES.iter().any(|&b| b == j.name))
-            .collect();
+        let joint_names: Vec<&str> = skeleton.joints.iter().map(|j| j.name.as_str()).collect();
+        let masks = BoneMasks::new(&joint_names);
         let parents: Vec<Option<usize>> = skeleton
             .joints
             .iter()
             .map(|j| j.parent.map(|p| p as usize))
             .collect();
         let order = crate::ik::parent_first_order(&parents);
-        let mut map = HashMap::new();
+        let mut map = HashMap::with_capacity(clips.len());
         for c in clips {
             map.insert(c.name.clone(), c.clone());
         }
+        let events = ClipEventTable::from_config_filtered(&config, |name| map.contains_key(name));
+        let layers = LayerStack::new(&config);
         Self {
-            clips: map, is_upper, parents, order,
-            weapon_name: None, two_handed: false, off_hand_grip: None,
-            blend_pos: 0.0, air_amount: 0.0, crouch_amount: 0.0,
-            aim_amount: 0.0, aim_target: 0.0, aim_clip: None,
-            tempo_scale: 1.0, time_loco: 0.0, time_idle: 0.0,
-            time_air: 0.0, time_crouch: 0.0, time_aim: 0.0,
-            action: None, dying: false, die_time: 0.0,
-            held_pose: None, pose_time: 0.0,
-            update_interval: 0.0, accumulated_dt: 0.0,
-            dirty: true, cached_skin: vec![Mat4::IDENTITY; n],
+            config,
+            clips: map,
+            masks,
+            layers,
+            pool: PosePool::new(n, POSE_POOL_BUFFERS),
+            parents,
+            order,
+            weapon_name: None,
+            two_handed: false,
+            off_hand_grip: None,
+            blend_pos: 0.0,
+            tempo_scale: 1.0, // new: DECISIONS 2026-11-23
+            time_idle: 0.0,
+            action: None,
+            full_body: None,
+            events,
+            event_queue: EventQueue::default(),
+            dying: false,
+            held_pose: None,
+            pose_time: 0.0,
+            update_interval: 0.0,
+            accumulated_dt: 0.0,
+            dirty: true,
+            cached_skin: vec![Mat4::IDENTITY; n],
         }
     }
 
     /// Sets the equipped weapon model name (e.g. "bat", "knife", "pistol").
     pub fn set_weapon(&mut self, weapon: Option<&str>) {
         if let Some(name) = weapon {
-            self.weapon_name = Some(name.to_string());
+            if self.weapon_name.as_deref() != Some(name) {
+                self.weapon_name = Some(name.to_string());
+            }
             self.two_handed = crate::weapon::is_two_handed(name);
             self.off_hand_grip = crate::weapon::off_hand_grip_for(name);
         } else {
@@ -100,16 +128,14 @@ impl HumanoidAnimator {
         self.dirty = true;
     }
 
-    pub fn is_two_handed(&self) -> bool {
-        self.two_handed
-    }
+    pub fn is_two_handed(&self) -> bool { self.two_handed }
+    pub fn off_hand_grip(&self) -> Option<Vec3> { self.off_hand_grip }
 
-    pub fn off_hand_grip(&self) -> Option<Vec3> {
-        self.off_hand_grip
-    }
-
-    /// Advance blends, one-shots and animation clocks by `dt` seconds.
+    /// Advance blends, one-shots, full-body overrides, events and animation clocks by `dt` seconds.
     pub fn update(&mut self, dt: f32, locomotion: Locomotion) {
+        if !dt.is_finite() || dt < 0.0 {
+            return;
+        }
         if self.update_interval > 0.0 {
             self.accumulated_dt += dt;
             if self.accumulated_dt < self.update_interval {
@@ -125,65 +151,129 @@ impl HumanoidAnimator {
         };
 
         self.dirty = true;
-        if self.dying {
-            self.die_time += step;
-            return;
-        }
         if self.held_pose.is_some() {
             self.pose_time += step;
             return;
         }
-
-        let k = 1.0 - (-BLEND_RATE * step).exp();
-        self.blend_pos += (locomotion.speed.clamp(0.0, RUN_BLEND) - self.blend_pos) * k;
-        let target_air = if locomotion.on_floor { 0.0 } else { 1.0 };
-        self.air_amount += (target_air - self.air_amount) * k;
-        let target_crouch = if locomotion.crouching { 1.0 } else { 0.0 };
-        self.crouch_amount += (target_crouch - self.crouch_amount) * k;
-        self.aim_amount += (self.aim_target - self.aim_amount) * k;
-
-        let tempo = tempo_for(self.blend_pos) * self.tempo_scale;
-        self.time_idle += step;
-        self.time_loco += step * tempo;
-        self.time_air += step;
-        self.time_crouch += step;
-        self.time_aim += step;
-
-        if let Some(act) = &mut self.action {
-            act.time += step;
-            if act.is_finished() {
-                self.action = None;
-            }
+        if self.dying {
+            self.advance_full_body(step);
+            return;
         }
+
+        let k = 1.0 - (-self.config.blend_rate * step).exp();
+        self.blend_pos += (locomotion.speed.clamp(0.0, RUN_BLEND) - self.blend_pos) * k;
+        self.layers.get_mut(LayerId::Air).target = if locomotion.on_floor { 0.0 } else { 1.0 };
+        self.layers.get_mut(LayerId::Crouch).target = if locomotion.crouching { 1.0 } else { 0.0 };
+        let tempo = tempo_for(self.blend_pos) * self.tempo_scale;
+        self.layers.get_mut(LayerId::Locomotion).speed = tempo;
+        self.layers.advance(step);
+        self.time_idle += step;
+
+        self.advance_action(step);
+        self.advance_full_body(step);
     }
 
     /// Starts a one-shot action on the upper body.
     pub fn play_action(&mut self, clip_name: &str, speed: f32) {
         if let Some(clip) = self.clips.get(clip_name) {
-            self.action = Some(ActionState::new(clip_name.to_string(), clip.duration, speed));
+            self.action = Some(ActionState::with_fades(
+                clip_name.to_string(),
+                clip.duration,
+                speed,
+                self.config.action_fade_in,
+                self.config.action_fade_out,
+            ));
+            self.layers.set_clip(LayerId::Action, Some(clip_name));
+            self.layers.get_mut(LayerId::Action).weight = 0.0;
             self.dirty = true;
         }
     }
 
     pub fn play_hit(&mut self) {
-        self.play_action("hit", 1.0);
+        self.play_action("hit", 1.0); // godot: HumanoidAnimTree.cs:152
     }
 
     pub fn set_aim_pose(&mut self, clip_name: Option<&str>) {
         if let Some(name) = clip_name {
-            self.aim_clip = Some(name.to_string());
-            self.aim_target = 1.0;
+            self.layers.set_clip(LayerId::Aim, Some(name));
+            self.layers.get_mut(LayerId::Aim).target = 1.0;
         } else {
-            self.aim_target = 0.0;
+            self.layers.get_mut(LayerId::Aim).target = 0.0;
         }
         self.dirty = true;
     }
 
-    pub fn play_die(&mut self) { self.dying = true; self.die_time = 0.0; self.dirty = true; }
-    pub fn reset_alive(&mut self) { self.dying = false; self.dirty = true; }
-    pub fn hold_pose(&mut self, clip_name: &str) { self.held_pose = Some(clip_name.to_string()); self.pose_time = 0.0; self.dirty = true; }
+    /// Plays a full-body clip above all other layers; returns `false` if the clip does not exist.
+    pub fn play_full_body(&mut self, clip: &str, opts: FullBodyOptions) -> bool {
+        let Some(c) = self.clips.get(clip) else {
+            return false;
+        };
+        let duration = c.duration;
+        let prev = self.full_body.take();
+        let state = FullBodyState::start(clip.to_owned(), duration, opts, prev);
+        self.layers.set_clip(LayerId::FullBody, Some(clip));
+        self.layers.get_mut(LayerId::FullBody).weight = state.weight();
+        self.full_body = Some(state);
+        self.dirty = true;
+        true
+    }
+
+    /// Smoothly stops the active full-body clip using `fade_out` (or the clip's configured default).
+    pub fn stop_full_body(&mut self, fade_out: Option<f32>) {
+        if let Some(fb) = &mut self.full_body {
+            if fb.begin_stop(fade_out) {
+                self.full_body = None;
+                self.layers.get_mut(LayerId::FullBody).weight = 0.0;
+                self.layers.set_clip(LayerId::FullBody, None);
+            }
+            self.dirty = true;
+        }
+    }
+
+    pub fn is_full_body_active(&self) -> bool { self.full_body.is_some() }
+
+    pub fn full_body_progress(&self) -> f32 {
+        self.full_body.as_ref().map_or(0.0, FullBodyState::progress)
+    }
+
+    /// Moves all queued animation events into `out`.
+    pub fn drain_events(&mut self, out: &mut Vec<ClipEvent>) {
+        self.event_queue.drain_into(out);
+    }
+
+    pub fn play_die(&mut self) {
+        self.dying = true;
+        let opts = FullBodyOptions {
+            speed: 1.0, // new: DECISIONS 2026-11-23
+            looping: false,
+            hold_last: true,
+            fade_in: self.config.die_fade_in, // data: animation.json dieFadeIn
+            fade_out: 0.0, // new: DECISIONS 2026-11-23
+        };
+        self.play_full_body("die", opts);
+        self.dirty = true;
+    }
+
+    pub fn reset_alive(&mut self) {
+        self.dying = false;
+        if self.full_body.as_ref().is_some_and(|fb| fb.clip_name() == "die") {
+            self.full_body = None;
+            self.layers.get_mut(LayerId::FullBody).weight = 0.0;
+            self.layers.set_clip(LayerId::FullBody, None);
+        }
+        self.dirty = true;
+    }
+
+    pub fn hold_pose(&mut self, clip_name: &str) {
+        if self.held_pose.as_deref() != Some(clip_name) {
+            self.held_pose = Some(clip_name.to_string());
+        }
+        self.pose_time = 0.0;
+        self.dirty = true;
+    }
+
     pub fn release_pose(&mut self) { self.held_pose = None; self.dirty = true; }
-    pub fn set_tempo_scale(&mut self, scale: f32) { self.tempo_scale = scale.max(0.05); }
+    pub fn set_tempo_scale(&mut self, scale: f32) { self.tempo_scale = scale.max(MIN_TEMPO_SCALE); }
 
     /// Multi-tiered LOD update throttling from `HumanoidVisual.SetLod`.
     pub fn set_lod(&mut self, distance: f32, on_screen: bool) {
@@ -203,6 +293,9 @@ impl HumanoidAnimator {
     pub fn current_action(&self) -> Option<&str> { self.action.as_ref().map(|a| a.clip_name.as_str()) }
     pub fn action_state(&self) -> Option<&ActionState> { self.action.as_ref() }
     pub fn is_dying(&self) -> bool { self.dying }
+    pub fn layers(&self) -> &LayerStack { &self.layers }
+    pub fn layers_mut(&mut self) -> &mut LayerStack { self.dirty = true; &mut self.layers }
+    pub fn event_table_mut(&mut self) -> &mut ClipEventTable { &mut self.events }
 
     /// Writes character skin matrices into `out`.
     pub fn write_skin(&mut self, rig: &Rig, out: &mut [Mat4]) {
@@ -214,82 +307,182 @@ impl HumanoidAnimator {
         out[..n].copy_from_slice(&self.cached_skin[..n]);
     }
 
+    fn advance_action(&mut self, step: f32) {
+        let Some(act) = &mut self.action else {
+            return;
+        };
+        let clip_dur = self.clips.get(&act.clip_name).map_or(0.0, |c| c.duration);
+        let prev = act.time * act.speed;
+        let just_started = act.time == 0.0;
+        act.time += step;
+        let next = act.time * act.speed;
+        if step > 0.0 && clip_dur > 0.0 {
+            let span = EventSpan { prev, next, duration: clip_dur, just_started };
+            self.events.collect_non_looping(&act.clip_name, span, &mut self.event_queue);
+        }
+        if act.is_finished() {
+            self.action = None;
+            self.layers.get_mut(LayerId::Action).weight = 0.0;
+            self.layers.set_clip(LayerId::Action, None);
+        } else {
+            self.layers.get_mut(LayerId::Action).weight = act.weight();
+        }
+    }
+
+    fn advance_full_body(&mut self, step: f32) {
+        let Some(fb) = &mut self.full_body else {
+            return;
+        };
+        let res = fb.advance(step);
+        if step > 0.0 && res.duration > 0.0 {
+            let span = EventSpan {
+                prev: res.prev_time,
+                next: res.raw_next_time,
+                duration: res.duration,
+                just_started: res.just_started,
+            };
+            if res.looping {
+                self.events.collect_looping(fb.clip_name(), span, &mut self.event_queue);
+            } else {
+                self.events.collect_non_looping(fb.clip_name(), span, &mut self.event_queue);
+            }
+        }
+        if res.finished {
+            self.full_body = None;
+            self.layers.get_mut(LayerId::FullBody).weight = 0.0;
+            self.layers.set_clip(LayerId::FullBody, None);
+        } else {
+            self.layers.get_mut(LayerId::FullBody).weight = fb.weight();
+        }
+    }
+
     fn recompute_skin(&mut self, rig: &Rig) {
         let n = rig.joint_count();
         if self.cached_skin.len() != n {
             self.cached_skin.resize(n, Mat4::IDENTITY);
         }
+        self.pool.resize(n);
 
-        if self.dying && let Some(c) = self.clips.get("die") {
-            let pose = rig.local_pose(c, self.die_time.min(c.duration));
-            rig.skin(&pose, &mut self.cached_skin);
-            return;
-        }
-        if let Some(pose_name) = &self.held_pose && let Some(c) = self.clips.get(pose_name) {
-            let pose = rig.local_pose(c, self.pose_time);
-            rig.skin(&pose, &mut self.cached_skin);
-            return;
-        }
-
-        let mut local = sample_locomotion(
-            rig,
-            self.clips.get("idle"),
-            self.clips.get("walk"),
-            self.clips.get("run"),
-            self.blend_pos,
-            self.time_idle,
-            self.time_loco,
-        );
-
-        if self.air_amount > 0.001 && let Some(jc) = self.clips.get("jump") {
-            let jp = rig.local_pose(jc, self.time_air);
-            blend_local_poses(&mut local, &jp, self.air_amount, None);
-        }
-        if self.crouch_amount > 0.001 && let Some(cc) = self.clips.get("crouch") {
-            let cp = rig.local_pose(cc, self.time_crouch);
-            blend_local_poses(&mut local, &cp, self.crouch_amount, None);
-        }
-
-        if self.aim_amount > 0.001
-            && let Some(name) = &self.aim_clip
-            && let Some(ac) = self.clips.get(name)
+        if let Some(pose_name) = &self.held_pose
+            && let Some(c) = self.clips.get(pose_name)
         {
-            let ap = rig.local_pose(ac, self.time_aim);
-            blend_local_poses(&mut local, &ap, self.aim_amount, Some(&self.is_upper));
+            let pose = self.pool.get_mut(0);
+            rig.local_pose_into(c, self.pose_time, pose);
+            rig.skin(pose, &mut self.cached_skin);
+            return;
         }
 
-        if let Some(act) = &self.action {
-            let w = act.weight();
-            if act.clip_name == "melee_2h" {
-                let t = (act.time * act.speed).clamp(0.0, 0.70);
-                let swing_w = if act.time < act.fade_in { 1.0 } else { w };
-                if swing_w > 0.001 {
-                    crate::swing::apply_two_hand_swing_pose(rig, &mut local, t, swing_w);
-                }
-            } else if w > 0.001
-                && let Some(ac) = self.clips.get(&act.clip_name) {
-                    let ap = rig.local_pose(ac, act.time * act.speed);
-                    blend_local_poses(&mut local, &ap, w, Some(&self.is_upper));
-                }
+        // 1. Base locomotion
+        {
+            let (base, scratch) = self.pool.pair_mut(0, 1);
+            sample_locomotion_into(
+                rig,
+                LocomotionClips {
+                    idle: self.clips.get("idle"),
+                    walk: self.clips.get("walk"),
+                    run: self.clips.get("run"),
+                },
+                self.blend_pos,
+                self.time_idle,
+                self.layers.get(LayerId::Locomotion).time,
+                base,
+                scratch,
+            );
         }
+        // 2. Air -> 3. Crouch -> 4. Stance -> 5. Aim
+        for id in [LayerId::Air, LayerId::Crouch, LayerId::Stance, LayerId::Aim] {
+            self.apply_layer(rig, id);
+        }
+        // 6. Action or procedural swing
+        self.apply_action_stage(rig);
+        // 7. Additive layer
+        self.apply_layer(rig, LayerId::Additive);
+        // 8. Left-hand IK
+        self.apply_ik_stage(rig);
+        // 9. Full-body override (including death fade)
+        self.apply_full_body_stage(rig);
+        // 10. Skin
+        rig.skin(self.pool.get_mut(0), &mut self.cached_skin);
+    }
 
+    fn apply_layer(&mut self, rig: &Rig, id: LayerId) {
+        let layer = self.layers.get(id);
+        if layer.weight <= LAYER_EPSILON {
+            return;
+        }
+        let Some(clip_name) = layer.clip.as_deref() else { return };
+        let Some(clip) = self.clips.get(clip_name) else { return };
+        let (weight, time, blend) = (layer.weight, layer.time, layer.blend);
+        let mask = self.masks.weights(layer.mask);
+        let (base, scratch) = self.pool.pair_mut(0, 1);
+        rig.local_pose_into(clip, time, scratch);
+        match blend {
+            LayerBlend::Override => blend_pose_masked(base, scratch, weight, mask),
+            LayerBlend::Additive => add_pose_masked(base, scratch, rig.rest_pose(), weight, mask),
+        }
+    }
+
+    fn apply_action_stage(&mut self, rig: &Rig) {
+        let Some(act) = &self.action else { return };
+        let w = act.weight();
+        if act.clip_name == "melee_2h" {
+            let t = (act.time * act.speed).clamp(0.0, SWING_MAX_TIME);
+            let swing_w = if act.time < act.fade_in { 1.0 } else { w };
+            if swing_w > LAYER_EPSILON {
+                crate::swing::apply_two_hand_swing_pose(rig, self.pool.get_mut(0), t, swing_w);
+            }
+        } else if w > LAYER_EPSILON
+            && let Some(ac) = self.clips.get(&act.clip_name)
+        {
+            let mask = self.masks.weights(self.layers.get(LayerId::Action).mask);
+            let (base, scratch) = self.pool.pair_mut(0, 1);
+            rig.local_pose_into(ac, act.time * act.speed, scratch);
+            blend_pose_masked(base, scratch, w, mask);
+        }
+    }
+
+    fn apply_ik_stage(&mut self, rig: &Rig) {
         let is_swinging = self.action.as_ref().is_some_and(|a| a.clip_name == "melee_2h");
         let is_two_handed_active = self.two_handed || (self.weapon_name.is_none() && is_swinging);
-        if is_two_handed_active && (is_swinging || self.aim_amount > 0.001) {
-            let grip_offset = self.off_hand_grip.unwrap_or(Vec3::new(0.0, 0.0, 0.10));
+        let aim_amount = self.layers.get(LayerId::Aim).weight;
+        if is_two_handed_active && (is_swinging || aim_amount > LAYER_EPSILON) {
+            let grip_offset = self.off_hand_grip.unwrap_or(DEFAULT_OFF_HAND_GRIP);
             let wname = self.weapon_name.as_deref().unwrap_or("bat");
             let (hold_pos, hold_rot) = crate::weapon::weapon_hold_for(wname);
             crate::ik::apply_two_hand_left_grip_ik(
                 &self.parents,
                 &self.order,
-                &mut local,
+                self.pool.get_mut(0),
                 rig,
                 hold_pos,
                 hold_rot,
                 grip_offset,
             );
         }
+    }
 
-        rig.skin(&local, &mut self.cached_skin);
+    fn apply_full_body_stage(&mut self, rig: &Rig) {
+        let Some(fb) = &self.full_body else { return };
+        let weight = fb.weight();
+        if weight <= LAYER_EPSILON {
+            return;
+        }
+        let Some(curr_clip) = self.clips.get(fb.clip_name()) else { return };
+        let mask = self.masks.weights(self.layers.get(LayerId::FullBody).mask);
+        let curr_t = fb.sample_time();
+        if let Some(prev) = fb.prev()
+            && let Some(prev_clip) = self.clips.get(prev.clip_name())
+        {
+            let (alpha, prev_t) = (prev.alpha(), prev.sample_time());
+            let (base, curr_buf, prev_buf) = self.pool.triple_mut();
+            rig.local_pose_into(curr_clip, curr_t, curr_buf);
+            rig.local_pose_into(prev_clip, prev_t, prev_buf);
+            blend_pose_masked(prev_buf, curr_buf, alpha, mask);
+            blend_pose_masked(base, prev_buf, weight, mask);
+        } else {
+            let (base, fb_buf) = self.pool.pair_mut(0, 1);
+            rig.local_pose_into(curr_clip, curr_t, fb_buf);
+            blend_pose_masked(base, fb_buf, weight, mask);
+        }
     }
 }

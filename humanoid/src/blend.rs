@@ -66,6 +66,14 @@ pub struct LocomotionWeights {
     pub run: f32,
 }
 
+/// Base locomotion clips `(idle, walk, run)` for non-allocating sampling.
+#[derive(Clone, Copy)]
+pub struct LocomotionClips<'a> {
+    pub idle: Option<&'a pack::Clip>,
+    pub walk: Option<&'a pack::Clip>,
+    pub run: Option<&'a pack::Clip>,
+}
+
 /// Computes idle-walk-run blend weights given the current blend position.
 pub fn locomotion_weights(blend_pos: f32) -> LocomotionWeights {
     let s = blend_pos.clamp(0.0, RUN_BLEND);
@@ -140,6 +148,47 @@ pub fn lod_interval(distance: f32, on_screen: bool) -> f32 {
     }
 }
 
+/// Evaluates the base locomotion local pose into `out` using `scratch`, with zero allocations.
+pub fn sample_locomotion_into(
+    rig: &engine::anim::Rig,
+    clips: LocomotionClips<'_>,
+    blend_pos: f32,
+    time_idle: f32,
+    time_loco: f32,
+    out: &mut [(Vec3, Quat, Vec3)],
+    scratch: &mut [(Vec3, Quat, Vec3)],
+) {
+    let weights = locomotion_weights(blend_pos);
+    let n = rig.joint_count().min(out.len());
+    if blend_pos <= WALK_BLEND {
+        match (clips.idle, clips.walk) {
+            (Some(ic), Some(wc)) => {
+                rig.local_pose_into(ic, time_idle, out);
+                if weights.walk > 0.0 {
+                    rig.local_pose_into(wc, time_loco, scratch);
+                    blend_local_poses(out, scratch, weights.walk, None);
+                }
+            }
+            (Some(ic), None) => rig.local_pose_into(ic, time_idle, out),
+            (None, Some(wc)) => rig.local_pose_into(wc, time_loco, out),
+            (None, None) => out[..n].copy_from_slice(&rig.rest_pose()[..n]),
+        }
+    } else {
+        match (clips.walk, clips.run) {
+            (Some(wc), Some(rc)) => {
+                rig.local_pose_into(wc, time_loco, out);
+                if weights.run > 0.0 {
+                    rig.local_pose_into(rc, time_loco, scratch);
+                    blend_local_poses(out, scratch, weights.run, None);
+                }
+            }
+            (Some(wc), None) => rig.local_pose_into(wc, time_loco, out),
+            (None, Some(rc)) => rig.local_pose_into(rc, time_loco, out),
+            (None, None) => out[..n].copy_from_slice(&rig.rest_pose()[..n]),
+        }
+    }
+}
+
 /// Evaluates the base locomotion local pose (idle, walk, run blend).
 pub fn sample_locomotion(
     rig: &engine::anim::Rig,
@@ -150,36 +199,19 @@ pub fn sample_locomotion(
     time_idle: f32,
     time_loco: f32,
 ) -> Vec<(Vec3, Quat, Vec3)> {
-    let weights = locomotion_weights(blend_pos);
-    if blend_pos <= WALK_BLEND {
-        match (idle, walk) {
-            (Some(ic), Some(wc)) => {
-                let mut p = rig.local_pose(ic, time_idle);
-                if weights.walk > 0.0 {
-                    let wp = rig.local_pose(wc, time_loco);
-                    blend_local_poses(&mut p, &wp, weights.walk, None);
-                }
-                p
-            }
-            (Some(ic), None) => rig.local_pose(ic, time_idle),
-            (None, Some(wc)) => rig.local_pose(wc, time_loco),
-            _ => rig.local_pose(&pack::Clip { name: "rest".into(), duration: 0.0, channels: vec![] }, 0.0),
-        }
-    } else {
-        match (walk, run) {
-            (Some(wc), Some(rc)) => {
-                let mut p = rig.local_pose(wc, time_loco);
-                if weights.run > 0.0 {
-                    let rp = rig.local_pose(rc, time_loco);
-                    blend_local_poses(&mut p, &rp, weights.run, None);
-                }
-                p
-            }
-            (Some(wc), None) => rig.local_pose(wc, time_loco),
-            (None, Some(rc)) => rig.local_pose(rc, time_loco),
-            _ => rig.local_pose(&pack::Clip { name: "rest".into(), duration: 0.0, channels: vec![] }, 0.0),
-        }
-    }
+    let n = rig.joint_count();
+    let mut out = vec![(Vec3::ZERO, Quat::IDENTITY, Vec3::ONE); n];
+    let mut scratch = vec![(Vec3::ZERO, Quat::IDENTITY, Vec3::ONE); n];
+    sample_locomotion_into(
+        rig,
+        LocomotionClips { idle, walk, run },
+        blend_pos,
+        time_idle,
+        time_loco,
+        &mut out,
+        &mut scratch,
+    );
+    out
 }
 
 #[cfg(test)]

@@ -1352,6 +1352,8 @@ dependencies = [
  "log",
  "pack",
  "paths",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

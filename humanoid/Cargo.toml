@@ -9,3 +9,5 @@ engine = { path = "../engine" }
 pack = { path = "../pack" }
 glam.workspace = true
 log.workspace = true
+serde.workspace = true
+serde_json.workspace = true
