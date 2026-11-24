@@ -106,6 +106,9 @@ pub fn update_actors(
         }
     }
     if let (Some(p), Some(rig)) = (actors.player_ctrl.as_mut(), actors.camera_rig.as_mut()) {
+        let mut actions = *actions;
+        session.anim_shot.apply_actions(&mut actions, session.autowalk);
+        let actions = &actions;
         rig.update(actions, p.crouching, dt);
         p.first_person = rig.is_first_person;
         // In a car: the keys drive it, E gets out, the player rides in the driver's seat
@@ -378,7 +381,7 @@ pub fn update_actors(
         });
         let swing_busy = actors.combat.as_ref().is_some_and(|c| c.swing_busy());
         let guard_in = game::GuardInput {
-            held: captured && input.mouse_held(MouseButton::Right),
+            held: (captured && input.mouse_held(MouseButton::Right)) || session.anim_shot.block,
             can_guard: !dead && !in_car && !climbing && !play.build_mode.active && guard_weapon && !swing_busy,
         };
         match actors.guard.update(dt, guard_in, &mut p.stamina, guard_cfg) {
@@ -522,7 +525,14 @@ pub fn update_actors(
         }
 
         actors.player = p.position;
-        render.camera = rig.camera(&actors.player, &world.physics);
+        render.camera = if let Some(orbit_yaw) = session.anim_shot.orbit_camera_yaw(p.yaw) {
+            let mut cam_rig = rig.clone();
+            cam_rig.yaw = orbit_yaw;
+            cam_rig.is_first_person = false;
+            cam_rig.camera(&actors.player, &world.physics)
+        } else {
+            rig.camera(&actors.player, &world.physics)
+        };
         // Driving: the multi-mode car camera (Chase / Close / Hood) with speed pullback and shake
         if actors.cars.as_ref().is_some_and(|c| c.driven_car_id.is_some())
             && let Some((car_pos, car_rot, car_speed, car_tag)) = actors
@@ -546,11 +556,17 @@ pub fn update_actors(
             render.camera.fov_y_deg = display::apply_fov(render.camera.fov_y_deg, &m.settings);
         }
         // A gun's aim zoom (the rifle scope zooms much further, CameraRig/GunHandler); moot while driving
-        let aiming = !driving && ui.cursor_captured && input.mouse_held(MouseButton::Right);
+        let aiming = !driving && ((ui.cursor_captured && input.mouse_held(MouseButton::Right)) || session.anim_shot.block);
         ui.right_held = aiming;
         let melee_in_hand = actors.combat.as_ref().and_then(|c| c.weapon_def()).is_some_and(|w| !w.is_gun() && !w.is_bow() && !w.throwable);
         let anim_aiming = if melee_in_hand { actors.guard.is_blocking() } else { aiming };
-        if let Some(pv) = actors.player_visual.as_mut() { pv.animator.set_aiming(anim_aiming); pv.animator.set_look_pitch(rig.pitch); }
+        if session.anim_shot.pose.is_none()
+            && !session.anim_shot.is_pose_frozen()
+            && let Some(pv) = actors.player_visual.as_mut()
+        {
+            pv.animator.set_aiming(anim_aiming);
+            pv.animator.set_look_pitch(rig.pitch);
+        }
         if let (true, Some(gun)) = (aiming, play.play.as_ref().and_then(|pl| pl.gun.as_ref()))
             && let Some(fov) = shooting::aim_fov(gun, rig.is_first_person)
         {

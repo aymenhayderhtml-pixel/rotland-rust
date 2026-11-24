@@ -58,3 +58,18 @@ task's `Files:` list; anything absolute, with `..`, or outside that list is
 refused and nothing is written. The `=== NOTES ===` text goes under
 `## Neon notes`. `neon/` is git-ignored; after applying run
 `tools/gate.sh --task <task file>` and fix until it passes.
+
+## Animation screenshot flags (used with `--shot=<png>`)
+
+Always pass `--save-dir=/tmp/...` so real saves stay untouched:
+
+- `--pose=<clip>[@<seconds>]` — freezes the player on that clip at `<seconds>` (default: clip midpoint). Upper-body clips layer over idle legs; full-body clips override the whole body:
+  `flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/pose.png --pose=melee_2h_b@0.35`
+- `--weapon=<id>` — equips a weapon in the player's hand at startup (`bat`, `axe`, `pistol`, `rifle`, `none`...):
+  `flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/bat.png --weapon=bat --pose=block_2h`
+- `--cam-yaw=<degrees>` — orbits the third-person camera around the player (`0` = behind, `90` = right side, `180` = front):
+  `flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/front.png --pose=eat --cam-yaw=180`
+- `--block` — holds melee block (right mouse held):
+  `flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/block.png --weapon=bat --block --cam-yaw=90`
+- `--sprint` (with `--autowalk`) — sprints forward:
+  `flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/sprint.png --autowalk --sprint --cam-yaw=90`

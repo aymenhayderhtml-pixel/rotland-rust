@@ -52,6 +52,9 @@ pub fn render_frame(
     ) {
         pv.set_weapon(&gpu.device, pack, model.as_deref());
     }
+    if let (Some(pv), Some(pack)) = (actors.player_visual.as_mut(), render.pack.as_ref()) {
+        super::anim_shot::apply_pending_pose(&mut session.anim_shot, pv, pack);
+    }
     // Chunk uploads need the GPU, so streaming runs here rather than in update
     if let (Some(streamer), Some(pack)) = (world.streamer.as_mut(), render.pack.as_ref()) {
         streamer.update(
@@ -215,7 +218,8 @@ pub fn render_frame(
         };
         pv.animator.set_move_velocity(pose.velocity, pose.yaw);
         // The first-person body only casts a shadow, so the posture layers stay off there.
-        if !pose.first_person {
+        let pose_frozen = session.anim_shot.is_pose_frozen();
+        if !pose.first_person && !pose_frozen {
             pv.animator.set_posture(
                 pose.horizontal_speed,
                 pose.crouching,
@@ -231,12 +235,12 @@ pub fn render_frame(
             });
             pv.animator.set_health(health_frac);
         }
-        if !pose.first_person {
+        if !pose.first_person && !pose_frozen {
             pv.animator.set_water(pose.water_depth, pose.swimming, pose.horizontal_speed, pose.stamina_frac);
             pv.animator.set_ladder(pose.climbing, pose.on_rungs, pose.position.y);
             pv.animator.set_incline(pose.position, pose.on_floor && !pose.swimming && !pose.climbing);
         }
-        if pose.on_floor && !pose.first_person && !pose.swimming {
+        if pose.on_floor && !pose.first_person && !pose.swimming && !pose_frozen {
             let physics = &world.physics;
             let (up, down) = {
                 let c = humanoid::foot_ik::FootIkConfig::load_shared();
@@ -249,7 +253,8 @@ pub fn render_frame(
             });
         }
         // The player's yaw already uses the model's facing (checked in a screenshot: no extra turn)
-        let (body, weapon) = pv.pose(session.last_dt, pose.position, pose.yaw, loco, &mut render.bones);
+        let anim_dt = if pose_frozen { 0.0 } else { session.last_dt };
+        let (body, weapon) = pv.pose(anim_dt, pose.position, pose.yaw, loco, &mut render.bones);
         // First person: the body only casts its shadow (like Godot's shadows-only body)
         if !pose.first_person {
             main.push(engine::render::SkinnedBatch {

@@ -156,6 +156,7 @@ pub fn init(
         .value("--car-yaw")
         .and_then(|s| s.parse::<f32>().ok())
         .map(f32::to_radians);
+    session.anim_shot = super::anim_shot::AnimShotState::from_args(args);
     session.near_animals = args
         .value("--animals")
         .map(|s| {
@@ -206,5 +207,18 @@ pub fn init(
         && let Some(change) = play.play.as_mut().and_then(|p| p.press(n))
     {
         apply_hand(change, render, play, actors, world);
+    }
+    if let Some(weapon_id) = session.anim_shot.weapon.clone()
+        && let Some(play_state) = play.play.as_ref()
+    {
+        match super::anim_shot::weapon_hand_change(play_state, &weapon_id) {
+            Some(change) => apply_hand(change, render, play, actors, world),
+            None => log::warn!("--weapon: unknown weapon '{weapon_id}'"),
+        }
+    }
+    if session.anim_shot.cam_yaw_rad.is_some()
+        && let Some(rig) = actors.camera_rig.as_mut()
+    {
+        rig.is_first_person = false;
     }
 }

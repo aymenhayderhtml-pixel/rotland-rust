@@ -5,6 +5,7 @@ pub mod minimap;
 mod minimap_cache;
 mod minimap_draw;
 
+pub mod anim_shot;
 pub mod bench;
 pub mod frame_actors;
 pub mod frame_audio;
