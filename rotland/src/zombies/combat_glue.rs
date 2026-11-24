@@ -43,6 +43,21 @@ impl Zombies {
         result.died_now
     }
 
+    /// A shove from the player: flat push and stagger, no damage. Returns false for dead or immune zombies.
+    pub fn shove(&mut self, id: u64, push: Vec3, stagger_seconds: f32, immune_kinds: &[String]) -> bool {
+        let Some(z) = self.list.iter_mut().find(|z| z.id == id) else {
+            return false;
+        };
+        if z.health.is_dead() || immune_kinds.contains(&z.kind) {
+            return false;
+        }
+        let flat = Vec3::new(push.x, 0.0, push.z);
+        z.knock += flat;
+        z.last_knock = flat;
+        z.brain.stagger_for(stagger_seconds);
+        true
+    }
+
     /// Applies a hit with explicit hit point height. Hits below 0.6 m above feet set leg_hit.
     pub fn hit_with_height(
         &mut self,

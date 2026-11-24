@@ -101,10 +101,11 @@ fn unknown_weapon_falls_back_safely() {
 }
 
 #[test]
-fn aim_is_ignored_for_melee_and_rod() {
+fn aim_is_ignored_for_spear_and_rod() {
     let table = load_real_table();
     let rates = rates_of(&table);
-    for id in ["knife", "bat", "spear", "fishing_rod"] {
+    // Knife and bat aim = block (A13b, DECISIONS 2026-11-24); spear throws, rod fishes.
+    for id in ["spear", "fishing_rod"] {
         let mut ctrl = StanceController::new();
         ctrl.set_weapon(table.for_weapon(id));
         ctrl.set_aiming(true);
@@ -191,10 +192,10 @@ fn weapon_swap_resets_aim_and_clears_old_clips() {
     assert_eq!(ctrl.ready_clip(), Some("stance_pistol_ready"));
     assert_eq!(ctrl.aim_clip(), Some("aim_pistol_two_hand"));
 
-    // Swapping to melee removes any aim clip.
+    // Swapping to melee swaps the aim clip for the block pose (A13b).
     ctrl.set_weapon(table.for_weapon("bat"));
     assert_eq!(ctrl.ready_clip(), Some("stance_melee2h_ready"));
-    assert!(ctrl.aim_clip().is_none());
+    assert_eq!(ctrl.aim_clip(), Some("block_2h"));
 }
 
 #[test]

@@ -152,6 +152,8 @@ pub struct ActorsState {
     pub fp_sway: fp_weapon::FpSway,
     pub fp_motion: game::FpMotion,
     pub vault: game::VaultState,
+    pub guard: game::GuardState,
+    pub shove_scratch: Vec<(u64, Vec3)>,
     pub open_trunk: Option<String>,
     pub camp_guards: Option<game::CampGuards>,
     pub camp_npcs: Option<camp_npcs::CampNpcs>,

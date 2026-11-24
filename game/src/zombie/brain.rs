@@ -254,6 +254,11 @@ impl ZombieBrain {
         self.senses.last_seen()
     }
 
+    /// Staggers the zombie for at least `seconds` (a shove): no moving or attacking until it ends.
+    pub fn stagger_for(&mut self, seconds: f32) {
+        self.stagger_timer = self.stagger_timer.max(seconds);
+    }
+
     pub fn update(&mut self, ctx: &BrainInput<'_>, dt: f32) -> BrainOutput {
         self.just_screamed = false;
         if ctx.is_dead || self.state == ZombieState::Dead {

@@ -96,6 +96,7 @@
     },
     "melee_1h": {
       "readyClip": "stance_melee1h_ready",
+      "aimClip": "block_1h",
       "leftHandGrip": false,
       "gripWhenAiming": false,
       "readyHold": {
@@ -125,8 +126,9 @@
     },
     "melee_2h": {
       "readyClip": "stance_melee2h_ready",
+      "aimClip": "block_2h",
       "leftHandGrip": true,
-      "gripWhenAiming": false,
+      "gripWhenAiming": true,
       "readyHold": {
         "pos": [
           0.0,

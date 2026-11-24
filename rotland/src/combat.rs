@@ -26,6 +26,7 @@ const PLAYER_ID: u64 = 1;
 pub struct Combat {
     pub health: Health,
     swing: MeleeSwing,
+    combo: game::MeleeComboState,
     weapon: Option<WeaponDef>,
     pub bash_weapon: Option<WeaponDef>,
     pending_swing_started: Option<String>,
@@ -46,12 +47,19 @@ pub struct Combat {
 pub struct CombatEvents {
     /// The swing started this frame: play the attack clip.
     pub swing_started: Option<String>,
+    /// Play speed for the swing clip (0 = use 1.0).
+    pub swing_speed: f32,
     pub bitten: bool,
     pub died: bool,
     /// Time to wake up at the camp.
     pub respawn: bool,
     /// A swing landed this frame (hit or miss): the weapon and the flat swing direction, for trees.
     pub swung: Option<(WeaponDef, Vec3)>,
+}
+
+fn melee_moves() -> &'static game::MeleeMovesConfig {
+    static CFG: std::sync::OnceLock<game::MeleeMovesConfig> = std::sync::OnceLock::new();
+    CFG.get_or_init(|| game::MeleeMovesConfig::from_repo().unwrap_or_default())
 }
 
 impl Combat {
@@ -63,6 +71,7 @@ impl Combat {
         Self {
             health: Health::new(PLAYER_HEALTH),
             swing: MeleeSwing::new(),
+            combo: game::MeleeComboState::default(),
             weapon,
             bash_weapon: None,
             pending_swing_started: None,
@@ -79,6 +88,7 @@ impl Combat {
     /// The weapon in hand changes (hotbar). None: nothing to swing.
     pub fn set_weapon(&mut self, weapon: Option<WeaponDef>) {
         self.swing.cancel();
+        self.combo.reset();
         self.bow.cancel();
         self.bash_weapon = None;
         self.pending_swing_started = None;
@@ -97,6 +107,11 @@ impl Combat {
 
     pub fn is_dead(&self) -> bool {
         self.dead_for.is_some()
+    }
+
+    /// True while a melee swing or bash is winding up.
+    pub fn swing_busy(&self) -> bool {
+        self.swing.state() == SwingState::WindingUp
     }
 
     /// Swings an empty gun as a club when out of ammo (GunBash.cs).
@@ -145,12 +160,20 @@ impl Combat {
             return ev;
         }
 
+        let moves = melee_moves();
+        self.combo.tick(dt);
         if let Some(weapon) = &self.weapon
             && !weapon.is_bow()
-            && attack_pressed
-            && self.swing.try_start(weapon, &mut player.stamina)
+            && self.combo.wants_swing(attack_pressed, self.swing.state() == SwingState::Idle, moves)
         {
-            ev.swing_started = weapon.anim.attack.clone();
+            let mv = self.combo.next_move(weapon, moves);
+            if self.swing.try_start(&mv.weapon, &mut player.stamina) {
+                self.combo.on_started(&mv, moves);
+                ev.swing_started = Some(mv.clip);
+                ev.swing_speed = mv.clip_speed;
+            } else {
+                self.combo.reset();
+            }
         }
 
         if ev.swing_started.is_none() {
@@ -169,6 +192,11 @@ impl Combat {
             }
             if let Some(noise) = self.swing.take_noise() {
                 self.noises.push(noise);
+                if self.bash_weapon.is_none()
+                    && let Some(w) = self.weapon.as_ref()
+                {
+                    self.combo.on_resolved(self.hits > 0, &w.id, moves);
+                }
                 if let Some(weapon) = current_weapon {
                     ev.swung = Some((weapon.clone(), facing));
                 }
@@ -190,6 +218,7 @@ impl Combat {
         self.health.kill();
         self.dead_for = Some(0.0);
         self.swing.cancel();
+        self.combo.reset();
         self.bow.cancel();
         self.bash_weapon = None;
         self.pending_swing_started = None;
@@ -209,6 +238,7 @@ impl Combat {
                 ev.died = true;
                 self.dead_for = Some(0.0);
                 self.swing.cancel();
+                self.combo.reset();
                 self.bow.cancel();
                 self.bash_weapon = None;
                 self.pending_swing_started = None;
@@ -537,14 +567,14 @@ mod tests {
         let mut world = MockMeleeWorld { zombies: Vec::new() };
 
         let ev1 = combat.update(0.01, true, &mut player, &mut world, &physics);
-        assert_eq!(ev1.swing_started.as_deref(), dagger.anim.attack.as_deref());
+        assert!(ev1.swing_started.is_some());
         assert_eq!(combat.swing_state(), SwingState::WindingUp);
 
         // A fresh fighter: the dagger swing above is still winding up, so it can't swing again yet
         let mut combat = Combat::new("spear");
         combat.set_weapon(Some(spear.clone()));
         let ev2 = combat.update(0.01, true, &mut player, &mut world, &physics);
-        assert_eq!(ev2.swing_started.as_deref(), spear.anim.attack.as_deref());
+        assert!(ev2.swing_started.is_some());
         assert_eq!(combat.swing_state(), SwingState::WindingUp);
     }
 }

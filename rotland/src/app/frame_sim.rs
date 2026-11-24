@@ -60,7 +60,31 @@ pub fn update_sim(
         }
         let mut bites = std::mem::take(&mut actors.bites_scratch);
         bites.clear();
-        bites.extend(frame.bites.iter().map(|b| b.damage));
+        {
+            static GUARD_CFG: std::sync::OnceLock<game::GuardConfig> = std::sync::OnceLock::new();
+            let guard_cfg = GUARD_CFG.get_or_init(|| game::GuardConfig::from_repo().unwrap_or_default());
+            // frame.bites are pushed in z.list order, so the biters line up with them
+            let mut biters = z
+                .list
+                .iter()
+                .filter(|zz| zz.last_out.as_ref().is_some_and(|o| o.attack_hit.is_some()))
+                .map(|zz| zz.position);
+            let mut blocked_any = false;
+            for b in &frame.bites {
+                let attacker = biters.next();
+                let dmg = if let Some(pc) = actors.player_ctrl.as_mut() {
+                    let (d, blocked) = actors.guard.filter_bite(b.damage, pc.position, pc.yaw, attacker, &mut pc.stamina, guard_cfg);
+                    blocked_any |= blocked;
+                    d
+                } else {
+                    b.damage
+                };
+                bites.push(dmg);
+            }
+            if blocked_any && let Some(pv) = actors.player_visual.as_mut() {
+                pv.animator.play_action(&guard_cfg.block.hit_clip, 1.0);
+            }
+        }
         bites.extend(frame.special_hits.iter().map(|h| h.amount));
         if let (true, Some(pc)) = (alive, actors.player_ctrl.as_mut()) {
             for h in &frame.special_hits {

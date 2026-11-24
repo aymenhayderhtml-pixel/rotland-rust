@@ -289,7 +289,7 @@ pub fn update_actors(
                 animals: actors.wildlife.as_mut().map(|w| &mut w.sim),
                 animal_bonus,
             };
-            let ev = c.update(dt, attack, p, &mut prey, &world.physics);
+            let ev = c.update(dt, attack && !actors.guard.is_blocking(), p, &mut prey, &world.physics);
             swung = ev.swung.clone();
             if ev.swing_started.is_some() {
                 actors.fp_sway.trigger_swing();
@@ -336,8 +336,9 @@ pub fn update_actors(
                     a.event("meleeHit", Some(p.position));
                 }
             }
+            let swing_speed = if ev.swing_speed > 0.0 { ev.swing_speed } else { 1.0 };
             if let (Some(clip), Some(pv)) = (ev.swing_started, actors.player_visual.as_mut()) {
-                pv.animator.play_action(&clip, 1.0);
+                pv.animator.play_action(&clip, swing_speed);
             }
             if ev.respawn {
                 // Clear the death pose, or it stays mixed into the legs after waking up
@@ -365,6 +366,36 @@ pub fn update_actors(
 
         let captured = ui.cursor_captured && !ui.screen_open();
         let right_pressed = captured && input.mouse_pressed(MouseButton::Right);
+        static GUARD_CFG: std::sync::OnceLock<game::GuardConfig> = std::sync::OnceLock::new();
+        let guard_cfg = GUARD_CFG.get_or_init(|| game::GuardConfig::from_repo().unwrap_or_default());
+        let guard_weapon = actors.combat.as_ref().and_then(|c| c.weapon_def()).is_some_and(|w| {
+            !w.is_gun() && !w.is_bow() && !w.throwable && w.id != "fishing_rod"
+        });
+        let swing_busy = actors.combat.as_ref().is_some_and(|c| c.swing_busy());
+        let guard_in = game::GuardInput {
+            held: captured && input.mouse_held(MouseButton::Right),
+            can_guard: !dead && !in_car && !climbing && !play.build_mode.active && guard_weapon && !swing_busy,
+        };
+        match actors.guard.update(dt, guard_in, &mut p.stamina, guard_cfg) {
+            game::GuardEvent::Shove => {
+                if let Some(z) = actors.zombies.as_mut() {
+                    let facing = Vec3::new(-p.yaw.sin(), 0.0, -p.yaw.cos());
+                    game::shove_targets(p.position, facing, &z.targets(), guard_cfg, &mut actors.shove_scratch);
+                    for &(id, push) in &actors.shove_scratch {
+                        z.shove(id, push, guard_cfg.shove.stagger_seconds, &guard_cfg.shove.immune_kinds);
+                    }
+                }
+                if let Some(pv) = actors.player_visual.as_mut() {
+                    pv.animator.play_action(&guard_cfg.shove.clip, guard_cfg.shove.clip_speed);
+                }
+            }
+            game::GuardEvent::GuardBroken => {
+                if let Some(play_state) = play.play.as_mut() {
+                    play_state.show_toast("Guard broken!".to_string());
+                }
+            }
+            _ => {}
+        }
         if let Some(c) = actors.combat.as_mut()
             && !dead
             && !in_car
@@ -512,7 +543,9 @@ pub fn update_actors(
         // A gun's aim zoom (the rifle scope zooms much further, CameraRig/GunHandler); moot while driving
         let aiming = !driving && ui.cursor_captured && input.mouse_held(MouseButton::Right);
         ui.right_held = aiming;
-        if let Some(pv) = actors.player_visual.as_mut() { pv.animator.set_aiming(aiming); pv.animator.set_look_pitch(rig.pitch); }
+        let melee_in_hand = actors.combat.as_ref().and_then(|c| c.weapon_def()).is_some_and(|w| !w.is_gun() && !w.is_bow() && !w.throwable);
+        let anim_aiming = if melee_in_hand { actors.guard.is_blocking() } else { aiming };
+        if let Some(pv) = actors.player_visual.as_mut() { pv.animator.set_aiming(anim_aiming); pv.animator.set_look_pitch(rig.pitch); }
         if let (true, Some(gun)) = (aiming, play.play.as_ref().and_then(|pl| pl.gun.as_ref()))
             && let Some(fov) = shooting::aim_fov(gun, rig.is_first_person)
         {

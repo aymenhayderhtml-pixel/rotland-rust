@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "tapSeconds": 0.2,
+  "shove": {
+    "range": 1.8, "arcDeg": 100, "maxTargets": 3, "staminaCost": 15,
+    "push": 4.0, "staggerSeconds": 0.9, "cooldown": 0.8,
+    "clip": "shove", "clipSpeed": 1.0, "immuneKinds": ["brute"]
+  },
+  "block": {
+    "arcDeg": 120, "damageScale": 0.3, "staminaPerHit": 12, "drainPerSecond": 3,
+    "minStamina": 5, "breakSeconds": 1.5, "hitClip": "block_hit"
+  }
+}
