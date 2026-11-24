@@ -278,6 +278,11 @@ pub fn update_actors(
         } else {
             p.update(actions, rig.yaw, &world.physics, &actors.mover, dt);
         }
+        if let Some(cue) = play.play.as_mut().and_then(|ps| ps.anim_cue.take())
+            && let Some(pv) = actors.player_visual.as_mut()
+        {
+            pv.animator.play_cue(cue);
+        }
         let mut swung = None;
         if let (Some(c), Some(z)) = (actors.combat.as_mut(), actors.zombies.as_mut()) {
             let animal_bonus = play

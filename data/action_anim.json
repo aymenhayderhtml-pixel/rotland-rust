@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "cancelSpeed": 1.2,
+  "cues": {
+    "pickUp":    { "clip": "pickup_low",   "fullBody": true,  "seconds": 0.8, "speed": 1.0, "fadeIn": 0.12, "fadeOut": 0.2 },
+    "openCrate": { "clip": "loot_search",  "fullBody": true,  "seconds": 1.2, "speed": 1.0, "fadeIn": 0.15, "fadeOut": 0.25 },
+    "eat":       { "clip": "eat",          "fullBody": false, "seconds": 1.5, "speed": 1.0, "fadeIn": 0.12, "fadeOut": 0.2 },
+    "drink":     { "clip": "drink",        "fullBody": false, "seconds": 1.5, "speed": 1.0, "fadeIn": 0.12, "fadeOut": 0.2 },
+    "bandage":   { "clip": "bandage",      "fullBody": false, "seconds": 1.2, "speed": 1.0, "fadeIn": 0.12, "fadeOut": 0.2 },
+    "build":     { "clip": "hammer_build", "fullBody": false, "seconds": 0.7, "speed": 1.0, "fadeIn": 0.08, "fadeOut": 0.15 },
+    "fishCast":  { "clip": "fish_cast",    "fullBody": false, "seconds": 1.0, "speed": 1.0, "fadeIn": 0.1,  "fadeOut": 0.2 },
+    "fishReel":  { "clip": "fish_reel",    "fullBody": false, "seconds": 0.0, "speed": 1.0, "fadeIn": 0.15, "fadeOut": 0.3 }
+  }
+}

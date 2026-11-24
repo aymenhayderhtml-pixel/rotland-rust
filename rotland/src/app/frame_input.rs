@@ -306,6 +306,9 @@ pub fn process_input(
                 &mut play.build_mode,
                 play.play.as_mut().map(|p| &mut p.inventory),
             );
+            if placed && let Some(ps) = play.play.as_mut() {
+                ps.anim_cue = Some(humanoid::ActionCue::Build);
+            }
             if placed
                 && let (Some(toast), Some(play_state)) = (
                     play.build_mode.toast.clone(),

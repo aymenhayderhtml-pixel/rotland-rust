@@ -50,6 +50,7 @@ mod swimming_tests;
 mod trees_tests;
 mod vehicle_zombie_damage_tests;
 mod vault_tests;
+mod hit_react_tests;
 mod vehicles_tests;
 mod weapons_new_tests;
 mod melee_combo_tests;

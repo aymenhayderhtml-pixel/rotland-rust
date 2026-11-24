@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "minGapSeconds": 0.3,
+  "staggerKnockback": 4.0,
+  "flinchSpeed": 1.0,
+  "staggerFadeIn": 0.08,
+  "staggerFadeOut": 0.25
+}

@@ -147,3 +147,329 @@ replace:
 Data parses and has all 8 cues; every clip name used exists in poses_use.py or poses_use_v2.py (read the files as text); never-called changes nothing; full-body cue cancels (fades) above cancelSpeed and not below; upper-body cue is not cancelled by speed; a `seconds` cue ends after its time; `FishReel` keeps going until `FishStop`; a new cue replaces the old one; stable and finite at dt 0 and 0.1.
 
 ## Worker notes
+
+Applied by Claude (orchestrator helper, 2026-11-24).
+- Full files from neon/in applied with neon_apply; animator.rs, lib.rs and poses.py edits applied from NOTES; fixed wiring applied literally.
+- Neon slip fixed by hand: action_anim_tests.rs had a broken string literal (`contains("ed)`); now `contains(&quoted)`.
+- Data tags shortened: the gate checks the key text as a plain substring, so `cues.pickUp.seconds` failed; tags now name the JSON key only (`seconds`, `speed`, `fadeIn`, `fadeOut`).
+- Gate: clippy PASS, tests PASS (1015 passed, whole workspace incl. A14), numbers PASS, unused PASS. Scope FAIL only from owner's uncommitted files and the A14 files (expected).
+- Player model rebuilt with build_characters.py and models.pack baked.
+
+## Neon notes
+
+### Edits for `humanoid/src/animator.rs`
+
+1. Add import — find:
+
+```rust
+use crate::action::ActionState;
+
+```
+
+replace:
+
+```rust
+use crate::action::ActionState;
+use crate::action_anim::{ActionAnimCommand, ActionAnimState, ActionCue};
+
+```
+
+2. Add field to `HumanoidAnimator` — find:
+
+```rust
+    action: Option<ActionState>,
+    full_body: Option<FullBodyState>,
+
+```
+
+replace:
+
+```rust
+    action: Option<ActionState>,
+    action_anim: ActionAnimState,
+    full_body: Option<FullBodyState>,
+
+```
+
+3. Initialize field in `HumanoidAnimator::with_config` — find:
+
+```rust
+            action: None,
+            full_body: None,
+
+```
+
+replace:
+
+```rust
+            action: None,
+            action_anim: ActionAnimState::new(),
+            full_body: None,
+
+```
+
+4. Tick `action_anim` in `HumanoidAnimator::update` — find:
+
+```rust
+        self.aim.tick(step);
+        self.advance_action(step);
+
+```
+
+replace:
+
+```rust
+        self.aim.tick(step);
+        self.advance_action(step);
+        if self.action_anim.is_driven() {
+            let blocked = in_car || on_ladder || self.swim.is_swimming();
+            if let ActionAnimCommand::StopFullBody { fade_out } =
+                self.action_anim.tick(step, blocked)
+            {
+                self.stop_full_body(Some(fade_out));
+            }
+            if self.action.is_none() {
+                self.action_anim.apply_upper(&mut self.layers);
+            }
+        }
+
+```
+
+5. Feed horizontal movement speed in `HumanoidAnimator::set_move_velocity` — find:
+
+```rust
+    pub fn set_move_velocity(&mut self, velocity: Vec3, yaw: f32) {
+        self.motion.set_input(velocity, yaw);
+        self.air.set_velocity(velocity);
+        self.air_driven = true;
+        self.dirty = true;
+    }
+
+```
+
+replace:
+
+```rust
+    pub fn set_move_velocity(&mut self, velocity: Vec3, yaw: f32) {
+        self.motion.set_input(velocity, yaw);
+        self.air.set_velocity(velocity);
+        self.action_anim.set_move_speed(velocity.x.hypot(velocity.z));
+        self.air_driven = true;
+        self.dirty = true;
+    }
+
+```
+
+6. Add `play_cue` method — find:
+
+```rust
+    pub fn play_hit(&mut self) {
+        self.play_action("hit", 1.0); // godot: HumanoidAnimTree.cs:152
+    }
+
+```
+
+replace:
+
+```rust
+    /// Starts the body animation for something the player just did.
+    pub fn play_cue(&mut self, cue: ActionCue) {
+        let blocked = self.dying
+            || self.held_pose.is_some()
+            || self.car.is_seated()
+            || self.ladder.is_on_ladder()
+            || self.swim.is_swimming();
+        match self.action_anim.play_cue(cue, blocked) {
+            ActionAnimCommand::None => {}
+            ActionAnimCommand::StartFullBody { cue, opts } => {
+                if let Some(clip) = self.action_anim.clip_name(cue) {
+                    self.play_full_body(clip, opts);
+                }
+            }
+            ActionAnimCommand::StopFullBody { fade_out } => {
+                self.stop_full_body(Some(fade_out));
+            }
+        }
+        self.dirty = true;
+    }
+
+    pub fn play_hit(&mut self) {
+        self.play_action("hit", 1.0); // godot: HumanoidAnimTree.cs:152
+    }
+
+```
+
+7. Render upper-body cue in `HumanoidAnimator::apply_action_stage` — find:
+
+```rust
+    fn apply_action_stage(&mut self, rig: &Rig) {
+        let Some(act) = &self.action else { return };
+
+```
+
+replace:
+
+```rust
+    fn apply_action_stage(&mut self, rig: &Rig) {
+        let Some(act) = &self.action else {
+            if self.action_anim.is_upper_active() {
+                self.apply_layer(rig, LayerId::Action);
+            }
+            return;
+        };
+
+```
+
+### Edits for `humanoid/src/lib.rs`
+
+Anchor on the existing `car_anim` lines:
+
+* Add `pub mod action_anim;`
+* Add `#[cfg(test)] mod action_anim_tests;`
+* Add `pub use action_anim::ActionCue;`
+
+### Edits for `tools/blender/characters/poses.py`
+
+1. Import `CLIPS as _USE_V2` from `poses_use_v2` right after the `poses_use` import:
+
+```python
+from poses_use_v2 import CLIPS as _USE_V2
+
+```
+
+2. Merge `**_USE_V2` immediately after `**_USE` in `PLAYER_ONLY_CLIPS`:
+
+```python
+PLAYER_ONLY_CLIPS = {..., **_USE, **_USE_V2, ...}
+
+```
+
+### Fixed wiring (unchanged from task spec)
+
+1. `rotland/src/play.rs`, find:
+
+```rust
+    /// Something was picked up or a crate opened this frame (pickup sound).
+    pub picked_up: bool,
+
+```
+
+replace:
+
+```rust
+    /// Something was picked up or a crate opened this frame (pickup sound).
+    pub picked_up: bool,
+    /// Body animation for something the player just did (taken by frame_actors).
+    pub anim_cue: Option<humanoid::ActionCue>,
+
+```
+
+2. `rotland/src/play.rs`, find `            picked_up: false,` replace `            picked_up: false,\n            anim_cue: None,`
+3. `rotland/src/play.rs`, find:
+
+```rust
+                    self.camp.bounties.on_crate_looted();
+                    self.picked_up = true;
+
+```
+
+replace:
+
+```rust
+                    self.camp.bounties.on_crate_looted();
+                    self.picked_up = true;
+                    self.anim_cue = Some(humanoid::ActionCue::OpenCrate);
+
+```
+
+4. `rotland/src/play.rs`, find:
+
+```rust
+                InteractResult::PickedUpItem { toast, item_id, count, .. } => {
+                    self.picked_up = true;
+
+```
+
+replace:
+
+```rust
+                InteractResult::PickedUpItem { toast, item_id, count, .. } => {
+                    self.picked_up = true;
+                    self.anim_cue = Some(humanoid::ActionCue::PickUp);
+
+```
+
+5. `rotland/src/play.rs`, find `        self.use_cooldown = USE_COOLDOWN;` replace:
+
+```rust
+        self.use_cooldown = USE_COOLDOWN;
+        self.anim_cue = Some(match def.category {
+            ItemCategory::Food => humanoid::ActionCue::Eat,
+            ItemCategory::Drink => humanoid::ActionCue::Drink,
+            _ => humanoid::ActionCue::Bandage,
+        });
+
+```
+
+6. `rotland/src/app/frame_input.rs`, find:
+
+```rust
+            if placed
+                && let (Some(toast), Some(play_state)) = (
+
+```
+
+replace:
+
+```rust
+            if placed && let Some(ps) = play.play.as_mut() {
+                ps.anim_cue = Some(humanoid::ActionCue::Build);
+            }
+            if placed
+                && let (Some(toast), Some(play_state)) = (
+
+```
+
+7. `rotland/src/app/frame_water.rs`, find `    let event = play.water.fishing.tick(&input, dt);` replace:
+
+```rust
+    let event = play.water.fishing.tick(&input, dt);
+    let fish_cue = match event.as_ref() {
+        Some(FishingEvent::Cast) => Some(humanoid::ActionCue::FishCast),
+        Some(FishingEvent::Bite) => Some(humanoid::ActionCue::FishReel),
+        Some(FishingEvent::Caught | FishingEvent::Escaped | FishingEvent::Cancelled) => Some(humanoid::ActionCue::FishStop),
+        None => None,
+    };
+    if let (Some(cue), Some(ps)) = (fish_cue, play.play.as_mut()) {
+        ps.anim_cue = Some(cue);
+    }
+
+```
+
+8. `rotland/src/app/frame_actors.rs`, find `        let mut swung = None;` replace:
+
+```rust
+        if let Some(cue) = play.play.as_mut().and_then(|ps| ps.anim_cue.take())
+            && let Some(pv) = actors.player_visual.as_mut()
+        {
+            pv.animator.play_cue(cue);
+        }
+        let mut swung = None;
+
+```
+
+9. `humanoid/src/lib.rs`: `pub mod action_anim;`, `#[cfg(test)] mod action_anim_tests;`, and `pub use action_anim::ActionCue;` (anchor on the existing `car_anim` lines; the helper places them).
+
+### Missing context notes
+
+* `humanoid/src/car_anim.rs` and `tools/blender/characters/poses_air.py` were not included in the Read section; `action_anim.rs` follows the `car_anim` structure described in the task prompt, and `poses_use_v2.py` uses the standard `CLIPS = {"drink": {"duration", "loop", "bones"}}` format.
+
+## Gate report
+- date: 2026-11-24
+- base: main
+- files changed (35): assets/models/buildings/settlement.glb, assets/models/_previews/car_hatchback_blue.png, assets/models/_previews/car_hatchback_blue_rear.png, assets/models/_previews/car_hatchback_blue_side.png, assets/models/_previews/car_hatchback_olive.png, assets/models/_previews/car_hatchback_olive_rear.png, assets/models/_previews/car_hatchback_olive_side.png, assets/models/_previews/car_hatchback_red.png, assets/models/_previews/car_hatchback_red_rear.png, assets/models/_previews/car_hatchback_red_side.png, assets/models/vehicles/car_hatchback_blue.glb, assets/models/vehicles/car_hatchback_olive.glb, assets/models/vehicles/car_hatchback_red.glb, data/action_anim.json, data/hit_react.json, game/src/hit_react.rs, game/src/lib.rs, game/tests/all/hit_react_tests.rs, game/tests/all/main.rs, humanoid/src/action_anim.rs, humanoid/src/action_anim_tests.rs, humanoid/src/animator.rs, humanoid/src/lib.rs, rotland/src/app/frame_actors.rs, rotland/src/app/frame_input.rs, rotland/src/app/frame_sim.rs, rotland/src/app/frame_water.rs, rotland/src/app/state.rs, rotland/src/play.rs, tasks/A12-actions.md, tasks/A14-hit-reactions.md, tools/blender/buildings/settlement.py, tools/blender/characters/poses.py, tools/blender/characters/poses_use_v2.py, tools/blender/vehicles/car_parts.py
+- tests passed: 1015
+- clippy: PASS
+- test: PASS
+- checks: FAIL
+- gate: FAIL (checks)

@@ -123,6 +123,15 @@ pub fn update_water_play(
     let random_01 = ((time * 12.9898).sin() * 43758.5453).fract().abs() as f32;
     let input = FishingInput { has_rod, can_fish_here: can_fish, click: attack, hurt, random_01 };
     let event = play.water.fishing.tick(&input, dt);
+    let fish_cue = match event.as_ref() {
+        Some(FishingEvent::Cast) => Some(humanoid::ActionCue::FishCast),
+        Some(FishingEvent::Bite) => Some(humanoid::ActionCue::FishReel),
+        Some(FishingEvent::Caught | FishingEvent::Escaped | FishingEvent::Cancelled) => Some(humanoid::ActionCue::FishStop),
+        None => None,
+    };
+    if let (Some(cue), Some(ps)) = (fish_cue, play.play.as_mut()) {
+        ps.anim_cue = Some(cue);
+    }
     play.water.has_rod = has_rod;
     play.water.can_fish = can_fish;
 

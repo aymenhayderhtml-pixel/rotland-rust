@@ -139,3 +139,104 @@ replace:
 Config parses and equals Default; `hit_side` for yaw 0 (facing -Z): attacker at -Z → Front, +Z → Back, +X → Right, -X → Left; same for yaw -PI/2 (facing +X): attacker at +X → Front, +Z → Right; zero distance → Front; `on_hit` with no attacker → `hit_front`; second hit within minGapSeconds → None, after → Some; big push pointing backward → `stagger_back` full body, even inside the gap; big push pointing forward → `hit_back` upper body; small push below threshold → normal directional flinch.
 
 ## Worker notes
+
+Applied by Claude (orchestrator helper, 2026-11-24).
+- Full files applied with neon_apply; lib.rs, game test main.rs, state.rs and frame_sim.rs wiring applied from the task Wiring section.
+- Hand fix: `time: session.time` cast to `session.time as f64` (HitInput.time is f64, session.time is f32).
+- Gate: clippy PASS, tests PASS (1015 passed), numbers PASS, unused PASS. Scope FAIL only from owner's uncommitted files and the A12 files (expected).
+- Applied after A12; the models pack was rebuilt once for both.
+
+## Neon notes
+
+Fixed wiring edits to apply:
+
+1. `game/src/lib.rs`: `pub mod hit_react;` and `pub use hit_react::{HitInput, HitReactConfig, HitReactState, HitReaction, HitSide, hit_side};` (place next to the `vault` lines).
+2. `game/tests/all/main.rs`: `mod hit_react_tests;`.
+3. `rotland/src/app/state.rs`: in `pub struct ActorsState` (it derives Default), next to `pub vault: game::VaultState,` add `pub hit_react: game::HitReactState,`.
+4. `rotland/src/app/frame_sim.rs`, find:
+
+```rust
+        if alive {
+            for z_actor in &z.list {
+                if z_actor.last_out.as_ref().is_some_and(|o| o.attack_hit.is_some()) {
+                    ui.hud.on_damage(z_actor.position);
+                }
+            }
+        }
+
+```
+
+replace:
+
+```rust
+        let mut hit_from: Option<Vec3> = None;
+        let big_knock = frame
+            .special_hits
+            .iter()
+            .map(|h| h.knockback)
+            .max_by(|a, b| a.length_squared().total_cmp(&b.length_squared()))
+            .unwrap_or(Vec3::ZERO);
+        if alive {
+            for z_actor in &z.list {
+                if z_actor.last_out.as_ref().is_some_and(|o| o.attack_hit.is_some()) {
+                    ui.hud.on_damage(z_actor.position);
+                    hit_from.get_or_insert(z_actor.position);
+                }
+            }
+        }
+
+```
+
+(If `Vec3` is not imported in `frame_sim.rs`, use `glam::Vec3`.)
+5. `rotland/src/app/frame_sim.rs`, find:
+
+```rust
+            } else if ev.bitten {
+                if let Some(pv) = actors.player_visual.as_mut() {
+                    pv.animator.play_hit();
+                }
+
+```
+
+replace:
+
+```rust
+            } else if ev.bitten {
+                static HIT_CFG: std::sync::OnceLock<game::HitReactConfig> = std::sync::OnceLock::new();
+                let hit_cfg = HIT_CFG.get_or_init(|| game::HitReactConfig::from_repo().unwrap_or_default());
+                let player_yaw = actors.player_ctrl.as_ref().map_or(0.0, |p| p.yaw);
+                let input = game::HitInput {
+                    time: session.time,
+                    player_pos: actors.player,
+                    player_yaw,
+                    attacker: hit_from,
+                    knockback: big_knock,
+                };
+                if let (Some(r), Some(pv)) = (actors.hit_react.on_hit(&input, hit_cfg), actors.player_visual.as_mut()) {
+                    if r.full_body {
+                        let opts = humanoid::FullBodyOptions {
+                            speed: r.speed,
+                            hold_last: false,
+                            fade_in: r.fade_in,
+                            fade_out: r.fade_out,
+                            ..humanoid::FullBodyOptions::default()
+                        };
+                        pv.animator.play_full_body(r.clip, opts);
+                    } else {
+                        pv.animator.play_action(r.clip, r.speed);
+                    }
+                }
+
+```
+
+(`session.time` is f64 here; if it is f32, cast. If a borrow error appears, reorder.)
+
+## Gate report
+- date: 2026-11-24
+- base: main
+- files changed (35): assets/models/buildings/settlement.glb, assets/models/_previews/car_hatchback_blue.png, assets/models/_previews/car_hatchback_blue_rear.png, assets/models/_previews/car_hatchback_blue_side.png, assets/models/_previews/car_hatchback_olive.png, assets/models/_previews/car_hatchback_olive_rear.png, assets/models/_previews/car_hatchback_olive_side.png, assets/models/_previews/car_hatchback_red.png, assets/models/_previews/car_hatchback_red_rear.png, assets/models/_previews/car_hatchback_red_side.png, assets/models/vehicles/car_hatchback_blue.glb, assets/models/vehicles/car_hatchback_olive.glb, assets/models/vehicles/car_hatchback_red.glb, data/action_anim.json, data/hit_react.json, game/src/hit_react.rs, game/src/lib.rs, game/tests/all/hit_react_tests.rs, game/tests/all/main.rs, humanoid/src/action_anim.rs, humanoid/src/action_anim_tests.rs, humanoid/src/animator.rs, humanoid/src/lib.rs, rotland/src/app/frame_actors.rs, rotland/src/app/frame_input.rs, rotland/src/app/frame_sim.rs, rotland/src/app/frame_water.rs, rotland/src/app/state.rs, rotland/src/play.rs, tasks/A12-actions.md, tasks/A14-hit-reactions.md, tools/blender/buildings/settlement.py, tools/blender/characters/poses.py, tools/blender/characters/poses_use_v2.py, tools/blender/vehicles/car_parts.py
+- tests passed: 1015
+- clippy: PASS
+- test: PASS
+- checks: FAIL
+- gate: FAIL (checks)

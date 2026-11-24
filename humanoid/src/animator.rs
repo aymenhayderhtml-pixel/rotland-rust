@@ -10,6 +10,7 @@ use glam::{Mat4, Vec3};
 use pack::{Clip, Skeleton};
 
 use crate::action::ActionState;
+use crate::action_anim::{ActionAnimCommand, ActionAnimState, ActionCue};
 use crate::aim::{AimController, AimJoints};
 use crate::airborne::{AirState, LandingKind, landing_clip};
 use crate::anim_config::AnimConfig;
@@ -70,6 +71,7 @@ pub struct HumanoidAnimator {
     tempo_scale: f32,
     time_idle: f32,
     action: Option<ActionState>,
+    action_anim: ActionAnimState,
     full_body: Option<FullBodyState>,
     events: ClipEventTable,
     event_queue: EventQueue,
@@ -138,6 +140,7 @@ impl HumanoidAnimator {
             tempo_scale: 1.0, // new: DECISIONS 2026-11-23
             time_idle: 0.0,
             action: None,
+            action_anim: ActionAnimState::new(),
             full_body: None,
             events,
             event_queue: EventQueue::default(),
@@ -366,6 +369,17 @@ impl HumanoidAnimator {
 
         self.aim.tick(step);
         self.advance_action(step);
+        if self.action_anim.is_driven() {
+            let blocked = in_car || on_ladder || self.swim.is_swimming();
+            if let ActionAnimCommand::StopFullBody { fade_out } =
+                self.action_anim.tick(step, blocked)
+            {
+                self.stop_full_body(Some(fade_out));
+            }
+            if self.action.is_none() {
+                self.action_anim.apply_upper(&mut self.layers);
+            }
+        }
         if !on_ladder && !in_car {
             self.advance_stance(step);
             self.advance_posture(step);
@@ -391,6 +405,7 @@ impl HumanoidAnimator {
     pub fn set_move_velocity(&mut self, velocity: Vec3, yaw: f32) {
         self.motion.set_input(velocity, yaw);
         self.air.set_velocity(velocity);
+        self.action_anim.set_move_speed(velocity.x.hypot(velocity.z));
         self.air_driven = true;
         self.dirty = true;
     }
@@ -439,6 +454,27 @@ impl HumanoidAnimator {
             self.layers.get_mut(LayerId::Action).weight = 0.0;
             self.dirty = true;
         }
+    }
+
+    /// Starts the body animation for something the player just did.
+    pub fn play_cue(&mut self, cue: ActionCue) {
+        let blocked = self.dying
+            || self.held_pose.is_some()
+            || self.car.is_seated()
+            || self.ladder.is_on_ladder()
+            || self.swim.is_swimming();
+        match self.action_anim.play_cue(cue, blocked) {
+            ActionAnimCommand::None => {}
+            ActionAnimCommand::StartFullBody { cue, opts } => {
+                if let Some(clip) = self.action_anim.clip_name(cue) {
+                    self.play_full_body(clip, opts);
+                }
+            }
+            ActionAnimCommand::StopFullBody { fade_out } => {
+                self.stop_full_body(Some(fade_out));
+            }
+        }
+        self.dirty = true;
     }
 
     pub fn play_hit(&mut self) {
@@ -806,7 +842,12 @@ impl HumanoidAnimator {
     }
 
     fn apply_action_stage(&mut self, rig: &Rig) {
-        let Some(act) = &self.action else { return };
+        let Some(act) = &self.action else {
+            if self.action_anim.is_upper_active() {
+                self.apply_layer(rig, LayerId::Action);
+            }
+            return;
+        };
         let w = act.weight();
         if act.clip_name == "melee_2h" {
             let t = (act.time * act.speed).clamp(0.0, SWING_MAX_TIME);

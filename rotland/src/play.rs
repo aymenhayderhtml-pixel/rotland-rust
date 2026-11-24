@@ -55,6 +55,8 @@ pub struct PlayState {
     pub camp: crate::camp::Camp,
     /// Something was picked up or a crate opened this frame (pickup sound).
     pub picked_up: bool,
+    /// Body animation for something the player just did (taken by frame_actors).
+    pub anim_cue: Option<humanoid::ActionCue>,
     /// What the player has explored (Godot WorldMap, saved under "map").
     pub map: game::MapState,
     /// Lifetime numbers for the profile page (Godot PlayerStats, save id "stats").
@@ -133,6 +135,7 @@ impl PlayState {
             health_full: true,
             camp,
             picked_up: false,
+            anim_cue: None,
             map: game::MapState::new(),
             stats: game::ProfileStats::default(),
             hints: game::HintSystem::from_repo().map_err(|e| log::warn!("data/hints.json: {e}")).ok(),
@@ -218,6 +221,11 @@ impl PlayState {
         self.inventory.remove(item_id, 1);
         self.hotbar.on_inventory_changed(&self.inventory);
         self.use_cooldown = USE_COOLDOWN;
+        self.anim_cue = Some(match def.category {
+            ItemCategory::Food => humanoid::ActionCue::Eat,
+            ItemCategory::Drink => humanoid::ActionCue::Drink,
+            _ => humanoid::ActionCue::Bandage,
+        });
         (health != 0.0).then_some(HandChange::Health(health))
     }
 
@@ -569,6 +577,7 @@ impl PlayState {
                     self.camp.wallet.add(cash);
                     self.camp.bounties.on_crate_looted();
                     self.picked_up = true;
+                    self.anim_cue = Some(humanoid::ActionCue::OpenCrate);
                     for stack in items {
                         let leftover = leftovers.iter().find(|l| l.item_id == stack.item_id).map_or(0, |l| l.count);
                         let added = stack.count.saturating_sub(leftover);
@@ -580,6 +589,7 @@ impl PlayState {
                 }
                 InteractResult::PickedUpItem { toast, item_id, count, .. } => {
                     self.picked_up = true;
+                    self.anim_cue = Some(humanoid::ActionCue::PickUp);
                     if count > 0 {
                         self.pending_pickups.push((item_id, count));
                     }

@@ -36,9 +36,13 @@ mod ladder_anim_tests;
 mod swim_tests;
 pub mod posture;
 pub mod ladder_anim;
+pub mod action_anim;
 pub mod car_anim;
 #[cfg(test)]
+mod action_anim_tests;
+#[cfg(test)]
 mod car_anim_tests;
+pub use action_anim::ActionCue;
 pub mod swim;
 pub mod stance;
 #[cfg(test)]
