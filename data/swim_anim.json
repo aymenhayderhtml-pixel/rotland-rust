@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "wadeMinDepth": 0.35,
+  "wadeFullDepth": 1.0,
+  "swimMoveSpeed": 0.6,
+  "swimFullSpeed": 2.5,
+  "tiredStamina": 0.25,
+  "blendRate": 6.0,
+  "climbOutSeconds": 1.1
+}

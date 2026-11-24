@@ -110,6 +110,8 @@ pub struct Player {
     pub can_jump: bool,
     pub water_float_y: Option<f32>,
     pub in_deep_water: bool,
+    /// Metres of lake water above the feet (0 on land); set each frame by the game loop.
+    pub water_depth: f32,
     pub dirty_water_cooldown: f32,
     pub gravity: f32,
 }
@@ -142,6 +144,7 @@ impl Player {
             can_jump: true,
             water_float_y: None,
             in_deep_water: false,
+            water_depth: 0.0,
             dirty_water_cooldown: 0.0,
             gravity: DEFAULT_GRAVITY,
         }

@@ -199,7 +199,10 @@ pub fn render_frame(
                 pose.stamina_frac,
             );
         }
-        if pose.on_floor && !pose.first_person {
+        if !pose.first_person {
+            pv.animator.set_water(pose.water_depth, pose.swimming, pose.horizontal_speed, pose.stamina_frac);
+        }
+        if pose.on_floor && !pose.first_person && !pose.swimming {
             let physics = &world.physics;
             let (up, down) = {
                 let c = humanoid::foot_ik::FootIkConfig::load_shared();

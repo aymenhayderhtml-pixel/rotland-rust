@@ -27,7 +27,10 @@ mod foot_ik_tests;
 pub mod pose_buffer;
 #[cfg(test)]
 mod posture_tests;
+#[cfg(test)]
+mod swim_tests;
 pub mod posture;
+pub mod swim;
 pub mod stance;
 #[cfg(test)]
 mod stance_tests;

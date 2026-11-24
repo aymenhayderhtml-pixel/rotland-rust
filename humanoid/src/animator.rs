@@ -26,6 +26,7 @@ use crate::motion::{MotionClips, MotionJoints, MotionState};
 use crate::pose_buffer::{add_pose_masked, blend_pose_masked, PosePool};
 use crate::posture::PostureState;
 use crate::stance::{HoldTransform, StanceController, StanceTable};
+use crate::swim::{SwimState, SWIM_CLIMB_OUT_CLIP};
 
 const POSE_POOL_BUFFERS: usize = 3; // new: DECISIONS 2026-11-23
 const LAYER_EPSILON: f32 = 0.001; // godot: HumanoidAnimTree.cs:210
@@ -53,6 +54,7 @@ pub struct HumanoidAnimator {
     air: AirState,
     air_driven: bool,
     posture: PostureState,
+    swim: SwimState,
     foot_ik: FootIkState,
     foot_joints: Option<FootJoints>,
     foot_globals: Vec<Mat4>,
@@ -117,6 +119,7 @@ impl HumanoidAnimator {
             air: AirState::new(),
             air_driven: false,
             posture: PostureState::new(),
+            swim: SwimState::new(),
             foot_ik: FootIkState::new(),
             foot_joints,
             foot_globals: vec![Mat4::IDENTITY; n],
@@ -266,21 +269,33 @@ impl HumanoidAnimator {
 
         let k = 1.0 - (-self.config.blend_rate * step).exp();
         self.blend_pos += (locomotion.speed.clamp(0.0, RUN_BLEND) - self.blend_pos) * k;
-        if self.air_driven {
-            let landing = self.air.tick(step, locomotion.on_floor);
-            let target = self.air.air_target();
-            let clip = self.air.air_clip().unwrap_or("jump");
-            let layer = self.layers.get_mut(LayerId::Air);
-            layer.target = target;
-            if layer.clip.as_deref() != Some(clip) {
-                layer.clip = Some(clip.to_owned());
-                layer.time = 0.0;
+        let climb_out = self.swim.tick(step);
+        if self.swim.is_swimming() {
+            self.swim.apply_swim(&mut self.layers);
+        } else {
+            let (air_target, air_clip, landing) = if self.air_driven {
+                let landing = self.air.tick(step, locomotion.on_floor);
+                (self.air.air_target(), self.air.air_clip().unwrap_or("jump"), landing)
+            } else {
+                (if locomotion.on_floor { 0.0 } else { 1.0 }, "jump", None)
+            };
+            if locomotion.on_floor && air_target <= LAYER_EPSILON && self.swim.wants_wade() {
+                self.swim.apply_wade(&mut self.layers);
+            } else {
+                self.swim.release_air(&mut self.layers);
+                let layer = self.layers.get_mut(LayerId::Air);
+                layer.target = air_target;
+                if self.air_driven && layer.clip.as_deref() != Some(air_clip) {
+                    layer.clip = Some(air_clip.to_owned());
+                    layer.time = 0.0;
+                }
             }
             if let Some(kind) = landing {
                 self.start_landing(kind);
             }
-        } else {
-            self.layers.get_mut(LayerId::Air).target = if locomotion.on_floor { 0.0 } else { 1.0 };
+        }
+        if climb_out {
+            self.start_climb_out();
         }
         self.layers.get_mut(LayerId::Crouch).target = if locomotion.crouching { 1.0 } else { 0.0 };
         self.motion.tick(step, locomotion.on_floor);
@@ -294,7 +309,8 @@ impl HumanoidAnimator {
         self.advance_stance(step);
         self.advance_posture(step);
         self.advance_full_body(step);
-        self.foot_ik.set_active(locomotion.on_floor && self.full_body.is_none());
+        self.foot_ik
+            .set_active(locomotion.on_floor && !self.swim.is_swimming() && self.full_body.is_none());
         self.foot_ik.tick(step, self.blend_pos);
     }
 
@@ -309,6 +325,12 @@ impl HumanoidAnimator {
     /// Feeds crouch, sprint and stamina so the posture layers can react (third person only).
     pub fn set_posture(&mut self, speed: f32, crouching: bool, sprinting: bool, stamina_frac: f32) {
         self.posture.set_input(speed, crouching, sprinting, stamina_frac);
+        self.dirty = true;
+    }
+
+    /// Feeds lake depth, deep-water flag, horizontal speed and stamina.
+    pub fn set_water(&mut self, depth: f32, swimming: bool, speed: f32, stamina_frac: f32) {
+        self.swim.set_input(depth, swimming, speed, stamina_frac);
         self.dirty = true;
     }
 
@@ -371,6 +393,20 @@ impl HumanoidAnimator {
         // A soft landing only keys legs and hips, so keep the weapon arms on the stance.
         let mask = if kind == LandingKind::Soft { MaskId::Lower } else { MaskId::Full };
         self.layers.get_mut(LayerId::FullBody).mask = mask;
+    }
+
+    /// Plays the climb-out clip once on leaving deep water unless dying, held or busy.
+    fn start_climb_out(&mut self) {
+        if self.dying || self.held_pose.is_some() || self.full_body.is_some() {
+            return;
+        }
+        let speed = self
+            .clips
+            .get(SWIM_CLIMB_OUT_CLIP)
+            .map_or(1.0, |c| self.swim.climb_out_speed(c.duration));
+        let (fade_in, fade_out) = self.swim.climb_out_fades();
+        let opts = FullBodyOptions { speed, looping: false, hold_last: false, fade_in, fade_out };
+        self.play_full_body(SWIM_CLIMB_OUT_CLIP, opts);
     }
 
     /// Smoothly stops the active full-body clip using `fade_out` (or the clip's configured default).

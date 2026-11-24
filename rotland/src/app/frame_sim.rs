@@ -573,6 +573,12 @@ pub fn update_sim(
             dt,
         );
         p.apply_water_movement(&water_res);
+        p.water_depth = match water_res.zone {
+            world::LakeZone::Shallow | world::LakeZone::Deep if !on_dock => {
+                (lake.water_level - p.position.y).max(0.0)
+            }
+            _ => 0.0,
+        };
         // Hands are stowed by frame_water (update_water_play) from this flag
         play.water.in_deep = water_res.disarm_weapons;
 

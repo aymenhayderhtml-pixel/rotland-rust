@@ -127,3 +127,351 @@ Every new number in Rust code needs a source tag on its line (`// data: swim_ani
 
 ## Worker notes
 
+## Neon notes
+
+### Design notes
+
+* **Layer choice for wading (`LayerId::Air`):** While wading on the ground (`on_floor == true`, `air_target == 0`), `LayerId::Air` is idle and completely free. Using `Air` with `MaskId::Lower` for `wade_walk` avoids any conflict with `posture.rs` (`Crouch` for crouch/sprint, `Aim` for crouch walk/catch breath/sprint arms, `Additive` for tired breath) as well as weapon `Stance` and `Action` layers. If the player jumps in shallow water, `on_floor` becomes false and `SwimState::release_air` restores `MaskId::Full` and `speed = 1.0` so jump clips play normally.
+* **Swim playback speed:** `AnimLayer` exposes `pub speed: f32`, so `SwimState::apply_swim` sets `layer.speed = self.swim_tempo()` for `swim_forward` and `1.0` for `swim_tread` / `swim_tired`.
+* **Missing files from Read:** `humanoid/src/lib.rs` was not included under `Read`; the `lib.rs` edit below shows the exact module declarations to add alongside `posture`. Also verify the bone names and `CLIPS` dict structure in `tools/blender/characters/poses_swim.py` against `poses_air.py` / `poses_posture.py` before re-exporting `assets/models/characters/human_player.glb`.
+
+---
+
+### Edits for `humanoid/src/animator.rs`
+
+1. Find:
+
+```rust
+use crate::posture::PostureState;
+use crate::stance::{HoldTransform, StanceController, StanceTable};
+
+```
+
+Replace with:
+
+```rust
+use crate::posture::PostureState;
+use crate::stance::{HoldTransform, StanceController, StanceTable};
+use crate::swim::{SwimState, SWIM_CLIMB_OUT_CLIP};
+
+```
+
+2. Find:
+
+```rust
+    posture: PostureState,
+    foot_ik: FootIkState,
+
+```
+
+Replace with:
+
+```rust
+    posture: PostureState,
+    swim: SwimState,
+    foot_ik: FootIkState,
+
+```
+
+3. Find:
+
+```rust
+            posture: PostureState::new(),
+            foot_ik: FootIkState::new(),
+
+```
+
+Replace with:
+
+```rust
+            posture: PostureState::new(),
+            swim: SwimState::new(),
+            foot_ik: FootIkState::new(),
+
+```
+
+4. Find:
+
+```rust
+        if self.air_driven {
+            let landing = self.air.tick(step, locomotion.on_floor);
+            let target = self.air.air_target();
+            let clip = self.air.air_clip().unwrap_or("jump");
+            let layer = self.layers.get_mut(LayerId::Air);
+            layer.target = target;
+            if layer.clip.as_deref() != Some(clip) {
+                layer.clip = Some(clip.to_owned());
+                layer.time = 0.0;
+            }
+            if let Some(kind) = landing {
+                self.start_landing(kind);
+            }
+        } else {
+            self.layers.get_mut(LayerId::Air).target = if locomotion.on_floor { 0.0 } else { 1.0 };
+        }
+
+```
+
+Replace with:
+
+```rust
+        let climb_out = self.swim.tick(step);
+        if self.swim.is_swimming() {
+            self.swim.apply_swim(&mut self.layers);
+        } else {
+            let (air_target, air_clip, landing) = if self.air_driven {
+                let landing = self.air.tick(step, locomotion.on_floor);
+                (self.air.air_target(), self.air.air_clip().unwrap_or("jump"), landing)
+            } else {
+                (if locomotion.on_floor { 0.0 } else { 1.0 }, "jump", None)
+            };
+            if locomotion.on_floor && air_target <= LAYER_EPSILON && self.swim.wants_wade() {
+                self.swim.apply_wade(&mut self.layers);
+            } else {
+                self.swim.release_air(&mut self.layers);
+                let layer = self.layers.get_mut(LayerId::Air);
+                layer.target = air_target;
+                if self.air_driven && layer.clip.as_deref() != Some(air_clip) {
+                    layer.clip = Some(air_clip.to_owned());
+                    layer.time = 0.0;
+                }
+            }
+            if let Some(kind) = landing {
+                self.start_landing(kind);
+            }
+        }
+        if climb_out {
+            self.start_climb_out();
+        }
+
+```
+
+5. Find:
+
+```rust
+        self.foot_ik.set_active(locomotion.on_floor && self.full_body.is_none());
+
+```
+
+Replace with:
+
+```rust
+        self.foot_ik
+            .set_active(locomotion.on_floor && !self.swim.is_swimming() && self.full_body.is_none());
+
+```
+
+6. Find:
+
+```rust
+    /// Feeds crouch, sprint and stamina so the posture layers can react (third person only).
+    pub fn set_posture(&mut self, speed: f32, crouching: bool, sprinting: bool, stamina_frac: f32) {
+        self.posture.set_input(speed, crouching, sprinting, stamina_frac);
+        self.dirty = true;
+    }
+
+```
+
+Replace with:
+
+```rust
+    /// Feeds crouch, sprint and stamina so the posture layers can react (third person only).
+    pub fn set_posture(&mut self, speed: f32, crouching: bool, sprinting: bool, stamina_frac: f32) {
+        self.posture.set_input(speed, crouching, sprinting, stamina_frac);
+        self.dirty = true;
+    }
+
+    /// Feeds lake depth, deep-water flag, horizontal speed and stamina.
+    pub fn set_water(&mut self, depth: f32, swimming: bool, speed: f32, stamina_frac: f32) {
+        self.swim.set_input(depth, swimming, speed, stamina_frac);
+        self.dirty = true;
+    }
+
+```
+
+7. Find:
+
+```rust
+        // A soft landing only keys legs and hips, so keep the weapon arms on the stance.
+        let mask = if kind == LandingKind::Soft { MaskId::Lower } else { MaskId::Full };
+        self.layers.get_mut(LayerId::FullBody).mask = mask;
+    }
+
+```
+
+Replace with:
+
+```rust
+        // A soft landing only keys legs and hips, so keep the weapon arms on the stance.
+        let mask = if kind == LandingKind::Soft { MaskId::Lower } else { MaskId::Full };
+        self.layers.get_mut(LayerId::FullBody).mask = mask;
+    }
+
+    /// Plays the climb-out clip once on leaving deep water unless dying, held or busy.
+    fn start_climb_out(&mut self) {
+        if self.dying || self.held_pose.is_some() || self.full_body.is_some() {
+            return;
+        }
+        let speed = self
+            .clips
+            .get(SWIM_CLIMB_OUT_CLIP)
+            .map_or(1.0, |c| self.swim.climb_out_speed(c.duration));
+        let (fade_in, fade_out) = self.swim.climb_out_fades();
+        let opts = FullBodyOptions { speed, looping: false, hold_last: false, fade_in, fade_out };
+        self.play_full_body(SWIM_CLIMB_OUT_CLIP, opts);
+    }
+
+```
+
+---
+
+### Edits for `humanoid/src/lib.rs`
+
+(`humanoid/src/lib.rs` was not provided in `Read`; add alongside `posture` / `posture_tests`.)
+
+1. Find:
+
+```rust
+pub mod posture;
+
+```
+
+Replace with:
+
+```rust
+pub mod posture;
+pub mod swim;
+
+```
+
+2. Find:
+
+```rust
+#[cfg(test)]
+mod posture_tests;
+
+```
+
+Replace with:
+
+```rust
+#[cfg(test)]
+mod posture_tests;
+#[cfg(test)]
+mod swim_tests;
+
+```
+
+---
+
+### Edits for `tools/blender/characters/poses.py`
+
+1. Find:
+
+```python
+from poses_stance import CLIPS as _STANCE
+from poses_use import CLIPS as _USE
+
+```
+
+Replace with:
+
+```python
+from poses_stance import CLIPS as _STANCE
+from poses_swim import CLIPS as _SWIM
+from poses_use import CLIPS as _USE
+
+```
+
+2. Find:
+
+```python
+PLAYER_ONLY_CLIPS = {**_PLAYER_ONLY, **_STANCE, **_AIM, **_MOVE, **_AIR, **_POSTURE,
+    **_CLIMB, **_CAR, **_USE, **_HURT, **_WOUND}
+
+```
+
+Replace with:
+
+```python
+PLAYER_ONLY_CLIPS = {**_PLAYER_ONLY, **_STANCE, **_AIM, **_MOVE, **_AIR, **_POSTURE, **_SWIM,
+    **_CLIMB, **_CAR, **_USE, **_HURT, **_WOUND}
+
+```
+
+---
+
+### Game wiring edits (fixed)
+
+1. `game/src/player.rs`, find `    pub in_deep_water: bool,` and replace with:
+
+```rust
+    pub in_deep_water: bool,
+    /// Metres of lake water above the feet (0 on land); set each frame by the game loop.
+    pub water_depth: f32,
+
+```
+
+and find `            in_deep_water: false,` and replace with:
+
+```rust
+            in_deep_water: false,
+            water_depth: 0.0,
+
+```
+
+2. `rotland/src/app/frame_sim.rs`, find `        p.apply_water_movement(&water_res);` and replace with:
+
+```rust
+        p.apply_water_movement(&water_res);
+        p.water_depth = match water_res.zone {
+            world::LakeZone::Shallow | world::LakeZone::Deep if !on_dock => {
+                (lake.water_level - p.position.y).max(0.0)
+            }
+            _ => 0.0,
+        };
+
+```
+
+3. `rotland/src/app/state.rs`: in `pub struct PlayerPose`, find `    pub stamina_frac: f32,` and replace with:
+
+```rust
+    pub stamina_frac: f32,
+    pub water_depth: f32,
+    pub swimming: bool,
+
+```
+
+and find `            first_person: rig.is_first_person,` and replace with:
+
+```rust
+            water_depth: p.water_depth,
+            swimming: p.in_deep_water,
+            first_person: rig.is_first_person,
+
+```
+
+4. `rotland/src/app/render_frame.rs`, find `        if pose.on_floor && !pose.first_person {` and replace with:
+
+```rust
+        if !pose.first_person {
+            pv.animator.set_water(pose.water_depth, pose.swimming, pose.horizontal_speed, pose.stamina_frac);
+        }
+        if pose.on_floor && !pose.first_person && !pose.swimming {
+
+```
+
+### Caller steps
+
+* Re-run the Blender character export script to bake the 5 new clips into `assets/models/characters/human_player.glb`.
+* Run `cargo test -p humanoid` and `cargo clippy --all-targets -- -D warnings`.
+
+## Gate report
+- date: 2026-11-24
+- base: main
+- files changed (28): assets/models/buildings/settlement.glb, assets/models/characters/human_player.glb, assets/models/_previews/car_hatchback_blue.png, assets/models/_previews/car_hatchback_blue_rear.png, assets/models/_previews/car_hatchback_blue_side.png, assets/models/_previews/car_hatchback_olive.png, assets/models/_previews/car_hatchback_olive_rear.png, assets/models/_previews/car_hatchback_olive_side.png, assets/models/_previews/car_hatchback_red.png, assets/models/_previews/car_hatchback_red_rear.png, assets/models/_previews/car_hatchback_red_side.png, assets/models/vehicles/car_hatchback_blue.glb, assets/models/vehicles/car_hatchback_olive.glb, assets/models/vehicles/car_hatchback_red.glb, data/swim_anim.json, game/src/player.rs, humanoid/src/animator.rs, humanoid/src/lib.rs, humanoid/src/swim.rs, humanoid/src/swim_tests.rs, rotland/src/app/frame_sim.rs, rotland/src/app/render_frame.rs, rotland/src/app/state.rs, tasks/A08-swim-wade.md, tools/blender/buildings/settlement.py, tools/blender/characters/poses.py, tools/blender/characters/poses_swim.py, tools/blender/vehicles/car_parts.py
+- tests passed: 933
+- clippy: PASS
+- test: PASS
+- checks: FAIL
+- gate: FAIL (checks)
