@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "metresPerCycle": 0.6,
+  "teleportDistance": 1.5,
+  "enterBottomSeconds": 0.5,
+  "exitTopSeconds": 0.45,
+  "enterTopSeconds": 0.45,
+  "exitBottomSeconds": 0.4,
+  "fade": 0.12
+}

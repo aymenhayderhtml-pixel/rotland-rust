@@ -25,6 +25,9 @@ use crate::mask::{BoneMasks, MaskId};
 use crate::motion::{MotionClips, MotionJoints, MotionState};
 use crate::pose_buffer::{add_pose_masked, blend_pose_masked, PosePool};
 use crate::posture::PostureState;
+use crate::ladder_anim::{
+    is_ladder_clip, ladder_event_clip, LadderAnimState, LadderEvent, LADDER_CLIMB_CLIP,
+};
 use crate::stance::{HoldTransform, StanceController, StanceTable};
 use crate::swim::{SwimState, SWIM_CLIMB_OUT_CLIP};
 
@@ -55,6 +58,7 @@ pub struct HumanoidAnimator {
     air_driven: bool,
     posture: PostureState,
     swim: SwimState,
+    ladder: LadderAnimState,
     foot_ik: FootIkState,
     foot_joints: Option<FootJoints>,
     foot_globals: Vec<Mat4>,
@@ -120,6 +124,7 @@ impl HumanoidAnimator {
             air_driven: false,
             posture: PostureState::new(),
             swim: SwimState::new(),
+            ladder: LadderAnimState::new(),
             foot_ik: FootIkState::new(),
             foot_joints,
             foot_globals: vec![Mat4::IDENTITY; n],
@@ -269,36 +274,51 @@ impl HumanoidAnimator {
 
         let k = 1.0 - (-self.config.blend_rate * step).exp();
         self.blend_pos += (locomotion.speed.clamp(0.0, RUN_BLEND) - self.blend_pos) * k;
-        let climb_out = self.swim.tick(step);
-        if self.swim.is_swimming() {
-            self.swim.apply_swim(&mut self.layers);
+        let ladder_event = self.ladder.tick(step);
+        let on_ladder = self.ladder.is_on_ladder();
+        if on_ladder {
+            self.swim.release_air(&mut self.layers);
+            self.air = AirState::new();
+            let clip_len = self.clips.get(LADDER_CLIMB_CLIP).map_or(0.0, |c| c.duration);
+            self.ladder.apply_ladder(&mut self.layers, clip_len);
+            self.ladder.suppress_upper(&mut self.layers);
         } else {
-            let (air_target, air_clip, landing) = if self.air_driven {
-                let landing = self.air.tick(step, locomotion.on_floor);
-                (self.air.air_target(), self.air.air_clip().unwrap_or("jump"), landing)
+            self.ladder.release_air(&mut self.layers);
+            let climb_out = self.swim.tick(step);
+            if self.swim.is_swimming() {
+                self.swim.apply_swim(&mut self.layers);
             } else {
-                (if locomotion.on_floor { 0.0 } else { 1.0 }, "jump", None)
-            };
-            if locomotion.on_floor && air_target <= LAYER_EPSILON && self.swim.wants_wade() {
-                self.swim.apply_wade(&mut self.layers);
-            } else {
-                self.swim.release_air(&mut self.layers);
-                let layer = self.layers.get_mut(LayerId::Air);
-                layer.target = air_target;
-                if self.air_driven && layer.clip.as_deref() != Some(air_clip) {
-                    layer.clip = Some(air_clip.to_owned());
-                    layer.time = 0.0;
+                let (air_target, air_clip, landing) = if self.air_driven {
+                    let landing = self.air.tick(step, locomotion.on_floor);
+                    (self.air.air_target(), self.air.air_clip().unwrap_or("jump"), landing)
+                } else {
+                    (if locomotion.on_floor { 0.0 } else { 1.0 }, "jump", None)
+                };
+                if locomotion.on_floor && air_target <= LAYER_EPSILON && self.swim.wants_wade() {
+                    self.swim.apply_wade(&mut self.layers);
+                } else {
+                    self.swim.release_air(&mut self.layers);
+                    let layer = self.layers.get_mut(LayerId::Air);
+                    layer.target = air_target;
+                    if self.air_driven && layer.clip.as_deref() != Some(air_clip) {
+                        layer.clip = Some(air_clip.to_owned());
+                        layer.time = 0.0;
+                    }
+                }
+                if let Some(kind) = landing {
+                    self.start_landing(kind);
                 }
             }
-            if let Some(kind) = landing {
-                self.start_landing(kind);
+            if climb_out {
+                self.start_climb_out();
             }
         }
-        if climb_out {
-            self.start_climb_out();
+        if let Some(event) = ladder_event {
+            self.start_ladder_event(event);
         }
-        self.layers.get_mut(LayerId::Crouch).target = if locomotion.crouching { 1.0 } else { 0.0 };
-        self.motion.tick(step, locomotion.on_floor);
+        self.layers.get_mut(LayerId::Crouch).target =
+            if !on_ladder && locomotion.crouching { 1.0 } else { 0.0 };
+        self.motion.tick(step, locomotion.on_floor && !on_ladder);
         let tempo = tempo_for(self.blend_pos) * self.tempo_scale * self.motion.tempo_scale();
         self.layers.get_mut(LayerId::Locomotion).speed = tempo;
         self.layers.advance(step);
@@ -306,11 +326,17 @@ impl HumanoidAnimator {
 
         self.aim.tick(step);
         self.advance_action(step);
-        self.advance_stance(step);
-        self.advance_posture(step);
+        if !on_ladder {
+            self.advance_stance(step);
+            self.advance_posture(step);
+        }
         self.advance_full_body(step);
-        self.foot_ik
-            .set_active(locomotion.on_floor && !self.swim.is_swimming() && self.full_body.is_none());
+        self.foot_ik.set_active(
+            locomotion.on_floor
+                && !on_ladder
+                && !self.swim.is_swimming()
+                && self.full_body.is_none(),
+        );
         self.foot_ik.tick(step, self.blend_pos);
     }
 
@@ -331,6 +357,12 @@ impl HumanoidAnimator {
     /// Feeds lake depth, deep-water flag, horizontal speed and stamina.
     pub fn set_water(&mut self, depth: f32, swimming: bool, speed: f32, stamina_frac: f32) {
         self.swim.set_input(depth, swimming, speed, stamina_frac);
+        self.dirty = true;
+    }
+
+    /// Feeds ladder climb activity, on-rungs flag and player height.
+    pub fn set_ladder(&mut self, active: bool, on_rungs: bool, y: f32) {
+        self.ladder.set_input(active, on_rungs, y);
         self.dirty = true;
     }
 
@@ -407,6 +439,32 @@ impl HumanoidAnimator {
         let (fade_in, fade_out) = self.swim.climb_out_fades();
         let opts = FullBodyOptions { speed, looping: false, hold_last: false, fade_in, fade_out };
         self.play_full_body(SWIM_CLIMB_OUT_CLIP, opts);
+    }
+
+    /// Plays a ladder enter/exit clip unless dying, held or blocked by a non-ladder override.
+    fn start_ladder_event(&mut self, event: LadderEvent) {
+        if self.dying || self.held_pose.is_some() {
+            return;
+        }
+        if let Some(fb) = &self.full_body
+            && !is_ladder_clip(fb.clip_name())
+        {
+            return;
+        }
+        let clip_name = ladder_event_clip(event);
+        let Some(duration) = self.clips.get(clip_name).map(|c| c.duration) else {
+            return;
+        };
+        let speed = self.ladder.event_speed(event, duration);
+        let fade = self.ladder.fade();
+        let opts = FullBodyOptions {
+            speed,
+            looping: false,
+            hold_last: false,
+            fade_in: fade,
+            fade_out: fade,
+        };
+        self.play_full_body(clip_name, opts);
     }
 
     /// Smoothly stops the active full-body clip using `fade_out` (or the clip's configured default).
@@ -631,8 +689,10 @@ impl HumanoidAnimator {
         // 7. Additive layer
         self.apply_layer(rig, LayerId::Additive);
         // 7b. Aim pitch and recoil (before left-hand IK so off-hand follows the gun)
-        self.aim.apply(&self.aim_joints, self.pool.get_mut(0), self.stance.aim_weight());
-        self.motion.apply_lean(&self.motion_joints, self.pool.get_mut(0));
+        if !self.ladder.is_on_ladder() {
+            self.aim.apply(&self.aim_joints, self.pool.get_mut(0), self.stance.aim_weight());
+            self.motion.apply_lean(&self.motion_joints, self.pool.get_mut(0));
+        }
         // 7c. Foot IK (before left-hand IK so off-hand follows when hips drop)
         if let Some(fj) = self.foot_joints {
             self.foot_ik.apply(
@@ -644,7 +704,9 @@ impl HumanoidAnimator {
             );
         }
         // 8. Left-hand IK
-        self.apply_ik_stage(rig);
+        if !self.ladder.is_on_ladder() {
+            self.apply_ik_stage(rig);
+        }
         // 9. Full-body override (including death fade)
         self.apply_full_body_stage(rig);
         // 10. Skin

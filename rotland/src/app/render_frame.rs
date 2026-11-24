@@ -201,6 +201,7 @@ pub fn render_frame(
         }
         if !pose.first_person {
             pv.animator.set_water(pose.water_depth, pose.swimming, pose.horizontal_speed, pose.stamina_frac);
+            pv.animator.set_ladder(pose.climbing, pose.on_rungs, pose.position.y);
         }
         if pose.on_floor && !pose.first_person && !pose.swimming {
             let physics = &world.physics;

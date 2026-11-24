@@ -31,6 +31,8 @@ pub struct PlayerPose {
     pub stamina_frac: f32,
     pub water_depth: f32,
     pub swimming: bool,
+    pub climbing: bool,
+    pub on_rungs: bool,
     pub first_person: bool,
 }
 
@@ -191,6 +193,8 @@ impl ActorsState {
             },
             water_depth: p.water_depth,
             swimming: p.in_deep_water,
+            climbing: self.climb.is_active(),
+            on_rungs: self.climb.is_on_rungs(),
             first_person: rig.is_first_person,
         })
     }

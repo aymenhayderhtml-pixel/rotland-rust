@@ -28,8 +28,11 @@ pub mod pose_buffer;
 #[cfg(test)]
 mod posture_tests;
 #[cfg(test)]
+mod ladder_anim_tests;
+#[cfg(test)]
 mod swim_tests;
 pub mod posture;
+pub mod ladder_anim;
 pub mod swim;
 pub mod stance;
 #[cfg(test)]

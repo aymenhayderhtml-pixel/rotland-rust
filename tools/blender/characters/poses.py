@@ -30,6 +30,7 @@ from poses_move import CLIPS as _MOVE
 from poses_posture import CLIPS as _POSTURE
 from poses_shared import ARM_DOWN_OFFSET  # noqa: F401  (re-exported for build_characters)
 from poses_stance import CLIPS as _STANCE
+from poses_ladder import CLIPS as _LADDER
 from poses_swim import CLIPS as _SWIM
 from poses_use import CLIPS as _USE
 from poses_wound import CLIPS as _WOUND
@@ -37,6 +38,6 @@ from poses_zombie import CLIPS as _ZOMBIE
 
 CLIPS = {**_LOCOMOTION, **_ACTIONS, **_COMBAT, **_ZOMBIE, **_CAMP}
 # Clips only the player gets (V12-04 gun clips + A02 weapon stances + A03 aim/reload + A04 directional movement + A06 air/landing + A07 posture + F1-F5 clip library for A09-A16). Looked up through ALL_CLIPS, never CLIPS alone.
-PLAYER_ONLY_CLIPS = {**_PLAYER_ONLY, **_STANCE, **_AIM, **_MOVE, **_AIR, **_POSTURE, **_SWIM,
+PLAYER_ONLY_CLIPS = {**_PLAYER_ONLY, **_STANCE, **_AIM, **_MOVE, **_AIR, **_POSTURE, **_SWIM, **_LADDER,
     **_CLIMB, **_CAR, **_USE, **_HURT, **_WOUND}
 ALL_CLIPS = {**CLIPS, **PLAYER_ONLY_CLIPS}
