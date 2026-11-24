@@ -21,6 +21,8 @@ pub mod dogs;
 pub mod economy;
 pub mod farming;
 pub mod fishing;
+pub mod fp_motion;
+pub use fp_motion::{FpMotion, FpMotionConfig, FpMotionInput};
 pub mod health;
 pub mod hints;
 pub mod horde;

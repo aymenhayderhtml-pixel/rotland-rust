@@ -273,6 +273,37 @@ pub fn update_actors(
                 actors.fp_sway.trigger_swing();
             }
             actors.fp_sway.update(dt, p.horizontal_speed());
+            static FP_MOTION_CFG: std::sync::OnceLock<game::FpMotionConfig> =
+                std::sync::OnceLock::new();
+            let fp_cfg = FP_MOTION_CFG
+                .get_or_init(|| game::FpMotionConfig::from_repo().unwrap_or_default());
+            let weapon_key = c.weapon_id().map_or(0, |id| {
+                use std::hash::{Hash, Hasher};
+                let mut h = std::collections::hash_map::DefaultHasher::new();
+                id.hash(&mut h);
+                h.finish().max(1)
+            });
+            let stamina_frac = if p.stamina.max > 0.0 {
+                p.stamina.current / p.stamina.max
+            } else {
+                1.0
+            };
+            let reloading = play.play.as_ref().is_some_and(|pl| pl.gun_reloading());
+            let fp_in = game::FpMotionInput {
+                yaw: rig.yaw,
+                pitch: rig.pitch,
+                horizontal_speed: p.horizontal_speed(),
+                vertical_velocity: p.velocity.y,
+                on_floor: p.on_floor,
+                sprinting: p.is_sprinting,
+                crouching: p.crouching,
+                reloading,
+                weapon_key,
+                stamina_frac,
+            };
+            actors.fp_motion.update(dt, &fp_in, fp_cfg);
+            actors.fp_sway.motion_offset = actors.fp_motion.offset();
+            actors.fp_sway.motion_rot_deg = actors.fp_motion.rot_deg();
             if let Some(a) = audio.as_mut() {
                 if ev.swing_started.is_some()
                     && let Some(sound) = c.weapon_id().and_then(|w| a.data.weapon_sound(w, "swing")).map(str::to_string)

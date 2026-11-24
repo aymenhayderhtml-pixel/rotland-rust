@@ -18,6 +18,7 @@ mod economy_tests;
 mod farming_tests;
 mod fishing_tests;
 mod flowfield_tests;
+mod fp_motion;
 mod guild_task_hook_tests;
 mod guild_tests;
 mod gun_tests;

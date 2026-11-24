@@ -44,6 +44,10 @@ pub struct FpSway {
     pub kick_rot_deg: Vec3,
     /// Distance in metres the weapon is pulled toward the camera (+Z) to avoid clipping into walls.
     pub wall_pull: f32,
+    /// Procedural body-coupled translation offset in camera space (+X right, +Y up, +Z toward camera).
+    pub motion_offset: Vec3,
+    /// Procedural body-coupled extra rotation in degrees (x pitch, y yaw, z roll).
+    pub motion_rot_deg: Vec3,
 }
 
 impl Default for FpSway {
@@ -54,6 +58,8 @@ impl Default for FpSway {
             kick_offset: Vec3::ZERO,
             kick_rot_deg: Vec3::ZERO,
             wall_pull: 0.0,
+            motion_offset: Vec3::ZERO,
+            motion_rot_deg: Vec3::ZERO,
         }
     }
 }
@@ -142,15 +148,16 @@ pub fn fp_weapon_matrix(
     };
 
     let bob = sway.bob_offset();
-    let x = hold_pos.x + bob.x + sway.kick_offset.x;
-    let y = hold_pos.y + bob.y + sway.kick_offset.y;
+    let x = hold_pos.x + bob.x + sway.kick_offset.x + sway.motion_offset.x;
+    let y = hold_pos.y + bob.y + sway.kick_offset.y + sway.motion_offset.y;
     // Positive wall_pull pulls toward the camera along +Z. Clamped so it doesn't cross near plane.
-    let z = (hold_pos.z + sway.wall_pull + sway.kick_offset.z).min(-MIN_CAMERA_DISTANCE);
+    let z = (hold_pos.z + sway.wall_pull + sway.kick_offset.z + sway.motion_offset.z)
+        .min(-MIN_CAMERA_DISTANCE);
     let local_pos = Vec3::new(x, y, z);
 
-    let rot_x = (hold_rot_deg.x + sway.kick_rot_deg.x).to_radians();
-    let rot_y = (hold_rot_deg.y + sway.kick_rot_deg.y).to_radians();
-    let rot_z = (hold_rot_deg.z + sway.kick_rot_deg.z).to_radians();
+    let rot_x = (hold_rot_deg.x + sway.kick_rot_deg.x + sway.motion_rot_deg.x).to_radians();
+    let rot_y = (hold_rot_deg.y + sway.kick_rot_deg.y + sway.motion_rot_deg.y).to_radians();
+    let rot_z = (hold_rot_deg.z + sway.kick_rot_deg.z + sway.motion_rot_deg.z).to_radians();
     let local_rot = Mat4::from_euler(EulerRot::YXZ, rot_y, rot_x, rot_z);
 
     let local_transform = Mat4::from_translation(local_pos) * local_rot;

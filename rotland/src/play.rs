@@ -150,6 +150,11 @@ impl PlayState {
         self.prompt = Some(text);
     }
 
+    /// True while the gun in hand is reloading.
+    pub fn gun_reloading(&self) -> bool {
+        self.shooting.is_reloading()
+    }
+
     pub fn has_prompt(&self) -> bool {
         self.prompt.as_ref().is_some_and(|p| !p.is_empty())
     }

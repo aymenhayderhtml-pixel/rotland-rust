@@ -96,6 +96,14 @@ impl Shooting {
         }
     }
 
+    /// True while the gun in hand is reloading (feeds first-person motion).
+    pub fn is_reloading(&self) -> bool {
+        self.active_weapon
+            .as_deref()
+            .and_then(|id| self.guns.get(id))
+            .is_some_and(Gun::is_reloading)
+    }
+
     /// Read-only access to a gun's state.
     #[cfg(test)]
     pub fn gun(&self, weapon_id: &str) -> Option<&Gun> {

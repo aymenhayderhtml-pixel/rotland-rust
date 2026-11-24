@@ -150,6 +150,7 @@ pub struct ActorsState {
     pub car_camera: game::CarCamera,
     pub car_solids: car_solid::ParkedCarSolids,
     pub fp_sway: fp_weapon::FpSway,
+    pub fp_motion: game::FpMotion,
     pub open_trunk: Option<String>,
     pub camp_guards: Option<game::CampGuards>,
     pub camp_npcs: Option<camp_npcs::CampNpcs>,
