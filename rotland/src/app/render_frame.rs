@@ -269,7 +269,7 @@ pub fn render_frame(
     let zombies = actors
         .zombies
         .as_ref()
-        .map(|z| z.pose(&mut render.bones))
+        .map(|z| z.pose(render.camera.position, &mut render.bones))
         .unwrap_or_default();
     let mut animals = actors
         .wildlife

@@ -1,5 +1,6 @@
 //! Zombie logic, pure (no GPU): data from `data/zombies.json`, state, senses and bite timing.
 
+pub mod anim_fade;
 pub mod attack;
 pub mod brain;
 mod brain_actions;

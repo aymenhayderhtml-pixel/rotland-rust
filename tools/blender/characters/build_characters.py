@@ -206,6 +206,8 @@ ZOMBIE_CLIPS = [
     # Phase 3 zombie clips (V11-06)
     "zombie_stagger", "zombie_lurch", "zombie_crawl", "zombie_bang",
     "zombie_eat", "zombie_scream", "zombie_runner_sprint",
+    # A17: directional deaths (hit from the front / from behind)
+    "zombie_die_forward", "zombie_die_back",
 ]
 
 

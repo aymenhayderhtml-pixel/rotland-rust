@@ -66,3 +66,201 @@ Every new number in Rust code needs a source tag on its line (`// data: zombie_a
 
 ## Worker notes
 
+- Applied all Neon NOTES edits 1-9 directly (game/src/zombie/mod.rs, game/tests/all/main.rs, rotland/src/zombies/types.rs, combat_glue.rs, spawning.rs, rotland/src/zombies/mod.rs, tools/blender/characters/poses.py, build_characters.py ZOMBIE_CLIPS).
+- Extra caller change (note 7): `rotland/src/app/render_frame.rs` now calls `z.pose(render.camera.position, &mut render.bones)`.
+- `poses_zombie_v2.py` sign rules were checked by reading: hips X negative = forward, spine/chest/head X negative = forward, shin X negative = knee bends. Die forward uses hips X to -90 and die back uses +90.
+- Clippy `--all-targets`: 0 warnings. `cargo test`: all pass, including the 9 zombie_anim_fade tests.
+- Blender rebuild of the zombie looks (zombie_01, 02, 03, brute, screamer, crawler) is run one at a time. Death clips fall back to plain `die` until the looks are rebuilt.
+- Owner files untouched: car_hatchback_*, settlement.*, car_parts.py.
+- Visual check of `assets/models/_previews/zombie_01_zombie_die_forward.png`: the fall overshoots. The last frames have the legs raised and the head low, so it is NOT a flat face-down fall yet. Needs a pose fix (hips rot / leg keys in `poses_zombie_v2.py`, then rebuild zombie looks and bake).
+- Visual check of `assets/models/_previews/zombie_01_zombie_die_back.png`: the body ends at an angle (about 45 degrees, legs down), not flat on the back. Also needs a pose fix.
+- Gate run: clippy PASS, test PASS (971), checks FAIL only on scope (owner files, plus `data/car_anim.json`, `humanoid/src/car_anim*.rs`, `tasks/A11-car-seat.md`, which I did not touch).
+
+## Neon notes
+
+### 1. `game/src/zombie/mod.rs`
+
+// HELPER: Add `pub mod anim_fade;` alongside the existing `pub mod` declarations in `game/src/zombie/mod.rs`.
+
+### 2. `game/tests/all/main.rs`
+
+// HELPER: Add `mod zombie_anim_fade;` alongside the existing `mod` declarations in `game/tests/all/main.rs`.
+
+### 3. `rotland/src/zombies/types.rs`
+
+Find:
+
+```rust
+use game::zombie::{AnimClip, AttackHit, BrainOutput, Noise, SpecialState, ZombieBrain, ZombieDef};
+
+```
+
+Replace with:
+
+```rust
+use game::zombie::anim_fade::{AnimFade, clip_key, death_clip};
+use game::zombie::{AnimClip, AttackHit, BrainOutput, Noise, SpecialState, ZombieBrain, ZombieDef};
+
+```
+
+Find:
+
+```rust
+impl Look {
+    pub fn clip(&self, name: &str) -> Option<&pack::Clip> {
+        self.clips.iter().find(|c| c.name == name)
+    }
+}
+
+```
+
+Replace with:
+
+```rust
+impl Look {
+    pub fn clip(&self, name: &str) -> Option<&pack::Clip> {
+        self.clips.iter().find(|c| c.name == name)
+    }
+
+    pub fn clip_by_key(&self, key: u64) -> Option<&pack::Clip> {
+        self.clips.iter().find(|c| clip_key(&c.name) == key)
+    }
+}
+
+```
+
+Find:
+
+```rust
+    pub anim: AnimClip,
+    pub anim_time: f32,
+    pub dead_for: f32,
+
+```
+
+Replace with:
+
+```rust
+    pub anim: AnimClip,
+    pub anim_time: f32,
+    pub fade: AnimFade,
+    pub last_knock: Vec3,
+    pub dead_for: f32,
+
+```
+
+Find:
+
+```rust
+    if let Some(c) = z.def.clips.get(default_name) {
+        return c.as_str();
+    }
+    default_name
+}
+
+```
+
+Replace with:
+
+```rust
+    if let Some(c) = z.def.clips.get(default_name) {
+        return c.as_str();
+    }
+    default_name
+}
+
+/// Resolves the clip name including directional death clips when the look provides them.
+pub(super) fn resolved_clip_name<'a>(z: &'a Zombie, look: &Look) -> &'a str {
+    let base = clip_name(z);
+    if z.anim == AnimClip::Die && base == "die" {
+        let directional = death_clip(z.last_knock, z.yaw);
+        if look.clip(directional).is_some() {
+            return directional;
+        }
+    }
+    base
+}
+
+```
+
+### 4. `rotland/src/zombies/combat_glue.rs`
+
+Find:
+
+```rust
+        if result.dealt > 0.0 {
+            z.knock += Vec3::new(knockback.x, 0.0, knockback.z);
+            z.pending_hit = Some(damage);
+        }
+
+```
+
+Replace with:
+
+```rust
+        if result.dealt > 0.0 {
+            let flat_knock = Vec3::new(knockback.x, 0.0, knockback.z);
+            if flat_knock.length_squared() > 0.0 {
+                z.last_knock = flat_knock;
+            }
+            z.knock += flat_knock;
+            z.pending_hit = Some(damage);
+        }
+
+```
+
+### 5. `rotland/src/zombies/spawning.rs`
+
+// HELPER: In every `Zombie { ... }` struct literal in `rotland/src/zombies/spawning.rs`, add:
+
+```rust
+fade: game::zombie::anim_fade::AnimFade::default(),
+last_knock: Vec3::ZERO,
+
+```
+
+### 6. `rotland/src/zombies/mod.rs`
+
+// HELPER:
+
+1. Add `pub anim_cfg: game::zombie::anim_fade::ZombieAnimConfig,` to `pub struct Zombies`, initialized with `anim_cfg: game::zombie::anim_fade::ZombieAnimConfig::from_repo().unwrap_or_default(),` in `Zombies::new`.
+2. In the per-frame zombie update loop, record `let prev_anim = z.anim;` before `z.anim` is updated, and right next to `z.anim_time += dt;`, update `z.fade`:
+
+```rust
+let look = &self.looks[z.look];
+let name = types::resolved_clip_name(z, look);
+let speed = glam::Vec2::new(z.velocity.x, z.velocity.z).length();
+let rate = self
+    .anim_cfg
+    .ref_speed(name)
+    .map_or(1.0, |ref_s| {
+        game::zombie::anim_fade::locomotion_rate(speed, ref_s, &self.anim_cfg)
+    });
+let fade_secs = self.anim_cfg.fade_seconds_for(prev_anim, z.anim);
+z.fade.update(dt, game::zombie::anim_fade::clip_key(name), rate, fade_secs);
+
+```
+
+### 7. Caller of `Zombies::pose`
+
+// HELPER: Find the call site of `zombies.pose(&mut bones)` in `rotland/src/` and pass the camera world position as the first argument: `zombies.pose(camera_pos, &mut bones)`.
+
+### 8. `tools/blender/characters/poses.py`
+
+// HELPER: Import `CLIPS as ZOMBIE_V2_CLIPS` from `poses_zombie_v2` and merge `ZOMBIE_V2_CLIPS` into `CLIPS` (e.g. `CLIPS.update(ZOMBIE_V2_CLIPS)`).
+
+### 9. `tools/blender/characters/build_characters.py`
+
+// HELPER: Add `"zombie_die_forward"` and `"zombie_die_back"` to `ZOMBIE_CLIPS`.
+
+END OF EDITS
+
+## Gate report
+- date: 2026-11-24
+- base: main
+- files changed (40): assets/models/buildings/settlement.glb, assets/models/characters/zombie_01.glb, assets/models/characters/zombie_02.glb, assets/models/characters/zombie_03.glb, assets/models/characters/zombie_brute.glb, assets/models/characters/zombie_crawler.glb, assets/models/characters/zombie_screamer.glb, assets/models/_previews/car_hatchback_blue.png, assets/models/_previews/car_hatchback_blue_rear.png, assets/models/_previews/car_hatchback_blue_side.png, assets/models/_previews/car_hatchback_olive.png, assets/models/_previews/car_hatchback_olive_rear.png, assets/models/_previews/car_hatchback_olive_side.png, assets/models/_previews/car_hatchback_red.png, assets/models/_previews/car_hatchback_red_rear.png, assets/models/_previews/car_hatchback_red_side.png, assets/models/vehicles/car_hatchback_blue.glb, assets/models/vehicles/car_hatchback_olive.glb, assets/models/vehicles/car_hatchback_red.glb, data/car_anim.json, data/zombie_anim.json, game/src/zombie/anim_fade.rs, game/src/zombie/mod.rs, game/tests/all/main.rs, game/tests/all/zombie_anim_fade.rs, humanoid/src/car_anim.rs, humanoid/src/car_anim_tests.rs, rotland/src/app/render_frame.rs, rotland/src/zombies/combat_glue.rs, rotland/src/zombies/mod.rs, rotland/src/zombies/rendering.rs, rotland/src/zombies/spawning.rs, rotland/src/zombies/types.rs, tasks/A11-car-seat.md, tasks/A17-zombie-anim.md, tools/blender/buildings/settlement.py, tools/blender/characters/build_characters.py, tools/blender/characters/poses.py, tools/blender/characters/poses_zombie_v2.py, tools/blender/vehicles/car_parts.py
+- tests passed: 971
+- clippy: PASS
+- test: PASS
+- checks: FAIL
+- gate: FAIL (checks)

@@ -3,6 +3,7 @@
 use engine::anim::Rig;
 use engine::render::GpuMesh;
 use game::zombie::specials::SpecialHit;
+use game::zombie::anim_fade::{AnimFade, clip_key, death_clip};
 use game::zombie::{AnimClip, AttackHit, BrainOutput, Noise, SpecialState, ZombieBrain, ZombieDef};
 use game::{DamageInfo, Health};
 use glam::Vec3;
@@ -33,6 +34,10 @@ impl Look {
     pub fn clip(&self, name: &str) -> Option<&pack::Clip> {
         self.clips.iter().find(|c| c.name == name)
     }
+
+    pub fn clip_by_key(&self, key: u64) -> Option<&pack::Clip> {
+        self.clips.iter().find(|c| clip_key(&c.name) == key)
+    }
 }
 
 pub struct Zombie {
@@ -52,6 +57,8 @@ pub struct Zombie {
     pub gait: String,
     pub anim: AnimClip,
     pub anim_time: f32,
+    pub fade: AnimFade,
+    pub last_knock: Vec3,
     pub dead_for: f32,
     pub pending_hit: Option<DamageInfo>,
     /// Accumulated delta time for distant throttled thinking (Godot Zombie.cs:285).
@@ -210,6 +217,18 @@ pub fn clip_name(z: &Zombie) -> &str {
         return c.as_str();
     }
     default_name
+}
+
+/// Resolves the clip name including directional death clips when the look provides them.
+pub(super) fn resolved_clip_name<'a>(z: &'a Zombie, look: &Look) -> &'a str {
+    let base = clip_name(z);
+    if z.anim == AnimClip::Die && base == "die" {
+        let directional = death_clip(z.last_knock, z.yaw);
+        if look.clip(directional).is_some() {
+            return directional;
+        }
+    }
+    base
 }
 
 #[cfg(test)]

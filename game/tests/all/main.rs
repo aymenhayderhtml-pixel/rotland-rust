@@ -51,6 +51,7 @@ mod trees_tests;
 mod vehicle_zombie_damage_tests;
 mod vehicles_tests;
 mod weapons_new_tests;
+mod zombie_anim_fade;
 mod zombie_brain_tests;
 mod zombie_extras_tests;
 mod zombie_tests;

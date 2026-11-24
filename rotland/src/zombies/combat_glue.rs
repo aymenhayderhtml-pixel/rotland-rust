@@ -28,7 +28,11 @@ impl Zombies {
             special.on_hit(result.died_now);
         }
         if result.dealt > 0.0 {
-            z.knock += Vec3::new(knockback.x, 0.0, knockback.z);
+            let flat_knock = Vec3::new(knockback.x, 0.0, knockback.z);
+            if flat_knock.length_squared() > 0.0 {
+                z.last_knock = flat_knock;
+            }
+            z.knock += flat_knock;
             z.pending_hit = Some(damage);
         }
         if result.died_now {

@@ -92,6 +92,8 @@ impl Zombies {
             gait,
             anim: game::zombie::AnimClip::Idle,
             anim_time: phase,
+            fade: game::zombie::anim_fade::AnimFade::default(),
+            last_knock: Vec3::ZERO,
             dead_for: 0.0,
             pending_hit: None,
             think_accumulator: 0.0,

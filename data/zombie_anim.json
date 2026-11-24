@@ -1,0 +1,20 @@
+{
+  "fadeDefault": 0.22,
+  "fadeIntoAttack": 0.1,
+  "fadeIntoHit": 0.08,
+  "fadeIntoDeath": 0.12,
+  "fadeBetweenLocomotion": 0.25,
+  "minRate": 0.6,
+  "maxRate": 1.6,
+  "blendMaxDistance": 25.0,
+  "deathAngleDeg": 60.0,
+  "refSpeeds": {
+    "walk": 1.4,
+    "zombie_shamble": 1.1,
+    "zombie_lurch": 1.25,
+    "run": 3.2,
+    "zombie_runner_sprint": 4.2,
+    "zombie_crawl": 0.75,
+    "zombie_crawler_crawl": 0.85
+  }
+}

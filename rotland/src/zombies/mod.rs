@@ -56,6 +56,8 @@ pub struct Zombies {
     pub camp_wall_radius: f32,
     /// data/special_zombies.json, loaded once; None if it failed (specials then act as plain zombies).
     pub special_cfg: Option<Arc<SpecialConfig>>,
+    /// data/zombie_anim.json: crossfade times, speed-matched rates and death angles.
+    pub anim_cfg: game::zombie::anim_fade::ZombieAnimConfig,
 }
 
 impl Zombies {
@@ -112,6 +114,7 @@ impl Zombies {
             camp_center: None,
             camp_wall_radius: 20.0, // data: hud.json horde_events camp_wall_radius_m
             special_cfg,
+            anim_cfg: game::zombie::anim_fade::ZombieAnimConfig::from_repo().unwrap_or_default(),
         }
     }
 
@@ -288,11 +291,23 @@ impl Zombies {
             z.velocity = moved.velocity;
             z.on_floor = moved.on_floor;
             z.yaw = out.yaw;
+            let prev_anim = z.anim;
             if out.anim != z.anim {
                 z.anim = out.anim;
                 z.anim_time = 0.0;
             }
             z.anim_time += dt;
+            let look = &self.looks[z.look];
+            let name = types::resolved_clip_name(z, look);
+            let speed = glam::Vec2::new(z.velocity.x, z.velocity.z).length();
+            let rate = self
+                .anim_cfg
+                .ref_speed(name)
+                .map_or(1.0, |ref_s| {
+                    game::zombie::anim_fade::locomotion_rate(speed, ref_s, &self.anim_cfg)
+                });
+            let fade_secs = self.anim_cfg.fade_seconds_for(prev_anim, z.anim);
+            z.fade.update(dt, game::zombie::anim_fade::clip_key(name), rate, fade_secs);
             if dead {
                 z.dead_for += dt;
             }
