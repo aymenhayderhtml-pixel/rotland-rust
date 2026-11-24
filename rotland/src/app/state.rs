@@ -27,6 +27,8 @@ pub struct PlayerPose {
     pub velocity: Vec3,
     pub on_floor: bool,
     pub crouching: bool,
+    pub sprinting: bool,
+    pub stamina_frac: f32,
     pub first_person: bool,
 }
 
@@ -179,6 +181,12 @@ impl ActorsState {
             velocity: p.velocity,
             on_floor: p.on_floor,
             crouching: p.crouching,
+            sprinting: p.is_sprinting,
+            stamina_frac: if p.stamina.max > 0.0 {
+                (p.stamina.current / p.stamina.max).clamp(0.0, 1.0)
+            } else {
+                1.0
+            },
             first_person: rig.is_first_person,
         })
     }

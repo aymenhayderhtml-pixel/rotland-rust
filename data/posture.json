@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "crouchWalkStartSpeed": 0.35,
+  "crouchWalkFullSpeed": 1.8,
+  "crouchWalkBlendRate": 9.0,
+  "crouchWalkNaturalSpeed": 1.6,
+  "crouchWalkMinPlayback": 0.5,
+  "crouchWalkMaxPlayback": 1.6,
+  "sprintMinSpeed": 6.5,
+  "sprintBlendRate": 10.0,
+  "tiredStaminaEnter": 0.35,
+  "tiredStaminaExit": 0.5,
+  "tiredBlendRate": 3.0,
+  "tiredBreathWeight": 0.85,
+  "catchBreathStamina": 0.45,
+  "catchBreathSeconds": 2.0,
+  "catchBreathFadeIn": 0.35,
+  "catchBreathFadeOut": 0.6,
+  "catchBreathBlendRate": 8.0,
+  "catchBreathMaxSpeed": 1.0
+}

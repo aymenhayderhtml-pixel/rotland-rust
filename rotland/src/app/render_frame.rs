@@ -190,6 +190,15 @@ pub fn render_frame(
             crouching: pose.crouching,
         };
         pv.animator.set_move_velocity(pose.velocity, pose.yaw);
+        // The first-person body only casts a shadow, so the posture layers stay off there.
+        if !pose.first_person {
+            pv.animator.set_posture(
+                pose.horizontal_speed,
+                pose.crouching,
+                pose.sprinting,
+                pose.stamina_frac,
+            );
+        }
         if pose.on_floor && !pose.first_person {
             let physics = &world.physics;
             let (up, down) = {

@@ -24,6 +24,7 @@ use crate::layers::{LayerBlend, LayerId, LayerStack};
 use crate::mask::{BoneMasks, MaskId};
 use crate::motion::{MotionClips, MotionJoints, MotionState};
 use crate::pose_buffer::{add_pose_masked, blend_pose_masked, PosePool};
+use crate::posture::PostureState;
 use crate::stance::{HoldTransform, StanceController, StanceTable};
 
 const POSE_POOL_BUFFERS: usize = 3; // new: DECISIONS 2026-11-23
@@ -51,6 +52,7 @@ pub struct HumanoidAnimator {
     motion_joints: MotionJoints,
     air: AirState,
     air_driven: bool,
+    posture: PostureState,
     foot_ik: FootIkState,
     foot_joints: Option<FootJoints>,
     foot_globals: Vec<Mat4>,
@@ -114,6 +116,7 @@ impl HumanoidAnimator {
             motion_joints,
             air: AirState::new(),
             air_driven: false,
+            posture: PostureState::new(),
             foot_ik: FootIkState::new(),
             foot_joints,
             foot_globals: vec![Mat4::IDENTITY; n],
@@ -289,6 +292,7 @@ impl HumanoidAnimator {
         self.aim.tick(step);
         self.advance_action(step);
         self.advance_stance(step);
+        self.advance_posture(step);
         self.advance_full_body(step);
         self.foot_ik.set_active(locomotion.on_floor && self.full_body.is_none());
         self.foot_ik.tick(step, self.blend_pos);
@@ -299,6 +303,12 @@ impl HumanoidAnimator {
         self.motion.set_input(velocity, yaw);
         self.air.set_velocity(velocity);
         self.air_driven = true;
+        self.dirty = true;
+    }
+
+    /// Feeds crouch, sprint and stamina so the posture layers can react (third person only).
+    pub fn set_posture(&mut self, speed: f32, crouching: bool, sprinting: bool, stamina_frac: f32) {
+        self.posture.set_input(speed, crouching, sprinting, stamina_frac);
         self.dirty = true;
     }
 
@@ -473,6 +483,13 @@ impl HumanoidAnimator {
         } else {
             self.layers.get_mut(LayerId::Action).weight = act.weight();
         }
+    }
+
+    /// Advances the posture weights and writes them into the existing layers.
+    fn advance_posture(&mut self, step: f32) {
+        let armed = self.weapon_name.is_some();
+        self.posture.tick(step);
+        self.posture.apply(&mut self.layers, armed);
     }
 
     fn advance_stance(&mut self, step: f32) {
