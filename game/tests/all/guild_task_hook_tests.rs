@@ -677,3 +677,82 @@ fn config_from_json_reads_keys_and_ignores_others() {
     assert!((cfg.place_radius - expected_place).abs() < f32::EPSILON);
     assert!((cfg.hook_check_seconds - expected_interval).abs() < f32::EPSILON);
 }
+
+#[test]
+fn plan_hand_in_for_targets_requested_task_even_with_duplicate_item() {
+    let target = 5; // new: DECISIONS 2026-11-24
+    let bag_wood = 3; // new: DECISIONS 2026-11-24
+    let mut manager = manager_with_active(vec![
+        fetch_task("fetch_wood_1", "Wood 1", "wood", target),
+        fetch_task("fetch_wood_2", "Wood 2", "wood", target),
+    ]);
+    let mut hooks = GuildTaskHooks::new(default_hook_config());
+    let guild_pos = Vec3::ZERO;
+    let player = Vec3::new(1.0, 0.0, 0.0); // new: DECISIONS 2026-11-24
+
+    assert!(hooks.is_in_hand_in_range(guild_pos, player));
+    assert!(!hooks.is_in_hand_in_range(guild_pos, Vec3::new(HAND_IN_RADIUS + 0.5, 0.0, 0.0)));
+
+    let entry = hooks
+        .plan_hand_in_for(
+            &manager,
+            "fetch_wood_2",
+            |id| if id == "wood" { bag_wood } else { 0 },
+            guild_pos,
+            player,
+        )
+        .expect("second task should receive a hand-in plan");
+    assert_eq!(
+        entry,
+        HandIn {
+            task_id: "fetch_wood_2".to_string(),
+            item_id: "wood".to_string(),
+            count: bag_wood,
+        }
+    );
+
+    let events = hooks.apply_hand_in(&mut manager, &[entry]);
+    assert_eq!(
+        events,
+        vec![GuildTaskEvent::Progress {
+            task_id: "fetch_wood_2".to_string(),
+            progress: bag_wood,
+            target,
+        }]
+    );
+    assert_eq!(manager.board().active()[0].progress, 0);
+    assert_eq!(manager.board().active()[1].progress, bag_wood);
+}
+
+#[test]
+fn plan_hand_in_for_returns_none_when_out_of_range_or_empty() {
+    let target = 4; // new: DECISIONS 2026-11-24
+    let manager = manager_with_active(vec![
+        fetch_task("fetch_wood", "Wood", "wood", target),
+        explore_task("explore_lake", "Lake", "the lake"),
+    ]);
+    let hooks = GuildTaskHooks::new(default_hook_config());
+
+    assert_eq!(
+        hooks.plan_hand_in_for(
+            &manager,
+            "fetch_wood",
+            |_| target,
+            Vec3::ZERO,
+            Vec3::new(HAND_IN_RADIUS + 1.0, 0.0, 0.0),
+        ),
+        None
+    );
+    assert_eq!(
+        hooks.plan_hand_in_for(&manager, "fetch_wood", |_| 0, Vec3::ZERO, Vec3::ZERO),
+        None
+    );
+    assert_eq!(
+        hooks.plan_hand_in_for(&manager, "explore_lake", |_| target, Vec3::ZERO, Vec3::ZERO),
+        None
+    );
+    assert_eq!(
+        hooks.plan_hand_in_for(&manager, "missing_id", |_| target, Vec3::ZERO, Vec3::ZERO),
+        None
+    );
+}

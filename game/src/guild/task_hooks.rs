@@ -111,6 +111,43 @@ impl GuildTaskHooks {
         self.announced_ready.clear();
     }
 
+    /// Returns true when `player` is horizontally within `hand_in_radius` of `guild_pos`.
+    pub fn is_in_hand_in_range(&self, guild_pos: Vec3, player: Vec3) -> bool {
+        within_horizontal_radius(player, guild_pos, self.cfg.hand_in_radius)
+    }
+
+    /// Plans a hand-in for one specific active fetch task, without touching earlier tasks.
+    /// Returns `None` when out of range, the task is not an active unfinished fetch task, or the bag has 0.
+    pub fn plan_hand_in_for(
+        &self,
+        manager: &GuildManager,
+        task_id: &str,
+        count: impl Fn(&str) -> u32,
+        guild_pos: Vec3,
+        player: Vec3,
+    ) -> Option<HandIn> {
+        if !self.is_in_hand_in_range(guild_pos, player) {
+            return None;
+        }
+        let task = manager.board().active().iter().find(|t| t.id == task_id)?;
+        if task.is_done() {
+            return None;
+        }
+        let GuildTaskKind::Fetch { item_id } = &task.kind else {
+            return None;
+        };
+        let need = task.target.saturating_sub(task.progress);
+        let take = need.min(count(item_id));
+        if take == 0 {
+            return None;
+        }
+        Some(HandIn {
+            task_id: task.id.clone(),
+            item_id: item_id.clone(),
+            count: take,
+        })
+    }
+
     /// Pure plan, nothing is changed. Empty when the player is farther than `hand_in_radius` from `guild_pos`.
     /// `count` returns how many of an item the bag holds. Walks the active tasks in order.
     pub fn plan_hand_in(

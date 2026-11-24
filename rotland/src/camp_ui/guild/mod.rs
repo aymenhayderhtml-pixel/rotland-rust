@@ -113,7 +113,7 @@ pub fn draw_guild(
     let mut action = None;
     ui.columns(3, |columns| {
         // 1. Task Board
-        if let Some(act) = draw_tasks_column(&mut columns[0], guild, state, column_height) {
+        if let Some(act) = draw_tasks_column(&mut columns[0], guild, view.inventory, state, column_height) {
             action = Some(act);
         }
 

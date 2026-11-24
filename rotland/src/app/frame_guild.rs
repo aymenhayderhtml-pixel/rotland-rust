@@ -64,8 +64,16 @@ fn build_places(world: &WorldState) -> Vec<NamedPlace<'static>> {
             places.push(NamedPlace { name: ASHFORD_CORE, position: flat(game::city_center(city)) });
         }
         if let Some(lake) = wgen.lake() {
-            let shore = lake.docks.first().map_or(lake.center, |d| d.start);
-            places.push(NamedPlace { name: THE_LAKE, position: flat(shore) });
+            if lake.docks.is_empty() && lake.shore.is_empty() {
+                places.push(NamedPlace { name: THE_LAKE, position: flat(lake.center) });
+            } else {
+                for dock in &lake.docks {
+                    places.push(NamedPlace { name: THE_LAKE, position: flat(dock.start) });
+                }
+                for &shore_pt in &lake.shore {
+                    places.push(NamedPlace { name: THE_LAKE, position: flat(shore_pt) });
+                }
+            }
         }
     }
     if let Some(streamer) = world.streamer.as_ref() {
@@ -146,19 +154,23 @@ pub fn hand_in(
     player: Vec3,
     task_id: &str,
 ) -> (String, Vec<GuildTaskEvent>) {
-    let mut plan = hooks.plan_hand_in(manager, |id| bag.count(id), guild_pos, player);
-    plan.retain(|h| h.task_id == task_id);
-    let mut taken = Vec::new();
-    for h in plan {
-        if bag.remove(&h.item_id, h.count) {
-            taken.push(h);
-        }
+    if !hooks.is_in_hand_in_range(guild_pos, player) {
+        return ("Stand closer to the guild to hand in items".into(), Vec::new());
     }
-    let Some(first) = taken.first() else {
-        return ("Nothing to hand in here: stand at the guild with the items".into(), Vec::new());
+    let Some(entry) = hooks.plan_hand_in_for(manager, task_id, |id| bag.count(id), guild_pos, player) else {
+        return ("You don't have the items needed for this task".into(), Vec::new());
     };
-    let item = first.item_id.replace('_', " ");
-    let total: u32 = taken.iter().map(|h| h.count).sum();
-    let events = hooks.apply_hand_in(manager, &taken);
-    (format!("Handed in {total} {item}"), events)
+    if !bag.remove(&entry.item_id, entry.count) {
+        return ("You don't have the items needed for this task".into(), Vec::new());
+    }
+    let item = entry.item_id.replace('_', " ");
+    let count = entry.count;
+    let events = hooks.apply_hand_in(manager, &[entry]);
+    let ready = events.iter().any(|e| matches!(e, GuildTaskEvent::Ready { .. }));
+    let msg = if ready {
+        format!("Handed in {count} {item} — ready to claim!")
+    } else {
+        format!("Handed in {count} {item}")
+    };
+    (msg, events)
 }
