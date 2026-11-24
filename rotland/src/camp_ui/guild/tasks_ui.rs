@@ -2,6 +2,7 @@
 
 use engine::egui::{self, Color32, CornerRadius, Frame, Margin, ProgressBar, RichText, ScrollArea, Stroke};
 use game::guild::{GuildManager, GuildTask, GuildTaskKind};
+use game::Inventory;
 
 use crate::camp_ui::action::GuildCampAction;
 use crate::camp_ui::state::CampUiState;
@@ -45,6 +46,7 @@ pub fn format_task_reward(task: &GuildTask) -> String {
 pub fn draw_tasks_column(
     ui: &mut egui::Ui,
     guild: &GuildManager,
+    inventory: Option<&Inventory>,
     _state: &mut CampUiState,
     max_height: f32,
 ) -> Option<GuildCampAction> {
@@ -126,11 +128,17 @@ pub fn draw_tasks_column(
                                             });
                                         }
                                     } else {
-                                        if matches!(task.kind, GuildTaskKind::Fetch { .. }) {
+                                        if let GuildTaskKind::Fetch { item_id } = &task.kind {
+                                            let have = inventory.map(|inv| inv.count(item_id));
+                                            let label = match have {
+                                                Some(n) => format!("Hand in items ({n} in bag)"),
+                                                None => "Hand in items".to_string(),
+                                            };
                                             let hand_in_btn = egui::Button::new(
-                                                RichText::new("Hand in items").size(12.0),
+                                                RichText::new(label).size(12.0),
                                             );
-                                            if ui.add(hand_in_btn).clicked() {
+                                            let enabled = have.is_none_or(|n| n > 0);
+                                            if ui.add_enabled(enabled, hand_in_btn).clicked() {
                                                 action = Some(GuildCampAction::HandIn {
                                                     task_id: task.id.clone(),
                                                 });
