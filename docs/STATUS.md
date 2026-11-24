@@ -1,6 +1,6 @@
 # STATUS (read this first; keep it under ~80 lines)
 
-Updated: 2026-11-23 by Claude (after R25).
+Updated: 2026-11-24 by Claude (after R27).
 
 ## Where we are
 - Version 0.1 = Godot parity in Rust, done (R0-R10). History: `docs/archive/RUST_QUEUE.md`.
@@ -26,6 +26,9 @@ Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zomb
 - Known: water drawn as 8 m strips over the lake only (beach now dry), BUT docks sit at ground height under the water (dock y must be water_level + ~0.4, in `world/src/lake/place.rs`), the shore edge is blocky (8 m strips), and a thin white line shows across the screen at `--at=470,-1420` (probably a water strip edge seen from far; check); crawler pose wrong (R18-07); FPS worries: city core worst 1% 21, lake 17 under heavy load (R18-08 + a quiet re-measure first thing).
 - Tools fixed today: gate scope reads `Files:` from main; `tools/claim_target.sh` rebuilds our crates every gate (shared target mixed worktrees); gate never deadlocks inside an outer flock.
 - Seed 42 places: city core (-384, 1792), lake first dock (528, -1478). Dev panel: City core / City entry / Camp road / Lake teleports.
+
+- 2026-11-24: A12 actions, A13 melee v2 (combos, weapon weight, shove tap / block hold, DECISIONS 2026-11-24), A14 directional flinch, running-legs fix (foot IK off at run). R27 (6 Gemini lanes via Antigravity, prompts in tasks/R27-prompts.md): A15 wounds, A16 directional deaths, A18 teammates/guards on the new animator, guild deliver/explore hooks, Task-ready overlap + specials.rs split, city z-fight. 1033 tests. Not yet seen in game: block pose with the bat, combos, wounds, deaths, teammate weapons, guild hand-in.
+- Animation plan left: A20 (finger bones, real grips, polish). Downed/revive not started (owner decision).
 
 ## Next (from PLAN_0.2.md)
 1. Stutter: re-measure on a quiet laptop (nothing else running), then find the between-frames stall (present mode / vsync, compositor, physics collider rebuild in `physics/src/world.rs`). Re-run `--bench` quietly too.
