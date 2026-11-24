@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "lod": {
+    "nearDistance": 10.0,
+    "midDistance": 25.0,
+    "farOffscreenDistance": 30.0,
+    "nearInterval": 0.0,
+    "midInterval": 0.04,
+    "farInterval": 0.1,
+    "offscreenNearInterval": 0.5,
+    "offscreenFarInterval": 1.0
+  },
+  "roles": {
+    "fighter": {
+      "weapon": "bat",
+      "attackClip": "melee_2h",
+      "attackSpeed": 1.0,
+      "isRanged": false
+    },
+    "guard": {
+      "weapon": "rifle",
+      "attackClip": "rifle_fire",
+      "attackSpeed": 1.0,
+      "isRanged": true
+    },
+    "scavenger": {
+      "weapon": "knife",
+      "attackClip": "melee_1h",
+      "attackSpeed": 1.0,
+      "isRanged": false
+    },
+    "campGuard": {
+      "weapon": "rifle",
+      "attackClip": "rifle_fire",
+      "attackSpeed": 1.0,
+      "isRanged": true
+    }
+  },
+  "walkSpeed": 2.4,
+  "runSpeed": 4.6,
+  "hitClip": "hit",
+  "hitSpeed": 1.0,
+  "hitDamageThreshold": 0.01
+}

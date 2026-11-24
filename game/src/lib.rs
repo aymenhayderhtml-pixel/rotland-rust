@@ -49,6 +49,11 @@ pub mod spawner_config;
 pub mod survival;
 pub mod swim_hands;
 pub mod swimming;
+pub mod team_anim;
+pub use team_anim::{
+    plan_npc_anim, NpcAnimInput, NpcAnimPlan, NpcAnimRole, NpcAnimTrack, RoleAnimConfig,
+    TeamAnimConfig, TeamLodConfig, TeamRolesConfig,
+};
 pub mod trees;
 pub mod weapons;
 pub mod vault;

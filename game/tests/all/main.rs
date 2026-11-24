@@ -47,6 +47,7 @@ mod spawner_city_tests;
 mod spawner_tests;
 mod survival_tests;
 mod swimming_tests;
+mod team_anim_tests;
 mod trees_tests;
 mod vehicle_zombie_damage_tests;
 mod vault_tests;
