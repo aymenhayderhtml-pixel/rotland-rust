@@ -54,6 +54,10 @@ pub mod weapons;
 pub mod vault;
 pub mod hit_react;
 pub use hit_react::{HitInput, HitReactConfig, HitReactState, HitReaction, HitSide, hit_side};
+pub mod death_anim;
+pub use death_anim::{
+    DeathAnimConfig, DeathCause, DeathChoice, DeathClipSpec, ZombieDeathClips,
+};
 pub use vault::{VaultConfig, VaultKind, VaultPlan, VaultState, find_vault};
 pub mod melee_combo;
 pub use melee_combo::{ComboMove, MeleeComboState, MeleeMovesConfig};
