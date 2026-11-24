@@ -135,7 +135,9 @@ pub fn draw_notifications(
         return;
     }
     let cfg = &config.notifications;
-    let base_y = 65.0 * scale;
+    // Below compass, "IN CAMP" / "CAMP + distance", "Safe zone", and waypoint labels.
+    // new: DECISIONS 2026-11-24
+    let base_y = screen.min.y + 126.0 * scale;
 
     let mut drawn_idx = 0;
     for notif in notifications {
