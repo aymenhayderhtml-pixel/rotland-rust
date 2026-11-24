@@ -35,8 +35,8 @@ def build_parking(k):
     k.box((-11.0, -8.0, -0.05), (-4.0, 7.0, 0.04), "rock_dark")
     # White parking bay lines
     for y in (-5.0, -2.0, 1.0, 4.0):
-        k.box((-10.5, y - 0.06, 0.04), (-7.0, y + 0.06, 0.05), "white")
-    k.box((-10.5, -5.0, 0.04), (-10.38, 4.0, 0.05), "white")
+        k.box((-10.5, y - 0.06, 0.04), (-7.0, y + 0.06, 0.06), "white")
+    k.box((-10.5, -5.0, 0.04), (-10.38, 4.0, 0.06), "white")
 
     # Perimeter fence posts along west edge (x = -11.0)
     for y in (-8.0, -5.5, -3.0, -0.5, 2.0, 4.5, 7.0):
@@ -67,7 +67,7 @@ def build_parking(k):
     # Pivot joint and barrier arm
     k.solid((-8.3, 6.94, 0.82), (-4.1, 7.06, 0.94), "white", base="barrier_arm")
     for rx in (-8.0, -7.0, -6.0, -5.0):
-        k.box((rx, 6.93, 0.81), (rx + 0.35, 7.07, 0.95), "red_paint")
+        k.box((rx, 6.92, 0.80), (rx + 0.35, 7.08, 0.96), "red_paint")
 
     # Dumpster in parking corner
     k.solid((-10.5, -7.2, 0.0), (-8.8, -5.8, 1.3), "shirt_blue", base="dumpster")

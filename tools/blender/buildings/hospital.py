@@ -36,16 +36,16 @@ def build_ambulance_bay(k):
     k.box((-14.0, -8.5, 0.0), (-7.0, 8.5, 0.04), "rock_dark")
 
     # Red emergency bay parking box
-    k.box((-12.5, -6.5, 0.04), (-8.5, 6.5, 0.05), STRIPE_COLOR)
+    k.box((-12.5, -6.5, 0.04), (-8.5, 6.5, 0.06), STRIPE_COLOR)
     # White border lines for parking box
     for y in (-6.5, 6.5):
-        k.box((-12.44, y - 0.06, 0.05), (-8.56, y + 0.06, 0.06), "white")
+        k.box((-12.44, y - 0.06, 0.06), (-8.56, y + 0.06, 0.08), "white")
     for x in (-12.5, -8.5):
-        k.box((x - 0.06, -6.56, 0.05), (x + 0.06, 6.56, 0.06), "white")
+        k.box((x - 0.06, -6.56, 0.06), (x + 0.06, 6.56, 0.08), "white")
     # White cross in center of bay (non-overlapping boxes)
-    k.box((-11.0, -1.5, 0.05), (-10.0, 1.5, 0.06), "white")
-    k.box((-11.5, -0.5, 0.05), (-11.0, 0.5, 0.06), "white")
-    k.box((-10.0, -0.5, 0.05), (-9.5, 0.5, 0.06), "white")
+    k.box((-11.0, -1.5, 0.06), (-10.0, 1.5, 0.08), "white")
+    k.box((-11.5, -0.5, 0.06), (-11.0, 0.5, 0.08), "white")
+    k.box((-10.0, -0.5, 0.06), (-9.5, 0.5, 0.08), "white")
 
     # 4 Support posts (z 0 to 3.8 m)
     posts = [(-13.5, -7.5), (-13.5, 7.5), (-7.5, -7.5), (-7.5, 7.5)]

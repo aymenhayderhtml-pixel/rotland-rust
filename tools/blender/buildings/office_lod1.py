@@ -65,7 +65,7 @@ def build(model):
         x_hi = 3.2 if flr == 4 else 7.2
         k.box((-7.2, 7.18, z0), (x_hi, 7.22, z1), "glass_tint")
         # Light spandrel band under window
-        k.box((-7.6, 7.17, z0 - 0.1), (7.6, 7.21, z0), "rock_light")
+        k.box((-7.6, 7.17, z0 - 0.1), (7.6, 7.22, z0), "rock_light")
 
     # Back glass bands
     for z0, z1 in ((3.9, 5.2), (6.6, 7.9), (9.3, 10.6)):
