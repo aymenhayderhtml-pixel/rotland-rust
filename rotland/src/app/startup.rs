@@ -152,6 +152,10 @@ pub fn init(
     session.test_chop = args.flag("--chop");
     session.test_first_person = args.flag("--first-person");
     session.test_poi = args.flag("--poi");
+    session.test_car_yaw = args
+        .value("--car-yaw")
+        .and_then(|s| s.parse::<f32>().ok())
+        .map(f32::to_radians);
     session.near_animals = args
         .value("--animals")
         .map(|s| {

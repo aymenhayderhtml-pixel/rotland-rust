@@ -49,6 +49,7 @@ mod survival_tests;
 mod swimming_tests;
 mod trees_tests;
 mod vehicle_zombie_damage_tests;
+mod vault_tests;
 mod vehicles_tests;
 mod weapons_new_tests;
 mod zombie_anim_fade;

@@ -164,6 +164,19 @@ impl PlayerVisual {
         locomotion: Locomotion,
         bones: &mut Vec<Mat4>,
     ) -> (SkinnedBatch<'_>, Option<SkinnedBatch<'_>>) {
+        let char_world = Mat4::from_translation(pos) * Mat4::from_rotation_y(yaw);
+        self.pose_world(dt, char_world, locomotion, bones, true)
+    }
+
+    /// Poses the character with an explicit world matrix; skips the weapon batch when `draw_weapon` is false.
+    pub fn pose_world(
+        &mut self,
+        dt: f32,
+        world: Mat4,
+        locomotion: Locomotion,
+        bones: &mut Vec<Mat4>,
+        draw_weapon: bool,
+    ) -> (SkinnedBatch<'_>, Option<SkinnedBatch<'_>>) {
         self.animator.update(dt, locomotion);
 
         let base = bones.len();
@@ -172,37 +185,40 @@ impl PlayerVisual {
         self.animator.write_skin(&self.rig, &mut bones[base..]);
         let weapon_hold = self.animator.weapon_hold();
 
-        let char_world = Mat4::from_translation(pos) * Mat4::from_rotation_y(yaw);
         let body_batch = SkinnedBatch {
             mesh: &self.body_mesh,
-            instances: vec![SkinInstance::new(char_world, base as u32)],
+            instances: vec![SkinInstance::new(world, base as u32)],
         };
 
-        let weapon_batch = self.weapon_mesh.as_ref().map(|wmesh| {
-            let name = self.weapon_name.as_deref().unwrap_or("");
-            let weapon_world = if let Some(hold) = weapon_hold {
-                weapon_world_matrix(
-                    char_world,
-                    &self.rig,
-                    &bones[base..],
-                    self.hand_joint,
-                    hold.pos,
-                    hold.rot_deg,
-                )
-            } else {
-                weapon_world_matrix_named(
-                    char_world,
-                    &self.rig,
-                    &bones[base..],
-                    self.hand_joint,
-                    name,
-                )
-            };
-            SkinnedBatch {
-                mesh: wmesh,
-                instances: vec![SkinInstance::new(weapon_world, 0)],
-            }
-        });
+        let weapon_batch = if draw_weapon {
+            self.weapon_mesh.as_ref().map(|wmesh| {
+                let name = self.weapon_name.as_deref().unwrap_or("");
+                let weapon_world = if let Some(hold) = weapon_hold {
+                    weapon_world_matrix(
+                        world,
+                        &self.rig,
+                        &bones[base..],
+                        self.hand_joint,
+                        hold.pos,
+                        hold.rot_deg,
+                    )
+                } else {
+                    weapon_world_matrix_named(
+                        world,
+                        &self.rig,
+                        &bones[base..],
+                        self.hand_joint,
+                        name,
+                    )
+                };
+                SkinnedBatch {
+                    mesh: wmesh,
+                    instances: vec![SkinInstance::new(weapon_world, 0)],
+                }
+            })
+        } else {
+            None
+        };
 
         (body_batch, weapon_batch)
     }

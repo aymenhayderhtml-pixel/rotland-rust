@@ -51,6 +51,8 @@ pub mod swim_hands;
 pub mod swimming;
 pub mod trees;
 pub mod weapons;
+pub mod vault;
+pub use vault::{VaultConfig, VaultKind, VaultPlan, VaultState, find_vault};
 pub mod vehicles;
 pub mod zombie;
 pub mod zombie_voices;

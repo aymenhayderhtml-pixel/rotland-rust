@@ -26,6 +26,7 @@ use crate::mask::{BoneMasks, MaskId};
 use crate::motion::{MotionClips, MotionJoints, MotionState};
 use crate::pose_buffer::{add_pose_masked, blend_pose_masked, PosePool};
 use crate::posture::PostureState;
+use crate::car_anim::{car_event_clip, CarAnimState, CarEvent};
 use crate::ladder_anim::{
     is_ladder_clip, ladder_event_clip, LadderAnimState, LadderEvent, LADDER_CLIMB_CLIP,
 };
@@ -60,6 +61,7 @@ pub struct HumanoidAnimator {
     posture: PostureState,
     swim: SwimState,
     ladder: LadderAnimState,
+    car: CarAnimState,
     incline: InclineState,
     foot_ik: FootIkState,
     foot_joints: Option<FootJoints>,
@@ -127,6 +129,7 @@ impl HumanoidAnimator {
             posture: PostureState::new(),
             swim: SwimState::new(),
             ladder: LadderAnimState::new(),
+            car: CarAnimState::new(),
             incline: InclineState::new(),
             foot_ik: FootIkState::new(),
             foot_joints,
@@ -277,10 +280,26 @@ impl HumanoidAnimator {
 
         let k = 1.0 - (-self.config.blend_rate * step).exp();
         self.blend_pos += (locomotion.speed.clamp(0.0, RUN_BLEND) - self.blend_pos) * k;
-        let ladder_event = self.ladder.tick(step);
-        self.incline.tick(step);
-        let on_ladder = self.ladder.is_on_ladder();
-        if on_ladder {
+        let car_event = self.car.tick(step);
+        let in_car = self.car.is_seated();
+        let (on_ladder, ladder_event) = if in_car {
+            (false, None)
+        } else {
+            self.car.release_layers(&mut self.layers);
+            if let Some(event) = car_event {
+                self.start_car_event(event);
+            }
+            let ev = self.ladder.tick(step);
+            self.incline.tick(step);
+            (self.ladder.is_on_ladder(), ev)
+        };
+        if in_car {
+            self.ladder.release_air(&mut self.layers);
+            self.swim.release_air(&mut self.layers);
+            self.incline.release_air(&mut self.layers);
+            self.air = AirState::new();
+            self.car.apply_car(&mut self.layers);
+        } else if on_ladder {
             self.swim.release_air(&mut self.layers);
             self.incline.release_air(&mut self.layers);
             self.air = AirState::new();
@@ -335,9 +354,11 @@ impl HumanoidAnimator {
         if let Some(event) = ladder_event {
             self.start_ladder_event(event);
         }
-        self.layers.get_mut(LayerId::Crouch).target =
-            if !on_ladder && locomotion.crouching { 1.0 } else { 0.0 };
-        self.motion.tick(step, locomotion.on_floor && !on_ladder);
+        if !in_car {
+            self.layers.get_mut(LayerId::Crouch).target =
+                if !on_ladder && locomotion.crouching { 1.0 } else { 0.0 };
+        }
+        self.motion.tick(step, locomotion.on_floor && !on_ladder && !in_car);
         let tempo = tempo_for(self.blend_pos) * self.tempo_scale * self.motion.tempo_scale();
         self.layers.get_mut(LayerId::Locomotion).speed = tempo;
         self.layers.advance(step);
@@ -345,7 +366,7 @@ impl HumanoidAnimator {
 
         self.aim.tick(step);
         self.advance_action(step);
-        if !on_ladder {
+        if !on_ladder && !in_car {
             self.advance_stance(step);
             self.advance_posture(step);
         }
@@ -358,6 +379,7 @@ impl HumanoidAnimator {
         }
         self.foot_ik.set_active(
             locomotion.on_floor
+                && !in_car
                 && !on_ladder
                 && !self.swim.is_swimming()
                 && self.full_body.is_none(),
@@ -394,6 +416,12 @@ impl HumanoidAnimator {
     /// Feeds world position and grounded flag for stairs and steep-slope leg blends.
     pub fn set_incline(&mut self, position: Vec3, on_floor: bool) {
         self.incline.set_input(position, on_floor);
+        self.dirty = true;
+    }
+
+    /// Feeds car driving state: seated flag, steer angle (rad) and flipped flag.
+    pub fn set_car(&mut self, seated: bool, steer: f32, flipped: bool) {
+        self.car.set_input(seated, steer, flipped);
         self.dirty = true;
     }
 
@@ -496,6 +524,22 @@ impl HumanoidAnimator {
             fade_out: fade,
         };
         self.play_full_body(clip_name, opts);
+    }
+
+    /// Plays the car exit or thrown-out clip once unless dying or in a held pose.
+    fn start_car_event(&mut self, event: CarEvent) {
+        if self.dying || self.held_pose.is_some() {
+            return;
+        }
+        let fade = self.car.event_fade(event);
+        let opts = FullBodyOptions {
+            speed: 1.0, // new: DECISIONS 2026-11-24
+            looping: false,
+            hold_last: false,
+            fade_in: fade,
+            fade_out: fade,
+        };
+        self.play_full_body(car_event_clip(event), opts);
     }
 
     /// Smoothly stops the active full-body clip using `fade_out` (or the clip's configured default).
@@ -720,7 +764,7 @@ impl HumanoidAnimator {
         // 7. Additive layer
         self.apply_layer(rig, LayerId::Additive);
         // 7b. Aim pitch and recoil (before left-hand IK so off-hand follows the gun)
-        if !self.ladder.is_on_ladder() {
+        if !self.ladder.is_on_ladder() && !self.car.is_seated() {
             self.aim.apply(&self.aim_joints, self.pool.get_mut(0), self.stance.aim_weight());
             self.motion.apply_lean(&self.motion_joints, self.pool.get_mut(0));
         }
@@ -735,7 +779,7 @@ impl HumanoidAnimator {
             );
         }
         // 8. Left-hand IK
-        if !self.ladder.is_on_ladder() {
+        if !self.ladder.is_on_ladder() && !self.car.is_seated() {
             self.apply_ik_stage(rig);
         }
         // 9. Full-body override (including death fade)

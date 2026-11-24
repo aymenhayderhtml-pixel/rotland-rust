@@ -36,6 +36,9 @@ mod ladder_anim_tests;
 mod swim_tests;
 pub mod posture;
 pub mod ladder_anim;
+pub mod car_anim;
+#[cfg(test)]
+mod car_anim_tests;
 pub mod swim;
 pub mod stance;
 #[cfg(test)]

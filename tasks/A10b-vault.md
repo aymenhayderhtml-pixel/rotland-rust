@@ -130,3 +130,100 @@ with:
 Use a flat ground at y = 0 and box walls. Cover: config parses and equals Default; a 1.0 m high, 0.3 m thick wall 0.5 m ahead gives `Vault` with land beyond the wall; a 0.6 m wall gives `StepOver`; a 2.0 m wall gives `None`; a 1.0 m high but 3 m thick block gives `None`; no wall gives `None`; wall behind the player (facing away) gives `None`; `try_start` refuses while crouching, in the air, with no forward input, and with empty stamina (stamina unchanged when refused for another reason); `step` reaches `land` after `seconds` at dt 1/60 and at dt 0.1, never goes below `top.y - 0.05` while above the wall's xz span, and stays finite; `dt = 0` does nothing.
 
 ## Worker notes
+
+- Applied: `game/src/lib.rs` (mod + pub use), `game/tests/all/main.rs` (`mod vault_tests;`), `rotland/src/app/state.rs` (`pub vault: game::VaultState` field; no constructor edit needed because `ActorsState` derives `Default`), `rotland/src/app/frame_actors.rs` (wiring block as written).
+- `HumanoidAnimator` has no `config()` accessor, so the wiring uses `humanoid::FullBodyOptions { hold_last: false, ..humanoid::FullBodyOptions::default() }` (AnimConfig defaults). `humanoid/src/animator.rs` was not touched (A11 owns it).
+- Clippy caught one `field_reassign_with_default` in the wiring; fixed with the struct-update form.
+- `game/src/vault.rs` is 313 lines (spec target was under 280). rustfmt applied; not split. Split candidate: `VaultConfig` (config + Default + loaders) into its own file if the owner wants the 280 limit.
+- Fence collider check: `fence_wood_section` collider is one box 2.0 m wide, 0.12 m thick, 1.2 m tall (`tools/blender/props/fence_wood_section.py:21`), scaled 0.95-1.05 by scatter, so the top is 1.14-1.26 m. Solid to the probe (static collider). With `maxHeight` 1.25, fences with scale above about 1.04 are refused. Left unchanged; owner or orchestrator to decide whether maxHeight should be 1.3.
+- Other props: `fence_broken` colliders are 2.1 m tall (not vaultable, by design). `jersey_barrier` is 0.82 m tall, 0.6 m thick (vaultable as `vault_low`).
+- Untouched but modified by someone else during this run: `game/src/vehicles/camera.rs`, `rotland/src/app/startup.rs` (not in this task's files).
+
+## Neon notes
+
+Note: `game/src/lib.rs`, `game/tests/all/main.rs`, `rotland/src/app/state.rs`, and `rotland/src/app/frame_actors.rs` were not included in the `Read` section of the prompt, so the anchor lines for `game/src/lib.rs` and `game/tests/all/main.rs` are given by module placement and the fixed wiring edits are repeated verbatim below.
+
+1. `game/src/lib.rs`:
+Next to the other `pub mod` and `pub use` lines, add:
+```rust
+pub mod vault;
+pub use vault::{VaultConfig, VaultKind, VaultPlan, VaultState, find_vault};
+
+```
+
+
+2. `game/tests/all/main.rs`:
+Next to the other `mod *_tests;` lines, add:
+```rust
+mod vault_tests;
+
+```
+
+
+3. `rotland/src/app/state.rs`:
+In `pub struct ActorsState`, next to the field `pub fp_motion: ...`, add:
+```rust
+pub vault: game::VaultState,
+
+```
+
+
+And in its constructor/`Default`, add:
+```rust
+vault: game::VaultState::default(),
+
+```
+
+
+4. `rotland/src/app/frame_actors.rs`:
+Replace:
+```rust
+     if in_car {
+         // the car moves the player (above)
+     } else if climbing {
+         rig.yaw = p.yaw;
+     } else {
+         p.update(actions, rig.yaw, &world.physics, &actors.mover, dt);
+     }
+
+```
+
+
+with:
+```rust
+     static VAULT_CFG: std::sync::OnceLock<game::VaultConfig> = std::sync::OnceLock::new();
+     let vault_cfg = VAULT_CFG.get_or_init(|| game::VaultConfig::from_repo().unwrap_or_default());
+     if dead || in_car || climbing {
+         actors.vault.cancel();
+     }
+     if in_car {
+         // the car moves the player (above)
+     } else if climbing {
+         rig.yaw = p.yaw;
+     } else if actors.vault.is_active() {
+         actors.vault.step(p, dt);
+     } else if let Some(clip) = (!dead && actions.jump)
+         .then(|| actors.vault.try_start(p, &world.physics, -actions.move_vec.y, vault_cfg))
+         .flatten()
+     {
+         if let Some(pv) = actors.player_visual.as_mut() {
+             // HELPER: build FullBodyOptions the way other play_full_body callers do if pv.animator.config() does not exist
+             let mut opts = humanoid::FullBodyOptions::from_config(pv.animator.config());
+             opts.hold_last = false;
+             pv.animator.play_full_body(clip, opts);
+         }
+     } else {
+         p.update(actions, rig.yaw, &world.physics, &actors.mover, dt);
+     }
+
+```
+
+## Gate report
+- date: 2026-11-24
+- base: main
+- files changed (33): assets/models/buildings/settlement.glb, assets/models/_previews/car_hatchback_blue.png, assets/models/_previews/car_hatchback_blue_rear.png, assets/models/_previews/car_hatchback_blue_side.png, assets/models/_previews/car_hatchback_olive.png, assets/models/_previews/car_hatchback_olive_rear.png, assets/models/_previews/car_hatchback_olive_side.png, assets/models/_previews/car_hatchback_red.png, assets/models/_previews/car_hatchback_red_rear.png, assets/models/_previews/car_hatchback_red_side.png, assets/models/vehicles/car_hatchback_blue.glb, assets/models/vehicles/car_hatchback_olive.glb, assets/models/vehicles/car_hatchback_red.glb, data/car_anim.json, data/vault.json, game/src/lib.rs, game/src/vault.rs, game/src/vehicles/camera.rs, game/tests/all/main.rs, game/tests/all/vault_tests.rs, humanoid/src/animator.rs, humanoid/src/car_anim.rs, humanoid/src/car_anim_tests.rs, humanoid/src/lib.rs, rotland/src/app/frame_actors.rs, rotland/src/app/render_frame.rs, rotland/src/app/startup.rs, rotland/src/app/state.rs, rotland/src/player_visual.rs, tasks/A10b-vault.md, tasks/A11-car-seat.md, tools/blender/buildings/settlement.py, tools/blender/vehicles/car_parts.py
+- tests passed: 985
+- clippy: PASS
+- test: PASS
+- checks: FAIL
+- gate: FAIL (checks)

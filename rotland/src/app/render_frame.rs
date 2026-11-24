@@ -182,8 +182,32 @@ pub fn render_frame(
         target.aspect(),
         renderer.shadows.distance,
     );
-    let driving = actors.cars.as_ref().is_some_and(|c| c.driven_car_id.is_some());
-    if let (Some(pv), Some(pose), false) = (actors.player_visual.as_mut(), player_pose, driving) {
+    let driven_car = actors.cars.as_ref().and_then(|c| c.driven_car()).map(|car| {
+        let world = Mat4::from_rotation_translation(car.body.rotation, car.body.position);
+        (world, car.body.steer_angle, car.body.is_flipped())
+    });
+    if let Some((car_world, steer, flipped)) = driven_car {
+        if let (Some(pv), Some(pose)) = (actors.player_visual.as_mut(), player_pose)
+            && !pose.first_person
+        {
+            pv.animator.set_car(true, steer, flipped);
+            let cfg = humanoid::car_anim::CarAnimConfig::load_shared();
+            let seat = humanoid::car_anim::seat_world(car_world, cfg);
+            let loco = humanoid::Locomotion {
+                speed: 0.0, // new: DECISIONS 2026-11-24
+                on_floor: true,
+                crouching: false,
+            };
+            let (body, _weapon) =
+                pv.pose_world(session.last_dt, seat, loco, &mut render.bones, false);
+            main.push(engine::render::SkinnedBatch {
+                mesh: body.mesh,
+                instances: body.instances.clone(),
+            });
+            shadow.push(body);
+        }
+    } else if let (Some(pv), Some(pose)) = (actors.player_visual.as_mut(), player_pose) {
+        pv.animator.set_car(false, 0.0, false); // new: DECISIONS 2026-11-24
         let loco = humanoid::Locomotion {
             speed: pose.horizontal_speed,
             on_floor: pose.on_floor,

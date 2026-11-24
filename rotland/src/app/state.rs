@@ -151,6 +151,7 @@ pub struct ActorsState {
     pub car_solids: car_solid::ParkedCarSolids,
     pub fp_sway: fp_weapon::FpSway,
     pub fp_motion: game::FpMotion,
+    pub vault: game::VaultState,
     pub open_trunk: Option<String>,
     pub camp_guards: Option<game::CampGuards>,
     pub camp_npcs: Option<camp_npcs::CampNpcs>,
@@ -314,6 +315,8 @@ pub struct SessionState {
     pub test_chop: bool,
     pub test_first_person: bool,
     pub test_poi: bool,
+    /// `--car-yaw=<deg>`: holds the car camera at this angle around the car (screenshots).
+    pub test_car_yaw: Option<f32>,
     pub bench: Option<super::bench::BenchState>,
 }
 
@@ -351,6 +354,7 @@ impl Default for SessionState {
             test_chop: false,
             test_first_person: false,
             test_poi: false,
+            test_car_yaw: None,
             bench: None,
         }
     }

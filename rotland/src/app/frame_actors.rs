@@ -159,6 +159,9 @@ pub fn update_actors(
                 // look_delta is already zero when the mouse is free or a screen is open (frame_input),
                 // except for arrow-key look, which should turn the car camera too
                 actors.car_camera.orbit(glam::Vec2::new(actions.look_delta.0, actions.look_delta.1));
+                if let Some(yaw) = session.test_car_yaw {
+                    actors.car_camera.set_orbit_yaw(yaw);
+                }
                 if input.pressed(K::KeyV) && ui.hub.is_none() && ui.camp_ui.is_none() {
                     let mode = actors.car_camera.cycle_mode();
                     if let Some(play_state) = play.play.as_mut() {
@@ -249,10 +252,29 @@ pub fn update_actors(
         let climb_in = game::ClimbInput::new(-actions.move_vec.y, actions.jump, grab);
         let climbing = !dead && !in_car && game::climb_tick(&mut actors.climb, p, &climb_in, rails, dt);
         ui.e_used = ui.e_used || (grab && (climbing || was_climbing));
+        static VAULT_CFG: std::sync::OnceLock<game::VaultConfig> = std::sync::OnceLock::new();
+        let vault_cfg = VAULT_CFG.get_or_init(|| game::VaultConfig::from_repo().unwrap_or_default());
+        if dead || in_car || climbing {
+            actors.vault.cancel();
+        }
         if in_car {
             // the car moves the player (above)
         } else if climbing {
             rig.yaw = p.yaw;
+        } else if actors.vault.is_active() {
+            actors.vault.step(p, dt);
+        } else if let Some(clip) = (!dead && actions.jump)
+            .then(|| actors.vault.try_start(p, &world.physics, -actions.move_vec.y, vault_cfg))
+            .flatten()
+        {
+            if let Some(pv) = actors.player_visual.as_mut() {
+                // HELPER: no config() accessor on HumanoidAnimator; use FullBodyOptions::default() (AnimConfig defaults) and only force hold_last off.
+                let opts = humanoid::FullBodyOptions {
+                    hold_last: false,
+                    ..humanoid::FullBodyOptions::default()
+                };
+                pv.animator.play_full_body(clip, opts);
+            }
         } else {
             p.update(actions, rig.yaw, &world.physics, &actors.mover, dt);
         }

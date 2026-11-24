@@ -135,6 +135,13 @@ impl CarCamera {
         }
     }
 
+    /// Turns the camera around the car by `yaw` radians (test screenshots, `--car-yaw`).
+    pub fn set_orbit_yaw(&mut self, yaw: f32) {
+        self.yaw_offset = yaw;
+        self.idle_orbit_timer = 0.0;
+        self.snap = true;
+    }
+
     pub fn add_shake(&mut self, amount: f32) {
         self.shake = (self.shake + amount.max(0.0)).min(1.0);
     }

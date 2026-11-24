@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "probeDistance": 0.9,
+  "minHeight": 0.45,
+  "maxHeight": 1.3,
+  "stepOverMaxHeight": 0.75,
+  "maxThickness": 0.7,
+  "landingDistance": 0.6,
+  "maxLandingDrop": 1.0,
+  "clearanceAbove": 0.9,
+  "topLift": 0.15,
+  "minForwardInput": 0.3,
+  "vaultSeconds": 0.7,
+  "stepOverSeconds": 0.6,
+  "speedAfter": 3.0
+}
