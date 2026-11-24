@@ -11,6 +11,7 @@ use pack::{Clip, Skeleton};
 
 use crate::action::ActionState;
 use crate::aim::{AimController, AimJoints};
+use crate::airborne::{AirState, LandingKind, landing_clip};
 use crate::anim_config::AnimConfig;
 use crate::blend::{
     locomotion_weights, lod_interval, sample_locomotion_into, tempo_for, Locomotion,
@@ -48,6 +49,8 @@ pub struct HumanoidAnimator {
     aim_joints: AimJoints,
     motion: MotionState,
     motion_joints: MotionJoints,
+    air: AirState,
+    air_driven: bool,
     foot_ik: FootIkState,
     foot_joints: Option<FootJoints>,
     foot_globals: Vec<Mat4>,
@@ -109,6 +112,8 @@ impl HumanoidAnimator {
             aim_joints,
             motion: MotionState::new(),
             motion_joints,
+            air: AirState::new(),
+            air_driven: false,
             foot_ik: FootIkState::new(),
             foot_joints,
             foot_globals: vec![Mat4::IDENTITY; n],
@@ -258,7 +263,22 @@ impl HumanoidAnimator {
 
         let k = 1.0 - (-self.config.blend_rate * step).exp();
         self.blend_pos += (locomotion.speed.clamp(0.0, RUN_BLEND) - self.blend_pos) * k;
-        self.layers.get_mut(LayerId::Air).target = if locomotion.on_floor { 0.0 } else { 1.0 };
+        if self.air_driven {
+            let landing = self.air.tick(step, locomotion.on_floor);
+            let target = self.air.air_target();
+            let clip = self.air.air_clip().unwrap_or("jump");
+            let layer = self.layers.get_mut(LayerId::Air);
+            layer.target = target;
+            if layer.clip.as_deref() != Some(clip) {
+                layer.clip = Some(clip.to_owned());
+                layer.time = 0.0;
+            }
+            if let Some(kind) = landing {
+                self.start_landing(kind);
+            }
+        } else {
+            self.layers.get_mut(LayerId::Air).target = if locomotion.on_floor { 0.0 } else { 1.0 };
+        }
         self.layers.get_mut(LayerId::Crouch).target = if locomotion.crouching { 1.0 } else { 0.0 };
         self.motion.tick(step, locomotion.on_floor);
         let tempo = tempo_for(self.blend_pos) * self.tempo_scale * self.motion.tempo_scale();
@@ -277,6 +297,8 @@ impl HumanoidAnimator {
     /// The body's velocity and facing this frame, for side and backward steps and leaning.
     pub fn set_move_velocity(&mut self, velocity: Vec3, yaw: f32) {
         self.motion.set_input(velocity, yaw);
+        self.air.set_velocity(velocity);
+        self.air_driven = true;
         self.dirty = true;
     }
 
@@ -319,10 +341,26 @@ impl HumanoidAnimator {
         let prev = self.full_body.take();
         let state = FullBodyState::start(clip.to_owned(), duration, opts, prev);
         self.layers.set_clip(LayerId::FullBody, Some(clip));
+        self.layers.get_mut(LayerId::FullBody).mask = MaskId::Full;
         self.layers.get_mut(LayerId::FullBody).weight = state.weight();
         self.full_body = Some(state);
         self.dirty = true;
         true
+    }
+
+    /// Starts the landing clip for `kind` unless dying, held or already in another full-body clip.
+    fn start_landing(&mut self, kind: LandingKind) {
+        if self.dying || self.held_pose.is_some() || self.full_body.is_some() {
+            return;
+        }
+        let (fade_in, fade_out) = self.air.landing_fades();
+        let opts = FullBodyOptions { speed: 1.0, looping: false, hold_last: false, fade_in, fade_out };
+        if !self.play_full_body(landing_clip(kind), opts) {
+            return;
+        }
+        // A soft landing only keys legs and hips, so keep the weapon arms on the stance.
+        let mask = if kind == LandingKind::Soft { MaskId::Lower } else { MaskId::Full };
+        self.layers.get_mut(LayerId::FullBody).mask = mask;
     }
 
     /// Smoothly stops the active full-body clip using `fade_out` (or the clip's configured default).

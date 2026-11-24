@@ -86,3 +86,42 @@ Compact: data parses; all 6 clips are defined in `poses_air.py` (read as text); 
 Every new number in Rust code needs a source tag on its line (`// data: airborne.json key` or `// new: DECISIONS 2026-11-23`).
 
 ## Worker notes
+
+**Done:** new `airborne.rs` state machine (take-off → rise → fall → landing) and its
+`data/airborne.json` values, wired into the animator, plus six new clips in
+`tools/blender/characters/poses_air.py` (merged into `PLAYER_ONLY_CLIPS`). The player model was
+rebuilt and `assets/models.pack` re-baked, so the clips are in the game data.
+
+**Wiring notes for Claude:**
+- `HumanoidAnimator::set_move_velocity` now also feeds the air state. The game already calls it
+  for movement, so nothing else is needed. If it is never called, the Air layer behaves exactly
+  as before (`"jump"` clip, plain on-floor weight), so job 1's golden test is untouched.
+- The Air layer clip changes only when the state machine reports a new phase; the clip timer is
+  reset on change. Target weight stays 0 for the first `minAirSeconds` so bumps and slope steps
+  do not flicker, except a real push-off (Takeoff) which shows at once.
+- Landings go through `play_full_body`: Soft uses the Lower mask so the weapon arms stay on the
+  stance, Hard/Roll use the full body. A landing is skipped while dying, in a held pose, or
+  while any other full-body clip is running (ladders/cars later).
+- Soft vs Hard vs Roll uses the fastest fall speed seen during that air time, with
+  `rollMinHorizontalSpeed` deciding Roll at `hardLandSpeed`. `landCooldown` stops repeats on
+  bumpy ground.
+
+**Known issues:**
+- Gate scope reports 15 files outside this task's `Files:` list. All 15 are the owner's
+  pre-existing uncommitted car/settlement changes (previews, `.glb`s, `settlement.py`,
+  `car_parts.py`); none were touched by this task. Clippy, tests (914), numbers and unused all pass.
+- Rebuilding the player also rewrites `assets/models.pack` (git-ignored) and the
+  `human_player_*` preview sheets (git-ignored). `human_player.glb` is in the task's `Files:` list.
+- `docs/DECISIONS.md` has no row for 2026-11-23, so no `// new: DECISIONS` tags were used;
+  every tuning value is tagged `// data: airborne.json <key>`, and landing fades are derived
+  from `airBlendRate`.
+
+## Gate report
+- date: 2026-11-24
+- base: main
+- files changed (24): assets/models/buildings/settlement.glb, assets/models/characters/human_player.glb, assets/models/_previews/car_hatchback_blue.png, assets/models/_previews/car_hatchback_blue_rear.png, assets/models/_previews/car_hatchback_blue_side.png, assets/models/_previews/car_hatchback_olive.png, assets/models/_previews/car_hatchback_olive_rear.png, assets/models/_previews/car_hatchback_olive_side.png, assets/models/_previews/car_hatchback_red.png, assets/models/_previews/car_hatchback_red_rear.png, assets/models/_previews/car_hatchback_red_side.png, assets/models/vehicles/car_hatchback_blue.glb, assets/models/vehicles/car_hatchback_olive.glb, assets/models/vehicles/car_hatchback_red.glb, data/airborne.json, humanoid/src/airborne.rs, humanoid/src/airborne_tests.rs, humanoid/src/animator.rs, humanoid/src/lib.rs, tasks/A06-jump-fall-land.md, tools/blender/buildings/settlement.py, tools/blender/characters/poses_air.py, tools/blender/characters/poses.py, tools/blender/vehicles/car_parts.py
+- tests passed: 914
+- clippy: PASS
+- test: PASS
+- checks: FAIL
+- gate: FAIL (checks)

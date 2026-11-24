@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "minAirSeconds": 0.12,
+  "riseSpeed": 0.6,
+  "fallSpeed": -1.2,
+  "airBlendRate": 12.0,
+  "softLandSpeed": 3.0,
+  "hardLandSpeed": 7.5,
+  "rollMinHorizontalSpeed": 3.5,
+  "landCooldown": 0.25
+}

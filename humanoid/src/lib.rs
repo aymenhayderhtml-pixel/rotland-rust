@@ -7,6 +7,9 @@ pub mod action;
 pub mod aim;
 #[cfg(test)]
 mod aim_tests;
+pub mod airborne;
+#[cfg(test)]
+mod airborne_tests;
 pub mod anim_config;
 pub mod animator;
 pub mod blend;
@@ -30,6 +33,7 @@ pub mod weapon;
 
 pub use action::ActionState;
 pub use aim::{AimClassConfig, AimConfig, AimController, AimJoints, PitchBones};
+pub use airborne::{landing_clip, AirConfig, AirPhase, AirState, LandingKind};
 pub use anim_config::{AnimConfig, ClipEventDef};
 pub use animator::HumanoidAnimator;
 pub use blend::{
