@@ -33,6 +33,7 @@ use crate::ladder_anim::{
 };
 use crate::stance::{HoldTransform, StanceController, StanceTable};
 use crate::swim::{SwimState, SWIM_CLIMB_OUT_CLIP};
+use crate::wound_anim::{WoundAnimState, WoundContext};
 
 const POSE_POOL_BUFFERS: usize = 3; // new: DECISIONS 2026-11-23
 const LAYER_EPSILON: f32 = 0.001; // godot: HumanoidAnimTree.cs:210
@@ -60,6 +61,7 @@ pub struct HumanoidAnimator {
     air: AirState,
     air_driven: bool,
     posture: PostureState,
+    wound: WoundAnimState,
     swim: SwimState,
     ladder: LadderAnimState,
     car: CarAnimState,
@@ -129,6 +131,7 @@ impl HumanoidAnimator {
             air: AirState::new(),
             air_driven: false,
             posture: PostureState::new(),
+            wound: WoundAnimState::new(),
             swim: SwimState::new(),
             ladder: LadderAnimState::new(),
             car: CarAnimState::new(),
@@ -277,6 +280,7 @@ impl HumanoidAnimator {
         if self.dying {
             self.foot_ik.set_active(false);
             self.foot_ik.tick(step, self.blend_pos);
+            self.wound.tick(step, WoundContext { dying: true, ..Default::default() });
             self.advance_full_body(step);
             return;
         }
@@ -385,6 +389,25 @@ impl HumanoidAnimator {
             self.advance_posture(step);
         }
         self.advance_full_body(step);
+        let using_arms = self.action.is_some()
+            || self.action_anim.is_upper_active()
+            || self.stance.aim_weight() > LAYER_EPSILON
+            || self.two_handed
+            || self.stance.off_hand_grip().is_some();
+        self.wound.tick(
+            step,
+            WoundContext {
+                speed: locomotion.speed,
+                crouching: locomotion.crouching,
+                sprinting: self.posture.sprint_weight() > LAYER_EPSILON,
+                swimming: self.swim.is_swimming(),
+                on_ladder,
+                in_car,
+                full_body: self.full_body.is_some(),
+                using_arms,
+                dying: false,
+            },
+        );
         if self.full_body.is_some()
             || self.posture.crouch_walk_weight() > LAYER_EPSILON
             || self.posture.sprint_weight() > LAYER_EPSILON
@@ -414,6 +437,17 @@ impl HumanoidAnimator {
     pub fn set_posture(&mut self, speed: f32, crouching: bool, sprinting: bool, stamina_frac: f32) {
         self.posture.set_input(speed, crouching, sprinting, stamina_frac);
         self.dirty = true;
+    }
+
+    /// Feeds the player's health fraction (`0.0..=1.0`) for wounded body language.
+    pub fn set_health(&mut self, frac: f32) {
+        self.wound.set_health(frac);
+        self.dirty = true;
+    }
+
+    /// Returns the current wound animation state (for inspection and tests).
+    pub fn wound_state(&self) -> &WoundAnimState {
+        &self.wound
     }
 
     /// Feeds lake depth, deep-water flag, horizontal speed and stamina.
@@ -794,6 +828,11 @@ impl HumanoidAnimator {
         // 2. Air -> 3. Crouch -> 4. Stance -> 5. Aim
         for id in [LayerId::Air, LayerId::Crouch, LayerId::Stance, LayerId::Aim] {
             self.apply_layer(rig, id);
+        }
+        // 5b. Wounded body language (limp legs, spine droop, hold side)
+        {
+            let (base, scratch) = self.pool.pair_mut(0, 1);
+            self.wound.apply(rig, &self.clips, &self.masks, base, scratch);
         }
         // 6. Action or procedural swing
         self.apply_action_stage(rig);

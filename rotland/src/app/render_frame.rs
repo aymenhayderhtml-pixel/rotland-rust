@@ -222,6 +222,14 @@ pub fn render_frame(
                 pose.sprinting,
                 pose.stamina_frac,
             );
+            let health_frac = actors.combat.as_ref().map_or(1.0, |c| {
+                if c.health.max() > 0.0 {
+                    c.health.current() / c.health.max()
+                } else {
+                    1.0
+                }
+            });
+            pv.animator.set_health(health_frac);
         }
         if !pose.first_person {
             pv.animator.set_water(pose.water_depth, pose.swimming, pose.horizontal_speed, pose.stamina_frac);

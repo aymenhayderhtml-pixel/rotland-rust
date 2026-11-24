@@ -49,6 +49,9 @@ pub mod stance;
 mod stance_tests;
 pub mod swing;
 pub mod weapon;
+pub mod wound_anim;
+#[cfg(test)]
+mod wound_anim_tests;
 
 pub use action::ActionState;
 pub use aim::{AimClassConfig, AimConfig, AimController, AimJoints, PitchBones};
@@ -84,6 +87,9 @@ pub use weapon::{
     is_two_handed, off_hand_grip_for, weapon_hand_offset, weapon_hold_for, weapon_world_matrix,
     weapon_world_matrix_named, HAND_GRIP_OFFSET, HAND_GRIP_ROT_DEG, REST_POSE_DEG,
     TWO_HANDED_WEAPONS,
+};
+pub use wound_anim::{
+    WoundAnimConfig, WoundAnimState, WoundContext, DROOP_CLIP, HOLD_SIDE_CLIP, LIMP_WALK_CLIP,
 };
 
 #[cfg(test)]

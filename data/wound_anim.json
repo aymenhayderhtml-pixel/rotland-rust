@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "limpThreshold": 0.55,
+  "holdSideThreshold": 0.45,
+  "droopThreshold": 0.25,
+  "limpWeight": 0.85,
+  "holdSideWeight": 0.85,
+  "droopWeight": 0.75,
+  "limpMinSpeed": 0.35,
+  "limpFullSpeed": 1.8,
+  "blendRate": 4.0,
+  "fadeOutRate": 12.0
+}
