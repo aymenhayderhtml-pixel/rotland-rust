@@ -138,32 +138,32 @@ def build(model):
 
         # Front glass band
         x_hi = 3.2 if flr == 4 else 7.2
-        k.box((-7.2, 7.17, z0), (x_hi, 7.21, z1), "glass_tint", roof=True)
+        k.box((-7.2, 7.17, z0), (x_hi, 7.22, z1), "glass_tint", roof=True)
         x_m = -7.2
         while x_m < x_hi - 0.4:
-            k.box((x_m - 0.04, 7.16, z0), (x_m + 0.04, 7.22, z1), "metal", roof=True)
+            k.box((x_m - 0.04, 7.16, z0), (x_m + 0.04, 7.24, z1), "metal", roof=True)
             x_m += 1.8
 
         # Back glass band
-        k.box((-7.2, -7.61, z0), (7.2, -7.57, z1), "glass_tint", roof=True)
+        k.box((-7.2, -7.62, z0), (7.2, -7.57, z1), "glass_tint", roof=True)
         x_m = -7.2
         while x_m < 6.8:
-            k.box((x_m - 0.04, -7.62, z0), (x_m + 0.04, -7.56, z1), "metal", roof=True)
+            k.box((x_m - 0.04, -7.64, z0), (x_m + 0.04, -7.56, z1), "metal", roof=True)
             x_m += 1.8
 
         # West glass band
-        k.box((-7.61, -7.2, z0), (-7.57, 6.8, z1), "glass_tint", roof=True)
+        k.box((-7.62, -7.2, z0), (-7.57, 6.8, z1), "glass_tint", roof=True)
         y_m = -7.2
         while y_m < 6.4:
-            k.box((-7.62, y_m - 0.04, z0), (-7.56, y_m + 0.04, z1), "metal", roof=True)
+            k.box((-7.64, y_m - 0.04, z0), (-7.56, y_m + 0.04, z1), "metal", roof=True)
             y_m += 1.8
 
         # East glass band
         y_hi = 3.2 if flr == 4 else 6.8
-        k.box((7.57, -7.2, z0), (7.61, y_hi, z1), "glass_tint", roof=True)
+        k.box((7.57, -7.2, z0), (7.62, y_hi, z1), "glass_tint", roof=True)
         y_m = -7.2
         while y_m < y_hi - 0.4:
-            k.box((7.56, y_m - 0.04, z0), (7.62, y_m + 0.04, z1), "metal", roof=True)
+            k.box((7.56, y_m - 0.04, z0), (7.64, y_m + 0.04, z1), "metal", roof=True)
             y_m += 1.8
 
     # 5. Rubble Pile at the foot of the collapsed corner (x in [4.5, 8.0], y in [4.5, 8.0])

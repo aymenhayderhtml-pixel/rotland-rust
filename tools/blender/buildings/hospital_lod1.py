@@ -30,7 +30,7 @@ def build(model):
 
     # Ambulance bay pad (x -14 to -7, y -8.5 to 8.5)
     k.box((-14.0, -8.5, 0.0), (-7.0, 8.5, 0.04), "rock_dark")
-    k.box((-12.5, -6.5, 0.04), (-8.5, 6.5, 0.05), STRIPE_COLOR)
+    k.box((-12.5, -6.5, 0.04), (-8.5, 6.5, 0.06), STRIPE_COLOR)
 
     # 4 Ambulance bay posts
     posts = [(-13.5, -7.5), (-13.5, 7.5), (-7.5, -7.5), (-7.5, 7.5)]
@@ -92,7 +92,7 @@ def build(model):
 
     # Flat painted entrance doors
     k.box((2.5, 9.01, F), (5.0, 9.02, 2.45), "metal")
-    k.box((2.65, 9.02, F + 0.2), (4.85, 9.03, 2.35), "glass_tint")
+    k.box((2.65, 9.02, F + 0.2), (4.85, 9.04, 2.35), "glass_tint")
     # Emergency entrance doors
     k.box((-7.02, -0.2, F), (-6.98, 1.8, 2.45), "metal")
 

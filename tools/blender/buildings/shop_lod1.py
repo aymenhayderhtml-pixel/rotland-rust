@@ -63,10 +63,10 @@ def build(model):
     k.box((1.0, 3.21, 2.88), (7.0, 3.26, 3.25), "cloth_olive")
 
     # Door and window colored panels on front face
-    k.box((-2.0, 3.205, F), (-0.8, 3.215, kit.DOOR_H), "gun_black")
-    k.box((-6.8, 3.205, 0.8), (-2.6, 3.215, 2.4), "rock_dark")
-    k.box((0.8, 3.205, F), (2.0, 3.215, kit.DOOR_H), "gun_black")
-    k.box((2.6, 3.205, 0.8), (6.8, 3.215, 2.4), "rock_dark")
+    k.box((-2.0, 3.21, F), (-0.8, 3.22, kit.DOOR_H), "gun_black")
+    k.box((-6.8, 3.21, 0.8), (-2.6, 3.22, 2.4), "rock_dark")
+    k.box((0.8, 3.21, F), (2.0, 3.22, kit.DOOR_H), "gun_black")
+    k.box((2.6, 3.21, 0.8), (6.8, 3.22, 2.4), "rock_dark")
 
     # Collision box
     k.collider((-8.0, -4.0, 0.0), (8.0, 3.2, TOP + 0.45), "body")

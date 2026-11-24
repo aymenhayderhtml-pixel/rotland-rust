@@ -76,7 +76,7 @@ def build(model):
 
     # Flat painted entrance doors
     k.box((2.0, 6.99, F), (4.0, 7.02, 2.4), "metal")
-    k.box((2.2, 7.02, 1.1), (3.8, 7.03, 2.1), "glass_tint")
+    k.box((2.2, 7.02, 1.1), (3.8, 7.04, 2.1), "glass_tint")
     # Side door
     k.box((-4.02, 1.0, F), (-3.98, 2.2, kit.DOOR_H), "metal")
 
