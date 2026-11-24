@@ -31,13 +31,16 @@ root                      (at origin, on the ground; never animated except in di
   ├ spine
   │ └ chest
   │   ├ neck ─ head
-  │   ├ shoulder_L ─ upper_arm_L ─ forearm_L ─ hand_L
-  │   └ shoulder_R ─ upper_arm_R ─ forearm_R ─ hand_R
+  │   ├ shoulder_L ─ upper_arm_L ─ forearm_L ─ hand_L ─┬─ thumb_1_L ─ thumb_2_L
+  │   │                                                 └─ fingers_1_L ─ fingers_2_L
+  │   └ shoulder_R ─ upper_arm_R ─ forearm_R ─ hand_R ─┬─ thumb_1_R ─ thumb_2_R
+  │                                                     └─ fingers_1_R ─ fingers_2_R
   ├ thigh_L ─ shin_L ─ foot_L ─ toe_L
   └ thigh_R ─ shin_R ─ foot_R ─ toe_R
 ```
 - Rest pose = **A-pose** (arms about 30° down from horizontal), standing straight.
 - `hand_R` is the **weapon socket**. In Godot, code adds a `BoneAttachment3D` on `hand_R`.
+- **Fingers (R28-01):** `human_player` and NPCs have 8 finger bones (`thumb_1_L/R`, `thumb_2_L/R`, `fingers_1_L/R`, `fingers_2_L/R`; 30 bones total) driven procedurally by `humanoid/src/grip.rs` and `data/grips.json`. Zombies stay at 22 bones (no fingers). Old clips without finger keys leave fingers at rest.
 
 ## Weapon grip convention (weapon .glb files)
 - The origin is at the **grip center** (where the right hand holds it).

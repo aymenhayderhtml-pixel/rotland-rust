@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "fadeRate": 12.0,
+  "maxFingersCurlDeg": 75.0,
+  "maxThumbCurlDeg": 50.0,
+  "classes": {
+    "none": {
+      "rightThumb": 0.0,
+      "rightFingers": 0.0,
+      "leftThumb": 0.0,
+      "leftFingers": 0.0
+    },
+    "pistol": {
+      "rightThumb": 0.85,
+      "rightFingers": 0.90,
+      "leftThumb": 0.70,
+      "leftFingers": 0.80
+    },
+    "rifle": {
+      "rightThumb": 0.85,
+      "rightFingers": 0.90,
+      "leftThumb": 0.75,
+      "leftFingers": 0.85
+    },
+    "shotgun": {
+      "rightThumb": 0.85,
+      "rightFingers": 0.90,
+      "leftThumb": 0.80,
+      "leftFingers": 0.85
+    },
+    "melee_1h": {
+      "rightThumb": 0.95,
+      "rightFingers": 1.00,
+      "leftThumb": 0.0,
+      "leftFingers": 0.0
+    },
+    "melee_2h": {
+      "rightThumb": 0.95,
+      "rightFingers": 1.00,
+      "leftThumb": 0.90,
+      "leftFingers": 0.95
+    },
+    "spear": {
+      "rightThumb": 0.90,
+      "rightFingers": 0.95,
+      "leftThumb": 0.85,
+      "leftFingers": 0.90
+    },
+    "bow": {
+      "rightThumb": 0.65,
+      "rightFingers": 0.75,
+      "leftThumb": 0.85,
+      "leftFingers": 0.90
+    },
+    "rod": {
+      "rightThumb": 0.85,
+      "rightFingers": 0.90,
+      "leftThumb": 0.80,
+      "leftFingers": 0.85
+    }
+  }
+}

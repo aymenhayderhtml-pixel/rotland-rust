@@ -21,6 +21,7 @@ use crate::blend::{
 use crate::clip_events::{ClipEvent, ClipEventTable, EventQueue, EventSpan};
 use crate::foot_ik::{FootIkState, FootJoints};
 use crate::full_body::{FullBodyOptions, FullBodyState};
+use crate::grip::{GripClass, GripController, GripJoints};
 use crate::incline::InclineState;
 use crate::layers::{LayerBlend, LayerId, LayerStack};
 use crate::mask::{BoneMasks, MaskId};
@@ -69,6 +70,8 @@ pub struct HumanoidAnimator {
     foot_ik: FootIkState,
     foot_joints: Option<FootJoints>,
     foot_globals: Vec<Mat4>,
+    grip: GripController,
+    grip_joints: GripJoints,
     blend_pos: f32,
     tempo_scale: f32,
     time_idle: f32,
@@ -101,6 +104,7 @@ impl HumanoidAnimator {
         let aim_joints = AimJoints::from_names(&joint_names);
         let motion_joints = MotionJoints::from_names(&joint_names);
         let foot_joints = FootJoints::from_names(&joint_names);
+        let grip_joints = GripJoints::from_names(&joint_names);
         let parents: Vec<Option<usize>> = skeleton
             .joints
             .iter()
@@ -140,6 +144,8 @@ impl HumanoidAnimator {
             foot_ik: FootIkState::new(),
             foot_joints,
             foot_globals: vec![Mat4::IDENTITY; n],
+            grip: GripController::new(),
+            grip_joints,
             blend_pos: 0.0,
             tempo_scale: 1.0, // new: DECISIONS 2026-11-23
             time_idle: 0.0,
@@ -186,6 +192,16 @@ impl HumanoidAnimator {
                 self.layers.set_clip(LayerId::Action, None);
             }
             self.aim.set_class(aim_class);
+            let grip_class = aim_class
+                .map(GripClass::from_stance)
+                .unwrap_or_else(|| {
+                    if self.weapon_name.is_some() {
+                        if self.two_handed { GripClass::Melee2H } else { GripClass::Melee1H }
+                    } else {
+                        GripClass::None
+                    }
+                });
+            self.grip.set_class(grip_class);
         }
 
         let next_ready = self.stance.ready_clip();
@@ -424,6 +440,16 @@ impl HumanoidAnimator {
                 && self.full_body.is_none(),
         );
         self.foot_ik.tick(step, self.blend_pos);
+        let is_swinging = self.action.as_ref().is_some_and(|a| a.clip_name == "melee_2h");
+        let is_two_handed_active = self.two_handed
+            || self.stance.off_hand_grip().is_some()
+            || (self.weapon_name.is_none() && is_swinging);
+        let left_holding = !in_car
+            && !on_ladder
+            && !self.swim.is_swimming()
+            && !self.aim.is_reloading()
+            && ((is_two_handed_active && is_swinging) || self.stance.left_ik_weight() > LAYER_EPSILON);
+        self.grip.tick(step, left_holding);
     }
 
     /// The body's velocity and facing this frame, for side and backward steps and leaning.
@@ -866,9 +892,10 @@ impl HumanoidAnimator {
                 &mut self.foot_globals,
             );
         }
-        // 8. Left-hand IK
+        // 8. Left-hand IK & procedural finger grip
         if !self.ladder.is_on_ladder() && !self.car.is_seated() {
             self.apply_ik_stage(rig);
+            self.grip.apply(&self.grip_joints, self.pool.get_mut(0));
         }
         // 9. Full-body override (including death fade)
         self.apply_full_body_stage(rig);

@@ -15,6 +15,7 @@ pub mod animator;
 pub mod blend;
 pub mod clip_events;
 pub mod full_body;
+pub mod grip;
 pub mod incline;
 #[cfg(test)]
 mod incline_tests;
@@ -64,6 +65,7 @@ pub use blend::{
 };
 pub use clip_events::{ClipEvent, ClipEventTable};
 pub use full_body::{FullBodyOptions, FullBodyPhase, FullBodyState};
+pub use grip::{GripClass, GripController, GripJoints, GripPose, GripTable};
 pub use foot_ik::{FootIkConfig, FootIkState, FootJoints, GroundHit, LegJoints};
 pub use ik::{apply_two_hand_left_grip_ik, solve_two_bone_ik, LEFT_ELBOW_POLE};
 pub use incline::{InclineConfig, InclineState, STAIRS_DOWN_CLIP, STAIRS_UP_CLIP};

@@ -45,6 +45,14 @@ BONE_NAMES = [
     "shin_R",
     "foot_R",
     "toe_R",
+    "thumb_1_L",
+    "thumb_2_L",
+    "fingers_1_L",
+    "fingers_2_L",
+    "thumb_1_R",
+    "thumb_2_R",
+    "fingers_1_R",
+    "fingers_2_R",
 ]
 
 
@@ -152,11 +160,15 @@ class MeshBuilder:
         ref = Vector((0, 0, 1)) if abs(a.z) < 0.9 else Vector((0, 1, 0))
         side = ref.cross(a).normalized()
         up = a.cross(side).normalized()
-        b_idx = BONE_NAMES.index(bone_name)
+        bone_indices = (
+            [BONE_NAMES.index(bone_name)] * len(sections)
+            if isinstance(bone_name, str)
+            else [BONE_NAMES.index(b) for b in bone_name]
+        )
         colors = [color] * (len(sections) - 1) if isinstance(color, str) else list(color)
         phase = math.pi / segs
         rings = []
-        for c, (_, rs, ru) in zip(centers, sections):
+        for c, (_, rs, ru), b_idx in zip(centers, sections, bone_indices):
             ring = []
             for i in range(segs):
                 t = phase + 2 * math.pi * i / segs
@@ -221,8 +233,8 @@ def _scaled(p, s):
     return Vector((p[0] * s[0], p[1] * s[1], p[2] * s[2]))
 
 
-def create_armature(name, hunched=False, scale=(1.0, 1.0, 1.0)):
-    """Creates the 22-bone armature matching docs/RIG_CONTRACT.md in A-pose.
+def create_armature(name, hunched=False, scale=(1.0, 1.0, 1.0), include_fingers=True):
+    """Creates the humanoid armature matching docs/RIG_CONTRACT.md in A-pose.
 
     `scale` (x width, y depth, z height) is applied to every bone so the rig matches the mesh.
     """
@@ -293,6 +305,38 @@ def create_armature(name, hunched=False, scale=(1.0, 1.0, 1.0)):
         hd.parent = fa
         for bone in (ua, fa, hd):
             bone.align_roll(Vector((0, 1, 0)))
+
+        if include_fingers:
+            a = (tip - wrist).normalized()
+            back = Vector((sign * 0.5, 0.0, 0.866))
+            across = Vector((0.0, 1.0, 0.0))
+
+            f_base = wrist + a * 0.072
+            f_mid = f_base + a * 0.036 - back * 0.004
+            f_tip = f_base + a * 0.070 - back * 0.014
+            f1 = eb.new("fingers_1_" + side)
+            f1.head = f_base
+            f1.tail = f_mid
+            f1.parent = hd
+            f2 = eb.new("fingers_2_" + side)
+            f2.head = f_mid
+            f2.tail = f_tip
+            f2.parent = f1
+
+            t0 = wrist + a * 0.022 + across * 0.028 - back * 0.006
+            t1 = wrist + a * 0.064 + across * 0.046 - back * 0.012
+            t_mid = (t0 + t1) * 0.5
+            th1 = eb.new("thumb_1_" + side)
+            th1.head = t0
+            th1.tail = t_mid
+            th1.parent = hd
+            th2 = eb.new("thumb_2_" + side)
+            th2.head = t_mid
+            th2.tail = t1
+            th2.parent = th1
+
+            for bone in (f1, f2, th1, th2):
+                bone.align_roll(Vector((0, 1, 0)))
 
     # Legs (Right & Left)
     thigh_z = hips_z - 0.02
@@ -387,7 +431,8 @@ def build_humanoid(variant):
     prop = variant.get("proportions", {})
     scale = (prop.get("width", 1.0), prop.get("depth", 1.0), prop.get("height", 1.0))
 
-    arm_obj = create_armature(name, hunched=hunched, scale=scale)
+    include_fingers = not name.startswith("zombie_")
+    arm_obj = create_armature(name, hunched=hunched, scale=scale, include_fingers=include_fingers)
 
     mb = MeshBuilder()
     look = {"skin": skin, "hair": hair, "shirt": shirt, "pants": pants, "shoes": shoes,
