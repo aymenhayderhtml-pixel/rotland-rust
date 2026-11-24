@@ -2,7 +2,6 @@
 
 Files: game/src/vault.rs, game/tests/all/vault_tests.rs, data/vault.json, tasks/A10b-vault.md, game/src/lib.rs, game/tests/all/main.rs, rotland/src/app/frame_actors.rs, rotland/src/app/state.rs
 Read: game/src/player.rs, game/src/ladders/climb.rs, game/src/ladders/tick.rs, physics/src/world.rs, game/tests/all/melee_tests.rs, humanoid/src/full_body.rs
-API: rotland/src/app/frame_actors.rs (lines 236-260 shown in the wiring section)
 
 Rotland is a low-poly 3D zombie survival game in Rust (custom engine, rapier physics, glam math). This is a gameplay job added to the character animation plan. The owner decided (2026-11-24) that low walls and fences get a **real jump-over move**.
 
