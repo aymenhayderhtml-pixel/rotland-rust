@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "minGrade": 0.25,
+  "fullGrade": 0.6,
+  "minSpeed": 0.5,
+  "gradeSmoothing": 8.0,
+  "weightRate": 6.0,
+  "maxWeight": 0.85,
+  "teleportDistance": 1.5,
+  "tempoRefSpeed": 3.0
+}

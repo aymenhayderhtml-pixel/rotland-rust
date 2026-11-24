@@ -75,3 +75,278 @@ Every new number in Rust code needs a source tag on its line (`// data: incline.
 
 ## Worker notes
 
+## Neon notes
+
+### Layer Choice
+
+Reused `LayerId::Air` (with `MaskId::Lower`, identical to `swim.rs`'s `apply_wade`) because `Air` is completely idle whenever the character is grounded and not on a ladder, swimming, wading, or in a full-body clip, and sits before `Crouch`/`Stance`/`Aim`/`Action`/`Additive`/`FootIk`/`FullBody`—so no new `LayerId` is needed in `humanoid/src/layers.rs`.
+
+### Edits for `humanoid/src/animator.rs`
+
+1. Add `InclineState` import:
+Find:
+
+```rust
+use crate::foot_ik::{FootIkState, FootJoints};
+use crate::full_body::{FullBodyOptions, FullBodyState};
+use crate::layers::{LayerBlend, LayerId, LayerStack};
+
+```
+
+Replace with:
+
+```rust
+use crate::foot_ik::{FootIkState, FootJoints};
+use crate::full_body::{FullBodyOptions, FullBodyState};
+use crate::incline::InclineState;
+use crate::layers::{LayerBlend, LayerId, LayerStack};
+
+```
+
+2. Add `incline` field to `HumanoidAnimator`:
+Find:
+
+```rust
+    posture: PostureState,
+    swim: SwimState,
+    ladder: LadderAnimState,
+    foot_ik: FootIkState,
+
+```
+
+Replace with:
+
+```rust
+    posture: PostureState,
+    swim: SwimState,
+    ladder: LadderAnimState,
+    incline: InclineState,
+    foot_ik: FootIkState,
+
+```
+
+3. Initialize `incline` in `HumanoidAnimator::with_config`:
+Find:
+
+```rust
+            posture: PostureState::new(),
+            swim: SwimState::new(),
+            ladder: LadderAnimState::new(),
+            foot_ik: FootIkState::new(),
+
+```
+
+Replace with:
+
+```rust
+            posture: PostureState::new(),
+            swim: SwimState::new(),
+            ladder: LadderAnimState::new(),
+            incline: InclineState::new(),
+            foot_ik: FootIkState::new(),
+
+```
+
+4. Tick `incline` and arbitrate `LayerId::Air` in `HumanoidAnimator::update`:
+Find:
+
+```rust
+        let ladder_event = self.ladder.tick(step);
+        let on_ladder = self.ladder.is_on_ladder();
+        if on_ladder {
+            self.swim.release_air(&mut self.layers);
+            self.air = AirState::new();
+            let clip_len = self.clips.get(LADDER_CLIMB_CLIP).map_or(0.0, |c| c.duration);
+            self.ladder.apply_ladder(&mut self.layers, clip_len);
+            self.ladder.suppress_upper(&mut self.layers);
+        } else {
+            self.ladder.release_air(&mut self.layers);
+            let climb_out = self.swim.tick(step);
+            if self.swim.is_swimming() {
+                self.swim.apply_swim(&mut self.layers);
+            } else {
+                let (air_target, air_clip, landing) = if self.air_driven {
+                    let landing = self.air.tick(step, locomotion.on_floor);
+                    (self.air.air_target(), self.air.air_clip().unwrap_or("jump"), landing)
+                } else {
+                    (if locomotion.on_floor { 0.0 } else { 1.0 }, "jump", None)
+                };
+                if locomotion.on_floor && air_target <= LAYER_EPSILON && self.swim.wants_wade() {
+                    self.swim.apply_wade(&mut self.layers);
+                } else {
+                    self.swim.release_air(&mut self.layers);
+                    let layer = self.layers.get_mut(LayerId::Air);
+                    layer.target = air_target;
+                    if self.air_driven && layer.clip.as_deref() != Some(air_clip) {
+                        layer.clip = Some(air_clip.to_owned());
+                        layer.time = 0.0;
+                    }
+                }
+                if let Some(kind) = landing {
+                    self.start_landing(kind);
+                }
+            }
+            if climb_out {
+                self.start_climb_out();
+            }
+        }
+
+```
+
+Replace with:
+
+```rust
+        let ladder_event = self.ladder.tick(step);
+        self.incline.tick(step);
+        let on_ladder = self.ladder.is_on_ladder();
+        if on_ladder {
+            self.swim.release_air(&mut self.layers);
+            self.incline.release_air(&mut self.layers);
+            self.air = AirState::new();
+            let clip_len = self.clips.get(LADDER_CLIMB_CLIP).map_or(0.0, |c| c.duration);
+            self.ladder.apply_ladder(&mut self.layers, clip_len);
+            self.ladder.suppress_upper(&mut self.layers);
+        } else {
+            self.ladder.release_air(&mut self.layers);
+            let climb_out = self.swim.tick(step);
+            if self.swim.is_swimming() {
+                self.incline.release_air(&mut self.layers);
+                self.swim.apply_swim(&mut self.layers);
+            } else {
+                let (air_target, air_clip, landing) = if self.air_driven {
+                    let landing = self.air.tick(step, locomotion.on_floor);
+                    (self.air.air_target(), self.air.air_clip().unwrap_or("jump"), landing)
+                } else {
+                    (if locomotion.on_floor { 0.0 } else { 1.0 }, "jump", None)
+                };
+                let air_free = locomotion.on_floor && air_target <= LAYER_EPSILON;
+                let posture_busy = locomotion.crouching
+                    || self.posture.crouch_walk_weight() > LAYER_EPSILON
+                    || self.posture.sprint_weight() > LAYER_EPSILON;
+                if air_free && self.swim.wants_wade() {
+                    self.incline.release_air(&mut self.layers);
+                    self.swim.apply_wade(&mut self.layers);
+                } else if air_free
+                    && self.full_body.is_none()
+                    && !posture_busy
+                    && self.incline.wants_incline()
+                {
+                    self.swim.release_air(&mut self.layers);
+                    self.incline.apply_air(&mut self.layers);
+                } else {
+                    self.swim.release_air(&mut self.layers);
+                    self.incline.release_air(&mut self.layers);
+                    let layer = self.layers.get_mut(LayerId::Air);
+                    layer.target = air_target;
+                    if self.air_driven && layer.clip.as_deref() != Some(air_clip) {
+                        layer.clip = Some(air_clip.to_owned());
+                        layer.time = 0.0;
+                    }
+                }
+                if let Some(kind) = landing {
+                    self.start_landing(kind);
+                }
+            }
+            if climb_out {
+                self.start_climb_out();
+            }
+        }
+
+```
+
+5. Release `Air` immediately on the same frame if `advance_posture` or `advance_full_body` activated crouch walk, sprint, or a full-body clip:
+Find:
+
+```rust
+        self.advance_full_body(step);
+        self.foot_ik.set_active(
+
+```
+
+Replace with:
+
+```rust
+        self.advance_full_body(step);
+        if self.full_body.is_some()
+            || self.posture.crouch_walk_weight() > LAYER_EPSILON
+            || self.posture.sprint_weight() > LAYER_EPSILON
+        {
+            self.incline.release_air(&mut self.layers);
+        }
+        self.foot_ik.set_active(
+
+```
+
+6. Add `set_incline` setter to `HumanoidAnimator`:
+Find:
+
+```rust
+    /// Feeds ladder climb activity, on-rungs flag and player height.
+    pub fn set_ladder(&mut self, active: bool, on_rungs: bool, y: f32) {
+        self.ladder.set_input(active, on_rungs, y);
+        self.dirty = true;
+    }
+
+```
+
+Replace with:
+
+```rust
+    /// Feeds ladder climb activity, on-rungs flag and player height.
+    pub fn set_ladder(&mut self, active: bool, on_rungs: bool, y: f32) {
+        self.ladder.set_input(active, on_rungs, y);
+        self.dirty = true;
+    }
+
+    /// Feeds world position and grounded flag for stairs and steep-slope leg blends.
+    pub fn set_incline(&mut self, position: Vec3, on_floor: bool) {
+        self.incline.set_input(position, on_floor);
+        self.dirty = true;
+    }
+
+```
+
+### Edits for `humanoid/src/lib.rs`
+
+`humanoid/src/lib.rs` was not included in the Read section, so exact surrounding lines cannot be quoted verbatim. Add the module declarations alongside `swim` / `ladder_anim`:
+
+```rust
+pub mod incline;
+#[cfg(test)]
+mod incline_tests;
+
+```
+
+If `lib.rs` re-exports subsystem types at the crate root, also add:
+
+```rust
+pub use incline::{InclineConfig, InclineState, STAIRS_DOWN_CLIP, STAIRS_UP_CLIP};
+
+```
+
+### Edits for `rotland/src/app/render_frame.rs` (fixed)
+
+Find:
+
+```rust
+            pv.animator.set_ladder(pose.climbing, pose.on_rungs, pose.position.y);
+
+```
+
+Replace with:
+
+```rust
+            pv.animator.set_ladder(pose.climbing, pose.on_rungs, pose.position.y);
+            pv.animator.set_incline(pose.position, pose.on_floor && !pose.swimming && !pose.climbing);
+
+```
+
+## Gate report
+- date: 2026-11-24
+- base: main
+- files changed (26): assets/models/buildings/settlement.glb, assets/models/_previews/car_hatchback_blue.png, assets/models/_previews/car_hatchback_blue_rear.png, assets/models/_previews/car_hatchback_blue_side.png, assets/models/_previews/car_hatchback_olive.png, assets/models/_previews/car_hatchback_olive_rear.png, assets/models/_previews/car_hatchback_olive_side.png, assets/models/_previews/car_hatchback_red.png, assets/models/_previews/car_hatchback_red_rear.png, assets/models/_previews/car_hatchback_red_side.png, assets/models/vehicles/car_hatchback_blue.glb, assets/models/vehicles/car_hatchback_olive.glb, assets/models/vehicles/car_hatchback_red.glb, data/fp_motion.json, data/incline.json, game/src/fp_motion.rs, game/tests/all/fp_motion.rs, humanoid/src/animator.rs, humanoid/src/incline.rs, humanoid/src/incline_tests.rs, humanoid/src/lib.rs, rotland/src/app/render_frame.rs, tasks/A10-stairs-slopes.md, tasks/A19-fp-weapon-feel.md, tools/blender/buildings/settlement.py, tools/blender/vehicles/car_parts.py
+- tests passed: 953
+- clippy: PASS
+- test: PASS
+- checks: FAIL
+- gate: FAIL (checks)

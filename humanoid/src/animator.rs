@@ -20,6 +20,7 @@ use crate::blend::{
 use crate::clip_events::{ClipEvent, ClipEventTable, EventQueue, EventSpan};
 use crate::foot_ik::{FootIkState, FootJoints};
 use crate::full_body::{FullBodyOptions, FullBodyState};
+use crate::incline::InclineState;
 use crate::layers::{LayerBlend, LayerId, LayerStack};
 use crate::mask::{BoneMasks, MaskId};
 use crate::motion::{MotionClips, MotionJoints, MotionState};
@@ -59,6 +60,7 @@ pub struct HumanoidAnimator {
     posture: PostureState,
     swim: SwimState,
     ladder: LadderAnimState,
+    incline: InclineState,
     foot_ik: FootIkState,
     foot_joints: Option<FootJoints>,
     foot_globals: Vec<Mat4>,
@@ -125,6 +127,7 @@ impl HumanoidAnimator {
             posture: PostureState::new(),
             swim: SwimState::new(),
             ladder: LadderAnimState::new(),
+            incline: InclineState::new(),
             foot_ik: FootIkState::new(),
             foot_joints,
             foot_globals: vec![Mat4::IDENTITY; n],
@@ -275,9 +278,11 @@ impl HumanoidAnimator {
         let k = 1.0 - (-self.config.blend_rate * step).exp();
         self.blend_pos += (locomotion.speed.clamp(0.0, RUN_BLEND) - self.blend_pos) * k;
         let ladder_event = self.ladder.tick(step);
+        self.incline.tick(step);
         let on_ladder = self.ladder.is_on_ladder();
         if on_ladder {
             self.swim.release_air(&mut self.layers);
+            self.incline.release_air(&mut self.layers);
             self.air = AirState::new();
             let clip_len = self.clips.get(LADDER_CLIMB_CLIP).map_or(0.0, |c| c.duration);
             self.ladder.apply_ladder(&mut self.layers, clip_len);
@@ -286,6 +291,7 @@ impl HumanoidAnimator {
             self.ladder.release_air(&mut self.layers);
             let climb_out = self.swim.tick(step);
             if self.swim.is_swimming() {
+                self.incline.release_air(&mut self.layers);
                 self.swim.apply_swim(&mut self.layers);
             } else {
                 let (air_target, air_clip, landing) = if self.air_driven {
@@ -294,10 +300,23 @@ impl HumanoidAnimator {
                 } else {
                     (if locomotion.on_floor { 0.0 } else { 1.0 }, "jump", None)
                 };
-                if locomotion.on_floor && air_target <= LAYER_EPSILON && self.swim.wants_wade() {
+                let air_free = locomotion.on_floor && air_target <= LAYER_EPSILON;
+                let posture_busy = locomotion.crouching
+                    || self.posture.crouch_walk_weight() > LAYER_EPSILON
+                    || self.posture.sprint_weight() > LAYER_EPSILON;
+                if air_free && self.swim.wants_wade() {
+                    self.incline.release_air(&mut self.layers);
                     self.swim.apply_wade(&mut self.layers);
+                } else if air_free
+                    && self.full_body.is_none()
+                    && !posture_busy
+                    && self.incline.wants_incline()
+                {
+                    self.swim.release_air(&mut self.layers);
+                    self.incline.apply_air(&mut self.layers);
                 } else {
                     self.swim.release_air(&mut self.layers);
+                    self.incline.release_air(&mut self.layers);
                     let layer = self.layers.get_mut(LayerId::Air);
                     layer.target = air_target;
                     if self.air_driven && layer.clip.as_deref() != Some(air_clip) {
@@ -331,6 +350,12 @@ impl HumanoidAnimator {
             self.advance_posture(step);
         }
         self.advance_full_body(step);
+        if self.full_body.is_some()
+            || self.posture.crouch_walk_weight() > LAYER_EPSILON
+            || self.posture.sprint_weight() > LAYER_EPSILON
+        {
+            self.incline.release_air(&mut self.layers);
+        }
         self.foot_ik.set_active(
             locomotion.on_floor
                 && !on_ladder
@@ -363,6 +388,12 @@ impl HumanoidAnimator {
     /// Feeds ladder climb activity, on-rungs flag and player height.
     pub fn set_ladder(&mut self, active: bool, on_rungs: bool, y: f32) {
         self.ladder.set_input(active, on_rungs, y);
+        self.dirty = true;
+    }
+
+    /// Feeds world position and grounded flag for stairs and steep-slope leg blends.
+    pub fn set_incline(&mut self, position: Vec3, on_floor: bool) {
+        self.incline.set_input(position, on_floor);
         self.dirty = true;
     }
 

@@ -15,6 +15,9 @@ pub mod animator;
 pub mod blend;
 pub mod clip_events;
 pub mod full_body;
+pub mod incline;
+#[cfg(test)]
+mod incline_tests;
 pub mod ik;
 pub mod layers;
 pub mod mask;
@@ -53,6 +56,7 @@ pub use clip_events::{ClipEvent, ClipEventTable};
 pub use full_body::{FullBodyOptions, FullBodyPhase, FullBodyState};
 pub use foot_ik::{FootIkConfig, FootIkState, FootJoints, GroundHit, LegJoints};
 pub use ik::{apply_two_hand_left_grip_ik, solve_two_bone_ik, LEFT_ELBOW_POLE};
+pub use incline::{InclineConfig, InclineState, STAIRS_DOWN_CLIP, STAIRS_UP_CLIP};
 pub use layers::{AnimLayer, LayerBlend, LayerId, LayerStack};
 pub use mask::{BoneMasks, MaskId};
 pub use motion::{
