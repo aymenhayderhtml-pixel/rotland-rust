@@ -2,14 +2,17 @@
 //! keeps the squad in step with the guild, moves and fights them, lets zombies hit back, and draws the party
 //! panel and name tags. The pure rules live in game::guild::companion.
 
+use std::collections::HashMap;
+
 use engine::egui;
 use game::guild::companion::{
     CompanionAnim, CompanionConfig, CompanionDraw, CompanionEvent, CompanionSquad, CompanionTarget,
     CompanionWorld,
 };
 use game::guild::{GuildRecruit, RecruitState};
-use game::DamageInfo;
+use game::{plan_npc_anim, DamageInfo, NpcAnimInput, NpcAnimPlan, NpcAnimRole, NpcAnimTrack, TeamAnimConfig};
 use glam::{Mat4, Vec2, Vec3};
+use humanoid::{HumanoidAnimator, Locomotion};
 use physics::{CharacterMover, PhysicsWorld};
 
 use super::state::PlaySide;
@@ -30,11 +33,15 @@ const NAME_TAG_MAX_Y_FRACTION: f32 = 0.85; // new: DECISIONS 2026-11-23
 /// Shortest zombie attack cooldown used to turn a hit into damage per second.
 const MIN_ATTACK_COOLDOWN: f32 = 0.1; // new: DECISIONS 2026-11-23
 
-/// One teammate as drawn this frame: the runtime snapshot plus its model and order label.
+/// One teammate as drawn this frame: the runtime snapshot plus its model, role, and motion.
 pub struct TeamFigure {
     pub draw: CompanionDraw,
     pub model: &'static str,
     pub order_label: &'static str,
+    pub anim_role: NpcAnimRole,
+    pub velocity: Vec3,
+    pub just_hit: bool,
+    pub distance_to_player: f32,
 }
 
 /// Reused buffers and the guild key the squad was last synced with (kept in PlaySide, so frames do not allocate).
@@ -45,6 +52,9 @@ pub struct TeamScratch {
     targets: Vec<CompanionTarget>,
     names: Vec<(String, Vec3)>,
     events: Vec<CompanionEvent>,
+    prev_positions: HashMap<String, Vec3>,
+    prev_health: HashMap<String, f32>,
+    anim_tracks: HashMap<String, NpcAnimTrack>,
     /// Teammates drawn this frame, filled by `update`.
     pub figures: Vec<TeamFigure>,
 }
@@ -53,6 +63,9 @@ impl TeamScratch {
     /// Forgets the synced state so the next frame rebuilds the squad from the guild.
     pub fn reset(&mut self) {
         self.key = None;
+        self.prev_positions.clear();
+        self.prev_health.clear();
+        self.anim_tracks.clear();
         self.figures.clear();
     }
 
@@ -186,17 +199,93 @@ pub fn update(
         }
     }
 
+    let anim_cfg = TeamAnimConfig::load_shared();
     team.figures.clear();
     for draw in squad.draws() {
         let recruit = hired.iter().find(|r| r.id == draw.id);
-        let (model, order_label) = recruit.map_or(("npc_guard", "Stay"), |r| {
-            (model_for_role(r.role), order_label(r.state))
+        let (model, order_label, anim_role) = recruit.map_or(
+            ("npc_guard", "Stay", NpcAnimRole::Guard),
+            |r| (model_for_role(r.role), order_label(r.state), NpcAnimRole::from(r.role)),
+        );
+        let velocity = team
+            .prev_positions
+            .get(&draw.id)
+            .filter(|_| dt > 0.0)
+            .map_or(Vec3::ZERO, |prev| (draw.position - *prev) / dt);
+        let just_hit = team
+            .prev_health
+            .get(&draw.id)
+            .is_some_and(|prev| prev - draw.health_fraction > anim_cfg.hit_damage_threshold);
+        team.prev_positions.insert(draw.id.clone(), draw.position);
+        team.prev_health.insert(draw.id.clone(), draw.health_fraction);
+        let distance_to_player = draw.position.distance(frame.player);
+        let track = team.anim_tracks.entry(draw.id.clone()).or_default();
+        let _plan = plan_npc_anim(
+            anim_cfg,
+            &NpcAnimInput {
+                role: anim_role,
+                companion_anim: Some(draw.anim),
+                camp_clip: None,
+                aiming_at_target: false,
+                just_fired: false,
+                just_hit,
+                velocity,
+                yaw: draw.yaw,
+                distance_to_camera: distance_to_player,
+                on_screen: true,
+            },
+            track,
+        );
+        team.figures.push(TeamFigure {
+            draw,
+            model,
+            order_label,
+            anim_role,
+            velocity,
+            just_hit,
+            distance_to_player,
         });
-        team.figures.push(TeamFigure { draw, model, order_label });
     }
+    team.prev_positions.retain(|id, _| team.figures.iter().any(|f| f.draw.id == *id));
+    team.prev_health.retain(|id, _| team.figures.iter().any(|f| f.draw.id == *id));
+    team.anim_tracks.retain(|id, _| team.figures.iter().any(|f| f.draw.id == *id));
     if let Some(m) = models {
         m.advance(dt, &team.figures);
     }
+}
+
+/// Applies a resolved [`NpcAnimPlan`] to a [`HumanoidAnimator`] using the player's API.
+#[allow(dead_code)] // Wired by companion_model.rs and camp_npcs.rs (see Worker notes in R27-03-team-anim.md)
+pub fn apply_npc_anim(animator: &mut HumanoidAnimator, plan: &NpcAnimPlan<'_>, dt: f32) {
+    animator.set_update_interval(plan.lod_interval);
+    animator.set_weapon(plan.weapon);
+    animator.set_aiming(plan.aiming);
+    if plan.reset_alive {
+        animator.reset_alive();
+    }
+    if plan.play_die {
+        animator.play_die();
+    }
+    if plan.gun_fired {
+        animator.on_gun_fired();
+    }
+    if let Some((clip, speed)) = plan.action_clip {
+        animator.play_action(clip, speed);
+    }
+    if let Some(pose) = plan.held_pose {
+        animator.hold_pose(pose);
+    } else {
+        animator.release_pose();
+    }
+    animator.set_move_velocity(plan.move_velocity, plan.yaw);
+    animator.update(
+        dt,
+        Locomotion {
+            speed: plan.move_speed,
+            on_floor: true,
+            crouching: false,
+        },
+    );
 }
 
 /// Party panel on the left, and name tags over living teammates in range and in front of the camera.
@@ -265,4 +354,45 @@ fn order_label(state: RecruitState) -> &'static str {
 
 fn planar_dist(a: Vec3, b: Vec3) -> f32 {
     Vec2::new(a.x - b.x, a.z - b.z).length()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pack::{Joint, Skeleton};
+
+    #[test]
+    fn apply_npc_anim_drives_humanoid_animator() {
+        let skel = Skeleton {
+            joints: vec![Joint {
+                name: "root".to_string(),
+                parent: None,
+                inverse_bind: Mat4::IDENTITY.to_cols_array(),
+                rest_translation: [0.0; 3],
+                rest_rotation: [0.0, 0.0, 0.0, 1.0],
+                rest_scale: [1.0; 3],
+            }],
+        };
+        let mut animator = HumanoidAnimator::new(&skel, &[]);
+        let cfg = TeamAnimConfig::default();
+        let mut track = NpcAnimTrack::default();
+        let plan = plan_npc_anim(
+            &cfg,
+            &NpcAnimInput {
+                role: NpcAnimRole::CampGuard,
+                companion_anim: None,
+                camp_clip: Some("idle"),
+                aiming_at_target: true,
+                just_fired: true,
+                just_hit: false,
+                velocity: Vec3::ZERO,
+                yaw: 0.0,
+                distance_to_camera: 15.0,
+                on_screen: true,
+            },
+            &mut track,
+        );
+        apply_npc_anim(&mut animator, &plan, 0.05);
+        assert_eq!(animator.update_interval(), 0.04);
+    }
 }
