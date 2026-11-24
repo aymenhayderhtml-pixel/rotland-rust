@@ -64,7 +64,7 @@ impl Default for FootIkConfig {
             weight_rate: 8.0, // data: foot_ik.json weightRate
             swing_lift_threshold: 0.07, // data: foot_ik.json swingLiftThreshold
             max_speed_full_weight: 4.0, // data: foot_ik.json maxSpeedFullWeight
-            min_weight_at_run: 0.35, // data: foot_ik.json minWeightAtRun
+            min_weight_at_run: 0.0, // data: foot_ik.json minWeightAtRun
         }
     }
 }

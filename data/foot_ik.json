@@ -12,5 +12,5 @@
   "weightRate": 8.0,
   "swingLiftThreshold": 0.07,
   "maxSpeedFullWeight": 4.0,
-  "minWeightAtRun": 0.35
+  "minWeightAtRun": 0.0
 }
