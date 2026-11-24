@@ -13,6 +13,9 @@ pub mod hideouts;
 mod rng;
 pub mod senses;
 pub mod specials;
+mod specials_brute;
+mod specials_crawler;
+mod specials_screamer;
 pub mod state;
 pub mod steering;
 

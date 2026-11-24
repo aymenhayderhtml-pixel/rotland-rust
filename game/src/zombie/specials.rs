@@ -146,7 +146,7 @@ impl SpecialConfig {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Phase {
+pub(super) enum Phase {
     Idle,
     BruteWindup,
     BruteCharge,
@@ -162,24 +162,24 @@ enum Phase {
 #[derive(Clone, Copy, Debug)]
 pub struct SpecialState {
     kind: SpecialKind,
-    phase: Phase,
-    timer: f64,
-    cooldown: f64,
-    dir: Vec3,
-    hit_done: bool,
+    pub(super) phase: Phase,
+    pub(super) timer: f64,
+    pub(super) cooldown: f64,
+    pub(super) dir: Vec3,
+    pub(super) hit_done: bool,
     killed: bool,
 }
 
 #[derive(Clone, Copy)]
-struct TickCtx {
-    player: Vec3,
-    to_player: Vec3,
-    dist: f32,
-    los: bool,
-    hit_wall: bool,
-    dt: f32,
-    dt_f64: f64,
-    eps: f64,
+pub(super) struct TickCtx {
+    pub(super) player: Vec3,
+    pub(super) to_player: Vec3,
+    pub(super) dist: f32,
+    pub(super) los: bool,
+    pub(super) hit_wall: bool,
+    pub(super) dt: f32,
+    pub(super) dt_f64: f64,
+    pub(super) eps: f64,
 }
 
 impl SpecialState {
@@ -258,235 +258,6 @@ impl SpecialState {
             SpecialKind::Crawler => self.tick_crawler(&cfg.crawler, ctx, roll),
         }
     }
-
-    fn tick_brute(&mut self, cfg: &BruteConfig, ctx: TickCtx) -> SpecialDirective {
-        match self.phase {
-            Phase::Idle => {
-                if ctx.los
-                    && self.cooldown <= 0.0
-                    && ctx.dist >= cfg.charge_min_range
-                    && ctx.dist <= cfg.charge_max_range
-                {
-                    self.phase = Phase::BruteWindup;
-                    self.timer = f64::from(cfg.windup_seconds);
-                    return self.step_brute_windup(cfg, ctx);
-                }
-                SpecialDirective::default()
-            }
-            Phase::BruteWindup => self.step_brute_windup(cfg, ctx),
-            Phase::BruteCharge => self.step_brute_charge(cfg, ctx),
-            Phase::BruteStunned => self.step_brute_stunned(ctx),
-            _ => SpecialDirective::default(),
-        }
-    }
-
-    fn step_brute_windup(&mut self, cfg: &BruteConfig, ctx: TickCtx) -> SpecialDirective {
-        self.timer -= ctx.dt_f64;
-        if self.timer <= ctx.eps {
-            self.dir = ctx.to_player;
-            self.hit_done = false;
-            self.phase = Phase::BruteCharge;
-            self.timer = f64::from(cfg.charge_seconds);
-        }
-        SpecialDirective {
-            velocity: Some(Vec3::ZERO),
-            face: opt_dir(ctx.to_player),
-            pose: SpecialPose::Windup,
-            ..SpecialDirective::default()
-        }
-    }
-
-    fn step_brute_charge(&mut self, cfg: &BruteConfig, ctx: TickCtx) -> SpecialDirective {
-        let max_turn = cfg.turn_rate_deg.to_radians() * ctx.dt;
-        self.dir = turn_toward(self.dir, ctx.to_player, max_turn);
-        if !self.hit_done && ctx.dist <= cfg.hit_range {
-            self.hit_done = true;
-            self.phase = Phase::Idle;
-            self.timer = 0.0;
-            self.cooldown = f64::from(cfg.cooldown_seconds);
-            let kb_dir = if ctx.to_player != Vec3::ZERO {
-                ctx.to_player
-            } else {
-                self.dir
-            };
-            return SpecialDirective {
-                velocity: Some(Vec3::ZERO),
-                face: opt_dir(self.dir),
-                pose: SpecialPose::Charge,
-                damage: Some(SpecialHit {
-                    amount: cfg.hit_damage,
-                    knockback: kb_dir * cfg.knockback_speed,
-                }),
-                ..SpecialDirective::default()
-            };
-        }
-        if ctx.hit_wall {
-            self.phase = Phase::BruteStunned;
-            self.timer = f64::from(cfg.stun_seconds);
-            self.cooldown = f64::from(cfg.cooldown_seconds);
-            return self.step_brute_stunned(ctx);
-        }
-        self.timer -= ctx.dt_f64;
-        if self.timer <= ctx.eps {
-            self.phase = Phase::BruteStunned;
-            self.timer = f64::from(cfg.stun_seconds);
-            self.cooldown = f64::from(cfg.cooldown_seconds);
-        }
-        SpecialDirective {
-            velocity: Some(self.dir * cfg.charge_speed),
-            face: opt_dir(self.dir),
-            pose: SpecialPose::Charge,
-            ..SpecialDirective::default()
-        }
-    }
-
-    fn step_brute_stunned(&mut self, ctx: TickCtx) -> SpecialDirective {
-        self.timer -= ctx.dt_f64;
-        if self.timer <= ctx.eps {
-            self.phase = Phase::Idle;
-            self.timer = 0.0;
-        }
-        SpecialDirective {
-            velocity: Some(Vec3::ZERO),
-            pose: SpecialPose::Stunned,
-            stunned: true,
-            vulnerable: true,
-            ..SpecialDirective::default()
-        }
-    }
-
-    fn tick_screamer(&mut self, cfg: &ScreamerConfig, ctx: TickCtx) -> SpecialDirective {
-        match self.phase {
-            Phase::Idle => {
-                if ctx.los && self.cooldown <= 0.0 && ctx.dist <= cfg.trigger_range {
-                    self.phase = Phase::ScreamerWindup;
-                    self.timer = f64::from(cfg.windup_seconds);
-                    return self.step_screamer_windup(ctx);
-                }
-                SpecialDirective::default()
-            }
-            Phase::ScreamerWindup => self.step_screamer_windup(ctx),
-            Phase::ScreamerScream => {
-                self.cooldown = f64::from(cfg.call_cooldown_seconds);
-                self.phase = Phase::ScreamerRetreat;
-                self.timer = f64::from(cfg.retreat_seconds);
-                SpecialDirective {
-                    velocity: Some(Vec3::ZERO),
-                    face: opt_dir(ctx.to_player),
-                    pose: SpecialPose::Scream,
-                    call: Some(SpecialCall {
-                        target: ctx.player,
-                        radius: cfg.call_radius,
-                        max_zombies: cfg.call_max_zombies,
-                    }),
-                    ..SpecialDirective::default()
-                }
-            }
-            Phase::ScreamerRetreat => {
-                let away = if ctx.to_player == Vec3::ZERO {
-                    Vec3::ZERO
-                } else {
-                    -ctx.to_player
-                };
-                self.timer -= ctx.dt_f64;
-                if self.timer <= ctx.eps {
-                    self.phase = Phase::Idle;
-                    self.timer = 0.0;
-                }
-                SpecialDirective {
-                    velocity: Some(away * cfg.retreat_speed),
-                    face: opt_dir(away),
-                    pose: SpecialPose::Retreat,
-                    ..SpecialDirective::default()
-                }
-            }
-            _ => SpecialDirective::default(),
-        }
-    }
-
-    fn step_screamer_windup(&mut self, ctx: TickCtx) -> SpecialDirective {
-        self.timer -= ctx.dt_f64;
-        if self.timer <= ctx.eps {
-            self.phase = Phase::ScreamerScream;
-            self.timer = 0.0;
-        }
-        SpecialDirective {
-            velocity: Some(Vec3::ZERO),
-            face: opt_dir(ctx.to_player),
-            pose: SpecialPose::Windup,
-            ..SpecialDirective::default()
-        }
-    }
-
-    fn tick_crawler(&mut self, cfg: &CrawlerConfig, ctx: TickCtx, roll: f32) -> SpecialDirective {
-        match self.phase {
-            Phase::Idle => {
-                if !ctx.los || ctx.dist > cfg.lurk_range {
-                    return SpecialDirective {
-                        velocity: Some(Vec3::ZERO),
-                        pose: SpecialPose::Lurk,
-                        ..SpecialDirective::default()
-                    };
-                }
-                if ctx.dist <= cfg.lunge_trigger_range && self.cooldown <= 0.0 {
-                    if roll < cfg.lunge_chance {
-                        self.dir = ctx.to_player;
-                        self.hit_done = false;
-                        self.phase = Phase::CrawlerLunge;
-                        self.timer = f64::from(cfg.lunge_seconds);
-                        return self.step_crawler_lunge(cfg, ctx);
-                    }
-                    self.cooldown = f64::from(cfg.retry_seconds);
-                }
-                SpecialDirective::default()
-            }
-            Phase::CrawlerLunge => self.step_crawler_lunge(cfg, ctx),
-            Phase::CrawlerRecover => {
-                self.timer -= ctx.dt_f64;
-                if self.timer <= ctx.eps {
-                    self.phase = Phase::Idle;
-                    self.timer = 0.0;
-                    self.cooldown = f64::from(cfg.retry_seconds);
-                }
-                SpecialDirective {
-                    velocity: Some(Vec3::ZERO),
-                    pose: SpecialPose::Recover,
-                    vulnerable: true,
-                    ..SpecialDirective::default()
-                }
-            }
-            _ => SpecialDirective::default(),
-        }
-    }
-
-    fn step_crawler_lunge(&mut self, cfg: &CrawlerConfig, ctx: TickCtx) -> SpecialDirective {
-        if !self.hit_done && ctx.dist <= cfg.hit_range {
-            self.hit_done = true;
-            self.phase = Phase::CrawlerRecover;
-            self.timer = f64::from(cfg.recover_seconds);
-            return SpecialDirective {
-                velocity: Some(Vec3::ZERO),
-                face: opt_dir(self.dir),
-                pose: SpecialPose::Lunge,
-                damage: Some(SpecialHit {
-                    amount: cfg.lunge_damage,
-                    knockback: Vec3::ZERO,
-                }),
-                ..SpecialDirective::default()
-            };
-        }
-        self.timer -= ctx.dt_f64;
-        if self.timer <= ctx.eps {
-            self.phase = Phase::CrawlerRecover;
-            self.timer = f64::from(cfg.recover_seconds);
-        }
-        SpecialDirective {
-            velocity: Some(self.dir * cfg.lunge_speed),
-            face: opt_dir(self.dir),
-            pose: SpecialPose::Lunge,
-            ..SpecialDirective::default()
-        }
-    }
 }
 
 fn horizontal_offset(from: Vec3, to: Vec3) -> Vec3 {
@@ -499,11 +270,11 @@ fn horizontal_offset(from: Vec3, to: Vec3) -> Vec3 {
     }
 }
 
-fn opt_dir(dir: Vec3) -> Option<Vec3> {
+pub(super) fn opt_dir(dir: Vec3) -> Option<Vec3> {
     if dir == Vec3::ZERO { None } else { Some(dir) }
 }
 
-fn turn_toward(current: Vec3, target: Vec3, max_turn: f32) -> Vec3 {
+pub(super) fn turn_toward(current: Vec3, target: Vec3, max_turn: f32) -> Vec3 {
     if target.length() < DIR_EPSILON {
         return current;
     }
