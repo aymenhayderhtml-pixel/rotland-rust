@@ -78,6 +78,7 @@ pub struct HumanoidAnimator {
     events: ClipEventTable,
     event_queue: EventQueue,
     dying: bool,
+    death_clip: Option<String>,
     held_pose: Option<String>,
     pose_time: f32,
     update_interval: f32,
@@ -148,6 +149,7 @@ impl HumanoidAnimator {
             events,
             event_queue: EventQueue::default(),
             dying: false,
+            death_clip: None,
             held_pose: None,
             pose_time: 0.0,
             update_interval: 0.0,
@@ -636,21 +638,32 @@ impl HumanoidAnimator {
     }
 
     pub fn play_die(&mut self) {
+        self.play_die_clip("die", 1.0); // new: DECISIONS 2026-11-23
+    }
+
+    /// Plays `clip` once and holds the final frame until `reset_alive`; falls back to `"die"`.
+    pub fn play_die_clip(&mut self, clip: &str, speed: f32) {
         self.dying = true;
+        let resolved = if self.clips.contains_key(clip) { clip } else { "die" };
         let opts = FullBodyOptions {
-            speed: 1.0, // new: DECISIONS 2026-11-23
+            speed,
             looping: false,
             hold_last: true,
             fade_in: self.config.die_fade_in, // data: animation.json dieFadeIn
             fade_out: 0.0, // new: DECISIONS 2026-11-23
         };
-        self.play_full_body("die", opts);
+        if self.play_full_body(resolved, opts) {
+            self.death_clip = Some(resolved.to_string());
+        }
         self.dirty = true;
     }
 
     pub fn reset_alive(&mut self) {
+        let death_clip = self.death_clip.take();
         self.dying = false;
-        if self.full_body.as_ref().is_some_and(|fb| fb.clip_name() == "die") {
+        if let Some(name) = death_clip
+            && self.full_body.as_ref().is_some_and(|fb| fb.clip_name() == name)
+        {
             self.full_body = None;
             self.layers.get_mut(LayerId::FullBody).weight = 0.0;
             self.layers.set_clip(LayerId::FullBody, None);

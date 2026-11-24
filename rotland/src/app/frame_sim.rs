@@ -562,7 +562,14 @@ pub fn update_sim(
             let ev = c.take_bites(&bites);
             if ev.died {
                 if let Some(pv) = actors.player_visual.as_mut() {
-                    pv.animator.play_die();
+                    let player_yaw = actors.player_ctrl.as_ref().map_or(0.0, |p| p.yaw);
+                    play_death_clip(
+                        &mut pv.animator,
+                        game::DeathCause::Zombie,
+                        actors.player,
+                        player_yaw,
+                        hit_from,
+                    );
                 }
                 if let Some(play_state) = play.play.as_mut() {
                     let seed = (session.time * 1000.0) as u64 ^ session.seed as u64;
@@ -641,7 +648,13 @@ pub fn update_sim(
             let ev = c.take_bites(&[water_res.drowning_damage]);
             if ev.died {
                 if let Some(pv) = actors.player_visual.as_mut() {
-                    pv.animator.play_die();
+                    play_death_clip(
+                        &mut pv.animator,
+                        game::DeathCause::Drowned,
+                        Vec3::ZERO,
+                        0.0,
+                        None,
+                    );
                 }
                 if let Some(play_state) = play.play.as_mut() {
                     let seed = (session.time * 1000.0) as u64 ^ session.seed as u64;
@@ -657,4 +670,17 @@ pub fn update_sim(
     } else {
         play.water.in_deep = false;
     }
+}
+
+fn play_death_clip(
+    animator: &mut humanoid::HumanoidAnimator,
+    cause: game::DeathCause,
+    player_pos: Vec3,
+    player_yaw: f32,
+    attacker: Option<Vec3>,
+) {
+    static DEATH_CFG: std::sync::OnceLock<game::DeathAnimConfig> = std::sync::OnceLock::new();
+    let cfg = DEATH_CFG.get_or_init(|| game::DeathAnimConfig::from_repo().unwrap_or_default());
+    let choice = cfg.pick(cause, player_pos, player_yaw, attacker);
+    animator.play_die_clip(choice.clip, choice.speed);
 }

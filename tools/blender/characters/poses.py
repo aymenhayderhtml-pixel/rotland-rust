@@ -24,6 +24,7 @@ from poses_aim import CLIPS as _AIM
 from poses_camp import CLIPS as _CAMP
 from poses_combat import CLIPS as _COMBAT
 from poses_combat import PLAYER_ONLY_CLIPS as _PLAYER_ONLY
+from poses_death import CLIPS as _DEATH
 from poses_hurt import CLIPS as _HURT
 from poses_locomotion import CLIPS as _LOCOMOTION
 from poses_move import CLIPS as _MOVE
@@ -43,5 +44,5 @@ from poses_zombie_v2 import CLIPS as _ZOMBIE_V2  # A17: directional death clips
 CLIPS = {**_LOCOMOTION, **_ACTIONS, **_COMBAT, **_ZOMBIE, **_ZOMBIE_V2, **_CAMP}
 # Clips only the player gets (V12-04 gun clips + A02 weapon stances + A03 aim/reload + A04 directional movement + A06 air/landing + A07 posture + F1-F5 clip library for A09-A16). Looked up through ALL_CLIPS, never CLIPS alone.
 PLAYER_ONLY_CLIPS = {**_PLAYER_ONLY, **_STANCE, **_AIM, **_MOVE, **_AIR, **_POSTURE, **_SWIM, **_LADDER,
-    **_CLIMB, **_CAR, **_USE, **_USE_V2, **_HURT, **_WOUND, **_MELEE_V2, **_GUARD}
+    **_CLIMB, **_CAR, **_USE, **_USE_V2, **_HURT, **_DEATH, **_WOUND, **_MELEE_V2, **_GUARD}
 ALL_CLIPS = {**CLIPS, **PLAYER_ONLY_CLIPS}

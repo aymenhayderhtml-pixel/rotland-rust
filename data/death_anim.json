@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "default": { "clip": "die", "speed": 1.0 },
+  "causes": {
+    "drowned": { "clip": "death_drown", "speed": 1.0 }
+  },
+  "zombieBySide": {
+    "front": { "clip": "death_back", "speed": 1.0 },
+    "back": { "clip": "death_forward", "speed": 1.0 },
+    "left": { "clip": "death_right", "speed": 1.0 },
+    "right": { "clip": "death_left", "speed": 1.0 }
+  }
+}
