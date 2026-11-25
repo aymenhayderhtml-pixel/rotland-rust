@@ -1,6 +1,6 @@
 # STATUS (read this first; keep it under ~80 lines)
 
-Updated: 2026-11-24 by Claude (after R27).
+Updated: 2026-11-25 by Claude (after R28).
 
 ## Where we are
 - Version 0.1 = Godot parity in Rust, done (R0-R10). History: `docs/archive/RUST_QUEUE.md`.
@@ -28,7 +28,8 @@ Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zomb
 - Seed 42 places: city core (-384, 1792), lake first dock (528, -1478). Dev panel: City core / City entry / Camp road / Lake teleports.
 
 - 2026-11-24: A12 actions, A13 melee v2 (combos, weapon weight, shove tap / block hold, DECISIONS 2026-11-24), A14 directional flinch, running-legs fix (foot IK off at run). R27 (6 Gemini lanes via Antigravity, prompts in tasks/R27-prompts.md): A15 wounds, A16 directional deaths, A18 teammates/guards on the new animator, guild deliver/explore hooks, Task-ready overlap + specials.rs split, city z-fight. 1033 tests. Not yet seen in game: block pose with the bat, combos, wounds, deaths, teammate weapons, guild hand-in.
-- Animation plan left: A20 (finger bones, real grips, polish). Downed/revive not started (owner decision).
+- 2026-11-25: R28 (prompts in tasks/R28-prompts.md): A20 finger bones (humans 30 bones, zombies 22) + grip layer (humanoid/src/grip.rs, data/grips.json); clip polish (poses_polish.py: ladder, limp, hold_side/arm, downed_crawl); pose screenshot flags --pose/--weapon/--cam-yaw/--block/--sprint (tools/README_TOOLS.md). 1042 tests. Block, crawl, ladder, sprint checked by screenshot.
+- Animation plan done. Downed/revive not started (owner decision).
 
 ## Next (from PLAN_0.2.md)
 1. Stutter: re-measure on a quiet laptop (nothing else running), then find the between-frames stall (present mode / vsync, compositor, physics collider rebuild in `physics/src/world.rs`). Re-run `--bench` quietly too.
