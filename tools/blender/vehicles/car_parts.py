@@ -298,8 +298,9 @@ def _body(body_color):
     for sx in (-1, 1):
         # Upper fender deck above rear wheel well (z = 0.91..1.02)
         parts.append(_box((0.38, 1.10, 0.11), loc=(sx * 0.67, -1.37, 0.965), color=body_color))
-        # Rear corner body behind rear wheel well (y in [-1.92, -1.70], z = 0.48..1.02)
-        parts.append(_box((0.38, 0.22, 0.54), loc=(sx * 0.67, -1.81, 0.75), color=body_color))
+        # Rear corner body behind rear wheel well (y in [-1.91, -1.70], z = 0.48..1.02).
+        # 0.01 m shy of the fender deck's y = -1.92 face so the two boxes share no coincident edge.
+        parts.append(_box((0.38, 0.21, 0.54), loc=(sx * 0.67, -1.805, 0.75), color=body_color))
     # Rear cargo floor & tailgate sill beam
     parts.append(_box((1.52, 1.10, 0.12), loc=(0.0, -1.37, 0.54), color="gun_black"))
     parts.append(_box((1.68, 0.12, 0.12), loc=(0.0, -1.86, 0.54), color=body_color))

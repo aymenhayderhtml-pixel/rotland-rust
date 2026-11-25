@@ -17,7 +17,7 @@ import common  # noqa: E402
 import kit  # noqa: E402
 import settlement_parts as parts  # noqa: E402
 
-NAME, CATEGORY, BUDGET = "settlement", "buildings", 6000
+NAME, CATEGORY, BUDGET = "settlement", "buildings", 7200
 HALF = parts.HALF
 SAFE_HALF = 17.5  # the safe zone sits inside the wall, 2.5 m clear of it
 LOG = ("bark_light", "bark_dark")
@@ -49,6 +49,37 @@ def bank_shack(k):
     k.solid((6.3, 6.6, 0.0), (6.8, 8.4, 1.0), "bark_light", base="bank_counter")
     k.box((5.85, 6.6, 2.05), (6.0, 8.4, 2.45), "wood_crate")  # sign board
     k.box((5.8, 6.9, 2.15), (5.85, 8.1, 2.35), "white")  # sign plate
+
+
+def guild_hall(k):
+    """Timber guild hall on the east side: log walls with a walk-in door on the lane side (-Y),
+    a gable roof, a sign board over the door, and a long table, two benches and a banner inside."""
+    x0, x1, y0, y1, top = 12.5, 18.5, 4.0, 10.0, 2.4
+    cx, ridge_z = 15.5, 3.6
+    door = ((14.6, y0, 0.0), (16.4, y0 + 0.2, 2.2))
+    k.wall((x0, y0, 0.0), (x1, y0 + 0.2, top), openings=[door], colors=LOG, course=0.8, base="guild_wall")
+    k.wall((x0, y1 - 0.2, 0.0), (x1, y1, top), colors=LOG, course=0.8, base="guild_wall")
+    k.wall((x0, y0 + 0.2, 0.0), (x0 + 0.2, y1 - 0.2, top), colors=LOG, course=0.8, base="guild_wall")
+    k.wall((x1 - 0.2, y0 + 0.2, 0.0), (x1, y1 - 0.2, top), colors=LOG, course=0.8, base="guild_wall")
+
+    # Gable roof, ridge along X (eaves overhang 0.3 m on the door and back sides)
+    k.roof((cx, 7.0, ridge_z), (cx, 3.7, top), span=(1.0, 0.0, 0.0), width=6.4, color="rock_dark")
+    k.roof((cx, 7.0, ridge_z), (cx, 10.3, top), span=(1.0, 0.0, 0.0), width=6.4, color="rock_dark")
+    k.gable([(x0, y0, top), (x0, y1, top), (x0, 7.0, ridge_z)], (0.2, 0.0, 0.0), "bark_dark", roof=True)
+    k.gable([(x1, y0, top), (x1, y1, top), (x1, 7.0, ridge_z)], (-0.2, 0.0, 0.0), "bark_dark", roof=True)
+
+    # Door trim and the guild sign board over the doorway
+    k.frame(door, y0, -1, "bark_dark")
+    k.box((14.8, 3.92, 2.45), (16.2, 4.0, 2.8), "wood_crate")
+    k.box((14.95, 3.88, 2.52), (16.05, 3.92, 2.73), "brass")
+
+    # Inside: long table with two trestle legs, a bench either side, banner on the back wall
+    k.box((13.9, 6.5, 0.78), (17.1, 7.3, 0.9), "bark_light")
+    for lx in (14.1, 16.7):
+        k.box((lx, 6.6, 0.0), (lx + 0.2, 7.2, 0.78), "bark_dark")
+    k.box((13.9, 5.9, 0.0), (17.1, 6.25, 0.45), "bark_dark")
+    k.box((13.9, 7.55, 0.0), (17.1, 7.9, 0.45), "bark_dark")
+    k.box((15.0, 9.7, 1.2), (16.0, 9.8, 2.2), "red_paint")
 
 
 def camp_clutter(k):
@@ -90,6 +121,7 @@ def build(model):
     parts.sandbags(k, 3.0, 5.6, 17.0)
     trader_stall(k)
     bank_shack(k)
+    guild_hall(k)
     parts.tent(k, -13.0, -8.0, "pine_mid")
     parts.tent(k, 12.0, -8.0, "rock_mid")
     parts.campfire_ring(k)
@@ -106,6 +138,9 @@ def build(model):
     k.empty("player_respawn", (0.0, 2.6, 0.0))
     k.empty("npc_trader", (-8.2, 7.7, 0.0), rot_z=face(-8.2, 7.7, -7.2, 7.7))  # faces the lane
     k.empty("npc_banker", (7.2, 7.5, 0.0), rot_z=face(7.2, 7.5, 6.2, 7.5))  # faces the window
+    # Guild hall: the keeper stands behind the long table, looking at the door (-Y)
+    k.empty("npc_guild", (15.5, 8.0, 0.0), rot_z=face(15.5, 8.0, 15.5, 4.0))
+    k.empty("guild_door", (15.5, 3.8, 0.0))  # just outside the doorway, on the lane side
     k.empty("npc_guard_1", (-7.3, 17.9, 2.7))  # on the platforms, facing out (+Y)
     k.empty("npc_guard_2", (7.3, 17.9, 2.7))
     # Inside ladders up to each guard deck (ladder at x = platform centre, y = 16.25).
