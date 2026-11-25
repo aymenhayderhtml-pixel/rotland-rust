@@ -326,6 +326,7 @@ pub struct SessionState {
     /// `--car-yaw=<deg>`: holds the car camera at this angle around the car (screenshots).
     pub test_car_yaw: Option<f32>,
     pub anim_shot: super::anim_shot::AnimShotState,
+    pub test_flags: super::test_flags::TestFlags,
     pub bench: Option<super::bench::BenchState>,
 }
 
@@ -365,6 +366,7 @@ impl Default for SessionState {
             test_poi: false,
             test_car_yaw: None,
             anim_shot: super::anim_shot::AnimShotState::default(),
+            test_flags: super::test_flags::TestFlags::default(),
             bench: None,
         }
     }

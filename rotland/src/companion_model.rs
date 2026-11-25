@@ -38,6 +38,14 @@ fn clip_for(anim: CompanionAnim) -> &'static str {
     }
 }
 
+fn clip_for_figure(f: &TeamFigure) -> &'static str {
+    if f.reviving {
+        "revive_kneel"
+    } else {
+        clip_for(f.draw.anim)
+    }
+}
+
 struct Look {
     mesh: GpuMesh,
     rig: Rig,
@@ -74,7 +82,7 @@ impl CompanionModels {
     /// Moves each teammate's clip clock on by `dt`, restarting it when the clip changes.
     pub fn advance(&mut self, dt: f32, figures: &[TeamFigure]) {
         for f in figures {
-            let clip = clip_for(f.draw.anim);
+            let clip = clip_for_figure(f);
             match self.clocks.get_mut(&f.draw.id) {
                 Some(entry) => {
                     if entry.0 != clip {
@@ -96,7 +104,7 @@ impl CompanionModels {
         for f in figures {
             let Some(&li) = self.look_index.get(f.model) else { continue };
             let look = &self.looks[li];
-            let wanted = clip_for(f.draw.anim);
+            let wanted = clip_for_figure(f);
             let Some(clip) = look
                 .clips
                 .iter()

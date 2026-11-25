@@ -4,48 +4,32 @@
 
 use std::collections::HashMap;
 
-use engine::egui;
 use game::guild::companion::{
-    CompanionAnim, CompanionConfig, CompanionDraw, CompanionEvent, CompanionSquad, CompanionTarget,
+    CompanionConfig, CompanionDraw, CompanionEvent, CompanionSquad, CompanionTarget,
     CompanionWorld,
 };
 use game::guild::{GuildRecruit, RecruitState};
-use game::{plan_npc_anim, DamageInfo, NpcAnimInput, NpcAnimPlan, NpcAnimRole, NpcAnimTrack, TeamAnimConfig};
-use glam::{Mat4, Vec2, Vec3};
-use humanoid::{HumanoidAnimator, Locomotion};
+use game::{plan_npc_anim, DamageInfo, NpcAnimInput, NpcAnimRole, NpcAnimTrack, TeamAnimConfig};
+use glam::{Vec2, Vec3};
 use physics::{CharacterMover, PhysicsWorld};
 
+pub use super::frame_team_view::draw_hud;
 use super::state::PlaySide;
 use crate::companion_model::{model_for_role, CompanionModels};
-use crate::companion_view::PartyMember;
 use crate::hud::{Hud, NotificationKind};
 use crate::zombies::Zombies;
 
 /// Same capsule the dogs walk with (new: DECISIONS 2026-11-23, copied from game/src/dogs/manager.rs).
-const BODY_RADIUS: f32 = 0.3; // new: DECISIONS 2026-11-23
-const BODY_HEIGHT: f32 = 0.8; // new: DECISIONS 2026-11-23
-/// Teammates within this many metres get a name tag when they are in front of the camera.
-const NAME_TAG_RANGE: f32 = 25.0; // new: DECISIONS 2026-11-23 (task spec R23-N5)
-/// Height above the feet where the name tag sits.
-const NAME_TAG_HEAD_HEIGHT: f32 = 2.0; // new: DECISIONS 2026-11-23
-/// Name tags lower than this share of the screen height are skipped, so they never sit on the hotbar.
-const NAME_TAG_MAX_Y_FRACTION: f32 = 0.85; // new: DECISIONS 2026-11-23
+pub(super) const BODY_RADIUS: f32 = 0.3; // new: DECISIONS 2026-11-23
+pub(super) const BODY_HEIGHT: f32 = 0.8; // new: DECISIONS 2026-11-23
 /// Shortest zombie attack cooldown used to turn a hit into damage per second.
 const MIN_ATTACK_COOLDOWN: f32 = 0.1; // new: DECISIONS 2026-11-23
-/// Distance beside the downed player where a reviving teammate stops and kneels/stands.
-const REVIVE_STOP_RADIUS: f32 = 1.35; // new: DECISIONS 2026-11-25
-/// Planar distance beyond which a reviving teammate runs to reach the downed player.
-const REVIVE_RUN_DIST: f32 = 2.5; // new: DECISIONS 2026-11-25
-/// Target stop inset fraction when stepping toward the downed player.
-const REVIVE_STEP_INSET: f32 = 0.9; // new: DECISIONS 2026-11-25
-/// Minimum distance needed to turn toward the player when already beside them.
-const MIN_FACE_DIST: f32 = 0.001; // new: DECISIONS 2026-11-25
 
 /// Active reviver tracking while the player is downed.
-struct ReviverState {
-    id: String,
-    position: Vec3,
-    yaw: f32,
+pub(super) struct ReviverState {
+    pub(super) id: String,
+    pub(super) position: Vec3,
+    pub(super) yaw: f32,
 }
 
 /// One teammate as drawn this frame: the runtime snapshot plus its model, role, and motion.
@@ -56,6 +40,7 @@ pub struct TeamFigure {
     pub anim_role: NpcAnimRole,
     pub velocity: Vec3,
     pub just_hit: bool,
+    pub reviving: bool,
     pub distance_to_player: f32,
 }
 
@@ -67,13 +52,13 @@ pub struct TeamScratch {
     targets: Vec<CompanionTarget>,
     names: Vec<(String, Vec3)>,
     events: Vec<CompanionEvent>,
-    prev_positions: HashMap<String, Vec3>,
+    pub(super) prev_positions: HashMap<String, Vec3>,
     prev_health: HashMap<String, f32>,
     anim_tracks: HashMap<String, NpcAnimTrack>,
     /// Teammates drawn this frame, filled by `update`.
     pub figures: Vec<TeamFigure>,
     /// Selected Follow teammate walking to / reviving the downed player.
-    reviver: Option<ReviverState>,
+    pub(super) reviver: Option<ReviverState>,
     /// True once the selected Follow teammate has reached the downed player and is reviving.
     pub reviving_player: bool,
 }
@@ -268,10 +253,11 @@ pub fn update(
             anim_role,
             velocity,
             just_hit,
+            reviving: false,
             distance_to_player,
         });
     }
-    step_player_revive(frame, hired, &mover, physics, anim_cfg, team);
+    super::frame_team_revive::step_player_revive(frame, hired, &mover, physics, anim_cfg, team);
     team.prev_positions.retain(|id, _| team.figures.iter().any(|f| f.draw.id == *id));
     team.prev_health.retain(|id, _| team.figures.iter().any(|f| f.draw.id == *id));
     team.anim_tracks.retain(|id, _| team.figures.iter().any(|f| f.draw.id == *id));
@@ -280,174 +266,14 @@ pub fn update(
     }
 }
 
-/// Sends one alive `Follow` teammate within `teammate_range` to walk to the downed player and stand/revive.
-fn step_player_revive(
-    frame: &TeamFrame,
-    hired: &[GuildRecruit],
+/// Ground and wall check for one teammate step: slides along walls, then sits on the ground below it.
+pub(super) fn move_teammate(
     mover: &CharacterMover,
     physics: &PhysicsWorld,
-    anim_cfg: &TeamAnimConfig,
-    team: &mut TeamScratch,
-) {
-    if !frame.player_downed {
-        team.reviver = None;
-        team.reviving_player = false;
-        return;
-    }
-
-    let is_eligible = |id: &str, pos: Vec3| {
-        let is_follow = hired
-            .iter()
-            .any(|r| r.id == id && r.state == RecruitState::FollowingPlayer);
-        let is_alive = team
-            .figures
-            .iter()
-            .any(|f| f.draw.id == id && f.draw.anim != CompanionAnim::Downed);
-        is_follow && is_alive && planar_dist(pos, frame.player) <= frame.teammate_range
-    };
-
-    if !team
-        .reviver
-        .as_ref()
-        .is_some_and(|rev| is_eligible(&rev.id, rev.position))
-    {
-        team.reviver = None;
-    }
-
-    if team.reviver.is_none() {
-        let best = team
-            .figures
-            .iter()
-            .filter(|f| is_eligible(&f.draw.id, f.draw.position))
-            .min_by(|a, b| {
-                planar_dist(a.draw.position, frame.player)
-                    .total_cmp(&planar_dist(b.draw.position, frame.player))
-            });
-        if let Some(fig) = best {
-            team.reviver = Some(ReviverState {
-                id: fig.draw.id.clone(),
-                position: fig.draw.position,
-                yaw: fig.draw.yaw,
-            });
-        }
-    }
-
-    let Some(rev) = team.reviver.as_mut() else {
-        team.reviving_player = false;
-        return;
-    };
-    let Some(fig) = team.figures.iter_mut().find(|f| f.draw.id == rev.id) else {
-        team.reviver = None;
-        team.reviving_player = false;
-        return;
-    };
-
-    let to_player = Vec2::new(frame.player.x - rev.position.x, frame.player.z - rev.position.z);
-    let dist = to_player.length();
-    if dist > REVIVE_STOP_RADIUS {
-        let dir = to_player / dist;
-        let running = dist > REVIVE_RUN_DIST;
-        if frame.dt > 0.0 {
-            let speed = if running {
-                anim_cfg.run_speed
-            } else {
-                anim_cfg.walk_speed
-            };
-            let step_len = (speed * frame.dt)
-                .min((dist - REVIVE_STOP_RADIUS * REVIVE_STEP_INSET).max(0.0));
-            let step = Vec3::new(dir.x * step_len, 0.0, dir.y * step_len);
-            let moved = move_teammate(mover, physics, rev.position, step, frame.dt);
-            if moved.is_finite() {
-                rev.position = moved;
-            }
-        }
-        rev.yaw = (-dir.x).atan2(-dir.y);
-        fig.draw.anim = if running {
-            CompanionAnim::Run
-        } else {
-            CompanionAnim::Walk
-        };
-        team.reviving_player = false;
-    } else {
-        if dist > MIN_FACE_DIST {
-            rev.yaw = (-to_player.x).atan2(-to_player.y);
-        }
-        // NPC models do not have a bandage/use clip; stand still beside the player while reviving.
-        fig.draw.anim = CompanionAnim::Idle;
-        team.reviving_player = true;
-    }
-    fig.draw.position = rev.position;
-    fig.draw.yaw = rev.yaw;
-    fig.distance_to_player = rev.position.distance(frame.player);
-    team.prev_positions.insert(rev.id.clone(), rev.position);
-}
-
-/// Applies a resolved [`NpcAnimPlan`] to a [`HumanoidAnimator`] using the player's API.
-#[allow(dead_code)] // Wired by companion_model.rs and camp_npcs.rs (see Worker notes in R27-03-team-anim.md)
-pub fn apply_npc_anim(animator: &mut HumanoidAnimator, plan: &NpcAnimPlan<'_>, dt: f32) {
-    animator.set_update_interval(plan.lod_interval);
-    animator.set_weapon(plan.weapon);
-    animator.set_aiming(plan.aiming);
-    if plan.reset_alive {
-        animator.reset_alive();
-    }
-    if plan.play_die {
-        animator.play_die();
-    }
-    if plan.gun_fired {
-        animator.on_gun_fired();
-    }
-    if let Some((clip, speed)) = plan.action_clip {
-        animator.play_action(clip, speed);
-    }
-    if let Some(pose) = plan.held_pose {
-        animator.hold_pose(pose);
-    } else {
-        animator.release_pose();
-    }
-    animator.set_move_velocity(plan.move_velocity, plan.yaw);
-    animator.update(
-        dt,
-        Locomotion {
-            speed: plan.move_speed,
-            on_floor: true,
-            crouching: false,
-        },
-    );
-}
-
-/// Party panel on the left, and name tags over living teammates in range and in front of the camera.
-pub fn draw_hud(ctx: &egui::Context, figures: &[TeamFigure], view_proj: Mat4, player: Vec3) {
-    if figures.is_empty() {
-        return;
-    }
-    let members: Vec<PartyMember<'_>> = figures
-        .iter()
-        .map(|f| PartyMember {
-            name: &f.draw.name,
-            health_fraction: f.draw.health_fraction,
-            downed: f.draw.anim == CompanionAnim::Downed,
-            order_label: f.order_label,
-        })
-        .collect();
-    crate::companion_view::draw_party_panel(ctx, &members);
-
-    let r = ctx.content_rect();
-    let screen = (r.width(), r.height());
-    for f in figures.iter().filter(|f| {
-        f.draw.anim != CompanionAnim::Downed && f.draw.position.distance(player) <= NAME_TAG_RANGE
-    }) {
-        let head = f.draw.position + Vec3::Y * NAME_TAG_HEAD_HEIGHT;
-        if let Some(p) = crate::bubbles::world_to_screen(head, view_proj, screen)
-            && p.y <= screen.1 * NAME_TAG_MAX_Y_FRACTION
-        {
-            crate::companion_view::draw_name_tag(ctx, p, &f.draw.name, f.draw.health_fraction);
-        }
-    }
-}
-
-/// Ground and wall check for one teammate step: slides along walls, then sits on the ground below it.
-fn move_teammate(mover: &CharacterMover, physics: &PhysicsWorld, from: Vec3, step: Vec3, dt: f32) -> Vec3 {
+    from: Vec3,
+    step: Vec3,
+    dt: f32,
+) -> Vec3 {
     let moved = if dt > 0.0 {
         mover.move_and_slide(physics, from, step / dt, dt).position
     } else {
@@ -480,134 +306,6 @@ fn order_label(state: RecruitState) -> &'static str {
     }
 }
 
-fn planar_dist(a: Vec3, b: Vec3) -> f32 {
+pub(super) fn planar_dist(a: Vec3, b: Vec3) -> f32 {
     Vec2::new(a.x - b.x, a.z - b.z).length()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use pack::{Joint, Skeleton};
-
-    #[test]
-    fn apply_npc_anim_drives_humanoid_animator() {
-        let skel = Skeleton {
-            joints: vec![Joint {
-                name: "root".to_string(),
-                parent: None,
-                inverse_bind: Mat4::IDENTITY.to_cols_array(),
-                rest_translation: [0.0; 3],
-                rest_rotation: [0.0, 0.0, 0.0, 1.0],
-                rest_scale: [1.0; 3],
-            }],
-        };
-        let mut animator = HumanoidAnimator::new(&skel, &[]);
-        let cfg = TeamAnimConfig::default();
-        let mut track = NpcAnimTrack::default();
-        let plan = plan_npc_anim(
-            &cfg,
-            &NpcAnimInput {
-                role: NpcAnimRole::CampGuard,
-                companion_anim: None,
-                camp_clip: Some("idle"),
-                aiming_at_target: true,
-                just_fired: true,
-                just_hit: false,
-                velocity: Vec3::ZERO,
-                yaw: 0.0,
-                distance_to_camera: 15.0,
-                on_screen: true,
-            },
-            &mut track,
-        );
-        apply_npc_anim(&mut animator, &plan, 0.05);
-        assert_eq!(animator.update_interval(), 0.04);
-    }
-
-    #[test]
-    fn follow_teammate_walks_to_downed_player_and_revives() {
-        use game::guild::{RecruitOrder, RecruitRole};
-        use glam::IVec2;
-        use physics::CHUNK_SAMPLES;
-
-        let mut physics = PhysicsWorld::new();
-        physics.add_ground_chunk(IVec2::ZERO, &vec![0.0; CHUNK_SAMPLES * CHUNK_SAMPLES]);
-        let mover = CharacterMover::new(BODY_RADIUS, BODY_HEIGHT);
-        let anim_cfg = TeamAnimConfig::default();
-
-        let mut guard = GuildRecruit::new("g1", "Guard", RecruitRole::Guard, 1, 10, 100, 50);
-        guard.set_order(RecruitOrder::Guard);
-        let mut follower = GuildRecruit::new("f1", "Follower", RecruitRole::Fighter, 1, 10, 100, 50);
-        follower.set_order(RecruitOrder::Follow);
-        let hired = vec![guard, follower];
-
-        let mut team = TeamScratch::default();
-        let make_figures = |f_pos: Vec3| {
-            vec![
-                TeamFigure {
-                    draw: CompanionDraw {
-                        id: "g1".into(),
-                        name: "Guard".into(),
-                        position: Vec3::new(2.0, 0.0, 0.0),
-                        yaw: 0.0,
-                        anim: CompanionAnim::Idle,
-                        health_fraction: 1.0,
-                    },
-                    model: "npc_guard",
-                    order_label: "Guard",
-                    anim_role: NpcAnimRole::Guard,
-                    velocity: Vec3::ZERO,
-                    just_hit: false,
-                    distance_to_player: 2.0,
-                },
-                TeamFigure {
-                    draw: CompanionDraw {
-                        id: "f1".into(),
-                        name: "Follower".into(),
-                        position: f_pos,
-                        yaw: 0.0,
-                        anim: CompanionAnim::Idle,
-                        health_fraction: 1.0,
-                    },
-                    model: "npc_guard",
-                    order_label: "Follow",
-                    anim_role: NpcAnimRole::Fighter,
-                    velocity: Vec3::ZERO,
-                    just_hit: false,
-                    distance_to_player: f_pos.length(),
-                },
-            ]
-        };
-
-        // Player downed at (5, 0, 5), follower at (10, 0, 5) (5 m away <= 12 m).
-        let player = Vec3::new(5.0, 0.0, 5.0);
-        let frame = TeamFrame {
-            dt: 0.5,
-            player,
-            player_yaw: 0.0,
-            camp: Some(Vec3::ZERO),
-            player_downed: true,
-            teammate_range: 12.0,
-        };
-
-        team.figures = make_figures(Vec3::new(10.0, 0.0, 5.0));
-        step_player_revive(&frame, &hired, &mover, &physics, &anim_cfg, &mut team);
-        assert!(!team.reviving_player);
-        assert_eq!(team.figures[1].draw.anim, CompanionAnim::Run);
-        assert!(team.figures[1].draw.position.x < 10.0);
-
-        // Advance until follower reaches revive stop radius.
-        for _ in 0..10 {
-            let pos = team.figures[1].draw.position;
-            team.figures = make_figures(pos);
-            step_player_revive(&frame, &hired, &mover, &physics, &anim_cfg, &mut team);
-        }
-        assert!(team.reviving_player);
-        assert_eq!(team.figures[1].draw.anim, CompanionAnim::Idle);
-
-        // Once player stands up, reviver clears.
-        let up_frame = TeamFrame { player_downed: false, ..frame };
-        step_player_revive(&up_frame, &hired, &mover, &physics, &anim_cfg, &mut team);
-        assert!(!team.reviving_player);
-    }
 }

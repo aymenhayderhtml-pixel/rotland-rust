@@ -13,6 +13,8 @@ mod car_lights;
 mod car_solid;
 mod car_visuals;
 mod combat;
+mod combat_bash;
+mod combat_damage;
 mod companion_model;
 mod companion_view;
 mod crates;
@@ -127,9 +129,11 @@ impl Game for R0 {
 
         app::frame_actors::check_scripted_timers(
             &mut self.session,
+            &mut self.render,
             &self.world,
             &mut self.actors,
             &mut self.play,
+            &mut self.audio,
         );
 
         app::frame_world::update_needs(

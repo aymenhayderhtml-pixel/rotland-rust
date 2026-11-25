@@ -1,6 +1,7 @@
 //! World survivor rescue wiring: initialization, save/load, E interaction, and POI zombie top-up.
 
 use game::guild::GuildConfig;
+use game::guild::companion::CompanionSquad;
 use game::rescue::{RescueBlocker, RescueConfig, RescueSave, RescueState};
 use game::rescue_place::place_survivors_in_world;
 use game::{PoiSpawn, PoiZombieSite, PoiZombies};
@@ -66,6 +67,7 @@ pub fn interact_tick(
     player_pos: Vec3,
     zombies: &Zombies,
     play_state: &mut PlayState,
+    companions: Option<&mut CompanionSquad>,
     pressed: bool,
 ) -> Option<RescueInteract> {
     rescue.nearest_in_range(player_pos)?;
@@ -92,6 +94,9 @@ pub fn interact_tick(
     let recruits = play_state.camp.guild.manager_mut().recruits_mut();
     match rescue.try_rescue_nearest(player_pos, &living, recruits, max_recruits) {
         Ok(recruit) => {
+            if let Some(squad) = companions {
+                squad.set_spawn_position(&recruit.id, spot_pos);
+            }
             play_state.show_toast(RescueState::joined_message(&recruit.name));
             Some(RescueInteract {
                 prompt: None,

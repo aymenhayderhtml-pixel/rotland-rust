@@ -320,7 +320,7 @@ pub fn update_world_interactions(
         let rescue_interact = if free
             && let (Some(rescue), Some(z)) = (play.rescue.as_mut(), actors.zombies.as_ref())
         {
-            crate::rescue_play::interact_tick(rescue, p.position, z, play_state, pressed)
+            crate::rescue_play::interact_tick(rescue, p.position, z, play_state, play.companions.as_mut(), pressed)
         } else {
             None
         };
