@@ -65,4 +65,4 @@ Note: The game is now built in Rust (custom wgpu engine, see docs/archive/RUST_P
 - **Camp upgrades: yes.** They are the main long-term goal.
 - **No music; minimal sound.**
 - **Action over horror.**
-- **Difficulty curve: hard from the start, easier as the player grows.** (Danger rings outside the home core were added 2026-11-25, see the "0.3 World" row.) the player's power grows through skills, gear, camp upgrades, the dog and the car.
+- **Difficulty curve: hard from the start, easier as the player grows.** (Danger rings outside the home core were added 2026-11-25, see the "0.3 World" row.) The player's power grows through skills, gear, camp upgrades, the dog and the car.
