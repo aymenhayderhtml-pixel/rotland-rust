@@ -1,4 +1,4 @@
-# R31 prompt: paste this into ONE Antigravity chat (Gemini 4 Hydrogen), only AFTER Claude has merged R30
+# R31 prompt: ON HOLD until R30.5 is merged (Claude will update file paths after the crate split)
 
 ```
 You are the LEAD for round R31 of the Rotland game (Rust repo at /home/aymen/Documents/rotland-rust): WEAPONS + GUN FEEL.
