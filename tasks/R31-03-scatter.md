@@ -1,6 +1,10 @@
 # R31-03: trees, rocks and props per biome; POIs per biome; build each chunk once
 
 Owns: world/src/scatter.rs, world/src/scatter/* (new, if split), world/src/poi.rs, world/src/loot.rs, data/scatter.json (read-only unless a key must move; say so), data/poi.json, rotland/src/streaming.rs, rotland/src/props.rs (only the per-model draw-range/LOD/shadow tables), world/tests/biome_scatter_tests.rs (new)
+Files: world/src/scatter.rs, world/src/poi.rs, world/src/loot.rs, data/scatter.json, data/poi.json, rotland/src/streaming.rs, rotland/src/props.rs, world/tests/biome_scatter_tests.rs
+Read: tasks/R31-round.md, tasks/LEAD.md, world/src/scatter.rs, world/src/poi.rs, world/src/loot.rs, rotland/src/streaming.rs, rotland/src/props.rs, world/tests/golden.rs
+API: world/src/generator.rs, world/src/lib.rs, world/src/settlement.rs, world/src/biome.rs, rotland/src/crates.rs, rotland/src/poi_links.rs, game_core/src/loot/table.rs, rotland/src/app/state.rs
+Data: data/scatter.json, data/poi.json
 Rules: `tasks/LEAD.md` subagent rules. Use the "R31 shared names" in `tasks/R31-round.md` EXACTLY. Don't edit R31-01's or R31-02's files. Call `WorldGenerator::biome_sample` and `BiomeRegistry::get`.
 
 1. **Scatter per biome:**

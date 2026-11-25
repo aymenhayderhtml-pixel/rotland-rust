@@ -1,6 +1,10 @@
 # R31-01: biome list, biome data, ring/sector layout, danger tiers (pure logic)
 
-Owns: world/src/biome/* (new folder; delete `world/src/biome.rs`), data/biomes.json (new), data/world_layout.json (new), world/tests/biome_layout_tests.rs (new), docs/WORLD.md (new)
+Owns: world/src/biome/* (new folder; delete `world/src/biome.rs`), data/biomes.json (new), data/world_layout.json (new), world/tests/biome_layout_tests.rs (new), docs/WORLD.md (new), world/Cargo.toml (move `paths` from dev-dependencies to dependencies), world/src/lib.rs (the `pub mod`/`pub use` lines for the new biome module only)
+Files: world/src/biome/mod.rs, world/src/biome/registry.rs, world/src/biome/layout.rs, data/biomes.json, data/world_layout.json, world/tests/biome_layout_tests.rs, docs/WORLD.md, world/Cargo.toml, world/src/lib.rs
+Read: tasks/R31-round.md, tasks/LEAD.md, world/src/biome.rs, world/src/lib.rs, world/src/generator.rs, world/tests/terrain_unit_tests.rs, world/Cargo.toml
+API: world/src/scatter.rs, world/src/noise.rs, paths/src/lib.rs
+Data: data/scatter.json, data/spawning.json
 Rules: `tasks/LEAD.md` subagent rules. Use the "R31 shared names" in `tasks/R31-round.md` EXACTLY.
 
 **Goal:** the base every other R31 task builds on.

@@ -1,6 +1,9 @@
 # R31-02: terrain height + ground colour per biome; split generator.rs; core stays exact
 
 Owns: world/src/generator.rs, world/src/generator/* (new, if you split into a folder), world/src/terrain_shape.rs (new), world/src/terrain_paint.rs (new), world/src/ground_paint.rs, world/tests/terrain_unit_tests.rs, world/tests/biome_terrain_tests.rs (new)
+Files: world/src/generator.rs, world/src/terrain_shape.rs, world/src/terrain_paint.rs, world/src/ground_paint.rs, world/tests/terrain_unit_tests.rs, world/tests/biome_terrain_tests.rs
+Read: tasks/R31-round.md, tasks/LEAD.md, world/src/generator.rs, world/src/ground_paint.rs, world/src/noise.rs, world/src/lib.rs, world/tests/terrain_unit_tests.rs, world/tests/golden.rs
+API: world/src/biome.rs, world/src/color.rs, world/src/math.rs, world/src/city/mod.rs, world/src/lake/mod.rs, world/src/settlement.rs, world/src/scatter.rs, world/src/poi.rs
 Rules: `tasks/LEAD.md` subagent rules. Use the "R31 shared names" in `tasks/R31-round.md` EXACTLY. R31-01 writes `world/src/biome/*` at the same time: code against the shared names and don't edit its files.
 
 **Goal:** outside the core, the ground takes the shape and colour of its biome. Inside the core, every height and colour stays bit-for-bit the same as today (`world/tests/golden.rs` must pass untouched).

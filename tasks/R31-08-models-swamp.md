@@ -1,6 +1,8 @@
 # R31-08: swamp models
 
 Owns: tools/blender/props/{tree_swamp,tree_swamp_lod1,tree_swamp_lod2,reeds,swamp_log_mossy,swamp_stump,lily_mud_patch}.py (new)
+Files: tools/blender/props/tree_swamp.py, tools/blender/props/tree_swamp_lod1.py, tools/blender/props/tree_swamp_lod2.py, tools/blender/props/reeds.py, tools/blender/props/swamp_log_mossy.py, tools/blender/props/swamp_stump.py, tools/blender/props/lily_mud_patch.py
+Read: tasks/R31-round.md, tasks/LEAD.md, tools/blender/palette.py, tools/blender/common.py, tasks/R31-06-models-desert.md, tools/blender/props/tree_oak_big.py, tools/blender/props/tree_oak_big_lod1.py, tools/blender/props/tree_oak_big_lod2.py, tools/blender/props/log_fallen.py, tools/blender/props/stump.py, tools/blender/props/grass_tuft_a.py, tools/blender/props/veg.py
 Rules: `tasks/LEAD.md` subagent rules (never run blender). Use the "R31 shared names" in `tasks/R31-round.md` EXACTLY. Colours: sheet C names `swamp_moss, swamp_mud, reed_tan, swamp_bark` (R31-06 adds sheet C at the same time; see its step 1 for `palette_material(sheet="C")`). If a model needs sheet A colours too (`leaf_dark`, `bark_dark`), check whether `common.py` supports two materials in one model; if not, stay on sheet C and say so in notes.
 Style: copy `tools/blender/props/tree_oak_big.py` (+ LODs), `log_fallen.py`, `stump.py`, `grass_tuft_a.py`, `veg.py`. Low-poly, flat colours.
 

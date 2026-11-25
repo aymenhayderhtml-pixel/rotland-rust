@@ -1,6 +1,9 @@
 # R31-05: world map picture tool, `--biome=` teleport, minimap colours, "Entering" banner
 
 Owns: world/examples/worldmap.rs (new), world/Cargo.toml (dev-dependency only, if a PNG crate is needed: use one already in Cargo.lock, e.g. `image` or `png`), game_camp/src/map/tiles.rs, rotland/src/app/test_flags.rs, rotland_ui/src/hud/* (only a new `region_banner.rs` + its hook), rotland/src/region_banner.rs (new, if the logic fits better in rotland), tools/perf_scenes.sh, tools/README_TOOLS.md
+Files: world/examples/worldmap.rs, world/Cargo.toml, game_camp/src/map/tiles.rs, rotland/src/app/test_flags.rs, rotland/src/region_banner.rs, rotland_ui/src/hud/region_banner.rs, tools/perf_scenes.sh, tools/README_TOOLS.md
+Read: tasks/R31-round.md, tasks/LEAD.md, world/Cargo.toml, game_camp/src/map/tiles.rs, rotland/src/app/test_flags.rs, tools/perf_scenes.sh, tools/README_TOOLS.md, rotland_ui/src/hud/safe_zone.rs, world/src/generator.rs, rotland/src/app/start_world.rs
+API: world/src/lib.rs, world/src/biome.rs, rotland/src/app/state.rs, rotland_ui/src/hud/mod.rs, rotland_ui/src/hud/state.rs
 Rules: `tasks/LEAD.md` subagent rules. Use the "R31 shared names" in `tasks/R31-round.md` EXACTLY.
 
 1. **World map tool** (`world/examples/worldmap.rs`): `cargo run --release -p world --example worldmap -- --seed=42 --size=12000 --px=1200 --out=/tmp/worldmap.png`.
