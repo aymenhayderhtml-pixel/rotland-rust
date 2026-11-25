@@ -6,7 +6,7 @@ The owner pastes one short prompt: "You are the LEAD for round <R>. Read tasks/L
 - **Lead** (Antigravity, Gemini 4 Hydrogen High): sets up, measures if the round asks, hands out work, adds shared-file lines, **builds/tests once**, fixes, screenshots, commits.
 - **Subagents** (Hydrogen, started by the lead): write code only, in the lead's folder.
 - **Claude** (separate app): writes the round files, then merges the finished branch, checks it, and updates the game the owner plays.
-- **Neon** (gemini.com, chat only): online research. If `neon/in/<R>-research.md` exists, the lead reads it before handing out work and uses what fits.
+- **Neon** (gemini.com, chat only): online research. If `/home/aymen/Documents/rotland-rust/neon/in/<R>-research.md` exists (main checkout; the folder is not in git, so it is not in your worktree), the lead reads it before handing out work and uses what fits.
 
 ## Setup (lead, once per round)
 ```bash
