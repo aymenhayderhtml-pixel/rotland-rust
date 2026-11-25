@@ -52,7 +52,7 @@ pub fn update_water_play(
     world: &WorldState,
 ) {
     let health = actors.combat.as_ref().map_or(0.0, |c| c.health.current());
-    let dead = actors.combat.as_ref().is_some_and(|c| c.is_dead());
+    let dead = actors.combat.as_ref().is_some_and(|c| c.is_dead()) || actors.downed.is_down();
     let hurt = health < play.water.last_health;
     play.water.last_health = health;
 

@@ -20,6 +20,7 @@ pub mod config;
 pub mod crosshair;
 pub mod damage;
 pub mod death;
+pub mod downed;
 pub mod events;
 pub mod fps;
 pub mod hint;
@@ -39,6 +40,7 @@ pub mod icons;
 pub use compass::{CampHudInfo, WaypointHudInfo};
 pub use config::HudConfig;
 pub use damage::DamageIndicator;
+pub use downed::DownedHudInfo;
 #[allow(unused_imports)]
 pub use events::{
     direction_word_from_angle, direction_word_to_target, EventCooldowns, EventKind, HordeIndicator,
@@ -132,6 +134,8 @@ pub struct HudState {
     pub player_pos: Option<glam::Vec3>,
     /// Screen-edge arrows pointing toward near hordes.
     pub horde_indicators: Option<Vec<HordeIndicator>>,
+    /// Knocked-down bleed-out and revive indicator; `None` while standing.
+    pub downed: Option<DownedHudInfo>,
 }
 
 impl Default for HudState {
@@ -166,6 +170,7 @@ impl Default for HudState {
             vitals_trail: None,
             player_pos: None,
             horde_indicators: None,
+            downed: None,
         }
     }
 }
@@ -351,8 +356,11 @@ pub fn draw_hud(ctx: &egui::Context, s: &HudState, icons: &mut IconCache) {
             // 5. "Safe zone" label below compass when inside settlement
             safe_zone::draw_safe_zone(painter, &screen, s.in_safe_zone, scale);
 
-            // 6. Crosshair in screen center (hidden when holding melee, scoped, driving, or dead)
-            if s.vehicle.is_none() && game::hud_math::is_crosshair_visible(s.dead, s.scoped, s.held) {
+            // 6. Crosshair in screen center (hidden when holding melee, scoped, driving, downed, or dead)
+            if s.vehicle.is_none()
+                && s.downed.is_none()
+                && game::hud_math::is_crosshair_visible(s.dead, s.scoped, s.held)
+            {
                 crosshair::draw_crosshair(painter, screen.center(), scale);
             }
 
@@ -411,6 +419,7 @@ pub fn draw_hud(ctx: &egui::Context, s: &HudState, icons: &mut IconCache) {
             // 13. Centered toast/message if active
             if let Some(msg) = &s.message
                 && !s.dead
+                && s.downed.is_none()
             {
                 text::draw_outline_text(
                     painter,
@@ -490,9 +499,11 @@ pub fn draw_hud(ctx: &egui::Context, s: &HudState, icons: &mut IconCache) {
                 );
             }
 
-            // 18. Death overlay when dead
+            // 18. Downed bar when knocked down, or death overlay when dead
             if s.dead {
                 death::draw_death_overlay(painter, &screen, s.message.as_deref(), scale);
+            } else if let Some(info) = &s.downed {
+                downed::draw_downed_bar(painter, &screen, info, scale);
             }
         });
 }

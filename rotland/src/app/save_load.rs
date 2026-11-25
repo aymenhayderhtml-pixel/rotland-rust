@@ -40,6 +40,7 @@ pub fn save_now(
         poi_zombies: world.poi_zombies.as_ref(),
     };
     let mut file = session::capture(session.loaded_save.as_ref(), &snap);
+    crate::rescue_play::save_rescued_ids(play.rescue.as_ref(), &mut file);
     if let Some(d) = &actors.dogs {
         file.systems.extra.insert("dog".into(), d.sim.to_save());
     }

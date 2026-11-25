@@ -303,6 +303,14 @@ pub fn render_frame(
             }),
     );
     main.extend(people);
+    if let (Some(rv), Some(rescue)) = (actors.rescue_view.as_ref(), play.rescue.as_ref()) {
+        let survivors = rv.pose(rescue.active_spots(), actors.player, &mut render.bones);
+        shadow.extend(survivors.iter().map(|b| engine::render::SkinnedBatch {
+            mesh: b.mesh,
+            instances: b.instances.clone(),
+        }));
+        main.extend(survivors);
+    }
     let zombies = actors
         .zombies
         .as_ref()

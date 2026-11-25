@@ -88,8 +88,22 @@ pub fn update_actors(
     audio: &mut Option<audio::Audio>,
 ) {
     let _phase = engine::timing::PhaseScope::new("zombies/actors");
-    // Death while driving must park the car and restore the on-foot camera.
-    if dead {
+    let downed = actors.downed.is_down();
+    let self_revive_held = downed
+        && input.held(ui.keys.interact)
+        && !ui.screen_open()
+        && !ui.menus.as_ref().is_some_and(|m| m.is_open());
+    actors.downed.set_frame_input(self_revive_held, session.play_time);
+    crate::downed_play::sync_downed_visual(
+        &mut actors.downed,
+        render,
+        play,
+        actors.combat.as_mut(),
+        actors.player_visual.as_mut(),
+        session.anim_shot.is_pose_frozen(),
+    );
+    // Death or knockdown while driving must park the car and restore the on-foot camera.
+    if dead || downed {
         if let Some(cars) = actors.cars.as_mut()
             && let Some(id) = cars.driven_car_id.clone()
         {
@@ -108,6 +122,12 @@ pub fn update_actors(
     if let (Some(p), Some(rig)) = (actors.player_ctrl.as_mut(), actors.camera_rig.as_mut()) {
         let mut actions = *actions;
         session.anim_shot.apply_actions(&mut actions, session.autowalk);
+        if downed {
+            actions.sprint = false;
+            actions.jump = false;
+            actions.crouch = false;
+            actions.aim = false;
+        }
         let actions = &actions;
         rig.update(actions, p.crouching, dt);
         p.first_person = rig.is_first_person;
@@ -183,7 +203,7 @@ pub fn update_actors(
         }
         let in_car = actors.cars.as_ref().is_some_and(|c| c.driven_car_id.is_some());
         // Ladders first: while climbing, the ladder moves the player instead of walking
-        let mut grab = input.pressed(ui.keys.interact) && ui.camp_ui.is_none() && ui.hub.is_none() && !dead;
+        let mut grab = input.pressed(ui.keys.interact) && ui.camp_ui.is_none() && ui.hub.is_none() && !dead && !downed;
         if session.test_poi && session.time > 1.0 {
             session.test_poi = false;
             let me = p.position;
@@ -253,11 +273,11 @@ pub fn update_actors(
         };
         let was_climbing = actors.climb.is_active();
         let climb_in = game::ClimbInput::new(-actions.move_vec.y, actions.jump, grab);
-        let climbing = !dead && !in_car && game::climb_tick(&mut actors.climb, p, &climb_in, rails, dt);
+        let climbing = !dead && !downed && !in_car && game::climb_tick(&mut actors.climb, p, &climb_in, rails, dt);
         ui.e_used = ui.e_used || (grab && (climbing || was_climbing));
         static VAULT_CFG: std::sync::OnceLock<game::VaultConfig> = std::sync::OnceLock::new();
         let vault_cfg = VAULT_CFG.get_or_init(|| game::VaultConfig::from_repo().unwrap_or_default());
-        if dead || in_car || climbing {
+        if dead || downed || in_car || climbing {
             actors.vault.cancel();
         }
         if in_car {
@@ -266,7 +286,7 @@ pub fn update_actors(
             rig.yaw = p.yaw;
         } else if actors.vault.is_active() {
             actors.vault.step(p, dt);
-        } else if let Some(clip) = (!dead && actions.jump)
+        } else if let Some(clip) = (!dead && !downed && actions.jump)
             .then(|| actors.vault.try_start(p, &world.physics, -actions.move_vec.y, vault_cfg))
             .flatten()
         {
@@ -279,9 +299,15 @@ pub fn update_actors(
                 pv.animator.play_full_body(clip, opts);
             }
         } else {
+            let saved_speed_mul = p.speed_multiplier;
+            if downed {
+                p.speed_multiplier *= actors.downed.crawl_speed_mul();
+            }
             p.update(actions, rig.yaw, &world.physics, &actors.mover, dt);
+            p.speed_multiplier = saved_speed_mul;
         }
         if let Some(cue) = play.play.as_mut().and_then(|ps| ps.anim_cue.take())
+            && !downed
             && let Some(pv) = actors.player_visual.as_mut()
         {
             pv.animator.play_cue(cue);
@@ -297,7 +323,7 @@ pub fn update_actors(
                 animals: actors.wildlife.as_mut().map(|w| &mut w.sim),
                 animal_bonus,
             };
-            let ev = c.update(dt, attack && !actors.guard.is_blocking(), p, &mut prey, &world.physics);
+            let ev = c.update(dt, attack && !downed && !actors.guard.is_blocking(), p, &mut prey, &world.physics);
             swung = ev.swung.clone();
             if ev.swing_started.is_some() {
                 actors.fp_sway.trigger_swing();
@@ -349,6 +375,7 @@ pub fn update_actors(
                 pv.animator.play_action(&clip, swing_speed);
             }
             if ev.respawn {
+                actors.downed.reset();
                 // Clear the death pose, or it stays mixed into the legs after waking up
                 if let Some(pv) = actors.player_visual.as_mut() {
                     pv.animator.reset_alive();
@@ -382,7 +409,7 @@ pub fn update_actors(
         let swing_busy = actors.combat.as_ref().is_some_and(|c| c.swing_busy());
         let guard_in = game::GuardInput {
             held: (captured && input.mouse_held(MouseButton::Right)) || session.anim_shot.block,
-            can_guard: !dead && !in_car && !climbing && !play.build_mode.active && guard_weapon && !swing_busy,
+            can_guard: !dead && !downed && !in_car && !climbing && !play.build_mode.active && guard_weapon && !swing_busy,
         };
         match actors.guard.update(dt, guard_in, &mut p.stamina, guard_cfg) {
             game::GuardEvent::Shove => {
@@ -406,6 +433,7 @@ pub fn update_actors(
         }
         if let Some(c) = actors.combat.as_mut()
             && !dead
+            && !downed
             && !in_car
             && let Some(weapon) = c.weapon_def().cloned()
             && weapon.throwable
@@ -429,6 +457,7 @@ pub fn update_actors(
 
         if let Some(c) = actors.combat.as_mut()
             && !dead
+            && !downed
             && !in_car
             && let Some(weapon) = c.weapon_def().cloned()
             && weapon.is_bow()
@@ -555,8 +584,8 @@ pub fn update_actors(
         {
             render.camera.fov_y_deg = display::apply_fov(render.camera.fov_y_deg, &m.settings);
         }
-        // A gun's aim zoom (the rifle scope zooms much further, CameraRig/GunHandler); moot while driving
-        let aiming = !driving && ((ui.cursor_captured && input.mouse_held(MouseButton::Right)) || session.anim_shot.block);
+        // A gun's aim zoom (the rifle scope zooms much further, CameraRig/GunHandler); moot while driving or downed
+        let aiming = !driving && !downed && ((ui.cursor_captured && input.mouse_held(MouseButton::Right)) || session.anim_shot.block);
         ui.right_held = aiming;
         let melee_in_hand = actors.combat.as_ref().and_then(|c| c.weapon_def()).is_some_and(|w| !w.is_gun() && !w.is_bow() && !w.throwable);
         let anim_aiming = if melee_in_hand { actors.guard.is_blocking() } else { aiming };
@@ -622,10 +651,11 @@ pub fn check_scripted_timers(
         && session.time >= t
     {
         session.die_at = None;
-        if c.kill()
-            && let Some(pv) = actors.player_visual.as_mut()
-        {
-            pv.animator.play_die();
+        if c.kill() {
+            actors.downed.reset();
+            if let Some(pv) = actors.player_visual.as_mut() {
+                pv.animator.play_die();
+            }
         }
     }
     if let Some(t) = session.save_at

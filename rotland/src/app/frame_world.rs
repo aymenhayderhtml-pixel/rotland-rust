@@ -21,7 +21,7 @@ pub fn update_needs(
         actors.player_ctrl.as_mut(),
         actors.combat.as_mut(),
     ) {
-        let dead = c.is_dead();
+        let dead = c.is_dead() || actors.downed.is_down();
         let (damage, heal) = play_state.needs_tick(
             dt,
             p.is_sprinting,
@@ -32,11 +32,23 @@ pub fn update_needs(
         if heal > 0.0 {
             c.health.heal(heal);
         }
-        if damage > 0.0 && c.take_bites(&[damage]).died {
-            if let Some(pv) = actors.player_visual.as_mut() {
-                pv.animator.play_die();
+        if damage > 0.0 {
+            let now = actors.downed.last_play_time();
+            let ev = c.take_damage_with_downed(
+                &[damage],
+                &mut actors.downed.machine,
+                now,
+                false,
+            );
+            if ev.downed_now {
+                log::info!("the player was downed by hunger or thirst");
             }
-            log::info!("the player died of hunger or thirst");
+            if ev.died {
+                if let Some(pv) = actors.player_visual.as_mut() {
+                    pv.animator.play_die();
+                }
+                log::info!("the player died of hunger or thirst");
+            }
         }
         play_state.health_full = c.health.current() >= c.health.max();
         if let Some(toast) = play_state.camp.craft_tick(dt, &mut play_state.inventory, dead) {
@@ -71,7 +83,7 @@ pub fn update_world_interactions(
         }
         world.last_chunk_count = current;
     }
-    let alive_now = !actors.combat.as_ref().is_some_and(|c| c.is_dead());
+    let alive_now = !actors.combat.as_ref().is_some_and(|c| c.is_dead()) && !actors.downed.is_down();
     if let (Some(play_state), Some(p)) = (play.play.as_mut(), actors.player_ctrl.as_mut())
         && alive_now
         && session.scene == "play"
@@ -305,9 +317,21 @@ pub fn update_world_interactions(
         let corpse_prompt = corpse_prompt.or(fire_prompt).or(car_prompt);
         let free = npc.is_none() && corpse_prompt.is_none();
 
+        let rescue_interact = if free
+            && let (Some(rescue), Some(z)) = (play.rescue.as_mut(), actors.zombies.as_ref())
+        {
+            crate::rescue_play::interact_tick(rescue, p.position, z, play_state, pressed)
+        } else {
+            None
+        };
+        if rescue_interact.as_ref().is_some_and(|r| r.consumed_press) {
+            ui.e_used = true;
+        }
+        let free_world = free && rescue_interact.is_none();
+
         // A bed in front comes before crates; tilling with a hoe only when nothing else is offered
-        let bed = free && play_state.camp.bed_in_front(p.position, facing).is_some();
-        play_state.interact_tick(dt, pressed && free && !bed, p.position, facing, &world.near_crates_scratch);
+        let bed = free_world && play_state.camp.bed_in_front(p.position, facing).is_some();
+        play_state.interact_tick(dt, pressed && free_world && !bed, p.position, facing, &world.near_crates_scratch);
         if play_state.has_prompt()
             && let Some(target) = crate::crates::find_target(p.position, facing, &world.near_crates_scratch, &play_state.world_items)
         {
@@ -317,7 +341,7 @@ pub fn update_world_interactions(
             };
             other_dist = other_dist.min(d);
         }
-        if free && (bed || !play_state.has_prompt()) {
+        if free_world && (bed || !play_state.has_prompt()) {
             let physics = &world.physics;
             let ground = |spot: Vec3| {
                 physics
@@ -345,12 +369,19 @@ pub fn update_world_interactions(
         if let Some(text) = corpse_prompt {
             play_state.set_prompt(text);
         }
+        if let Some(r) = &rescue_interact {
+            if let Some(text) = &r.prompt {
+                play_state.set_prompt(text.clone());
+            }
+            other_dist = other_dist.min(r.distance);
+        }
         if let (true, Some(a)) = (play_state.picked_up, audio.as_mut()) {
             a.event("pickup", None);
         }
 
         // E on the player's own dog opens its menu (Godot DogMenu)
         if let (None, Some(d)) = (&npc, actors.dogs.as_ref())
+            && rescue_interact.is_none()
             && let Some((_, name)) = d.own_dog_in_front(p.position, facing)
         {
             play_state.set_prompt(format!("[E] {name}"));
@@ -459,5 +490,8 @@ pub fn update_world_interactions(
         let alive = !actors.combat.as_ref().is_some_and(|cb| cb.is_dead());
         let player = alive.then_some(actors.player);
         c.update(dt, play.hour, player);
+    }
+    if let Some(rv) = actors.rescue_view.as_mut() {
+        rv.update(dt);
     }
 }

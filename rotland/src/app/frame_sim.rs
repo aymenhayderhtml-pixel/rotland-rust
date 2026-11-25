@@ -226,7 +226,15 @@ pub fn update_sim(
                 }
             }
             let alive_count = z.list.iter().filter(|q| !q.health.is_dead()).count();
-            for spawn in pz.update(actors.player, &world.poi_zombie_sites, alive_count) {
+            let mut spawns = pz.update(actors.player, &world.poi_zombie_sites, alive_count);
+            crate::rescue_play::top_up_poi_zombies(
+                &mut spawns,
+                pz,
+                &world.poi_zombie_sites,
+                play.rescue.as_ref(),
+                &world.physics,
+            );
+            for spawn in spawns {
                 if let Some(id) = z.spawn_kind(&spawn.kind, spawn.position) {
                     pz.on_zombie_spawned(&spawn.poi_id, id);
                 }
@@ -546,6 +554,8 @@ pub fn update_sim(
                 player: actors.player,
                 player_yaw: actors.player_ctrl.as_ref().map_or(0.0, |p| p.yaw),
                 camp: super::frame_team::camp_point(world.world_gen.as_deref()),
+                player_downed: actors.downed.is_down(),
+                teammate_range: actors.downed.teammate_range(),
             },
             z,
             &world.physics,
@@ -559,7 +569,24 @@ pub fn update_sim(
         actors.noises_scratch = noises_scratch;
 
         if let Some(c) = actors.combat.as_mut() {
-            let ev = c.take_bites(&bites);
+            let was_down = actors.downed.is_down();
+            let ev = c.take_damage_with_downed(
+                &bites,
+                &mut actors.downed.machine,
+                session.play_time,
+                true,
+            );
+            if ev.downed_now {
+                crate::downed_play::on_knocked_down(
+                    render,
+                    play,
+                    &mut actors.downed,
+                    c,
+                    actors.player_visual.as_mut(),
+                    session.anim_shot.is_pose_frozen(),
+                    &mut audio.audio,
+                );
+            }
             if ev.died {
                 if let Some(pv) = actors.player_visual.as_mut() {
                     let player_yaw = actors.player_ctrl.as_ref().map_or(0.0, |p| p.yaw);
@@ -578,7 +605,7 @@ pub fn update_sim(
                     super::frame_guild::clear_hooks(&mut play.guild_hooks);
                 }
                 log::info!("the player died (kills so far: {})", c.kills);
-            } else if ev.bitten {
+            } else if ev.bitten && !was_down && !ev.downed_now {
                 static HIT_CFG: std::sync::OnceLock<game::HitReactConfig> = std::sync::OnceLock::new();
                 let hit_cfg = HIT_CFG.get_or_init(|| game::HitReactConfig::from_repo().unwrap_or_default());
                 let player_yaw = actors.player_ctrl.as_ref().map_or(0.0, |p| p.yaw);
@@ -606,6 +633,10 @@ pub fn update_sim(
                 if let Some(a) = audio.audio.as_mut() {
                     a.event("playerHurt", None);
                 }
+            } else if ev.bitten
+                && let Some(a) = audio.audio.as_mut()
+            {
+                a.event("playerHurt", None);
             }
         }
         actors.bites_scratch = bites;
@@ -642,10 +673,16 @@ pub fn update_sim(
         // Hands are stowed by frame_water (update_water_play) from this flag
         play.water.in_deep = water_res.disarm_weapons;
 
-        if water_res.drowning_damage > 0.0 && alive
+        let in_deep_water = water_res.zone == world::LakeZone::Deep && !on_dock;
+        if (water_res.drowning_damage > 0.0 || (actors.downed.is_down() && in_deep_water)) && alive
             && let Some(c) = actors.combat.as_mut()
         {
-            let ev = c.take_bites(&[water_res.drowning_damage]);
+            let ev = crate::downed_play::take_drowning(
+                c,
+                &mut actors.downed,
+                water_res.drowning_damage,
+                in_deep_water,
+            );
             if ev.died {
                 if let Some(pv) = actors.player_visual.as_mut() {
                     play_death_clip(

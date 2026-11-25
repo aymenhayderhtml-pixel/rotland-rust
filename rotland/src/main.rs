@@ -19,6 +19,7 @@ mod crates;
 mod display;
 mod dev_panel;
 mod dog_view;
+mod downed_play;
 mod fishing_view;
 mod fp_weapon;
 mod hub_ui;
@@ -31,6 +32,8 @@ mod play;
 mod player_visual;
 mod poi_links;
 mod props;
+mod rescue_play;
+mod rescue_view;
 mod session;
 mod settings;
 mod siege_view;
@@ -177,6 +180,13 @@ impl Game for R0 {
             &mut self.ui,
             &self.session,
             &mut self.audio,
+        );
+        crate::downed_play::tick(
+            dt,
+            &mut self.actors,
+            &mut self.play,
+            &self.session,
+            &mut self.audio.audio,
         );
     }
 

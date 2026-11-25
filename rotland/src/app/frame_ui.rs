@@ -220,6 +220,7 @@ pub fn draw_ui(
             );
         }
         ui.hud.populate_state(&mut state);
+        state.downed = crate::downed_play::hud_info(&actors.downed, play_state);
         hud::draw_hud(ctx, &state, &mut ui.icons);
         if !c.is_dead() {
             crate::swim_view::draw_water_warning(ctx, play.water.warning, play.water.stamina_fraction);

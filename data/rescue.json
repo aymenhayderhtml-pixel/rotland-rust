@@ -1,0 +1,8 @@
+{
+  "chancePerPoi": 0.15,
+  "maxSurvivors": 6,
+  "minDistFromCamp": 300.0,
+  "clearRadius": 12.0,
+  "talkRange": 2.5,
+  "minZombiesNear": 3
+}

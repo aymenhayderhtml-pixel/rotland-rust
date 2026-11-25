@@ -40,13 +40,16 @@ pub fn start_world(
     world.streamer = None;
     actors.zombies = None;
     actors.combat = None;
+    actors.downed.reset();
     play.play = None;
+    play.rescue = None;
     super::frame_team::reset(play);
     super::frame_guild::reset(play);
     actors.player_visual = None;
     actors.player_ctrl = None;
     actors.camera_rig = None;
     actors.camp_npcs = None;
+    actors.rescue_view = None;
     actors.camp_guards = None;
     actors.wildlife = None;
     actors.dogs = None;
@@ -170,6 +173,7 @@ pub fn start_world(
             Ok(g) => actors.camp_guards = Some(g.with_camp_center(camp.center).with_seed(session.seed)),
             Err(e) => log::warn!("camp guards not loaded: {e}"),
         }
+        actors.rescue_view = Some(crate::rescue_view::RescueView::new(&gpu.device, pack));
     }
     // A saved game: the player where they were, the clock, the backpack and the emptied crates
     if let Some(file) = &save_file {
@@ -191,7 +195,7 @@ pub fn start_world(
             play.clock.day = r.day.max(1);
             session.play_time = r.play_time;
             if let Some(c) = actors.combat.as_mut() {
-                c.health.set_current(r.health);
+                crate::downed_play::restore_health(c, &mut actors.downed, r.health);
             }
         }
         if let (Some(c), Some(v)) = (actors.cars.as_mut(), file.systems.extra.get("cars")) {
@@ -324,6 +328,9 @@ pub fn start_world(
                 None,
             );
         }
+    }
+    if session.scene == "play" {
+        play.rescue = crate::rescue_play::load_state(&world_gen, save_file.as_ref());
     }
     session.loaded_save = save_file;
     let world_gen = Arc::new(world_gen);

@@ -228,6 +228,24 @@ impl GuildRecruits {
         Ok(())
     }
 
+    /// Adds a rescued survivor to the hired roster for free with standing order Follow.
+    pub fn add_rescued(
+        &mut self,
+        mut recruit: GuildRecruit,
+        max_slots: usize,
+    ) -> Result<(), RecruitHireError> {
+        if self.hired.iter().any(|r| r.id == recruit.id) {
+            return Err(RecruitHireError::AlreadyHired);
+        }
+        if self.hired.len() >= max_slots {
+            return Err(RecruitHireError::SlotsFull(max_slots));
+        }
+        recruit.hire_cost = 0;
+        recruit.set_order(RecruitOrder::Follow);
+        self.hired.push(recruit);
+        Ok(())
+    }
+
     /// Dismisses a hired recruit back to the candidate pool.
     pub fn dismiss(&mut self, id: &str) -> Result<GuildRecruit, RecruitDismissError> {
         let pos = self

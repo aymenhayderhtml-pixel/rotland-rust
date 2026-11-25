@@ -61,13 +61,13 @@ def guard_platform(k, x0, x1):
     k.solid((x0, y0, 2.5), (x1, y1, top), "bark_light", base="platform")
     for lx in (x0, x1 - 0.2):
         for ly in (y0, y1 - 0.2):
-            k.box((lx, ly, 0.0), (lx + 0.2, ly + 0.2, 2.5), "bark_dark")
-    k.box((x0, y0, top), (x0 + 0.08, y1, top + 0.9), "bark_light")  # west rail
-    k.box((x1 - 0.08, y0, top), (x1, y1, top + 0.9), "bark_light")  # east rail
+            k.solid((lx, ly, 0.0), (lx + 0.2, ly + 0.2, 2.5), "bark_dark", base="platform")
+    k.solid((x0, y0, top), (x0 + 0.08, y1, top + 0.9), "bark_light", base="platform")  # west rail
+    k.solid((x1 - 0.08, y0, top), (x1, y1, top + 0.9), "bark_light", base="platform")  # east rail
     # Back rail (toward the camp) has a gap where the inside ladder comes up onto the deck
     mid = (x0 + x1) / 2
-    k.box((x0, y0, top), (mid - 0.5, y0 + 0.08, top + 0.9), "bark_light")
-    k.box((mid + 0.5, y0, top), (x1, y0 + 0.08, top + 0.9), "bark_light")
+    k.solid((x0, y0, top), (mid - 0.5, y0 + 0.08, top + 0.9), "bark_light", base="platform")
+    k.solid((mid + 0.5, y0, top), (x1, y0 + 0.08, top + 0.9), "bark_light", base="platform")
     k.ladder(mid, y0 - 0.15, top)  # on the camp side, 0.15 m in front of the rail
 
 

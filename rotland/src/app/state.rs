@@ -158,8 +158,10 @@ pub struct ActorsState {
     pub open_trunk: Option<String>,
     pub camp_guards: Option<game::CampGuards>,
     pub camp_npcs: Option<camp_npcs::CampNpcs>,
+    pub rescue_view: Option<crate::rescue_view::RescueView>,
     pub zombie_voices: Option<game::ZombieVoices>,
     pub climb: game::LadderClimb,
+    pub downed: crate::downed_play::DownedPlay,
     pub was_dead: bool,
     pub bites_scratch: Vec<f32>,
     pub zombie_pos_scratch: Vec<(u64, Vec3)>,
@@ -231,6 +233,8 @@ pub struct PlaySide {
     pub guild_hooks: Option<game::guild::GuildTaskHooks>,
     /// Tracker rows and named places for the guild hooks (R24-N6).
     pub guild_panel: super::frame_guild::GuildTaskPanel,
+    /// World survivor rescue state (R29-02).
+    pub rescue: Option<game::rescue::RescueState>,
 }
 
 impl Default for PlaySide {
@@ -255,6 +259,7 @@ impl Default for PlaySide {
             team: super::frame_team::TeamScratch::default(),
             guild_hooks: super::frame_guild::load_hooks(),
             guild_panel: super::frame_guild::GuildTaskPanel::default(),
+            rescue: None,
         }
     }
 }

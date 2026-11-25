@@ -1,0 +1,10 @@
+{
+  "bleedOutSeconds": 30.0,
+  "biteSeconds": 4.0,
+  "teammateRange": 12.0,
+  "reviveSeconds": 4.0,
+  "selfReviveSeconds": 6.0,
+  "reviveHealth": 25.0,
+  "crawlSpeedMul": 0.35,
+  "reDownWindowSeconds": 60.0
+}

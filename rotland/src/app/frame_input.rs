@@ -82,7 +82,13 @@ pub fn apply_hand(
                     c.health.heal(amount);
                 } else {
                     // Spoiled food: sickness damage (no flinch)
-                    c.take_bites(&[-amount]);
+                    let now = actors.downed.last_play_time();
+                    c.take_damage_with_downed(
+                        &[-amount],
+                        &mut actors.downed.machine,
+                        now,
+                        false,
+                    );
                 }
             }
             return;
@@ -348,11 +354,13 @@ pub fn process_input(
 
     if !dev_typing
         && !play.build_mode.active
+        && !actors.downed.is_down()
         && let Some(change) = play.play.as_mut().and_then(|p| p.hotbar_keys(input, &keys.slots))
     {
         apply_hand(change, render, play, actors, world);
     }
     let attack = !dead
+        && !actors.downed.is_down()
         && !play.build_mode.active
         && !ui.screen_open()
         && (session.autoattack || (ui.cursor_captured && input.mouse_pressed(MouseButton::Left)));
