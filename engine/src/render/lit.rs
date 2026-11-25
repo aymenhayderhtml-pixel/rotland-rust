@@ -119,6 +119,9 @@ pub struct LitRenderer {
     bones_bind: wgpu::BindGroup,
     instances: GrowBuffer,
     shadow: ShadowMap,
+    offsets_scratch: Vec<u8>,       // new: PERF R30.5
+    visible_scratch: Vec<usize>,    // new: PERF R30.5
+    instances_scratch: Vec<SkinInstance>, // new: PERF R30.5
     pub shadows: ShadowSettings,
     pub last: FrameCounts,
 }
@@ -177,6 +180,9 @@ impl LitRenderer {
             bones_bind,
             instances,
             shadow,
+            offsets_scratch: Vec::new(),
+            visible_scratch: Vec::new(),
+            instances_scratch: Vec::new(),
             shadows,
             last: FrameCounts::default(),
         }
@@ -216,13 +222,14 @@ impl LitRenderer {
         self.write_scene(gpu, camera, light, view_proj, light_vp, shadows_on);
 
         // Every item's offset at its own slot, shared by the shadow and main passes
-        let mut offsets = vec![0u8; items.len() * DRAW_STRIDE as usize];
+        self.offsets_scratch.clear();
+        self.offsets_scratch.resize(items.len() * DRAW_STRIDE as usize, 0);
         for (i, d) in items.iter().enumerate() {
             let at = i * DRAW_STRIDE as usize;
-            offsets[at..at + 16].copy_from_slice(bytemuck::bytes_of(&[d.offset.x, d.offset.y, d.offset.z, 0.0f32]));
+            self.offsets_scratch[at..at + 16].copy_from_slice(bytemuck::bytes_of(&[d.offset.x, d.offset.y, d.offset.z, 0.0f32]));
         }
-        if !offsets.is_empty() {
-            gpu.queue.write_buffer(&self.draw_buf, 0, &offsets);
+        if !self.offsets_scratch.is_empty() {
+            gpu.queue.write_buffer(&self.draw_buf, 0, &self.offsets_scratch);
         }
         if self.bones.write(&gpu.device, &gpu.queue, bytemuck::cast_slice(bones)) {
             self.bones_bind = Self::bones_bind(&gpu.device, &self.layouts.bones, &self.bones.buffer);
@@ -231,18 +238,21 @@ impl LitRenderer {
         let normal_count: u32 = normal_batches.iter().map(|b| b.instances.len() as u32).sum();
         let fade_count: u32 = fade_batches.iter().map(|b| b.instances.len() as u32).sum();
         let main_count = normal_count + fade_count;
-        let all_instances: Vec<SkinInstance> = normal_batches
-            .iter()
-            .chain(fade_batches.iter())
-            .chain(shadow_instanced.iter())
-            .flat_map(|b| b.instances.iter().copied())
-            .collect();
-        self.instances.write(&gpu.device, &gpu.queue, bytemuck::cast_slice(&all_instances));
+        self.instances_scratch.clear();
+        self.instances_scratch.extend(
+            normal_batches
+                .iter()
+                .chain(fade_batches.iter())
+                .chain(shadow_instanced.iter())
+                .flat_map(|b| b.instances.iter().copied()),
+        );
+        self.instances.write(&gpu.device, &gpu.queue, bytemuck::cast_slice(&self.instances_scratch));
 
         let mut counts = FrameCounts::default();
         if shadows_on {
             let sun_frustum = Frustum::from_view_proj(&light_vp);
-            let visible: Vec<usize> = (0..items.len()).filter(|&i| in_view(&sun_frustum, &items[i])).collect();
+            self.visible_scratch.clear();
+            self.visible_scratch.extend((0..items.len()).filter(|&i| in_view(&sun_frustum, &items[i])));
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("sun shadow"),
                 color_attachments: &[],
@@ -255,14 +265,15 @@ impl LitRenderer {
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
-            let (d0, t0) = self.record_items(&mut pass, items, &visible, &self.pipes.shadow_mesh, &self.scene_shadow_bind);
+            let (d0, t0) = self.record_items(&mut pass, items, &self.visible_scratch, &self.pipes.shadow_mesh, &self.scene_shadow_bind);
             let (d1, t1) = self.record_skinned(&mut pass, shadow_instanced, main_count, &self.pipes.shadow_skinned, &self.scene_shadow_bind);
             counts.shadow_draws = d0 + d1;
             counts.shadow_triangles = t0 + t1;
         }
 
         let frustum = Frustum::from_view_proj(&view_proj);
-        let visible: Vec<usize> = (0..items.len()).filter(|&i| in_view(&frustum, &items[i])).collect();
+        self.visible_scratch.clear();
+        self.visible_scratch.extend((0..items.len()).filter(|&i| in_view(&frustum, &items[i])));
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("world"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -282,7 +293,7 @@ impl LitRenderer {
             occlusion_query_set: None,
             multiview_mask: None,
         });
-        let (d0, t0) = self.record_items(&mut pass, items, &visible, &self.pipes.mesh, &self.scene_bind);
+        let (d0, t0) = self.record_items(&mut pass, items, &self.visible_scratch, &self.pipes.mesh, &self.scene_bind);
         let (d1, t1) = self.record_skinned(&mut pass, &normal_batches, 0, &self.pipes.skinned, &self.scene_bind);
         let (d2, t2) = self.record_skinned(&mut pass, &fade_batches, normal_count, &self.pipes.skinned_fade, &self.scene_bind);
         // Sky last: it only fills pixels nothing else covered

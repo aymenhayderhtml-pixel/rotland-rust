@@ -9,6 +9,40 @@ pub const CHUNK_CELL: f32 = 2.0;
 pub const CHUNK_SAMPLES: usize = 33;
 pub const CHUNK_CELLS: usize = CHUNK_SAMPLES - 1;
 
+/// Collision groups for static world geometry (ground and static props).
+/// Static-vs-static pairs are disabled so Rapier never tests them during broad/narrow phase.
+fn world_collision_groups() -> InteractionGroups {
+    InteractionGroups::none()
+        .with_memberships(GROUP_WORLD)
+        .with_filter(GROUP_CHARACTER)
+}
+
+fn world_pose(position: Vec3, yaw: f32) -> Pose {
+    let translation = Vector::new(position.x, position.y, position.z);
+    let rotation = Rotation::from_scaled_axis(Vector::Y * yaw);
+    Pose::from_parts(translation, rotation)
+}
+
+fn push_convex_parts(
+    parts: &mut Vec<(Pose, SharedShape)>,
+    colliders: &[Vec<[f32; 3]>],
+    pose: Pose,
+    scale: f32,
+) {
+    for points in colliders {
+        if points.len() < 4 {
+            continue;
+        }
+        let scaled: Vec<Vector> = points
+            .iter()
+            .map(|p| Vector::new(p[0] * scale, p[1] * scale, p[2] * scale))
+            .collect();
+        if let Some(shape) = SharedShape::convex_hull(&scaled) {
+            parts.push((pose, shape));
+        }
+    }
+}
+
 /// Physics simulation world managing static terrain, static props/buildings, and scene queries.
 pub struct PhysicsWorld {
     /// Internal Rapier physics world bundle.
@@ -84,11 +118,7 @@ impl PhysicsWorld {
             .expect("ground trimesh must be valid");
 
         let collider = ColliderBuilder::new(shape)
-            .collision_groups(
-                InteractionGroups::none()
-                    .with_memberships(GROUP_WORLD)
-                    .with_filter(GROUP_CHARACTER | GROUP_WORLD),
-            )
+            .collision_groups(world_collision_groups())
             .build();
 
         self.raw.insert_collider(collider, None)
@@ -151,18 +181,7 @@ impl PhysicsWorld {
         }
 
         let mut parts = Vec::new();
-        for points in colliders {
-            if points.len() < 4 {
-                continue;
-            }
-            let scaled: Vec<Vector> = points
-                .iter()
-                .map(|p| Vector::new(p[0] * scale, p[1] * scale, p[2] * scale))
-                .collect();
-            if let Some(shape) = SharedShape::convex_hull(&scaled) {
-                parts.push((Pose::IDENTITY, shape));
-            }
-        }
+        push_convex_parts(&mut parts, colliders, Pose::IDENTITY, scale);
 
         if parts.is_empty() {
             return ColliderHandle::invalid();
@@ -174,18 +193,37 @@ impl PhysicsWorld {
             SharedShape::compound(parts)
         };
 
-        let translation = Vector::new(position.x, position.y, position.z);
-        let rotation = Rotation::from_scaled_axis(Vector::Y * yaw);
-        let pose = Pose::from_parts(translation, rotation);
-
         let collider = ColliderBuilder::new(shared_shape)
-            .position(pose)
-            .collision_groups(
-                InteractionGroups::none()
-                    .with_memberships(GROUP_WORLD)
-                    .with_filter(GROUP_CHARACTER | GROUP_WORLD),
-            )
+            .position(world_pose(position, yaw))
+            .collision_groups(world_collision_groups())
             .user_data(tag)
+            .build();
+
+        self.raw.insert_collider(collider, None)
+    }
+
+    /// Combine multiple placed static models into a single compound collider, without refreshing
+    /// the broad-phase yet.
+    /// Caller must call `update_broad_phase()` before running queries.
+    pub fn add_static_compound_deferred<'a, I>(&mut self, items: I) -> ColliderHandle
+    where
+        I: IntoIterator<Item = (&'a [Vec<[f32; 3]>], Vec3, f32, f32)>,
+    {
+        let mut parts = Vec::new();
+        for (colliders, position, yaw, scale) in items {
+            if colliders.is_empty() {
+                continue;
+            }
+            push_convex_parts(&mut parts, colliders, world_pose(position, yaw), scale);
+        }
+
+        if parts.is_empty() {
+            return ColliderHandle::invalid();
+        }
+
+        let shared_shape = SharedShape::compound(parts);
+        let collider = ColliderBuilder::new(shared_shape)
+            .collision_groups(world_collision_groups())
             .build();
 
         self.raw.insert_collider(collider, None)
@@ -299,5 +337,68 @@ mod tests {
         assert!(world.remove_deferred(ground));
         world.update_broad_phase();
         assert!(world.is_empty());
+    }
+
+    #[test]
+    fn compound_static_colliders_hit_each_part_and_remove_together() {
+        let mut world = PhysicsWorld::new();
+        let box_pts = vec![
+            [-1.0, 0.0, -1.0],
+            [1.0, 0.0, -1.0],
+            [1.0, 0.0, 1.0],
+            [-1.0, 0.0, 1.0],
+            [-1.0, 3.0, -1.0],
+            [1.0, 3.0, -1.0],
+            [1.0, 3.0, 1.0],
+            [-1.0, 3.0, 1.0],
+        ];
+        let shapes = [box_pts];
+        let items = [
+            (shapes.as_slice(), Vec3::new(10.0, 2.0, 10.0), 0.0, 1.0),
+            (
+                shapes.as_slice(),
+                Vec3::new(25.0, 4.0, 15.0),
+                std::f32::consts::FRAC_PI_2,
+                2.0,
+            ),
+        ];
+        let compound_h = world.add_static_compound_deferred(items);
+        assert_ne!(compound_h, ColliderHandle::invalid());
+        assert_eq!(world.collider_count(), 1);
+        world.update_broad_phase();
+
+        let h1 = world.ground_height(10.0, 10.0);
+        assert!(h1.is_some_and(|y| (y - 5.0).abs() < 1e-3));
+        let h2 = world.ground_height(25.0, 15.0);
+        assert!(h2.is_some_and(|y| (y - 10.0).abs() < 1e-3));
+        assert!(world.ground_height(17.0, 12.0).is_none());
+
+        assert!(world.remove_deferred(compound_h));
+        world.update_broad_phase();
+        assert!(world.is_empty());
+    }
+
+    #[test]
+    fn static_world_colliders_disable_static_vs_static_filter() {
+        let mut world = PhysicsWorld::new();
+        let heights = vec![0.0_f32; CHUNK_SAMPLES * CHUNK_SAMPLES];
+        let ground = world.add_ground_chunk_deferred(IVec2::ZERO, &heights);
+        let box_pts = vec![
+            [-1.0, 0.0, -1.0],
+            [1.0, 0.0, -1.0],
+            [1.0, 0.0, 1.0],
+            [-1.0, 0.0, 1.0],
+            [-1.0, 1.0, -1.0],
+            [1.0, 1.0, -1.0],
+            [1.0, 1.0, 1.0],
+            [-1.0, 1.0, 1.0],
+        ];
+        let prop = world.add_static_deferred(&[box_pts], Vec3::new(5.0, 0.0, 5.0), 0.0, 1.0);
+
+        for h in [ground, prop] {
+            let c = world.raw.colliders.get(h).unwrap();
+            assert_eq!(c.collision_groups(), world_collision_groups());
+            assert_eq!(c.active_events(), ActiveEvents::empty());
+        }
     }
 }

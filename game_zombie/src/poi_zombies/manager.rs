@@ -1,0 +1,305 @@
+//! POI zombie spawner and building clear tracker.
+//!
+//! Port of `scripts/World/PoiManager.cs`. Keeps loaded buildings and the zombies they wake.
+//! A building wakes once when the player comes within the approach distance. Its zombies
+//! stand still at spawn markers until they see or hear the player. A visited building never
+//! wakes again, so killed zombies stay dead.
+
+use std::collections::{HashMap, HashSet};
+
+use glam::Vec3;
+use serde_json::Value;
+use world::{DotnetRandom, PoiBuildingDef, PoiConfig, PoiConfigData};
+
+use super::save::{from_save_visited_pois, to_save_visited_pois};
+use super::types::{PoiSpawn, PoiZombieSite};
+use game_core::loot::crate_seed;
+use crate::spawner_config::{SpawnConfig, SpawnerRng};
+
+/// Default approach distance in metres if config is unavailable (matches data/poi.json).
+pub const DEFAULT_APPROACH_DISTANCE: f32 = 35.0;
+/// Default cap on active zombies from buildings (matches data/poi.json).
+pub const DEFAULT_MAX_ACTIVE_ZOMBIES: usize = 16;
+/// Default despawn distance in metres (matches data/spawning.json / PoiManager.cs).
+pub const DEFAULT_DESPAWN_DISTANCE: f32 = 120.0;
+
+fn load_default_poi_config() -> PoiConfigData {
+    let path = paths::repo_path("data/poi.json");
+    PoiConfig::load_from_file(&path).unwrap_or_else(|_| {
+        let fallback_json = include_str!("../../../data/poi.json");
+        PoiConfig::from_json(fallback_json).unwrap_or_default()
+    })
+}
+
+/// Pure logic manager for zombies waiting inside and around POI buildings.
+// Godot: PoiManager.cs
+#[derive(Clone, Debug)]
+pub struct PoiZombies {
+    pub world_seed: i32,
+    pub approach_distance: f32,
+    pub max_active_zombies: usize,
+    pub despawn_dist: f32,
+    pub is_night: bool,
+    pub visited: HashSet<String>,
+    pub remaining: HashMap<String, usize>,
+    pub pending_spawns: HashMap<String, usize>,
+    pub zombie_to_poi: HashMap<u64, String>,
+    pub awake: HashSet<u64>,
+    pub config: PoiConfigData,
+    pub spawn_config: Option<SpawnConfig>,
+    pub spawner_rng: SpawnerRng,
+}
+
+impl PoiZombies {
+    /// Creates a manager loading configuration from `data/poi.json` and `data/spawning.json`.
+    pub fn new(world_seed: i32) -> Self {
+        let config = load_default_poi_config();
+        Self::with_config(world_seed, config)
+    }
+
+    /// Creates a manager with custom POI configuration.
+    pub fn with_config(world_seed: i32, config: PoiConfigData) -> Self {
+        let approach_distance = if config.approach_distance > 0.0 {
+            config.approach_distance
+        } else {
+            DEFAULT_APPROACH_DISTANCE
+        };
+        let max_active_zombies = if config.max_active_zombies > 0 {
+            config.max_active_zombies as usize
+        } else {
+            DEFAULT_MAX_ACTIVE_ZOMBIES
+        };
+        let spawn_config = SpawnConfig::load_default().ok();
+        let despawn_dist = spawn_config
+            .as_ref()
+            .map_or(DEFAULT_DESPAWN_DISTANCE, |c| c.despawn_dist);
+
+        Self {
+            world_seed,
+            approach_distance,
+            max_active_zombies,
+            despawn_dist,
+            is_night: false,
+            visited: HashSet::new(),
+            remaining: HashMap::new(),
+            pending_spawns: HashMap::new(),
+            zombie_to_poi: HashMap::new(),
+            awake: HashSet::new(),
+            config,
+            spawn_config,
+            spawner_rng: SpawnerRng::new(world_seed as u64),
+        }
+    }
+
+    /// Adds or updates a building definition in the active config.
+    #[allow(dead_code)]
+    fn add_building_def(&mut self, def: PoiBuildingDef) {
+        if let Some(existing) = self.config.buildings.iter_mut().find(|b| b.id == def.id) {
+            *existing = def;
+        } else {
+            self.config.buildings.push(def);
+        }
+    }
+
+    /// Sets whether it is currently night time for zombie type rolls.
+    #[allow(dead_code)]
+    fn set_night(&mut self, is_night: bool) {
+        self.is_night = is_night;
+    }
+
+    /// True if the building has woken before or was loaded from a visit save.
+    // Godot: PoiManager.cs IsVisited
+    pub fn is_visited(&self, poi_id: &str) -> bool {
+        self.visited.contains(poi_id)
+    }
+
+    /// True once the building has woken and none of its zombies are left alive.
+    // Godot: PoiManager.cs IsCleared
+    pub fn is_cleared(&self, poi_id: &str) -> bool {
+        if !self.visited.contains(poi_id) {
+            return false;
+        }
+        let rem = self.remaining.get(poi_id).copied().unwrap_or(0);
+        let pending = self.pending_spawns.get(poi_id).copied().unwrap_or(0);
+        rem + pending == 0
+    }
+
+    /// Returns sorted list of all visited POI ids.
+    // Godot: PoiManager.cs VisitedIds
+    pub fn visited_ids(&self) -> Vec<String> {
+        let mut list: Vec<String> = self.visited.iter().cloned().collect();
+        list.sort();
+        list
+    }
+
+    /// Total alive or pending zombies for a specific POI.
+    pub fn remaining_zombies(&self, poi_id: &str) -> usize {
+        let rem = self.remaining.get(poi_id).copied().unwrap_or(0);
+        let pending = self.pending_spawns.get(poi_id).copied().unwrap_or(0);
+        rem + pending
+    }
+
+    /// Number of awake zombies currently tracked.
+    pub fn awake_count(&self) -> usize {
+        self.awake.len()
+    }
+
+    /// Test hook: marks a building woken with this many zombies, without spawning any.
+    // Godot: PoiManager.cs MarkWokenForTest
+    pub fn mark_woken_for_test(&mut self, poi_id: &str, zombies: usize) {
+        self.visited.insert(poi_id.to_string());
+        self.remaining.insert(poi_id.to_string(), zombies);
+        self.pending_spawns.insert(poi_id.to_string(), 0);
+    }
+
+    /// Wakes buildings within wake range that are not yet visited.
+    /// Returns spawn requests with world positions computed from POI position/yaw and marker offsets.
+    /// Respects the active zombie cap: buildings wait when cap would be exceeded, remaining unvisited.
+    // Godot: PoiManager.cs Tick / Wake
+    pub fn update(
+        &mut self,
+        player: Vec3,
+        sites: &[PoiZombieSite],
+        alive_zombies: usize,
+    ) -> Vec<PoiSpawn> {
+        let mut spawns = Vec::new();
+        let mut current_active = alive_zombies.max(self.awake.len());
+
+        for site in sites {
+            if self.visited.contains(&site.poi_id) {
+                continue;
+            }
+
+            let dx = player.x - site.position.x;
+            let dz = player.z - site.position.z;
+            let flat_dist = (dx * dx + dz * dz).sqrt();
+            if flat_dist > self.approach_distance {
+                continue;
+            }
+
+            let (min_z, max_z) = if let Some(def) = self.config.get(&site.building_id) {
+                (def.zombies[0], def.zombies[1])
+            } else {
+                let n = site.spawn_points.len() as i32;
+                (n, n)
+            };
+
+            let count = if min_z <= max_z && max_z > 0 {
+                let seed = crate_seed(self.world_seed, &site.poi_id);
+                let mut rng = DotnetRandom::new(seed);
+                rng.next_range(min_z, max_z + 1).max(0) as usize
+            } else {
+                0
+            };
+
+            if count > 0 && current_active + count > self.max_active_zombies {
+                continue;
+            }
+
+            self.visited.insert(site.poi_id.clone());
+
+            if count == 0 || site.spawn_points.is_empty() {
+                self.remaining.insert(site.poi_id.clone(), 0);
+                continue;
+            }
+
+            *self.pending_spawns.entry(site.poi_id.clone()).or_default() += count;
+            current_active += count;
+
+            let rot = glam::Quat::from_rotation_y(site.yaw);
+            for i in 0..count {
+                let marker = site.spawn_points[i % site.spawn_points.len()];
+                let pos = site.position + rot * marker;
+                let kind = self.pick_kind();
+                spawns.push(PoiSpawn::new(&site.poi_id, pos, kind));
+            }
+        }
+
+        spawns
+    }
+
+    /// Registers a newly spawned zombie for a building lot.
+    // Godot: PoiManager.cs NoteLeft / Wake
+    pub fn on_zombie_spawned(&mut self, poi_id: &str, zombie_id: u64) {
+        self.visited.insert(poi_id.to_string());
+        self.zombie_to_poi.insert(zombie_id, poi_id.to_string());
+        self.awake.insert(zombie_id);
+        if let Some(pending) = self.pending_spawns.get_mut(poi_id)
+            && *pending > 0
+        {
+            *pending -= 1;
+        }
+        *self.remaining.entry(poi_id.to_string()).or_default() += 1;
+    }
+
+    /// Handles a zombie death. If this was the last zombie of a building, returns `Some(cleared_poi_id)`.
+    // Godot: PoiManager.cs NoteHomeGone -> NoteLeft
+    pub fn on_zombie_died(&mut self, zombie_id: u64) -> Option<String> {
+        let poi_id = self.zombie_to_poi.remove(&zombie_id)?;
+        self.awake.remove(&zombie_id);
+
+        let rem = self.remaining.entry(poi_id.clone()).or_insert(0);
+        *rem = rem.saturating_sub(1);
+
+        let pending = self.pending_spawns.get(&poi_id).copied().unwrap_or(0);
+        if *rem == 0 && pending == 0 {
+            Some(poi_id)
+        } else {
+            None
+        }
+    }
+
+    /// Despawns a building zombie that fell too far behind. Returns `Some(cleared_poi_id)` if all are gone.
+    // Godot: PoiManager.cs NoteHomeGone (despawned zombies are gone for good, building does not wait for them)
+    pub fn on_zombie_despawned(&mut self, zombie_id: u64) -> Option<String> {
+        self.on_zombie_died(zombie_id)
+    }
+
+    /// Identifies tracked zombies that are farther than `despawn_dist` from `player`.
+    // Godot: PoiManager.cs Tick (Flat(zombie.GlobalPosition, playerPos) > far)
+    pub fn check_despawns(&self, player: Vec3, zombie_positions: &[(u64, Vec3)]) -> Vec<u64> {
+        let mut to_despawn = Vec::new();
+        for &(id, pos) in zombie_positions {
+            if self.zombie_to_poi.contains_key(&id) {
+                let dx = pos.x - player.x;
+                let dz = pos.z - player.z;
+                if (dx * dx + dz * dz).sqrt() > self.despawn_dist {
+                    to_despawn.push(id);
+                }
+            }
+        }
+        to_despawn
+    }
+
+    /// Picks a zombie type id using SpawnerRng and SpawnConfig.
+    // Godot: PoiManager.cs PickTypeId
+    pub fn pick_kind(&mut self) -> String {
+        if let Some(cfg) = &self.spawn_config {
+            cfg.pick_type_id(&mut self.spawner_rng, self.is_night).to_string()
+        } else {
+            "walker".to_string()
+        }
+    }
+
+    /// Serializes visited POIs matching Godot WorldState save format.
+    // Godot: WorldState.cs Save() -> ["visited_pois"]
+    pub fn to_save(&self) -> Value {
+        to_save_visited_pois(&self.visited)
+    }
+
+    /// Loads visited POIs matching Godot WorldState load format.
+    // Godot: WorldState.cs Load() -> SaveData.GetList(data, "visited_pois")
+    pub fn from_save(&mut self, data: &Value) {
+        self.visited = from_save_visited_pois(data);
+        self.remaining.clear();
+        self.pending_spawns.clear();
+        self.zombie_to_poi.clear();
+        self.awake.clear();
+    }
+}
+
+impl Default for PoiZombies {
+    fn default() -> Self {
+        Self::new(0)
+    }
+}

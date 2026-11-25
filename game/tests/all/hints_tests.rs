@@ -200,3 +200,33 @@ fn hints_tests_save_load_round_trip() {
     assert!(!restored.request("heavy"));
     assert!(restored.request("wood"));
 }
+
+#[test]
+fn hints_tests_start_dismissed_on_leaving_camp() {
+    let config = HintConfig::load_default().expect("data/hints.json must load");
+    let mut system = HintSystem::new(config);
+    let ctx = HintContext::new();
+
+    system.on_safe_zone_changed(true);
+    let hint = system.tick(0.0, &ctx);
+    assert_eq!(hint.map(|h| h.id.as_str()), Some("start"));
+
+    // Leaving camp dismisses the "You're in a safe camp..." tip immediately.
+    system.on_safe_zone_changed(false);
+    assert_eq!(system.current_id(), None);
+    let after = system.tick(0.1, &ctx);
+    assert_ne!(after.map(|h| h.id.as_str()), Some("start"));
+}
+
+#[test]
+fn hints_tests_start_suppressed_outside_camp() {
+    let config = HintConfig::load_default().expect("data/hints.json must load");
+    let mut system = HintSystem::new(config);
+    let ctx = HintContext::new();
+
+    // Starting outside camp (e.g. --tp-rescue) never shows the safe-camp tip.
+    system.on_safe_zone_changed(false);
+    let hint = system.tick(0.0, &ctx);
+    assert_ne!(hint.map(|h| h.id.as_str()), Some("start"));
+    assert!(!system.is_shown("start"));
+}

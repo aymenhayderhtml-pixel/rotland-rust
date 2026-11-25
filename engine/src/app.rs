@@ -257,8 +257,7 @@ impl<G: Game> App<G> {
         crate::timing::mark_render_start();
         self.game.render(gpu, target, &mut encoder);
         let cursor_grabbed = self.last_cursor_grab == Some(true);
-        let mut user_cmd_bufs = Vec::new();
-        if let Some(ui) = self.ui.as_mut() {
+        let user_cmd_bufs = if let Some(ui) = self.ui.as_mut() {
             let t_ui = Instant::now();
             let cmd_bufs = ui.draw(
                 gpu,
@@ -268,9 +267,11 @@ impl<G: Game> App<G> {
                 cursor_grabbed,
                 |ctx| self.game.ui(ctx),
             );
-            user_cmd_bufs.extend(cmd_bufs);
             crate::timing::record_phase("ui/egui", t_ui.elapsed().as_secs_f64() * 1000.0);
-        }
+            cmd_bufs
+        } else {
+            Vec::new()
+        };
         blit.draw(&mut encoder, &view);
         let t_submit = Instant::now();
         gpu.queue

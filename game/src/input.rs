@@ -77,61 +77,34 @@ impl From<&crate::keybinds::KeyBindings> for InputBindings {
     }
 }
 
-/// Player input actions for one frame, mapped from raw device input.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct Actions {
-    /// Move vector: X in [-1, 1] (-1 left, +1 right), Y in [-1, 1] (-1 forward, +1 back).
-    /// Matches Godot's `Input.GetVector("move_left", "move_right", "move_forward", "move_back")`.
-    pub move_vec: Vec2,
-    /// Sprint held.
-    pub sprint: bool,
-    /// Crouch held.
-    pub crouch: bool,
-    /// Jump pressed this frame.
-    pub jump: bool,
-    /// Toggle camera pressed this frame (first/third person).
-    pub toggle_camera: bool,
-    /// Zoom delta from mouse wheel (positive = zoom in / closer, negative = zoom out / farther).
-    pub zoom: f32,
-    /// Aim held (right mouse button).
-    pub aim: bool,
-    /// Mouse delta (dx, dy) in raw device units.
-    pub look_delta: (f32, f32),
-}
+pub use game_core::actions::Actions;
 
-impl Actions {
-    /// Builds actions for the current frame from engine input and the specified key bindings.
-    pub fn from_input(input: &Input, bindings: &InputBindings) -> Self {
-        let mut x = 0.0f32;
-        let mut y = 0.0f32;
-        if input.held(bindings.move_left) {
-            x -= 1.0;
-        }
-        if input.held(bindings.move_right) {
-            x += 1.0;
-        }
-        if input.held(bindings.move_forward) {
-            y -= 1.0;
-        }
-        if input.held(bindings.move_back) {
-            y += 1.0;
-        }
-
-        Self {
-            move_vec: Vec2::new(x, y),
-            sprint: input.held(bindings.sprint),
-            crouch: input.held(bindings.crouch),
-            jump: input.pressed(bindings.jump),
-            toggle_camera: input.pressed(bindings.toggle_camera),
-            zoom: input.wheel,
-            aim: input.mouse_held(bindings.aim_button),
-            look_delta: input.mouse_delta,
-        }
+/// Builds actions for the current frame from engine input and the specified key bindings.
+pub fn actions_from_input(input: &Input, bindings: &InputBindings) -> Actions {
+    let mut x = 0.0f32;
+    let mut y = 0.0f32;
+    if input.held(bindings.move_left) {
+        x -= 1.0;
+    }
+    if input.held(bindings.move_right) {
+        x += 1.0;
+    }
+    if input.held(bindings.move_forward) {
+        y -= 1.0;
+    }
+    if input.held(bindings.move_back) {
+        y += 1.0;
     }
 
-    /// Convenience helper using default key bindings.
-    pub fn from_default_input(input: &Input) -> Self {
-        Self::from_input(input, &InputBindings::default())
+    Actions {
+        move_vec: Vec2::new(x, y),
+        sprint: input.held(bindings.sprint),
+        crouch: input.held(bindings.crouch),
+        jump: input.pressed(bindings.jump),
+        toggle_camera: input.pressed(bindings.toggle_camera),
+        zoom: input.wheel,
+        aim: input.mouse_held(bindings.aim_button),
+        look_delta: input.mouse_delta,
     }
 }
 

@@ -16,7 +16,7 @@ The owner is not a programmer and does not want to learn to code. All code is wr
 | Component | Details |
 |---|---|
 | Language & Edition | **Rust 2024** cargo workspace (`Cargo.toml`, resolver = "3") |
-| Crates | `engine` (wgpu, winit, egui), `physics` (rapier3d), `game` (core gameplay logic), `world` (terrain, biomes, chunks, POIs), `pack` (binary asset formats), `baker` (.glb -> pack), `save` (save format & Godot import), `audio` (kira), `humanoid` (rigging & animation state machine), `paths` (runtime repo paths), `rotland` (main executable wiring everything together) |
+| Crates | `engine` (wgpu, winit, egui), `physics` (rapier3d), `game` (facade re-exporting `game_core`, `game_zombie`, `game_camp`, `game_player`, `game_world`), `world` (terrain, biomes, chunks, POIs), `pack` (binary asset formats), `baker` (.glb -> pack), `save` (save format & Godot import), `audio` (kira), `humanoid` (rigging & animation state machine), `paths` (runtime repo paths), `rotland_ui` (HUD, menus, camp/hub/map UI), `rotland` (main executable wiring everything together) |
 | 3D models | `.glb` files made by Blender 5.3 Python scripts in `tools/blender/`, then baked into `assets/models.pack` via `cargo run --release -p baker` |
 | Game data | Data files in `data/*.json` (items, recipes, zombies, loot tables, hints, etc.) |
 | Toolchain & Linker | `mold` linker, `target-cpu=native` configured in `.cargo/config.toml` |

@@ -4,9 +4,9 @@ use glam::{Mat4, Vec3, Vec4Swizzles};
 
 use super::camera::{ortho, view_matrix, Camera};
 
-pub const SHADOW_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+pub const SHADOW_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth16Unorm; // new: PERF R30.5
 
-/// How the sun shadow is set up. Godot's medium preset: 50 m, 2048 px.
+/// How the sun shadow is set up. 50 m, 1024 px.
 #[derive(Clone, Copy, Debug)]
 pub struct ShadowSettings {
     pub enabled: bool,
@@ -16,7 +16,7 @@ pub struct ShadowSettings {
 
 impl Default for ShadowSettings {
     fn default() -> Self {
-        Self { enabled: true, size: 2048, distance: 50.0 }
+        Self { enabled: true, size: 1024, distance: 50.0 } // new: PERF R30.5
     }
 }
 

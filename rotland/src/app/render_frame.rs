@@ -103,32 +103,36 @@ pub fn render_frame(
     // Cars: the 4x4 body plus its four wheels, driver door and tailgate as separate parts.
     // Also collects this frame's draw states for the emissive lamps and smoke VFX below.
     let car_draw_states: Vec<game::CarDrawState> = if let (Some(cars), Some(pack)) = (actors.cars.as_ref(), render.pack.as_ref()) {
+        use std::fmt::Write as _;
         let door_hinge = render.car_markers.door_hinge_l;
         let gate_hinge = render.car_markers.tailgate_hinge;
         let states = cars.draw_states();
-        let mut parts: Vec<(String, Mat4, Vec3)> = Vec::with_capacity(7);
+        let mut name_buf = String::new();
+        let mut push_part = |name: &str, matrix: Mat4, centre: Vec3| {
+            if let Some(slot) = render.library.get(&gpu.device, pack, name, false) {
+                let mut placed = render.library.place(slot, Vec3::ZERO, 0.0, 1.0);
+                placed.centre = matrix.transform_point3(centre);
+                placed.matrix = matrix;
+                beds.push(placed);
+            }
+        };
         for d in &states {
-            parts.clear();
-            parts.push((d.model_name.clone(), d.world_matrix, Vec3::new(0.0, 0.85, 0.0)));
+            push_part(&d.model_name, d.world_matrix, Vec3::new(0.0, 0.85, 0.0));
             for wheel in d.wheel_matrices {
-                parts.push(("car_wheel".to_string(), wheel, Vec3::ZERO));
+                push_part("car_wheel", wheel, Vec3::ZERO);
             }
             let door = d.world_matrix
                 * Mat4::from_translation(door_hinge)
                 * Mat4::from_rotation_y(-d.door_open * 1.10);
-            parts.push((format!("car_door_{}", d.colour), door, Vec3::new(0.0, 0.25, 0.45)));
+            name_buf.clear();
+            let _ = write!(name_buf, "car_door_{}", d.colour);
+            push_part(&name_buf, door, Vec3::new(0.0, 0.25, 0.45));
             let gate = d.world_matrix
                 * Mat4::from_translation(gate_hinge)
                 * Mat4::from_rotation_y(d.trunk_open * 1.35);
-            parts.push((format!("car_tailgate_{}", d.colour), gate, Vec3::new(-0.74, 0.15, 0.0)));
-            for (name, matrix, centre) in &parts {
-                if let Some(slot) = render.library.get(&gpu.device, pack, name, false) {
-                    let mut placed = render.library.place(slot, Vec3::ZERO, 0.0, 1.0);
-                    placed.centre = matrix.transform_point3(*centre);
-                    placed.matrix = *matrix;
-                    beds.push(placed);
-                }
-            }
+            name_buf.clear();
+            let _ = write!(name_buf, "car_tailgate_{}", d.colour);
+            push_part(&name_buf, gate, Vec3::new(-0.74, 0.15, 0.0));
         }
         states
     } else {
@@ -474,7 +478,8 @@ pub fn render_frame(
         world,
         actors.player,
     );
-    drop((main, shadow, items));
+    drop(items);
+    crate::props::recycle_batches(main, shadow);
     if let (Some(bench), Some(r)) = (session.bench.as_mut(), render.renderer.as_ref()) {
         bench.step_frame(session.last_dt, &r.last, &mut session.quit);
     }

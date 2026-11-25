@@ -3,6 +3,13 @@
 All commands are run from the repo root. Heavy commands use the shared build
 folder `/home/aymen/Documents/rotland-rust/target` and `/tmp/rotland-heavy.lock`.
 
+## Build & performance scripts
+
+- `cargo build --profile play` — fast incremental play build (`target/play/rotland`), recommended for daily playtesting.
+- `cargo build --profile dist` — full LTO shipping/benchmark build (`target/dist/rotland`).
+- `tools/build_speed.sh [--release] [--out <file>]` — measures 1-line incremental build, test, clippy, and release/play build times.
+- `tools/perf_scenes.sh [--bin <path>] [--seconds <n>] [--out <file>]` — benchmarks 5 scenes (`camp`, `forest`, `city`, `night`, `zombies`) and prints avg FPS, 1% low, worst frame ms, and draw calls.
+
 ## `tools/gate.sh` — the only build command a worker runs
 
 ```bash

@@ -228,7 +228,7 @@ pub fn process_input(
     let mut actions = if dev_typing {
         Actions::default()
     } else {
-        Actions::from_input(input, &keys.movement)
+        game::input::actions_from_input(input, &keys.movement)
     };
     // V cycles the car camera while driving; the on-foot camera toggle waits until you're out
     if in_car {

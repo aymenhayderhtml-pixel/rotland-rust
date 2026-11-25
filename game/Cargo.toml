@@ -5,6 +5,11 @@ version.workspace = true
 
 [dependencies]
 engine = { path = "../engine" }
+game_core = { path = "../game_core" }
+game_zombie = { path = "../game_zombie" }
+game_camp = { path = "../game_camp" }
+game_player = { path = "../game_player" }
+game_world = { path = "../game_world" }
 physics = { path = "../physics" }
 paths = { path = "../paths" }
 world = { path = "../world" }

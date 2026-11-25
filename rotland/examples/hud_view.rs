@@ -1,13 +1,9 @@
 //! Visual test example for the Rotland HUD over a plain sky-blue background.
 //! Run with `--shot=shots/hud.png` to take a screenshot.
 
-#[path = "../src/hud/mod.rs"]
-#[allow(dead_code)]
-mod hud;
-
 use engine::egui;
 use engine::{EngineArgs, FrameTarget, Game, Gpu, Input};
-use hud::{HotbarSlot, HudState};
+use rotland_ui::hud::{self, HotbarSlot, HudState};
 
 struct HudView {
     state: HudState,

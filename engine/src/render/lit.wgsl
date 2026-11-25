@@ -59,8 +59,8 @@ fn spot_lights(world: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
 @group(0) @binding(1) var shadow_map: texture_depth_2d;
 @group(0) @binding(2) var shadow_sampler: sampler_comparison;
 
-// Sun shadow: 1 = lit, 0 = shadowed. 4 hardware-filtered taps (each tap already blends 2x2 texels),
-// so edges are soft for the price of 4 samples. Fades out toward the shadow distance like Godot.
+// Sun shadow: 1 = lit, 0 = shadowed. 1 hardware-filtered 2x2 PCF tap.
+// Fades out toward the shadow distance like Godot.
 fn sun_shadow(world: vec3<f32>, n: vec3<f32>, dist: f32) -> f32 {
     if (scene.shadow.x < 0.5) {
         return 1.0;
@@ -72,14 +72,10 @@ fn sun_shadow(world: vec3<f32>, n: vec3<f32>, dist: f32) -> f32 {
     if (any(uv < vec2(0.0)) || any(uv > vec2(1.0)) || ndc.z > 1.0) {
         return 1.0;
     }
-    let t = scene.shadow.y;
-    var lit = 0.0;
-    lit += textureSampleCompareLevel(shadow_map, shadow_sampler, uv + vec2(-0.5, -0.5) * t, ndc.z);
-    lit += textureSampleCompareLevel(shadow_map, shadow_sampler, uv + vec2(0.5, -0.5) * t, ndc.z);
-    lit += textureSampleCompareLevel(shadow_map, shadow_sampler, uv + vec2(-0.5, 0.5) * t, ndc.z);
-    lit += textureSampleCompareLevel(shadow_map, shadow_sampler, uv + vec2(0.5, 0.5) * t, ndc.z);
+    // new: PERF R30.5
+    let lit = textureSampleCompareLevel(shadow_map, shadow_sampler, uv, ndc.z);
     let fade = smoothstep(scene.shadow.z, scene.shadow.w, dist);
-    return mix(lit * 0.25, 1.0, fade);
+    return mix(lit, 1.0, fade);
 }
 
 fn srgb_to_linear(c: vec3<f32>) -> vec3<f32> {
@@ -165,7 +161,8 @@ fn shade_fragment(i: VsOut) -> vec4<f32> {
     let dist = distance(i.world, scene.camera_pos.xyz);
     let ndl = max(dot(n, scene.sun_dir.xyz), 0.0);
     var shade = 1.0;
-    if (ndl > 0.0) {
+    // new: PERF R30.5
+    if (ndl > 0.0 && scene.sun_dir.w > 0.001) {
         shade = sun_shadow(i.world, n, dist);
     }
     let sun = scene.sun_color.rgb * scene.sun_dir.w * ndl * shade;
