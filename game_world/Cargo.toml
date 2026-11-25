@@ -1,0 +1,17 @@
+[package]
+name = "game_world"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+game_core = { path = "../game_core" }
+game_zombie = { path = "../game_zombie" }
+game_camp = { path = "../game_camp" }
+game_player = { path = "../game_player" }
+physics = { path = "../physics" }
+paths = { path = "../paths" }
+world = { path = "../world" }
+serde.workspace = true
+serde_json.workspace = true
+glam.workspace = true
+pack.workspace = true

@@ -2,7 +2,8 @@
 //! and shadow rules (ScatterConfig.RangeFor, ChunkProps.ShouldCastShadow). Models load from the pack on
 //! first use. Static instances use joint 0 of the bone list, which is always the identity.
 
-use std::collections::HashMap;
+use std::cell::RefCell;
+use std::collections::{HashMap, VecDeque};
 
 use engine::render::frustum::Frustum;
 use engine::render::{Camera, GpuMesh, SkinInstance, SkinnedBatch};
@@ -111,6 +112,8 @@ pub struct PropModel {
     lods: Vec<GpuMesh>,
     /// Where each LOD stops being used (the last one is the visibility range).
     ends: Vec<f32>,
+    /// Dither cross-fade band width (0.0 disables dither-fade so the fast non-discard pipeline is used).
+    fade_band: f32,
     casts_shadow: bool,
     radius: f32,
     /// Height of the model's middle above its origin (origins sit on the ground).
@@ -125,6 +128,10 @@ pub struct Placed {
     pub centre: Vec3,
 }
 
+fn is_ground(id: &str) -> bool {
+    ["grass_", "flowers_", "fern", "mushrooms"].iter().any(|p| id.starts_with(p))
+}
+
 fn range_for(id: &str) -> f32 {
     let starts = |p: &str| id.starts_with(p);
     if starts("tree_") || starts("pine_") {
@@ -133,7 +140,7 @@ fn range_for(id: &str) -> f32 {
         ROCK
     } else if starts("bush_") {
         BUSH
-    } else if starts("grass_") || starts("flowers_") || starts("fern") || starts("mushrooms") {
+    } else if is_ground(id) {
         GROUND
     } else {
         PROP
@@ -141,7 +148,61 @@ fn range_for(id: &str) -> f32 {
 }
 
 fn casts_shadow(id: &str) -> bool {
-    !["grass_", "flowers_", "fern", "mushrooms", "rock_", "bush_"].iter().any(|p| id.starts_with(p))
+    !is_ground(id) && !id.starts_with("rock_") && !id.starts_with("bush_")
+}
+
+const MAX_POOLED_BATCH_VECS: usize = 256; // new: PERF R30.5
+const LARGE_BATCH_THRESHOLD: usize = 64; // new: PERF R30.5
+
+#[derive(Default)]
+struct BatchScratch {
+    main: Vec<Vec<SkinInstance>>,
+    shadow: Vec<Vec<SkinInstance>>,
+    last_main_len: Vec<usize>,
+    last_shadow_len: Vec<usize>,
+    pool: VecDeque<Vec<SkinInstance>>,
+}
+
+impl BatchScratch {
+    fn take_vec(&mut self, last_len: usize) -> Vec<SkinInstance> {
+        let mut v = if last_len >= LARGE_BATCH_THRESHOLD {
+            self.pool.pop_back()
+        } else {
+            self.pool.pop_front()
+        }
+        .unwrap_or_default();
+        v.clear();
+        let target_cap = last_len.max(4); // new: PERF R30.5
+        if v.capacity() < target_cap {
+            v.reserve(target_cap - v.capacity());
+        }
+        v
+    }
+
+    fn recycle_vec(&mut self, mut v: Vec<SkinInstance>) {
+        if v.capacity() > 0 && self.pool.len() < MAX_POOLED_BATCH_VECS {
+            v.clear();
+            self.pool.push_back(v);
+        }
+    }
+}
+
+thread_local! {
+    static BATCH_SCRATCH: RefCell<BatchScratch> = RefCell::new(BatchScratch::default());
+}
+
+/// Returns `SkinnedBatch` instance buffers to the thread-local pool for reuse next frame.
+pub fn recycle_batches(main: Vec<SkinnedBatch<'_>>, shadow: Vec<SkinnedBatch<'_>>) {
+    BATCH_SCRATCH.with(|cell| {
+        let mut s = cell.borrow_mut();
+        for b in main {
+            s.recycle_vec(b.instances);
+        }
+        for b in shadow {
+            s.recycle_vec(b.instances);
+        }
+        s.pool.make_contiguous().sort_unstable_by_key(|v| v.capacity());
+    });
 }
 
 /// Every model used so far, by name.
@@ -149,6 +210,10 @@ fn casts_shadow(id: &str) -> bool {
 pub struct PropLibrary {
     models: Vec<PropModel>,
     index: HashMap<String, Option<usize>>,
+    /// Starting flat LOD index for each model in `models`.
+    first_slot: Vec<usize>,
+    /// Flat LOD index -> (model index, lod index).
+    lod_map: Vec<(usize, usize)>,
 }
 
 impl PropLibrary {
@@ -158,8 +223,14 @@ impl PropLibrary {
             return *slot;
         }
         let slot = load_model(device, pack, id, building).map(|m| {
+            let model_idx = self.models.len();
+            let start = self.lod_map.len();
+            self.first_slot.push(start);
+            for lod_idx in 0..m.lods.len() {
+                self.lod_map.push((model_idx, lod_idx));
+            }
             self.models.push(m);
-            self.models.len() - 1
+            model_idx
         });
         if slot.is_none() {
             log::warn!("model {id} is not in the pack");
@@ -184,41 +255,88 @@ impl PropLibrary {
         shadow_distance: f32,
     ) -> (Vec<SkinnedBatch<'a>>, Vec<SkinnedBatch<'a>>) {
         let frustum = Frustum::from_view_proj(&camera.view_proj(aspect));
-        let mut first_slot = Vec::with_capacity(self.models.len());
-        let mut lod_count = 0;
-        for m in &self.models {
-            first_slot.push(lod_count);
-            lod_count += m.lods.len();
-        }
-        let mut main: Vec<Vec<SkinInstance>> = vec![Vec::new(); lod_count];
-        let mut shadow: Vec<Vec<SkinInstance>> = vec![Vec::new(); lod_count];
-        for p in placed {
-            let m = &self.models[p.model];
-            let dist = p.centre.distance(camera.position);
-            let fades = lod_fade(dist, &m.ends, FADE);
-            if fades.is_empty() {
-                continue;
+        let lod_count = self.lod_map.len();
+        BATCH_SCRATCH.with(|cell| {
+            let mut scratch = cell.borrow_mut();
+            let scratch = &mut *scratch;
+            scratch.main.resize_with(lod_count, Vec::new);
+            scratch.shadow.resize_with(lod_count, Vec::new);
+            scratch.last_main_len.resize(lod_count, 0);
+            scratch.last_shadow_len.resize(lod_count, 0);
+            for v in &mut scratch.main {
+                v.clear();
             }
-            let r = Vec3::splat(m.radius);
-            if frustum.intersects_aabb(p.centre - r, p.centre + r) {
-                for &(lod, fade, complementary) in &fades {
-                    let inst = SkinInstance::with_fade(p.matrix, 0, fade, complementary);
-                    main[first_slot[p.model] + lod].push(inst);
+            for v in &mut scratch.shadow {
+                v.clear();
+            }
+
+            for p in placed {
+                let m = &self.models[p.model];
+                let dist = p.centre.distance(camera.position);
+                let fades = lod_fade(dist, &m.ends, m.fade_band);
+                if fades.is_empty() {
+                    continue;
+                }
+                let base_slot = self.first_slot[p.model];
+                let r = Vec3::splat(m.radius);
+                if frustum.intersects_aabb(p.centre - r, p.centre + r) {
+                    for &(lod, fade, complementary) in &fades {
+                        let slot = base_slot + lod;
+                        if scratch.main[slot].is_empty() && scratch.main[slot].capacity() == 0 {
+                            let last_len = scratch.last_main_len[slot];
+                            let v = scratch.take_vec(last_len);
+                            scratch.main[slot] = v;
+                        }
+                        scratch.main[slot].push(SkinInstance::with_fade(p.matrix, 0, fade, complementary));
+                    }
+                }
+                // Like Godot: only the near versions cast shadows, and only inside the shadow distance.
+                // During fade, only the nearer LOD casts the shadow (no double shadows).
+                let nearer_lod = fades[0].0;
+                if m.casts_shadow && nearer_lod < 2 && dist < shadow_distance + m.radius {
+                    let slot = base_slot + nearer_lod;
+                    if scratch.shadow[slot].is_empty() && scratch.shadow[slot].capacity() == 0 {
+                        let last_len = scratch.last_shadow_len[slot];
+                        let v = scratch.take_vec(last_len);
+                        scratch.shadow[slot] = v;
+                    }
+                    scratch.shadow[slot].push(SkinInstance::new(p.matrix, 0));
                 }
             }
-            // Like Godot: only the near versions cast shadows, and only inside the shadow distance.
-            // During fade, only the nearer LOD casts the shadow (no double shadows).
-            let nearer_lod = fades[0].0;
-            if m.casts_shadow && nearer_lod < 2 && dist < shadow_distance + m.radius {
-                let inst = SkinInstance::new(p.matrix, 0);
-                shadow[first_slot[p.model] + nearer_lod].push(inst);
+
+            let main_count = scratch.main.iter().filter(|v| !v.is_empty()).count();
+            let shadow_count = scratch.shadow.iter().filter(|v| !v.is_empty()).count();
+            let mut main_batches = Vec::with_capacity(main_count);
+            let mut shadow_batches = Vec::with_capacity(shadow_count);
+
+            for (i, &(model_idx, lod_idx)) in self.lod_map.iter().enumerate() {
+                let mesh = &self.models[model_idx].lods[lod_idx];
+                if !scratch.main[i].is_empty() {
+                    let instances = std::mem::take(&mut scratch.main[i]);
+                    scratch.last_main_len[i] = instances.len();
+                    main_batches.push(SkinnedBatch { mesh, instances });
+                } else {
+                    scratch.last_main_len[i] = 0;
+                    if scratch.main[i].capacity() > 0 {
+                        let v = std::mem::take(&mut scratch.main[i]);
+                        scratch.recycle_vec(v);
+                    }
+                }
+                if !scratch.shadow[i].is_empty() {
+                    let instances = std::mem::take(&mut scratch.shadow[i]);
+                    scratch.last_shadow_len[i] = instances.len();
+                    shadow_batches.push(SkinnedBatch { mesh, instances });
+                } else {
+                    scratch.last_shadow_len[i] = 0;
+                    if scratch.shadow[i].capacity() > 0 {
+                        let v = std::mem::take(&mut scratch.shadow[i]);
+                        scratch.recycle_vec(v);
+                    }
+                }
             }
-        }
-        let meshes: Vec<&GpuMesh> = self.models.iter().flat_map(|m| m.lods.iter()).collect();
-        let to_batches = |lists: Vec<Vec<SkinInstance>>| {
-            lists.into_iter().enumerate().filter(|(_, v)| !v.is_empty()).map(|(i, instances)| SkinnedBatch { mesh: meshes[i], instances }).collect()
-        };
-        (to_batches(main), to_batches(shadow))
+
+            (main_batches, shadow_batches)
+        })
     }
 }
 
@@ -237,9 +355,10 @@ fn load_model(device: &wgpu::Device, pack: &pack::ModelPack, id: &str, building:
         2 => vec![BUSH_LOD1, range],
         _ => vec![range],
     };
+    let fade_band = if !building && is_ground(id) { 0.0 } else { FADE }; // new: PERF R30.5
     let radius = (Vec3::from(full.bounds_max) - Vec3::from(full.bounds_min)).length() * 0.5 * 1.4;
     let center_y = (full.bounds_min[1] + full.bounds_max[1]) * 0.5;
-    Some(PropModel { lods, ends, casts_shadow: building || casts_shadow(id), radius, center_y })
+    Some(PropModel { lods, ends, fade_band, casts_shadow: building || casts_shadow(id), radius, center_y })
 }
 
 #[cfg(test)]
@@ -371,5 +490,55 @@ mod tests {
         assert_eq!(f_batches.len(), 1);
         assert_eq!(n_batches[0].instances.len(), 2);
         assert_eq!(f_batches[0].instances.len(), 2);
+    }
+
+    #[test]
+    fn test_lod_fade_zero_band_never_fades() {
+        let ends = [28.0, 65.0];
+        for d in [0.0, 23.0, 28.0, 33.0, 64.9] {
+            let res = lod_fade(d, &ends, 0.0);
+            assert_eq!(res.len(), 1);
+            let (_, fade, comp) = res[0];
+            assert_eq!(fade, 1.0);
+            assert!(!comp);
+        }
+        assert!(lod_fade(65.0, &ends, 0.0).is_empty());
+    }
+
+    #[test]
+    fn test_ground_and_shadow_rules() {
+        assert!(is_ground("grass_tuft_a"));
+        assert!(is_ground("flowers_white"));
+        assert!(is_ground("fern"));
+        assert!(is_ground("mushrooms"));
+        assert!(!is_ground("bush_01"));
+        assert!(!is_ground("tree_pine_01"));
+
+        assert!(!casts_shadow("grass_tuft_a"));
+        assert!(!casts_shadow("flowers_yellow"));
+        assert!(!casts_shadow("fern"));
+        assert!(!casts_shadow("mushrooms"));
+        assert!(!casts_shadow("rock_01"));
+        assert!(!casts_shadow("bush_01"));
+        assert!(casts_shadow("tree_pine_01"));
+    }
+
+    #[test]
+    fn test_batch_scratch_reuses_capacity() {
+        let mut scratch = BatchScratch::default();
+        let mut big = Vec::with_capacity(128);
+        big.push(SkinInstance::new(Mat4::IDENTITY, 0));
+        scratch.recycle_vec(big);
+        let small = Vec::with_capacity(8);
+        scratch.recycle_vec(small);
+        scratch.pool.make_contiguous().sort_unstable_by_key(|v| v.capacity());
+
+        let reused_big = scratch.take_vec(100);
+        assert!(reused_big.is_empty());
+        assert!(reused_big.capacity() >= 128);
+
+        let reused_small = scratch.take_vec(2);
+        assert!(reused_small.is_empty());
+        assert!(reused_small.capacity() >= 8);
     }
 }

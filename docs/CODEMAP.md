@@ -45,8 +45,14 @@ Topological dependency order (from lowest foundation to top-level game):
 7. audio          - Sound registry, 3D math, and mixer (depends on: paths)
 8. engine         - wgpu renderer, winit app, egui UI (depends on: pack)
 9. humanoid       - Skeletal animation blend & weapon hold (depends on: paths, engine, pack)
-10. game          - Pure gameplay systems & simulation (depends on: engine, physics, paths, world, pack)
-11. rotland       - Executable & wiring (depends on: paths, engine, pack, world, physics, game, save, audio, humanoid)
+10. game_core      - Pure core gameplay types, items, loot, skills, hints (depends on: paths, pack, world, physics)
+11. game_zombie    - Zombie AI, flowfield, horde, director, spawner, POI zombies (depends on: game_core, paths, pack, world, physics)
+12. game_camp      - Camp, guards, upgrades, guild, economy, bounties, building, farming, crafting, map (depends on: game_core, paths, pack, world, physics)
+13. game_player    - Player controller, survival, ladders, vault, fishing, trees, vehicles, downed, guns (depends on: game_core, paths, pack, world, physics)
+14. game_world     - Melee, gun fire, projectiles, animals, dogs (depends on: game_core, game_zombie, game_camp, game_player, paths, pack, world, physics)
+15. game           - Thin facade re-exporting `game_*` + camera_rig, input, keybinds (depends on: engine, game_*, physics, paths, world, pack)
+16. rotland_ui     - egui HUD, menus, camp/hub/map UI, settings (depends on: paths, engine, pack, world, game, save)
+17. rotland        - Executable & wiring (depends on: paths, engine, pack, world, physics, game, rotland_ui, save, audio, humanoid)
 ```
 
 ### Runtime File Locations

@@ -228,6 +228,7 @@ impl Streamer {
         }
         let mut ladders = Vec::new();
         let mut trees = Vec::new();
+        let mut static_props = Vec::new();
         for (i, (id, position, yaw, scale, building)) in models.into_iter().enumerate() {
             // Props come first in `models`, so i is the prop index for them
             let tree = i < b.props.len() && b.props[i].is_tree();
@@ -243,18 +244,30 @@ impl Streamer {
                 placed_at = Some(placed.len());
                 placed.push(library.place(slot, position, yaw, scale));
             }
-            let shapes = self.shapes_of(pack, id).clone();
-            let mut collider = None;
-            if !shapes.is_empty() {
-                let h = physics.add_static_deferred(&shapes, position, yaw, scale);
-                if tree {
-                    collider = Some(h);
-                } else {
-                    colliders.push(h);
-                }
-            }
             if tree {
+                let shapes = self.shapes_of(pack, id).clone();
+                let collider = if !shapes.is_empty() {
+                    Some(physics.add_static_deferred(&shapes, position, yaw, scale))
+                } else {
+                    None
+                };
                 trees.push(TreeSlot { index: i, model: id.to_string(), position, yaw, scale, placed: placed_at, collider });
+            } else {
+                self.shapes_of(pack, id);
+                static_props.push((id, position, yaw, scale));
+            }
+        }
+        if !static_props.is_empty() {
+            let h = physics.add_static_compound_deferred(
+                static_props.iter().filter_map(|&(id, pos, yaw, scale)| {
+                    self.shapes
+                        .get(id)
+                        .filter(|s| !s.is_empty())
+                        .map(|s| (s.as_slice(), pos, yaw, scale))
+                }),
+            );
+            if h != ColliderHandle::invalid() {
+                colliders.push(h);
             }
         }
         let origin = Vec3::new(b.coord.x as f32, 0.0, b.coord.y as f32) * WorldGenerator::CHUNK_SIZE;

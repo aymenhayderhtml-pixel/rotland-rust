@@ -50,7 +50,7 @@ impl Gpu {
         log::info!("present modes: {modes:?}");
         // Uncapped: Mailbox (no tearing) first, then Immediate. Wayland may offer only Fifo (capped).
         config.present_mode = Self::choose_present_mode(&modes, vsync);
-        config.desired_maximum_frame_latency = 2;
+        config.desired_maximum_frame_latency = 1; // new: PERF R30.5
         surface.configure(&device, &config);
         Self {
             surface,

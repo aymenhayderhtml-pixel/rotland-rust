@@ -1,6 +1,24 @@
 [workspace]
 resolver = "3"
-members = ["engine", "rotland", "pack", "baker", "world", "physics", "game", "humanoid", "paths", "save", "audio"]
+members = [
+    "engine",
+    "rotland",
+    "rotland_ui",
+    "pack",
+    "baker",
+    "world",
+    "physics",
+    "game",
+    "game_core",
+    "game_zombie",
+    "game_camp",
+    "game_player",
+    "game_world",
+    "humanoid",
+    "paths",
+    "save",
+    "audio",
+]
 
 [workspace.package]
 edition = "2024"
@@ -26,16 +44,52 @@ egui = { version = "0.37", features = ["default_fonts"] }  # 0.37 ships no font 
 egui-wgpu = "0.37"
 egui-winit = { version = "0.37", default-features = false, features = ["wayland", "x11"] }  # no clipboard: its Wayland thread crashed on quit (smithay-clipboard)
 
-# Fast builds while working: our code lightly optimised, libraries fully optimised
+# Fast builds while working: our code unoptimised, libraries & hot crates optimised
 [profile.dev]
-opt-level = 1
+opt-level = 0
 # Line numbers only (enough for crash reports): far smaller test binaries and much faster linking
 debug = "line-tables-only"
 split-debuginfo = "unpacked"
+incremental = true
 
 [profile.dev.package."*"]
 opt-level = 3
 debug = false
+
+[profile.dev.package.world]
+opt-level = 2
+
+[profile.dev.package.humanoid]
+opt-level = 2
+
+[profile.dev.package.physics]
+opt-level = 2
+
+[profile.dev.package.engine]
+opt-level = 2
+
+[profile.dev.package.game_zombie]
+opt-level = 2
+
+# Daily play-testing: fast incremental builds, ~95% of peak FPS
+[profile.play]
+inherits = "release"
+opt-level = 3
+lto = false
+codegen-units = 16
+incremental = true
+debug = "line-tables-only"
+panic = "abort"
+
+# Final / benchmark / shipping builds: maximum performance
+[profile.dist]
+inherits = "release"
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+incremental = false
+panic = "abort"
+debug = "line-tables-only"
 
 # The build the owner plays and the benchmarks use
 [profile.release]

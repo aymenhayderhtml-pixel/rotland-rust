@@ -17,6 +17,7 @@ world = { path = "../world" }
 rayon.workspace = true
 physics = { path = "../physics" }
 game = { path = "../game" }
+rotland_ui = { path = "../rotland_ui" }
 save = { path = "../save" }
 audio = { path = "../audio" }
 humanoid = { path = "../humanoid" }

@@ -1,0 +1,19 @@
+[package]
+name = "rotland_ui"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+paths = { path = "../paths" }
+engine = { path = "../engine" }
+glam.workspace = true
+log.workspace = true
+winit.workspace = true
+pack = { path = "../pack" }
+world = { path = "../world" }
+game = { path = "../game" }
+save = { path = "../save" }
+serde.workspace = true
+serde_json.workspace = true
+egui.workspace = true
+image.workspace = true
