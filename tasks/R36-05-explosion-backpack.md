@@ -1,7 +1,7 @@
-# R35-05: explosion effect + backpack you can see
+# R36-05: explosion effect + backpack you can see
 
 Owns: rotland/src/explosion_view.rs, rotland/src/backpack_view.rs, rotland/src/player_visual.rs, data/effects.json (new or existing: explosion numbers), tools/blender/props/explosion_puff.py (new, optional), assets/models/props/explosion_puff.glb (optional)
-Rules: `tasks/R35-common.md`.
+Rules: `tasks/R36-common.md`.
 
 **1. Explosion (`rotland/src/explosion_view.rs`):** `ExplosionView` with `spawn(&mut self, pos: Vec3, radius: f32)`, `update(dt)` and a draw method that fits how other small effect views draw (look at `rotland/src/bubbles.rs` or `projectiles_view.rs` for the pattern). The look:
 - a bright flash light (warm orange, radius 3x the blast radius, fades over 0.25 s)

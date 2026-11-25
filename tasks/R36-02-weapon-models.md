@@ -1,7 +1,7 @@
-# R35-02: models + icons for the new weapons
+# R36-02: models + icons for the new weapons
 
 Owns: tools/blender/weapons/revolver.py, tools/blender/weapons/hunting_rifle.py, tools/blender/weapons/crossbow.py, tools/blender/weapons/crossbow_bolt.py, tools/blender/weapons/grenade.py, tools/blender/weapons/build_weapons.py, assets/models/weapons/*, tools/blender/icons/*, assets/icons/*
-Rules: `tasks/R35-common.md`. Also use the `blender-art` skill rules if you have them. Copy the style of `tools/blender/weapons/pistol.py`, `rifle.py` and `bow.py`: same scale, same palette approach, the same origin and grip point convention (the grip at the origin, the barrel pointing the same way as `pistol.py`).
+Rules: `tasks/R36-common.md`. Also use the `blender-art` skill rules if you have them. Copy the style of `tools/blender/weapons/pistol.py`, `rifle.py` and `bow.py`: same scale, same palette approach, the same origin and grip point convention (the grip at the origin, the barrel pointing the same way as `pistol.py`).
 
 Make low-poly models (each under ~600 triangles):
 - **revolver:** pistol-sized, round 6-shot cylinder, wooden grip, long barrel.
@@ -13,6 +13,6 @@ Add them to `build_weapons.py`. Also add inventory icons the same way the other 
 
 **Lead builds ONCE (subagent doesn't):**
 ```bash
-flock /tmp/rotland-blender.lock blender -b --python tools/blender/weapons/build_weapons.py > /tmp/r35-weapons.log 2>&1; grep -c Traceback /tmp/r35-weapons.log   # 0
+flock /tmp/rotland-blender.lock blender -b --python tools/blender/weapons/build_weapons.py > /tmp/r36-weapons.log 2>&1; grep -c Traceback /tmp/r36-weapons.log   # 0
 ```
 Then run the icon build (whatever command `tools/blender/icons/` uses), and look at `assets/models/_previews/` pictures of the 5 new models.
