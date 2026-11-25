@@ -1,6 +1,6 @@
 # STATUS (read this first; keep it under ~80 lines)
 
-Updated: 2026-11-25 by Claude (after R29).
+Updated: 2026-11-25 by Claude (after R30).
 
 ## Where we are
 - Version 0.1 = Godot parity in Rust, done (R0-R10). History: `docs/archive/RUST_QUEUE.md`.
@@ -29,7 +29,7 @@ Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zomb
 
 - 2026-11-24: A12 actions, A13 melee v2 (combos, weapon weight, shove tap / block hold, DECISIONS 2026-11-24), A14 directional flinch, running-legs fix (foot IK off at run). R27 (6 Gemini lanes via Antigravity, prompts in tasks/R27-prompts.md): A15 wounds, A16 directional deaths, A18 teammates/guards on the new animator, guild deliver/explore hooks, Task-ready overlap + specials.rs split, city z-fight. 1033 tests. Not yet seen in game: block pose with the bat, combos, wounds, deaths, teammate weapons, guild hand-in.
 - 2026-11-25: R28 (prompts in tasks/R28-prompts.md): A20 finger bones (humans 30 bones, zombies 22) + grip layer (humanoid/src/grip.rs, data/grips.json); clip polish (poses_polish.py: ladder, limp, hold_side/arm, downed_crawl); pose screenshot flags --pose/--weapon/--cam-yaw/--block/--sprint (tools/README_TOOLS.md). 1042 tests. Block, crawl, ladder, sprint checked by screenshot.
-- 2026-11-25: R29 (first single-lead Hydrogen round, tasks/R29-prompt.md): downed/crawl/revive (game/src/downed.rs, data/downed.json), rescue survivors in houses (game/src/rescue*.rs, data/rescue.json), solid guard tower legs/rails (issue 003). 1061 tests. R30 prompt ready: tasks/R30-prompt.md.
+- 2026-11-25: R29 (first single-lead Hydrogen round, tasks/R29-prompt.md): downed/crawl/revive (game/src/downed.rs, data/downed.json), rescue survivors in houses (game/src/rescue*.rs, data/rescue.json), solid guard tower legs/rails (issue 003). 1061 tests. R30: test flags --down-at/--team/--tp-rescue/--hold-e (use --shot-frame=N for later shots), rescued survivors start at their spot, revive_kneel clip, chunk-stream physics stutter fix (docs/PERF_R30.md), 5 big files split. 1068 tests. Next: R30.5 speed round (tasks/R30.5-prompt.md, master rules tasks/LEAD.md), then R31 weapons (paths to update after the crate split).
 - Animation plan done. Downed/revive not started (owner decision).
 
 ## Next (from PLAN_0.2.md)
