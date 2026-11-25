@@ -179,7 +179,7 @@ impl CityGround {
         road: &[Vec2],
         settlements: &[SettlementSite],
         settlement_cfg: &SettlementConfigData,
-        raw_height: &impl Fn(f32, f32) -> f32,
+        raw_height: &dyn Fn(f32, f32) -> f32,
     ) -> f32 {
         if road.len() < 2 {
             return raw;

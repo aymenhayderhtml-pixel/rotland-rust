@@ -29,3 +29,104 @@ Rules: `tasks/LEAD.md` subagent rules. Use the "R31 shared names" in `tasks/R31-
    - tier-3 crates roll more items than tier-1 with the same seed.
 
 ## Worker notes
+
+## Neon notes
+
+### What was wired
+
+* **`world/src/scatter.rs`**:
+* Added `ScatterPlacer::is_core_chunk` (true when all 4 corners of the chunk square have `biome_sample(x, z).outer <= 0.0`).
+* Added `ScatterPlacer::place_with_registry(generator, config, registry, coord)`:
+* **Golden safety**: when `is_core_chunk` is true, it immediately returns `ScatterPlacer::place(generator, config, coord)`, executing the exact legacy Forest/Plains loop and `DotnetRandom` calls in the exact same order.
+* **Edge-crossing chunks**: splits the 8×8 coverage grid into core samples (`outer <= 0.0`) and outer samples (`outer > 0.0`). Core rules run only for candidates with `outer <= 0.0`; outer rules from `BiomeRegistry::get(biome).scatter` run only for candidates with `outer > 0.0`, sharing `placed`/`spacing` so nothing overlaps across the boundary.
+* **Outer chunks**: uses `BiomeRegistry::get(primary).scatter` weighted by each biome's share of the 8×8 coverage grid.
+
+
+* Kept `ScatterPlacer::place` unchanged for backward compatibility and direct core-vs-legacy comparison tests.
+
+
+* **`world/src/poi.rs` & `data/poi.json**`:
+* `PoiPlacer::biome_weight` now looks up `def.biome.get(biome.key())` instead of hardcoding `"forest"`/`"plains"`. Core POIs remain identical.
+* Added the new biome weights to `data/poi.json` (`cabin`, `shed`, `house_small`, `barn`, `watchtower`, `gas_station`).
+
+
+* **`world/src/loot.rs`**:
+* Added `#[serde(default)] pub tier: u8` to `LootSpot` (and `LootSpot::with_tier`; kept `LootSpot::new` with `tier: 0` so existing callers keep working). `LootSpot.biome` is unchanged.
+* `LootPlacer::try_place` populates `tier` via `generator.tier(x, z)`.
+* Added `loot_rolls_bonus_for_tier` and `roll_crate_item_count` helpers.
+
+
+* **`rotland/src/streaming.rs`**:
+* Switched worker build from `world_gen.chunk_crates(coord)` to `world_gen.chunk_crates_from(coord, &pois, &props)` so `chunk_contents` runs only once per chunk.
+* Verified tree/collider routing: `PropInstance::is_tree()` matches `tree*` and `pine_*` (`pine_snow`, `tree_swamp`, `tree_desert_dead`), while `cactus_*` goes through `static_props` and receives compound colliders like rocks without being choppable.
+
+
+* **`rotland/src/props.rs`**:
+* Added `reeds`, `lily_mud_patch`, `desert_shrub`, `snow_shrub` to `is_ground` (short `GROUND` range, no shadow, no dither fade).
+* Added `is_big_rock` (`boulder_big`, `rock_cliff_01`): `TREE` range, no shadow.
+* Added `cactus_*` to `BUSH` range, no shadow.
+* `pine_snow`, `tree_swamp`, `tree_desert_dead` already match `tree_`/`pine_` (`TREE` range, casts shadow, 3 LODs).
+* Added unit tests for all new model rules.
+
+
+* **`data/scatter.json`**: left read-only (no key needed to move).
+* **`world/tests/biome_scatter_tests.rs`**: added all 5 required tests.
+
+### Required lead / shared-file wiring (files outside R31-03 ownership)
+
+1. **`world/src/generator.rs`** (owned by R31-02):
+* In `chunk_contents(&self, coord: IVec2)`, call `ScatterPlacer::place_with_registry(self, &self.scatter_config, &self.biome_registry, coord)` (using R31-02's `BiomeRegistry` field on `WorldGenerator`).
+* Add `chunk_crates_from` and delegate `chunk_crates` to it:
+```rust
+pub fn chunk_crates_from(
+    &self,
+    coord: IVec2,
+    pois: &[PoiInstance],
+    props: &[PropInstance],
+) -> Vec<crate::loot::LootSpot> {
+    let mut crates = crate::loot::LootPlacer::place(
+        self,
+        &self.scatter_config,
+        &self.poi_config,
+        coord,
+        props,
+        pois,
+    );
+    crates = crate::settlement::SettlementGround::remove_crates(
+        &self.settlements,
+        crates,
+        &self.config,
+    );
+    // Keep any existing city/lake crate filtering that chunk_crates currently applies.
+    crates
+}
+
+pub fn chunk_crates(&self, coord: IVec2) -> Vec<crate::loot::LootSpot> {
+    let (pois, props) = self.chunk_contents(coord);
+    self.chunk_crates_from(coord, &pois, &props)
+}
+
+```
+
+
+* Add a danger-tier loot bonus accessor on `WorldGenerator`, e.g.:
+```rust
+pub fn loot_rolls_bonus(&self, tier: u8) -> i32 {
+    self.layout.loot_rolls_bonus(tier) // 0 for tier == 0; tiers[tier - 1].loot_rolls_bonus outside
+}
+
+```
+
+
+
+
+2. **Crate & POI loot rolling (`rotland/src/crates.rs` / `game_core/src/loot/`, outside R31-03 ownership / shared with R31-04)**:
+* Pass `world_gen.loot_rolls_bonus(spot.tier)` when rolling crate loot for a `LootSpot`, and `world_gen.loot_rolls_bonus(world_gen.tier(poi.position.x, poi.position.z))` when rolling POI loot.
+* `LootSpot.biome` is preserved unchanged for `LootTableRegistry::for_biome(spot.biome)`.
+
+
+
+### Known risks
+
+* `world/tests/biome_scatter_tests.rs` assumes `data/world_layout.json` has a `tiers` array with integer `"loot_rolls_bonus"` fields where tier 3 > tier 1, and that `WorldGenerator::from_data_dir` loads `data/biomes.json` and `data/world_layout.json`. If R31-01 uses camelCase (`lootRollsBonus`) in `data/world_layout.json`, update the JSON key lookup in `tier_3_crates_roll_more_items_than_tier_1_with_same_seed` to match.
+* `WorldGenerator::chunk_crates_from` must be added in `world/src/generator.rs` before `rotland` and `biome_scatter_tests` compile.

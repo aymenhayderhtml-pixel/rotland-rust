@@ -14,26 +14,60 @@ pub struct LootSpot {
     pub position: Vec3,
     pub yaw: f32,
     pub biome: BiomeId,
+    /// Danger tier at this crate (0 in the core, 1..=5 outside).
+    #[serde(default)]
+    pub tier: u8,
 }
 
 impl LootSpot {
     pub fn new(crate_id: impl Into<String>, position: Vec3, yaw: f32, biome: BiomeId) -> Self {
+        Self::with_tier(crate_id, position, yaw, biome, 0)
+    }
+
+    pub fn with_tier(
+        crate_id: impl Into<String>,
+        position: Vec3,
+        yaw: f32,
+        biome: BiomeId,
+        tier: u8,
+    ) -> Self {
         Self {
             crate_id: crate_id.into(),
             position,
             yaw,
             biome,
+            tier,
         }
     }
+}
+
+/// Maps a danger tier (0 = core, 1..=N = outer tiers) to its `loot_rolls_bonus` entry.
+pub fn loot_rolls_bonus_for_tier(tier: u8, tier_bonuses: &[i32]) -> i32 {
+    if tier == 0 || tier_bonuses.is_empty() {
+        return 0; // new: DECISIONS 2026-11-25
+    }
+    let idx = (tier as usize - 1).min(tier_bonuses.len() - 1);
+    tier_bonuses[idx].max(0)
+}
+
+/// Deterministic total loot roll count for a crate or POI given its table's `[min, max]` rolls
+/// and the danger tier's `loot_rolls_bonus`.
+pub fn roll_crate_item_count(base_rolls: [i32; 2], bonus_rolls: i32, seed: i32) -> i32 {
+    let mut rng = DotnetRandom::new(seed);
+    let min_rolls = base_rolls[0].min(base_rolls[1]).max(0);
+    let max_rolls = base_rolls[0].max(base_rolls[1]).max(min_rolls);
+    let span = max_rolls - min_rolls + 1;
+    let rolled = min_rolls + if span > 1 { rng.next(span) } else { 0 };
+    rolled + bonus_rolls.max(0)
 }
 
 /// Picks loot crate spots for one chunk from seed and rules in scatter.json.
 pub struct LootPlacer;
 
 impl LootPlacer {
-    const ATTEMPTS_PER_CRATE: i32 = 20;
+    const ATTEMPTS_PER_CRATE: i32 = 20; // godot: World/LootPlacer.cs:13
     /// Keeps the crate random numbers apart from prop numbers, which use the same chunk seed.
-    const PLACEMENT_SALT: i32 = 0x3C6EF372;
+    const PLACEMENT_SALT: i32 = 0x3C6EF372; // godot: LootPlacer.cs
 
     pub fn place(
         generator: &WorldGenerator,
@@ -49,9 +83,29 @@ impl LootPlacer {
         let mut placed = Vec::new();
 
         if rng.next_double() < cfg.crate_chance_per_chunk as f64 {
-            Self::try_place(generator, scatter_config, poi_config, coord, &mut rng, cfg, props, pois, &mut placed);
+            Self::try_place(
+                generator,
+                scatter_config,
+                poi_config,
+                coord,
+                &mut rng,
+                cfg,
+                props,
+                pois,
+                &mut placed,
+            );
             if placed.len() == 1 && rng.next_double() < cfg.second_crate_chance as f64 {
-                Self::try_place(generator, scatter_config, poi_config, coord, &mut rng, cfg, props, pois, &mut placed);
+                Self::try_place(
+                    generator,
+                    scatter_config,
+                    poi_config,
+                    coord,
+                    &mut rng,
+                    cfg,
+                    props,
+                    pois,
+                    &mut placed,
+                );
             }
         }
 
@@ -94,7 +148,8 @@ impl LootPlacer {
             let crate_id = format!("{}_{}_{}", coord.x, coord.y, placed.len());
             let position = Vec3::new(x, generator.height(x, z), z);
             let biome = generator.biome(x, z);
-            placed.push(LootSpot::new(crate_id, position, yaw, biome));
+            let tier = generator.tier(x, z);
+            placed.push(LootSpot::with_tier(crate_id, position, yaw, biome, tier));
             return;
         }
     }

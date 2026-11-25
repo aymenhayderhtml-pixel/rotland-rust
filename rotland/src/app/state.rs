@@ -235,6 +235,8 @@ pub struct PlaySide {
     pub guild_panel: super::frame_guild::GuildTaskPanel,
     /// World survivor rescue state (R29-02).
     pub rescue: Option<game::rescue::RescueState>,
+    /// Region name banner when crossing biomes (R31-05).
+    pub region_banner: crate::region_banner::RegionBannerTracker,
 }
 
 impl Default for PlaySide {
@@ -258,6 +260,7 @@ impl Default for PlaySide {
             companions: super::frame_team::load_squad(),
             team: super::frame_team::TeamScratch::default(),
             guild_hooks: super::frame_guild::load_hooks(),
+            region_banner: crate::region_banner::RegionBannerTracker::default(),
             guild_panel: super::frame_guild::GuildTaskPanel::default(),
             rescue: None,
         }

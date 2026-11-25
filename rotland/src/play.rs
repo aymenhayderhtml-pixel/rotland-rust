@@ -26,6 +26,27 @@ const TOAST_SECONDS: f32 = 3.0;
 /// Seconds between two uses of food, drink or bandages (ItemUse.cs UseCooldown).
 const USE_COOLDOWN: f32 = 0.8;
 
+fn load_tier_zombie_mults() -> Vec<f32> {
+    let Ok(text) = std::fs::read_to_string(paths::repo_path("data/world_layout.json")) else {
+        return Vec::new();
+    };
+    let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return Vec::new();
+    };
+    val.get("tiers")
+        .and_then(|t| t.as_array())
+        .map(|arr| {
+            arr.iter()
+                .map(|e| {
+                    e.get("zombie_mult")
+                        .and_then(|v| v.as_f64())
+                        .map(|v| v as f32)
+                        .unwrap_or(1.0) // new: DECISIONS 2026-11-25
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
 
 pub struct PlayState {
     pub items: Arc<ItemRegistry>,
@@ -33,6 +54,7 @@ pub struct PlayState {
     pub inventory: Inventory,
     pub hotbar: Hotbar,
     spawner: Spawner,
+    tier_zombie_mults: Vec<f32>,
     loot_tables: LootTableRegistry,
     loot_state: LootState,
     pub world_items: WorldItems,
@@ -96,6 +118,7 @@ impl PlayState {
         let items = ItemRegistry::from_repo().map_err(|e| format!("data/items.json: {e:?}"))?;
         let weapons = WeaponRegistry::load(&paths::repo_path("data/weapons.json")).map_err(|e| format!("data/weapons.json: {e:?}"))?;
         let config = SpawnConfig::load_default().map_err(|e| format!("data/spawning.json: {e}"))?;
+        let tier_zombie_mults = load_tier_zombie_mults();
         let loot_tables = LootTableRegistry::from_repo().map_err(|e| format!("data/loot_tables.json: {e:?}"))?;
         let loot_multiplier = game::DifficultyConfigData::from_repo().map(|d| d.default_loot_multiplier()).unwrap_or(1.0);
         let survival = game::SurvivalData::from_repo().map_err(|e| format!("data/survival.json: {e}"))?;
@@ -118,6 +141,7 @@ impl PlayState {
             inventory,
             hotbar,
             spawner: Spawner::new(config, seed),
+            tier_zombie_mults,
             loot_tables,
             loot_state: LootState::default(),
             world_items: WorldItems::default(),
@@ -146,6 +170,16 @@ impl PlayState {
             pending_horde_events: Vec::new(),
             horde_test_spawned: false,
         })
+    }
+
+    fn tier_zombie_mult(&self, tier: u8) -> f32 {
+        if tier == 0 {
+            return 1.0; // new: DECISIONS 2026-11-25
+        }
+        self.tier_zombie_mults
+            .get((tier - 1) as usize)
+            .copied()
+            .unwrap_or(1.0) // new: DECISIONS 2026-11-25
     }
 
     /// The interaction hint at the bottom of the screen ("[E] Trade").
@@ -399,6 +433,8 @@ impl PlayState {
         let dir_out = self.director.update(&dir_input);
         let cur_dir_state = self.director.state();
 
+        let tier = world_gen.tier(player.x, player.z);
+        let tier_mult = self.tier_zombie_mult(tier);
         let ctx = SpawnContext {
             player_position: player,
             player_forward: forward,
@@ -409,7 +445,8 @@ impl PlayState {
             physics,
             ground_check: None,
             zombie_amount: 1.0,
-            biome_name: Some(if world_gen.forest_weight(player.x, player.z) > 0.5 { "forest" } else { "plains" }),
+            biome_name: Some(world_gen.biome(player.x, player.z).key()),
+            tier_mult,
             in_city,
             in_city_core,
             spawn_rate_multiplier: dir_out.spawn_rate_multiplier,

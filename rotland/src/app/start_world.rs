@@ -42,6 +42,7 @@ pub fn start_world(
     actors.combat = None;
     actors.downed.reset();
     play.play = None;
+    play.region_banner.reset();
     play.rescue = None;
     super::frame_team::reset(play);
     super::frame_guild::reset(play);

@@ -16,6 +16,7 @@ import palette
 LAYER = "pal"
 MATERIAL_NAME = "palette"
 MATERIAL_NAME_B = "palette_b"  # second sheet; only exported when a model uses a sheet B color
+MATERIAL_NAME_C = "palette_c"  # third sheet; only exported when a model uses a sheet C color
 PREVIEW_SIZE = 384
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 MODELS_DIR = os.path.join(ROOT, "assets", "models")
@@ -27,8 +28,15 @@ def reset_scene():
 
 
 def palette_material(sheet="A"):
-    """Material for palette sheet A (`palette`) or sheet B (`palette_b`). Same settings on both."""
-    name, path = (MATERIAL_NAME, palette.PNG_PATH) if sheet == "A" else (MATERIAL_NAME_B, palette.PNG_PATH_B)
+    """Material for palette sheet A (`palette`), sheet B (`palette_b`), or sheet C (`palette_c`)."""
+    sheets = {
+        "A": (MATERIAL_NAME, palette.PNG_PATH),
+        "B": (MATERIAL_NAME_B, palette.PNG_PATH_B),
+        "C": (MATERIAL_NAME_C, palette.PNG_PATH_C),
+    }
+    if sheet not in sheets:
+        raise ValueError(f"unknown palette sheet: {sheet}")
+    name, path = sheets[sheet]
     mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
     mat.use_nodes = True
     nodes = mat.node_tree.nodes
@@ -291,8 +299,12 @@ def _to_object(bm, name, painted):
     for poly in mesh.polygons:
         poly.use_smooth = False  # flat shading, the low-poly look
     if painted:
-        # Sheet A is always slot 0, so sheet-A-only models export exactly as before (one material)
-        sheets = ["A"] + (["B"] if any(palette.sheet_of_key(k) == "B" for k in keys) else [])
+        used = {palette.sheet_of_key(k) for k in keys}
+        # Preserve exact slot ordering for existing A/B models; sheet C models only attach used sheets.
+        if "C" in used:
+            sheets = [s for s in ("A", "B", "C") if s in used]
+        else:
+            sheets = ["A"] + (["B"] if "B" in used else [])
         for sheet in sheets:
             mesh.materials.append(palette_material(sheet))
         for poly, key in zip(mesh.polygons, keys):

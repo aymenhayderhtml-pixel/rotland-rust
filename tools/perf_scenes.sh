@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
-# Run the 5 benchmark scenes in release mode and print/append a markdown FPS summary table.
+# Run benchmark scenes in release mode and print/append a markdown FPS summary table.
 #
-# Usage: tools/perf_scenes.sh [--bin <path>] [--seconds <n>] [--out <file>] [--scale <f>]
+# Usage: tools/perf_scenes.sh [--bin <path>] [--seconds <n>] [--out <file>] [--scale <f>] [--set <default|biomes|all>]
 set -euo pipefail
 
 BIN="${CARGO_TARGET_DIR:-/home/aymen/Documents/rotland-rust/target}/release/rotland"
 RUN_SECONDS=30
 OUT_FILE=""
 SCALE=""
+SET="default"
 
 usage() {
-  echo "usage: tools/perf_scenes.sh [--bin <path>] [--seconds <n>] [--out <file>] [--scale <f>]"
+  echo "usage: tools/perf_scenes.sh [--bin <path>] [--seconds <n>] [--out <file>] [--scale <f>] [--set <default|biomes|all>]"
 }
 
 while [ $# -gt 0 ]; do
@@ -47,6 +48,14 @@ while [ $# -gt 0 ]; do
       SCALE="$2"
       shift 2
       ;;
+    --set)
+      if [ -z "${2:-}" ]; then
+        echo "perf_scenes: --set requires default, biomes, or all" >&2
+        exit 2
+      fi
+      SET="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -58,6 +67,16 @@ while [ $# -gt 0 ]; do
       ;;
   esac
 done
+
+case "$SET" in
+  default) SCENES=(camp forest city night zombies) ;;
+  biomes)  SCENES=(desert snow swamp mountains) ;;
+  all)     SCENES=(camp forest city night zombies desert snow swamp mountains) ;;
+  *)
+    echo "perf_scenes: unknown --set value: $SET (expected default, biomes, or all)" >&2
+    exit 2
+    ;;
+esac
 
 if [ ! -x "$BIN" ]; then
   echo "perf_scenes: binary not found or not executable: $BIN" >&2
@@ -107,8 +126,6 @@ if [ -n "$SCALE" ]; then
   COMMON_ARGS+=(--scale="$SCALE")
 fi
 
-SCENES=(camp forest city night zombies)
-
 run_scene() {
   local scene="$1"
   local stats_file="$TMPDIR/$scene.json"
@@ -116,11 +133,15 @@ run_scene() {
   local -a scene_args=()
 
   case "$scene" in
-    camp)    scene_args=(--hour=12) ;;
-    forest)  scene_args=(--scene=forest --autowalk --hour=12) ;;
-    city)    scene_args=(--at=-384,1792 --autowalk --hour=12) ;;
-    night)   scene_args=(--at=-384,1792 --hour=23 --flashlight) ;;
-    zombies) scene_args=(--zombies=50 --autowalk --hour=12) ;;
+    camp)      scene_args=(--hour=12) ;;
+    forest)    scene_args=(--scene=forest --autowalk --hour=12) ;;
+    city)      scene_args=(--at=-384,1792 --autowalk --hour=12) ;;
+    night)     scene_args=(--at=-384,1792 --hour=23 --flashlight) ;;
+    zombies)   scene_args=(--zombies=50 --autowalk --hour=12) ;;
+    desert)    scene_args=(--biome=desert --autowalk --hour=12) ;;
+    snow)      scene_args=(--biome=snow --autowalk --hour=12) ;;
+    swamp)     scene_args=(--biome=swamp --autowalk --hour=12) ;;
+    mountains) scene_args=(--biome=mountains --autowalk --hour=12) ;;
     *)
       echo "perf_scenes: unknown scene: $scene" >&2
       exit 1

@@ -10,21 +10,21 @@ use engine::render::{Camera, GpuMesh, SkinInstance, SkinnedBatch};
 use glam::{Mat4, Vec3};
 
 /// Distances from data/scatter.json "visibility".
-const TREE: f32 = 170.0;
-const TREE_LOD1: f32 = 45.0;
-const TREE_LOD2: f32 = 95.0;
-const ROCK: f32 = 80.0;
-const BUSH: f32 = 65.0;
-const BUSH_LOD1: f32 = 28.0;
-const GROUND: f32 = 35.0;
-const PROP: f32 = 120.0;
+const TREE: f32 = 170.0; // data: scatter.json visibility.tree
+const TREE_LOD1: f32 = 45.0; // data: scatter.json visibility.treeLod1
+const TREE_LOD2: f32 = 95.0; // data: scatter.json visibility.treeLod2
+const ROCK: f32 = 80.0; // data: scatter.json visibility.rock
+const BUSH: f32 = 65.0; // data: scatter.json visibility.bush
+const BUSH_LOD1: f32 = 28.0; // data: scatter.json visibility.bushLod1
+const GROUND: f32 = 35.0; // data: scatter.json visibility.ground
+const PROP: f32 = 120.0; // data: scatter.json visibility.prop
 /// Buildings stay visible to the fog line.
-const BUILDING: f32 = 220.0;
+const BUILDING: f32 = 220.0; // godot: ScatterConfig.cs
 /// Buildings switch to their simple model here (was the bush distance, 28 m, which popped up close).
-const BUILDING_LOD1: f32 = 70.0;
+const BUILDING_LOD1: f32 = 70.0; // new: PERF R30.5
 
 /// Cross-fade band width (10 m) around each LOD switch distance.
-pub const FADE: f32 = 10.0;
+pub const FADE: f32 = 10.0; // new: PERF R30.5
 
 /// Return type of `lod_fade`: up to 2 active LOD levels with their dither fade factors.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -129,16 +129,31 @@ pub struct Placed {
 }
 
 fn is_ground(id: &str) -> bool {
-    ["grass_", "flowers_", "fern", "mushrooms"].iter().any(|p| id.starts_with(p))
+    [
+        "grass_",
+        "flowers_",
+        "fern",
+        "mushrooms",
+        "reeds",
+        "lily_mud_patch",
+        "desert_shrub",
+        "snow_shrub",
+    ]
+    .iter()
+    .any(|p| id.starts_with(p))
+}
+
+fn is_big_rock(id: &str) -> bool {
+    id == "boulder_big" || id == "rock_cliff_01"
 }
 
 fn range_for(id: &str) -> f32 {
     let starts = |p: &str| id.starts_with(p);
-    if starts("tree_") || starts("pine_") {
+    if starts("tree_") || starts("pine_") || is_big_rock(id) {
         TREE
     } else if starts("rock_") {
         ROCK
-    } else if starts("bush_") {
+    } else if starts("bush_") || starts("cactus_") {
         BUSH
     } else if is_ground(id) {
         GROUND
@@ -148,7 +163,11 @@ fn range_for(id: &str) -> f32 {
 }
 
 fn casts_shadow(id: &str) -> bool {
-    !is_ground(id) && !id.starts_with("rock_") && !id.starts_with("bush_")
+    !is_ground(id)
+        && !is_big_rock(id)
+        && !id.starts_with("rock_")
+        && !id.starts_with("bush_")
+        && !id.starts_with("cactus_")
 }
 
 const MAX_POOLED_BATCH_VECS: usize = 256; // new: PERF R30.5
@@ -511,16 +530,50 @@ mod tests {
         assert!(is_ground("flowers_white"));
         assert!(is_ground("fern"));
         assert!(is_ground("mushrooms"));
+        assert!(is_ground("reeds"));
+        assert!(is_ground("lily_mud_patch"));
+        assert!(is_ground("desert_shrub"));
+        assert!(is_ground("snow_shrub"));
         assert!(!is_ground("bush_01"));
+        assert!(!is_ground("cactus_tall"));
         assert!(!is_ground("tree_pine_01"));
 
         assert!(!casts_shadow("grass_tuft_a"));
         assert!(!casts_shadow("flowers_yellow"));
         assert!(!casts_shadow("fern"));
         assert!(!casts_shadow("mushrooms"));
+        assert!(!casts_shadow("reeds"));
+        assert!(!casts_shadow("lily_mud_patch"));
+        assert!(!casts_shadow("desert_shrub"));
+        assert!(!casts_shadow("snow_shrub"));
         assert!(!casts_shadow("rock_01"));
+        assert!(!casts_shadow("rock_sandstone_01"));
+        assert!(!casts_shadow("rock_cliff_01"));
+        assert!(!casts_shadow("boulder_big"));
         assert!(!casts_shadow("bush_01"));
+        assert!(!casts_shadow("cactus_tall"));
+        assert!(!casts_shadow("cactus_round"));
         assert!(casts_shadow("tree_pine_01"));
+        assert!(casts_shadow("pine_snow"));
+        assert!(casts_shadow("tree_swamp"));
+        assert!(casts_shadow("tree_desert_dead"));
+    }
+
+    #[test]
+    fn test_biome_model_ranges() {
+        assert_eq!(range_for("pine_snow"), TREE);
+        assert_eq!(range_for("tree_swamp"), TREE);
+        assert_eq!(range_for("tree_desert_dead"), TREE);
+        assert_eq!(range_for("boulder_big"), TREE);
+        assert_eq!(range_for("rock_cliff_01"), TREE);
+        assert_eq!(range_for("rock_sandstone_01"), ROCK);
+        assert_eq!(range_for("rock_ice_01"), ROCK);
+        assert_eq!(range_for("cactus_tall"), BUSH);
+        assert_eq!(range_for("cactus_round"), BUSH);
+        assert_eq!(range_for("reeds"), GROUND);
+        assert_eq!(range_for("lily_mud_patch"), GROUND);
+        assert_eq!(range_for("desert_shrub"), GROUND);
+        assert_eq!(range_for("snow_shrub"), GROUND);
     }
 
     #[test]

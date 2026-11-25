@@ -1,0 +1,248 @@
+{
+  "biomes": [
+    {
+      "key": "plains",
+      "name": "Plains",
+      "_why": "Classic open grassland inside the core circle; matches legacy PLAINS_GRASS [93,136,54], height (base 2m, amp 4m), scatter rules, and 0.7 zombie density.",
+      "map_color": [93, 136, 54],
+      "fog_tint": [210, 222, 200],
+      "ground": {
+        "base": [93, 136, 54],
+        "alt": [108, 146, 62],
+        "slope": [115, 105, 85],
+        "peak": null,
+        "peak_height": 0.0
+      },
+      "height": {
+        "base": 2.0,
+        "amplitude": 4.0,
+        "frequency": 0.006,
+        "octaves": 4,
+        "ridged": false,
+        "dune": 0.0
+      },
+      "scatter": [
+        { "model": "tree_broadleaf_01", "perChunk": 3, "scale": [0.9, 1.3], "minSpacing": 6.0, "maxSlope": 0.8 },
+        { "model": "tree_pine_02", "perChunk": 1, "scale": [0.9, 1.2], "minSpacing": 6.0, "maxSlope": 0.8 },
+        { "model": "rock_03", "perChunk": 3, "scale": [0.6, 1.5], "minSpacing": 2.0, "maxSlope": 0.6 },
+        { "model": "rock_01", "perChunk": 2, "scale": [0.6, 1.2], "minSpacing": 2.0, "maxSlope": 0.6 },
+        { "model": "bush_01", "perChunk": 8, "scale": [0.7, 1.3], "minSpacing": 1.5, "maxSlope": 0.75 },
+        { "model": "grass_tuft_a", "perChunk": 40, "scale": [0.8, 1.3], "minSpacing": 1.0, "maxSlope": 0.75 },
+        { "model": "grass_tuft_b", "perChunk": 30, "scale": [0.8, 1.3], "minSpacing": 1.0, "maxSlope": 0.75 },
+        { "model": "flowers_white", "perChunk": 12, "scale": [0.8, 1.2], "minSpacing": 1.5, "maxSlope": 0.75 },
+        { "model": "flowers_yellow", "perChunk": 12, "scale": [0.8, 1.2], "minSpacing": 1.5, "maxSlope": 0.75 },
+        { "model": "stump", "perChunk": 1, "chance": 0.3, "scale": [0.8, 1.2], "minSpacing": 3.0, "maxSlope": 0.8 },
+        { "model": "log_fallen", "perChunk": 1, "chance": 0.2, "scale": [0.9, 1.2], "minSpacing": 6.0, "maxSlope": 0.7 },
+        { "model": "fence_wood_section", "perChunk": 1, "chance": 0.12, "scale": [0.95, 1.05], "minSpacing": 8.0, "maxSlope": 0.85 },
+        { "model": "road_sign", "perChunk": 1, "chance": 0.1, "scale": [0.9, 1.1], "minSpacing": 10.0, "maxSlope": 0.85 },
+        { "model": "barrel_rusty", "perChunk": 1, "chance": 0.15, "scale": [0.9, 1.1], "minSpacing": 4.0, "maxSlope": 0.8 },
+        { "model": "tire_pile", "perChunk": 1, "chance": 0.08, "scale": [0.9, 1.1], "minSpacing": 8.0, "maxSlope": 0.85 },
+        { "model": "car_wreck", "perChunk": 1, "chance": 0.05, "scale": [0.95, 1.05], "minSpacing": 20.0, "maxSlope": 0.85 }
+      ],
+      "zombie_density": 0.7,
+      "loot_table": "plains",
+      "animals": ["deer", "rabbit"],
+      "temperature_day": 22.0,
+      "temperature_night": 11.0,
+      "thirst_mult": 1.0,
+      "footstep": "grass"
+    },
+    {
+      "key": "forest",
+      "name": "Forest",
+      "_why": "Classic dense woodland inside the core circle; matches legacy FOREST_GRASS [63,106,44], height (base 6m, amp 16m), scatter rules, and 1.0 zombie density.",
+      "map_color": [63, 106, 44],
+      "fog_tint": [190, 210, 195],
+      "ground": {
+        "base": [63, 106, 44],
+        "alt": [52, 92, 38],
+        "slope": [95, 88, 72],
+        "peak": null,
+        "peak_height": 0.0
+      },
+      "height": {
+        "base": 6.0,
+        "amplitude": 16.0,
+        "frequency": 0.006,
+        "octaves": 4,
+        "ridged": false,
+        "dune": 0.0
+      },
+      "scatter": [
+        { "model": "tree_pine_01", "perChunk": 26, "scale": [0.85, 1.25], "minSpacing": 3.0, "maxSlope": 0.8 },
+        { "model": "tree_pine_02", "perChunk": 14, "scale": [0.85, 1.2], "minSpacing": 3.0, "maxSlope": 0.8 },
+        { "model": "tree_broadleaf_01", "perChunk": 10, "scale": [0.8, 1.2], "minSpacing": 3.5, "maxSlope": 0.8 },
+        { "model": "tree_birch", "perChunk": 4, "chance": 0.3, "scale": [0.9, 1.2], "minSpacing": 3.5, "maxSlope": 0.8 },
+        { "model": "tree_oak_big", "perChunk": 2, "chance": 0.3, "scale": [0.9, 1.15], "minSpacing": 5.0, "maxSlope": 0.8 },
+        { "model": "tree_dead", "perChunk": 2, "chance": 0.3, "scale": [0.8, 1.1], "minSpacing": 4.0, "maxSlope": 0.7 },
+        { "model": "pine_tall", "perChunk": 4, "chance": 0.3, "scale": [0.9, 1.2], "minSpacing": 4.0, "maxSlope": 0.8 },
+        { "model": "tree_autumn", "perChunk": 3, "chance": 0.3, "scale": [0.8, 1.15], "minSpacing": 4.0, "maxSlope": 0.8 },
+        { "model": "rock_01", "perChunk": 3, "scale": [0.7, 1.4], "minSpacing": 2.0, "maxSlope": 0.6 },
+        { "model": "rock_02", "perChunk": 2, "scale": [0.7, 1.4], "minSpacing": 2.0, "maxSlope": 0.6 },
+        { "model": "bush_01", "perChunk": 18, "scale": [0.7, 1.3], "minSpacing": 1.5, "maxSlope": 0.75 },
+        { "model": "stump", "perChunk": 2, "chance": 0.3, "scale": [0.8, 1.2], "minSpacing": 3.0, "maxSlope": 0.8 },
+        { "model": "log_fallen", "perChunk": 2, "chance": 0.3, "scale": [0.9, 1.2], "minSpacing": 4.0, "maxSlope": 0.7 },
+        { "model": "grass_tuft_a", "perChunk": 24, "scale": [0.8, 1.3], "minSpacing": 1.0, "maxSlope": 0.75 },
+        { "model": "grass_tuft_b", "perChunk": 16, "scale": [0.8, 1.3], "minSpacing": 1.0, "maxSlope": 0.75 },
+        { "model": "flowers_white", "perChunk": 6, "scale": [0.8, 1.2], "minSpacing": 1.5, "maxSlope": 0.75 },
+        { "model": "flowers_yellow", "perChunk": 6, "scale": [0.8, 1.2], "minSpacing": 1.5, "maxSlope": 0.75 },
+        { "model": "fern", "perChunk": 8, "scale": [0.8, 1.2], "minSpacing": 1.5, "maxSlope": 0.7 },
+        { "model": "mushrooms", "perChunk": 4, "scale": [0.8, 1.2], "minSpacing": 2.0, "maxSlope": 0.7 }
+      ],
+      "zombie_density": 1.0,
+      "loot_table": "forest",
+      "animals": ["deer", "rabbit", "boar"],
+      "temperature_day": 18.0,
+      "temperature_night": 8.0,
+      "thirst_mult": 1.0,
+      "footstep": "grass"
+    },
+    {
+      "key": "desert",
+      "name": "Desert",
+      "_why": "Arid dunes beyond Ashford (0 deg); uses palette C sand_light/sand_dark/sandstone RGBs, stretched wind-blown dunes (2-10m), cactus/shrub/sandstone scatter, hot days, and 1.6x thirst.",
+      "map_color": [226, 200, 148],
+      "fog_tint": [235, 215, 170],
+      "ground": {
+        "base": [226, 200, 148],
+        "alt": [196, 165, 110],
+        "slope": [190, 120, 80],
+        "peak": null,
+        "peak_height": 0.0
+      },
+      "height": {
+        "base": 4.0,
+        "amplitude": 5.5,
+        "frequency": 0.004,
+        "octaves": 3,
+        "ridged": false,
+        "dune": 0.65
+      },
+      "scatter": [
+        { "model": "desert_shrub", "perChunk": 22, "scale": [0.7, 1.3], "minSpacing": 1.5, "maxSlope": 0.75 },
+        { "model": "cactus_round", "perChunk": 8, "scale": [0.75, 1.25], "minSpacing": 2.5, "maxSlope": 0.75 },
+        { "model": "cactus_tall", "perChunk": 6, "scale": [0.85, 1.3], "minSpacing": 4.0, "maxSlope": 0.75 },
+        { "model": "rock_sandstone_01", "perChunk": 4, "scale": [0.7, 1.4], "minSpacing": 3.0, "maxSlope": 0.65 },
+        { "model": "rock_sandstone_02", "perChunk": 3, "scale": [0.7, 1.4], "minSpacing": 3.0, "maxSlope": 0.65 },
+        { "model": "tree_desert_dead", "perChunk": 1, "chance": 0.25, "scale": [0.85, 1.2], "minSpacing": 8.0, "maxSlope": 0.75 },
+        { "model": "cattle_skull", "perChunk": 1, "chance": 0.15, "scale": [0.9, 1.15], "minSpacing": 8.0, "maxSlope": 0.8 }
+      ],
+      "zombie_density": 0.6,
+      "loot_table": "desert",
+      "animals": ["rabbit"],
+      "temperature_day": 38.0,
+      "temperature_night": 12.0,
+      "thirst_mult": 1.6,
+      "footstep": "sand"
+    },
+    {
+      "key": "snow",
+      "name": "Snow",
+      "_why": "Frigid boreal snowfield beyond the lake (180 deg); uses palette C snow_white/snow_shadow/ice_blue RGBs, rolling hills (amp 18m), dense pine_snow groves, sub-zero temps (-12/-22 C), and 0.9x thirst.",
+      "map_color": [236, 240, 245],
+      "fog_tint": [215, 228, 242],
+      "ground": {
+        "base": [236, 240, 245],
+        "alt": [190, 200, 215],
+        "slope": [170, 205, 230],
+        "peak": null,
+        "peak_height": 0.0
+      },
+      "height": {
+        "base": 6.0,
+        "amplitude": 18.0,
+        "frequency": 0.005,
+        "octaves": 4,
+        "ridged": false,
+        "dune": 0.0
+      },
+      "scatter": [
+        { "model": "pine_snow", "perChunk": 34, "scale": [0.85, 1.3], "minSpacing": 3.0, "maxSlope": 0.8 },
+        { "model": "snow_shrub", "perChunk": 14, "scale": [0.7, 1.25], "minSpacing": 1.5, "maxSlope": 0.75 },
+        { "model": "snow_drift", "perChunk": 10, "scale": [0.8, 1.4], "minSpacing": 3.0, "maxSlope": 0.8 },
+        { "model": "rock_ice_01", "perChunk": 4, "scale": [0.7, 1.35], "minSpacing": 2.5, "maxSlope": 0.65 },
+        { "model": "boulder_big", "perChunk": 2, "chance": 0.5, "scale": [0.8, 1.3], "minSpacing": 5.0, "maxSlope": 0.65 }
+      ],
+      "zombie_density": 0.8,
+      "loot_table": "snow",
+      "animals": ["rabbit", "deer"],
+      "temperature_day": -12.0,
+      "temperature_night": -22.0,
+      "thirst_mult": 0.9,
+      "footstep": "snow"
+    },
+    {
+      "key": "swamp",
+      "name": "Swamp",
+      "_why": "Low, boggy wetland at 90 deg; uses palette C swamp_moss/swamp_mud RGBs, flat terrain (base 0.6m, amp 1.5m), dense reeds and swamp trees, and high 1.3 zombie density.",
+      "map_color": [70, 90, 45],
+      "fog_tint": [145, 160, 130],
+      "ground": {
+        "base": [70, 90, 45],
+        "alt": [75, 62, 42],
+        "slope": [75, 62, 42],
+        "peak": null,
+        "peak_height": 0.0
+      },
+      "height": {
+        "base": 0.6,
+        "amplitude": 1.5,
+        "frequency": 0.005,
+        "octaves": 3,
+        "ridged": false,
+        "dune": 0.0
+      },
+      "scatter": [
+        { "model": "reeds", "perChunk": 36, "scale": [0.8, 1.35], "minSpacing": 1.0, "maxSlope": 0.85 },
+        { "model": "tree_swamp", "perChunk": 16, "scale": [0.85, 1.25], "minSpacing": 4.0, "maxSlope": 0.85 },
+        { "model": "lily_mud_patch", "perChunk": 14, "scale": [0.8, 1.3], "minSpacing": 2.0, "maxSlope": 0.9 },
+        { "model": "swamp_stump", "perChunk": 4, "chance": 0.5, "scale": [0.8, 1.2], "minSpacing": 3.0, "maxSlope": 0.85 },
+        { "model": "swamp_log_mossy", "perChunk": 3, "chance": 0.45, "scale": [0.85, 1.2], "minSpacing": 4.0, "maxSlope": 0.85 }
+      ],
+      "zombie_density": 1.3,
+      "loot_table": "swamp",
+      "animals": ["boar"],
+      "temperature_day": 24.0,
+      "temperature_night": 16.0,
+      "thirst_mult": 1.1,
+      "footstep": "mud"
+    },
+    {
+      "key": "mountains",
+      "name": "Mountains",
+      "_why": "High ridged alpine peaks at 270 deg; uses palette C sandstone_dark/snow_shadow slopes with snow_white peaks above 70m, amp 110m at low frequency 0.0016, sparse pines, and low 0.5 zombie density.",
+      "map_color": [190, 200, 215],
+      "fog_tint": [210, 220, 235],
+      "ground": {
+        "base": [150, 90, 60],
+        "alt": [190, 200, 215],
+        "slope": [190, 200, 215],
+        "peak": [236, 240, 245],
+        "peak_height": 70.0
+      },
+      "height": {
+        "base": 14.0,
+        "amplitude": 110.0,
+        "frequency": 0.0016,
+        "octaves": 4,
+        "ridged": true,
+        "dune": 0.0
+      },
+      "scatter": [
+        { "model": "boulder_big", "perChunk": 6, "scale": [0.85, 1.5], "minSpacing": 4.0, "maxSlope": 0.55 },
+        { "model": "rock_cliff_01", "perChunk": 4, "scale": [0.9, 1.4], "minSpacing": 6.0, "maxSlope": 0.5 },
+        { "model": "rock_01", "perChunk": 6, "scale": [0.75, 1.4], "minSpacing": 2.5, "maxSlope": 0.55 },
+        { "model": "rock_02", "perChunk": 5, "scale": [0.75, 1.4], "minSpacing": 2.5, "maxSlope": 0.55 },
+        { "model": "rock_03", "perChunk": 5, "scale": [0.75, 1.4], "minSpacing": 2.5, "maxSlope": 0.55 },
+        { "model": "pine_snow", "perChunk": 5, "chance": 0.5, "scale": [0.8, 1.15], "minSpacing": 5.0, "maxSlope": 0.7 }
+      ],
+      "zombie_density": 0.5,
+      "loot_table": "mountains",
+      "animals": ["deer"],
+      "temperature_day": 2.0,
+      "temperature_night": -10.0,
+      "thirst_mult": 1.0,
+      "footstep": "stone"
+    }
+  ]
+}

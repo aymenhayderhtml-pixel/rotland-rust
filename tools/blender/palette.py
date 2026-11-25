@@ -1,15 +1,16 @@
 """Shared color palettes for every generated model.
 
-Two 64x128 PNGs, each a 4-column by 8-row grid of 16x16 cells (32 colors per sheet).
+Three 64x128 PNGs, each a 4-column by 8-row grid of 16x16 cells (32 colors per sheet).
 Each face samples the center of its cell, so a color's UV depends on its cell number.
 
 - Sheet A (`palette.png`) is full and frozen: old models sample its cell centers. Never change it.
-- Sheet B (`palette_b.png`) is for later models (vehicles, animals, clothes). Its first 16 cells
+- Sheet B (`palette_b.png`) is full and frozen: vehicles, animals, farming, autumn trees. Never change it.
+- Sheet C (`palette_c.png`) is for R31 biome props (desert, snow/mountains, swamp). Its first 16 cells
   are named below; the other 16 are a neutral grey, free for future colors.
 
-Growing sheet A would move every old UV, so sheet B is a second sheet with its own material
-(`palette_b`). A model that uses only sheet A exports exactly as before, with one material.
-Run `python3 tools/blender/palette.py` to rewrite both PNGs.
+Growing sheet A or B would move old UVs, so sheet C is a third sheet with its own material
+(`palette_c`). Models that use only sheet A or sheet B export byte-for-byte the same as before.
+Run `python3 tools/blender/palette.py` to rewrite all palette PNGs.
 """
 import os
 import struct
@@ -103,45 +104,86 @@ COLORS_B = [
     ("leaf_orange", (196, 110, 40)),
     ("leaf_red", (160, 48, 36)),
 ]
-GREY_FILL = (128, 128, 128)  # unused cells of sheet B
+
+# Sheet C (R31): biome props (desert, snow/mountains, swamp). Cells 16-31 stay grey (GREY_FILL).
+COLORS_C = [
+    ("sand_light", (226, 200, 148)),
+    ("sand_dark", (196, 165, 110)),
+    ("sandstone", (190, 120, 80)),
+    ("sandstone_dark", (150, 90, 60)),
+    ("cactus_green", (88, 130, 70)),
+    ("cactus_dark", (60, 95, 50)),
+    ("dry_brush", (150, 125, 80)),
+    ("bone_white", (225, 215, 190)),
+    ("snow_white", (236, 240, 245)),
+    ("snow_shadow", (190, 200, 215)),
+    ("ice_blue", (170, 205, 230)),
+    ("pine_snow_dark", (40, 75, 60)),
+    ("swamp_moss", (70, 90, 45)),
+    ("swamp_mud", (75, 62, 42)),
+    ("reed_tan", (170, 150, 95)),
+    ("swamp_bark", (70, 58, 45)),
+]
+GREY_FILL = (128, 128, 128)  # unused cells of sheet B and sheet C
 
 NAMES = [name for name, _ in COLORS]
 NAMES_B = [name for name, _ in COLORS_B]
+NAMES_C = [name for name, _ in COLORS_C]
 PNG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets", "textures", "palette.png"))
 PNG_PATH_B = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets", "textures", "palette_b.png"))
+PNG_PATH_C = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets", "textures", "palette_c.png"))
 
-# A face stores one value: its cell index on sheet A, or index + 32 for a sheet B color.
-# Sheet A values are the plain cell index, so existing faces and UVs are unchanged.
+# A face stores one value: its cell index on sheet A, index + 32 for sheet B, or index + 64 for sheet C.
+# Sheet A and B values are unchanged, so existing faces and UVs stay byte-for-byte identical.
 KEY_B_OFFSET = CELLS
+KEY_C_OFFSET = CELLS * 2
 
 
 def sheet_of(color_name):
-    """"A" or "B". Raises ValueError for an unknown name."""
+    """"A", "B" or "C". Raises ValueError for an unknown name."""
     if color_name in NAMES:
         return "A"
     if color_name in NAMES_B:
         return "B"
+    if color_name in NAMES_C:
+        return "C"
     raise ValueError(f"unknown palette color: {color_name}")
 
 
 def index_of(color_name):
     """Cell number inside the color's own sheet (0-31). For a face value, use key_of."""
-    if sheet_of(color_name) == "A":
+    sheet = sheet_of(color_name)
+    if sheet == "A":
         return NAMES.index(color_name)
-    return NAMES_B.index(color_name)
+    if sheet == "B":
+        return NAMES_B.index(color_name)
+    return NAMES_C.index(color_name)
 
 
 def key_of(color_name):
-    """The value a face stores for this color (sheet A: cell index; sheet B: cell index + 32)."""
-    return index_of(color_name) + (KEY_B_OFFSET if sheet_of(color_name) == "B" else 0)
+    """The value a face stores for this color (A: index; B: index + 32; C: index + 64)."""
+    sheet = sheet_of(color_name)
+    if sheet == "A":
+        return index_of(color_name)
+    if sheet == "B":
+        return index_of(color_name) + KEY_B_OFFSET
+    return index_of(color_name) + KEY_C_OFFSET
 
 
 def name_of_key(key):
-    return NAMES[key] if key < KEY_B_OFFSET else NAMES_B[key - KEY_B_OFFSET]
+    if key < KEY_B_OFFSET:
+        return NAMES[key]
+    if key < KEY_C_OFFSET:
+        return NAMES_B[key - KEY_B_OFFSET]
+    return NAMES_C[key - KEY_C_OFFSET]
 
 
 def sheet_of_key(key):
-    return "A" if key < KEY_B_OFFSET else "B"
+    if key < KEY_B_OFFSET:
+        return "A"
+    if key < KEY_C_OFFSET:
+        return "B"
+    return "C"
 
 
 def uv_center(color_name):
@@ -193,6 +235,11 @@ def write_palette_png_b(path=PNG_PATH_B):
     return _write_sheet(COLORS_B, path, GREY_FILL)
 
 
+def write_palette_png_c(path=PNG_PATH_C):
+    return _write_sheet(COLORS_C, path, GREY_FILL)
+
+
 if __name__ == "__main__":
     print("wrote", write_palette_png())
     print("wrote", write_palette_png_b())
+    print("wrote", write_palette_png_c())

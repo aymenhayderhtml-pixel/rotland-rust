@@ -7,7 +7,14 @@
   "spawnInterval": 1.5,
   "startDelay": 10,
   "outOfViewAngleDeg": 75,
-  "biomeDensity": { "forest": 1.0, "plains": 0.7 },
+  "biomeDensity": {
+    "plains": 0.7,
+    "forest": 1.0,
+    "desert": 0.6,
+    "snow": 0.8,
+    "swamp": 1.3,
+    "mountains": 0.5
+  },
   "nightMaxActiveMultiplier": 1.6,
   "campDensity": { "radius": 150, "factor": 0.5 },
   "types": {

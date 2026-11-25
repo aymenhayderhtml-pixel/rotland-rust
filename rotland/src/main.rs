@@ -27,6 +27,7 @@ mod play;
 mod player_visual;
 mod poi_links;
 mod props;
+mod region_banner;
 mod rescue_play;
 mod rescue_view;
 mod session;

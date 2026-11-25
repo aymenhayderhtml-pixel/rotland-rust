@@ -32,3 +32,29 @@ Rules: `tasks/LEAD.md` subagent rules. Use the "R31 shared names" in `tasks/R31-
    - chunk-edge seams still match (see the existing test).
 
 ## Worker notes
+
+## Neon notes
+
+* **What was wired:**
+* Split `world/src/generator.rs` into `world/src/terrain_shape.rs` (height/shape evaluation, deduplicating `raw_height()` and `sample()` via `TerrainShape::raw_core_height`) and `world/src/terrain_paint.rs` (triangle mesh emission and biome/core ground coloring), keeping each file well under 300 lines.
+* Exposed `GroundPaint::STEEP_START`, `GroundPaint::STEEP_FULL`, and `GroundPaint::steepness(normal_y)` in `world/src/ground_paint.rs` so outer biome slope coloring uses the exact same slope test as core rock painting without altering `GroundPaint::paint`.
+* Updated `WorldGenerator` to hold `BiomeRegistry`, `WorldLayoutData`, and `WorldLayout` (loaded in `from_data_dir`, `new`, `with_configs`, and `with_all_configs`), setting `origin` to the camp pad center and updating `reference_dir` to `camp -> Ashford` inside `attach_city_with_ground` (defaulting to `+X` when no city is attached).
+* Added `WorldGenerator::biome_sample(x, z)` and `WorldGenerator::tier(x, z)`, updated `biome(x, z)` to return `biome_sample(x, z).primary`, and updated `forest_weight(x, z)` to interpolate `lerp(core_fw, if primary == BiomeId::Forest { 1.0 } else { 0.0 }, outer)` outside the core.
+* Added a fast squared-distance check against `layout_data.core_radius` before querying `WorldLayout::sample` so points inside the core execute zero additional noise calls and remain bit-for-bit identical (`golden.rs` untouched).
+* **Mountain ridge slope smoothing:** For `ridged: true`, smoothed the `1 - |n|` V-cusp at `n = 0` via `((1.0 - (n * n + 0.01).sqrt()) / (1.0 - 0.01_f32.sqrt())).clamp(0.0, 1.0)` before squaring, capped ridge octaves to `2` (`RIDGE_MAX_OCTAVES`) so macro peaks still reach full `base + amplitude` (> 60 m) without high-frequency cliff spikes, and clamped effective amplitude against `2.8 m / (2.0 * 2.6 * frequency * octaves * ridge_factor / weight_sum)` so a 2 m cell never rises more than ~2.8 m.
+* Added unit tests in `world/tests/terrain_unit_tests.rs` and `world/tests/biome_terrain_tests.rs`.
+
+
+* **Shared-file lines for the Lead (`world/src/lib.rs`):**
+Add module declarations (and optional re-exports) in `world/src/lib.rs`:
+```rust
+pub mod terrain_paint;
+pub mod terrain_shape;
+
+```
+
+
+(And if not already re-exported by R31-01, `pub use biome::layout::BiomeSample;` is convenient for callers.)
+* **Cross-task interface assumptions to verify against R31-01 (`world/src/biome/*`):**
+* `BiomeGround` fields `base`, `alt`, `slope` are assumed to be `[u8; 3]` and `peak` to be `Option<[u8; 3]>` (matching `"map_color": [222,196,140]` in `R31-round.md`). If R31-01 defined them as `[f32; 3]` or `Color`, adjust `TerrainPaint::rgb_color` accordingly.
+* `WorldLayoutData` is assumed to derive `serde::Deserialize` and expose `pub core_radius: f32`.

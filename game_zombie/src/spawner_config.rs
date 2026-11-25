@@ -6,6 +6,7 @@ use std::path::Path;
 
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
+use world::BiomeId;
 
 fn default_hard_cap() -> usize {
     60 // data: spawning.json hardCap
@@ -97,6 +98,11 @@ impl SpawnConfig {
             }
         }
         1.0
+    }
+
+    /// Biome density multiplier for a typed `BiomeId`.
+    pub fn density_for_biome(&self, biome: BiomeId) -> f32 {
+        self.density_for(biome.key())
     }
 
     /// Every zombie type id that either table can spawn.

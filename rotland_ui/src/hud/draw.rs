@@ -2,7 +2,7 @@ use engine::egui::{self, pos2, Align2, Color32, FontId};
 
 use super::{
     ammo, clock, compass, crosshair, damage, death, downed, events, fps, hotbar, key_bar,
-    notification, pickup, safe_zone, scope, text, vehicle, vitals, HudConfig, HudState, IconCache,
+    notification, pickup, region_banner, safe_zone, scope, text, vehicle, vitals, HudConfig, HudState, IconCache,
 };
 
 /// Draws the HUD overlay using egui painter with explicit IconCache.
@@ -42,6 +42,7 @@ pub fn draw_hud(ctx: &egui::Context, s: &HudState, icons: &mut IconCache) {
 
             // 5. "Safe zone" label below compass when inside settlement
             safe_zone::draw_safe_zone(painter, &screen, s.in_safe_zone, scale);
+            region_banner::draw_region_banner(painter, &screen, s.region_banner.as_ref(), scale);
 
             // 6. Crosshair in screen center (hidden when holding melee, scoped, driving, downed, or dead)
             if s.vehicle.is_none()
