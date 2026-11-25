@@ -276,10 +276,15 @@ impl WorldGenerator {
         }
         let sample = self.layout.sample(x, z);
         if sample.outer <= 0.0 {
-            self.core_biome_sample(x, z)
-        } else {
-            sample
+            return self.core_biome_sample(x, z);
         }
+        // Inner half of the blend band: the home biome still wins (so props, zombies and the
+        // banner switch midway through the fade, not at its first metre).
+        if sample.outer < 0.5 {
+            let core = self.core_biome_sample(x, z);
+            return BiomeSample { secondary: sample.primary, blend: sample.outer, ..sample_with(core, sample) };
+        }
+        sample
     }
 
     /// Danger tier: 0 inside the core, 1..=5 in outer rings.
@@ -547,4 +552,9 @@ impl WorldGenerator {
         }
         coord
     }
+}
+
+/// The core sample's biome, with the outer sample's `outer` and `tier`.
+fn sample_with(core: BiomeSample, outer: BiomeSample) -> BiomeSample {
+    BiomeSample { outer: outer.outer, tier: outer.tier, ..core }
 }

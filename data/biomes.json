@@ -210,13 +210,13 @@
     {
       "key": "mountains",
       "name": "Mountains",
-      "_why": "High ridged alpine peaks at 270 deg; uses palette C sandstone_dark/snow_shadow slopes with snow_white peaks above 70m, amp 110m at low frequency 0.0016, sparse pines, and low 0.5 zombie density.",
-      "map_color": [190, 200, 215],
+      "_why": "High ridged alpine peaks at 270 deg; grey rock ground and slopes (was reddish sandstone, Claude 2026-11-25) with snow_white peaks above 70m, amp 110m at low frequency 0.0016, sparse pines, and low 0.5 zombie density.",
+      "map_color": [128, 124, 120],
       "fog_tint": [210, 220, 235],
       "ground": {
-        "base": [150, 90, 60],
-        "alt": [190, 200, 215],
-        "slope": [190, 200, 215],
+        "base": [124, 120, 116],
+        "alt": [104, 100, 97],
+        "slope": [88, 85, 83],
         "peak": [236, 240, 245],
         "peak_height": 70.0
       },
