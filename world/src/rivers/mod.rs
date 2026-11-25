@@ -167,6 +167,12 @@ impl RiverNetwork {
             .to_triangle_list()
     }
 
+    /// Builds a non-indexed `+Y`-facing triangle list with per-vertex flow directions within `radius` of `center`.
+    pub fn water_mesh_with_flow_near(&self, center: Vec2, radius: f32) -> Vec<(Vec3, Vec2)> {
+        build_river_water_mesh_near(&self.rivers, self.data.mesh_bank_overlap_m, center, radius)
+            .to_triangle_list_with_flow()
+    }
+
     /// Finds every road-river crossing as `(position, road_heading_yaw_rad, bridge_span_m)`.
     ///
     /// `road_heading_yaw_rad` uses the Godot yaw convention where forward is `(-sin yaw, 0, -cos yaw)`.

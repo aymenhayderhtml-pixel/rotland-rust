@@ -12,6 +12,7 @@ const VERTS_PER_TRIANGLE: usize = 3;
 #[derive(Debug, Clone, PartialEq)]
 pub struct RiverWaterMesh {
     pub vertices: Vec<Vec3>,
+    pub flow_dirs: Vec<Vec2>,
     pub indices: Vec<[u32; 3]>,
 }
 
@@ -30,6 +31,18 @@ impl RiverWaterMesh {
         }
         list
     }
+
+    /// Converts the indexed mesh into a non-indexed triangle list with per-vertex flow direction.
+    pub fn to_triangle_list_with_flow(&self) -> Vec<(Vec3, Vec2)> {
+        let mut list = Vec::with_capacity(self.indices.len() * VERTS_PER_TRIANGLE);
+        for tri in &self.indices {
+            for &idx in tri {
+                let i = idx as usize;
+                list.push((self.vertices[i], self.flow_dirs[i]));
+            }
+        }
+        list
+    }
 }
 
 /// Builds a quad-strip water mesh for all river segments within `radius` of `center`.
@@ -40,10 +53,11 @@ pub fn build_river_water_mesh_near(
     radius: f32,
 ) -> RiverWaterMesh {
     let mut vertices = Vec::new();
+    let mut flow_dirs = Vec::new();
     let mut indices = Vec::new();
 
     if radius <= 0.0 {
-        return RiverWaterMesh { vertices, indices };
+        return RiverWaterMesh { vertices, flow_dirs, indices };
     }
 
     for river in rivers {
@@ -65,9 +79,9 @@ pub fn build_river_water_mesh_near(
 
             let (l0, r0) = match prev_pair {
                 Some(pair) => pair,
-                None => push_cross_section(river, seg_idx, bank_overlap_m, &mut vertices),
+                None => push_cross_section(river, seg_idx, bank_overlap_m, &mut vertices, &mut flow_dirs),
             };
-            let (l1, r1) = push_cross_section(river, seg_idx + 1, bank_overlap_m, &mut vertices);
+            let (l1, r1) = push_cross_section(river, seg_idx + 1, bank_overlap_m, &mut vertices, &mut flow_dirs);
 
             // Winding produces +Y upward normals in right-handed Y-up space, matching lake/mesh.rs.
             indices.push([l0, r0, r1]);
@@ -76,7 +90,7 @@ pub fn build_river_water_mesh_near(
         }
     }
 
-    RiverWaterMesh { vertices, indices }
+    RiverWaterMesh { vertices, flow_dirs, indices }
 }
 
 fn push_cross_section(
@@ -84,6 +98,7 @@ fn push_cross_section(
     idx: usize,
     bank_overlap_m: f32,
     vertices: &mut Vec<Vec3>,
+    flow_dirs: &mut Vec<Vec2>,
 ) -> (u32, u32) {
     let p = river.points[idx];
     let y = river.water_levels[idx];
@@ -95,8 +110,10 @@ fn push_cross_section(
 
     let left_idx = vertices.len() as u32;
     vertices.push(Vec3::new(left_pos.x, y, left_pos.y));
+    flow_dirs.push(fwd);
     let right_idx = vertices.len() as u32;
     vertices.push(Vec3::new(right_pos.x, y, right_pos.y));
+    flow_dirs.push(fwd);
     (left_idx, right_idx)
 }
 

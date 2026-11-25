@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::biome::BiomeId;
 
+pub mod clutter;
+pub mod interior;
 pub mod lots;
 pub mod place;
 
@@ -23,6 +25,8 @@ pub struct TownsData {
     pub placement: PlacementConfig,
     pub footprints: BTreeMap<String, [f32; 2]>,
     pub towns: Vec<TownDef>,
+    #[serde(default)]
+    pub interiors: interior::InteriorsConfig,
 }
 
 /// Shared placement and street-layout parameters from `data/towns.json`.

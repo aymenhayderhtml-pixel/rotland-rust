@@ -107,6 +107,8 @@ pub struct RenderState {
     /// Toxic cloud puffs (R32-07).
     pub toxic_cloud_view: crate::toxic_cloud_view::ToxicCloudView,
     pub toxic_puff_scratch: Vec<crate::toxic_cloud_view::PuffInstance>,
+    /// Short-range ground detail layer around the player (R35-01).
+    pub ground_detail: crate::ground_detail::GroundDetailLayer,
 }
 
 /// Terrain, streaming chunks, static physics, trees, and POI markers.
@@ -246,6 +248,8 @@ pub struct PlaySide {
     pub weather: Option<crate::weather_play::WeatherPlay>,
     /// Body warmth bar and warm gear (R32-05).
     pub temperature: Option<crate::temperature_play::TemperaturePlay>,
+    /// Procedural clouds and biome fog tint (R35-04).
+    pub sky: Option<crate::sky_play::SkyPlay>,
 }
 
 impl Default for PlaySide {
@@ -274,6 +278,7 @@ impl Default for PlaySide {
             rescue: None,
             weather: None,
             temperature: None,
+            sky: None,
         }
     }
 }

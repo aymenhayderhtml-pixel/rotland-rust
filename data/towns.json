@@ -25,6 +25,22 @@
     "cabin": [5.0, 4.5],
     "watchtower": [3.0, 3.0]
   },
+  "clutter": {
+    "per_lot_min": 2,
+    "per_lot_max": 5,
+    "street_clear_m": 5.0,
+    "wall_offset_min_m": 0.9,
+    "wall_offset_max_m": 1.6,
+    "min_spacing_m": 1.6,
+    "road_clear_m": 2.0,
+    "scale_range": [0.9, 1.1],
+    "biomes": {
+      "desert": ["water_barrel", "propane_tank", "porch_chair", "fire_barrel", "barrel_rusty", "car_wreck", "tire_pile"],
+      "snow": ["woodpile", "sled", "bench_wood"],
+      "swamp": ["laundry_line", "porch_chair", "fire_barrel", "rowboat_flipped"],
+      "mountains": ["woodpile", "propane_tank", "bench_wood", "crate_loot"]
+    }
+  },
   "towns": [
     {
       "key": "dusthollow",
@@ -117,5 +133,121 @@
       },
       "_why": "Mountain ranger outpost at 4200 m along the 270 deg sector with ranger station, radio tower, watchtower, and 3-4 cabins."
     }
-  ]
+  ],
+  "interiors": {
+    "door_clear_m": 1.2,
+    "footprint_margin_m": 0.3,
+    "buildings": {
+      "adobe_house": {
+        "floor_y": 0.1,
+        "count": [3, 6],
+        "doors": [[0.0, 2.425]],
+        "spots": [
+          { "x": -2.1, "y": 1.95, "yaw": 3.1415927, "models": ["int_cabinet", "int_table"] },
+          { "x": -2.95, "y": 0.9, "yaw": -1.5707964, "models": ["int_shelf", "int_cabinet"] },
+          { "x": 2.95, "y": 0.9, "yaw": 1.5707964, "models": ["int_fridge", "int_stove", "int_cabinet"] },
+          { "x": 2.0, "y": 1.95, "yaw": 3.1415927, "models": ["int_chair", "int_table"] },
+          { "x": 0.75, "y": -0.3, "yaw": -1.5707964, "models": ["int_chair"] },
+          { "x": -0.2, "y": 0.1, "yaw": 0.0, "models": ["int_rug"] }
+        ]
+      },
+      "desert_store": {
+        "floor_y": 0.1,
+        "count": [3, 6],
+        "doors": [[0.0, 1.425]],
+        "spots": [
+          { "x": -3.6, "y": -2.95, "yaw": 0.0, "models": ["int_fridge", "int_shelf"] },
+          { "x": -1.2, "y": -2.95, "yaw": 0.0, "models": ["int_cabinet", "int_shelf"] },
+          { "x": 1.2, "y": -2.95, "yaw": 0.0, "models": ["int_table", "int_cabinet"] },
+          { "x": -3.2, "y": 0.95, "yaw": 3.1415927, "models": ["int_table", "int_chair"] },
+          { "x": 3.2, "y": 0.95, "yaw": 3.1415927, "models": ["int_fridge", "int_cabinet"] },
+          { "x": 0.0, "y": -0.5, "yaw": 0.0, "models": ["int_rug"] }
+        ]
+      },
+      "log_cabin_snow": {
+        "floor_y": 0.1,
+        "count": [3, 6],
+        "doors": [[0.0, 2.675]],
+        "spots": [
+          { "x": -2.1, "y": 2.15, "yaw": 3.1415927, "models": ["int_stove", "int_cabinet"] },
+          { "x": -2.95, "y": 1.0, "yaw": -1.5707964, "models": ["int_shelf", "int_cabinet"] },
+          { "x": 2.1, "y": 2.15, "yaw": 3.1415927, "models": ["int_fridge", "int_cabinet"] },
+          { "x": 2.95, "y": 1.1, "yaw": 1.5707964, "models": ["int_chair", "int_table"] },
+          { "x": 0.8, "y": 0.0, "yaw": -1.5707964, "models": ["int_chair"] },
+          { "x": -0.2, "y": 0.2, "yaw": 0.0, "models": ["int_rug"] }
+        ]
+      },
+      "research_station": {
+        "floor_y": 0.6,
+        "count": [3, 6],
+        "doors": [[-1.65, 1.925]],
+        "spots": [
+          { "x": 0.3, "y": 1.45, "yaw": 3.1415927, "models": ["int_fridge", "int_cabinet"] },
+          { "x": -3.95, "y": 0.6, "yaw": -1.5707964, "models": ["int_shelf", "int_cabinet"] },
+          { "x": -1.5, "y": -1.95, "yaw": 0.0, "models": ["int_chair", "int_table"] },
+          { "x": 4.6, "y": 0.95, "yaw": 3.1415927, "models": ["int_table", "int_cabinet"] },
+          { "x": 3.2, "y": 0.95, "yaw": 3.1415927, "models": ["int_chair", "int_shelf"] },
+          { "x": -1.5, "y": -0.2, "yaw": 0.0, "models": ["int_rug"] }
+        ]
+      },
+      "ranger_station": {
+        "floor_y": 0.1,
+        "count": [3, 6],
+        "doors": [[0.0, 3.425]],
+        "spots": [
+          { "x": -3.4, "y": 1.6, "yaw": -1.5707964, "models": ["int_cabinet", "int_shelf"] },
+          { "x": -3.4, "y": -0.4, "yaw": -1.5707964, "models": ["int_stove", "int_fridge"] },
+          { "x": -2.2, "y": 2.9, "yaw": 3.1415927, "models": ["int_table", "int_chair"] },
+          { "x": 2.2, "y": 2.9, "yaw": 3.1415927, "models": ["int_fridge", "int_cabinet"] },
+          { "x": 3.4, "y": 1.6, "yaw": 1.5707964, "models": ["int_bed", "int_shelf"] },
+          { "x": -0.6, "y": 0.5, "yaw": 0.0, "models": ["int_rug"] }
+        ]
+      },
+      "stilt_shack": {
+        "floor_y": 1.2,
+        "count": [3, 6],
+        "doors": [[0.0, 1.425]],
+        "spots": [
+          { "x": -0.2, "y": -2.35, "yaw": 0.0, "models": ["int_stove", "int_shelf"] },
+          { "x": -2.35, "y": 0.2, "yaw": -1.5707964, "models": ["int_cabinet", "int_fridge"] },
+          { "x": -1.8, "y": 0.95, "yaw": 3.1415927, "models": ["int_chair", "int_table"] },
+          { "x": 1.8, "y": 0.95, "yaw": 3.1415927, "models": ["int_cabinet", "int_shelf"] },
+          { "x": 0.8, "y": -1.9, "yaw": -1.5707964, "models": ["int_chair"] },
+          { "x": -0.1, "y": -0.7, "yaw": 0.0, "models": ["int_rug"] }
+        ]
+      },
+      "bait_shop": {
+        "floor_y": 0.1,
+        "count": [3, 6],
+        "doors": [[-0.8, 2.425]],
+        "spots": [
+          { "x": -2.1, "y": -2.45, "yaw": 0.0, "models": ["int_fridge", "int_cabinet"] },
+          { "x": -2.95, "y": 0.6, "yaw": -1.5707964, "models": ["int_shelf", "int_table"] },
+          { "x": 1.6, "y": 1.95, "yaw": 3.1415927, "models": ["int_table", "int_cabinet"] },
+          { "x": 2.95, "y": -0.3, "yaw": 1.5707964, "models": ["int_fridge", "int_stove"] },
+          { "x": 1.4, "y": -0.5, "yaw": 3.1415927, "models": ["int_chair"] },
+          { "x": 0.4, "y": 0.4, "yaw": 0.0, "models": ["int_rug"] }
+        ]
+      },
+      "motel": {
+        "floor_y": 0.1,
+        "count": [3, 6],
+        "doors": [
+          [-6.35, 1.425],
+          [-3.35, 1.425],
+          [-0.35, 1.425],
+          [2.65, 1.425],
+          [5.65, 1.425]
+        ],
+        "spots": [
+          { "x": -5.0, "y": -0.5, "yaw": 1.5707964, "models": ["int_table", "int_cabinet"] },
+          { "x": -2.0, "y": -0.5, "yaw": 1.5707964, "models": ["int_fridge", "int_shelf"] },
+          { "x": 0.95, "y": -0.5, "yaw": 1.5707964, "models": ["int_chair", "int_table"] },
+          { "x": 3.95, "y": -0.5, "yaw": 1.5707964, "models": ["int_cabinet", "int_fridge"] },
+          { "x": 6.95, "y": -0.5, "yaw": 1.5707964, "models": ["int_shelf", "int_chair"] },
+          { "x": -0.2, "y": -0.2, "yaw": 0.0, "models": ["int_rug"] }
+        ]
+      }
+    }
+  }
 }

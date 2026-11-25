@@ -401,6 +401,10 @@ pub fn start_world(
         }
         Err(e) => log::error!("weather data: {e}"),
     }
+    match crate::sky_play::SkyData::load() {
+        Ok(sky_data) => play.sky = Some(crate::sky_play::SkyPlay::new(gpu, sky_data)),
+        Err(e) => log::error!("sky data: {e}"),
+    }
     match game::survival::temperature::TemperatureData::load(&paths::repo_path("data/temperature.json")) {
         Ok(temp_data) => {
             match crate::temperature_play::TemperaturePlay::new(temp_data, &paths::repo_path("data/items.json")) {

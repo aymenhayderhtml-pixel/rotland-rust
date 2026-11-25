@@ -125,7 +125,10 @@
         { "model": "rock_sandstone_01", "perChunk": 4, "scale": [0.7, 1.4], "minSpacing": 3.0, "maxSlope": 0.65 },
         { "model": "rock_sandstone_02", "perChunk": 3, "scale": [0.7, 1.4], "minSpacing": 3.0, "maxSlope": 0.65 },
         { "model": "tree_desert_dead", "perChunk": 1, "chance": 0.25, "scale": [0.85, 1.2], "minSpacing": 8.0, "maxSlope": 0.75 },
-        { "model": "cattle_skull", "perChunk": 1, "chance": 0.15, "scale": [0.9, 1.15], "minSpacing": 8.0, "maxSlope": 0.8 }
+        { "model": "cattle_skull", "perChunk": 1, "chance": 0.15, "scale": [0.9, 1.15], "minSpacing": 8.0, "maxSlope": 0.8 },
+        { "model": "tumbleweed", "perChunk": 4, "scale": [0.8, 1.3], "minSpacing": 3.0, "maxSlope": 0.75 },
+        { "model": "bleached_bones", "perChunk": 2, "chance": 0.4, "scale": [0.85, 1.2], "minSpacing": 4.0, "maxSlope": 0.8 },
+        { "model": "fence_post_desert", "perChunk": 2, "chance": 0.35, "scale": [0.9, 1.1], "minSpacing": 6.0, "maxSlope": 0.8 }
       ],
       "zombie_density": 0.6,
       "loot_table": "desert",
@@ -161,7 +164,10 @@
         { "model": "snow_shrub", "perChunk": 14, "scale": [0.7, 1.25], "minSpacing": 1.5, "maxSlope": 0.75 },
         { "model": "snow_drift", "perChunk": 10, "scale": [0.8, 1.4], "minSpacing": 3.0, "maxSlope": 0.8 },
         { "model": "rock_ice_01", "perChunk": 4, "scale": [0.7, 1.35], "minSpacing": 2.5, "maxSlope": 0.65 },
-        { "model": "boulder_big", "perChunk": 2, "chance": 0.5, "scale": [0.8, 1.3], "minSpacing": 5.0, "maxSlope": 0.65 }
+        { "model": "boulder_big", "perChunk": 2, "chance": 0.5, "scale": [0.8, 1.3], "minSpacing": 5.0, "maxSlope": 0.65 },
+        { "model": "frozen_log", "perChunk": 2, "chance": 0.45, "scale": [0.85, 1.2], "minSpacing": 4.0, "maxSlope": 0.75 },
+        { "model": "ice_shards", "perChunk": 5, "scale": [0.75, 1.3], "minSpacing": 2.5, "maxSlope": 0.7 },
+        { "model": "snow_bush_small", "perChunk": 6, "scale": [0.8, 1.25], "minSpacing": 2.0, "maxSlope": 0.75 }
       ],
       "zombie_density": 0.8,
       "loot_table": "snow",
@@ -197,7 +203,10 @@
         { "model": "tree_swamp", "perChunk": 16, "scale": [0.85, 1.25], "minSpacing": 4.0, "maxSlope": 0.85 },
         { "model": "lily_mud_patch", "perChunk": 14, "scale": [0.8, 1.3], "minSpacing": 2.0, "maxSlope": 0.9 },
         { "model": "swamp_stump", "perChunk": 4, "chance": 0.5, "scale": [0.8, 1.2], "minSpacing": 3.0, "maxSlope": 0.85 },
-        { "model": "swamp_log_mossy", "perChunk": 3, "chance": 0.45, "scale": [0.85, 1.2], "minSpacing": 4.0, "maxSlope": 0.85 }
+        { "model": "swamp_log_mossy", "perChunk": 3, "chance": 0.45, "scale": [0.85, 1.2], "minSpacing": 4.0, "maxSlope": 0.85 },
+        { "model": "cattails", "perChunk": 8, "scale": [0.85, 1.25], "minSpacing": 1.5, "maxSlope": 0.85 },
+        { "model": "lily_pads", "perChunk": 6, "scale": [0.8, 1.3], "minSpacing": 2.0, "maxSlope": 0.9 },
+        { "model": "swamp_moss_clump", "perChunk": 8, "scale": [0.8, 1.25], "minSpacing": 1.5, "maxSlope": 0.85 }
       ],
       "zombie_density": 1.3,
       "loot_table": "swamp",
@@ -234,7 +243,10 @@
         { "model": "rock_01", "perChunk": 6, "scale": [0.75, 1.4], "minSpacing": 2.5, "maxSlope": 0.55 },
         { "model": "rock_02", "perChunk": 5, "scale": [0.75, 1.4], "minSpacing": 2.5, "maxSlope": 0.55 },
         { "model": "rock_03", "perChunk": 5, "scale": [0.75, 1.4], "minSpacing": 2.5, "maxSlope": 0.55 },
-        { "model": "pine_snow", "perChunk": 5, "chance": 0.5, "scale": [0.8, 1.15], "minSpacing": 5.0, "maxSlope": 0.7 }
+        { "model": "pine_snow", "perChunk": 5, "chance": 0.5, "scale": [0.8, 1.15], "minSpacing": 5.0, "maxSlope": 0.7 },
+        { "model": "scree_patch", "perChunk": 6, "scale": [0.8, 1.3], "minSpacing": 2.5, "maxSlope": 0.55 },
+        { "model": "alpine_flowers", "perChunk": 6, "scale": [0.8, 1.25], "minSpacing": 2.0, "maxSlope": 0.65 },
+        { "model": "cairn", "perChunk": 1, "chance": 0.35, "scale": [0.9, 1.15], "minSpacing": 8.0, "maxSlope": 0.75 }
       ],
       "zombie_density": 0.5,
       "loot_table": "mountains",

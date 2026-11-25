@@ -4,6 +4,7 @@ use crate::gpu::{Gpu, DEPTH_FORMAT};
 /// stretches it onto the window. Screenshots read this image, so they never depend on the window system.
 pub struct FrameTarget {
     pub color_texture: wgpu::Texture,
+    pub depth_texture: wgpu::Texture,
     pub color: wgpu::TextureView,
     pub depth: wgpu::TextureView,
     pub width: u32,
@@ -26,20 +27,19 @@ impl FrameTarget {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
-        let depth = device
-            .create_texture(&wgpu::TextureDescriptor {
-                label: Some("frame depth"),
-                size,
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: DEPTH_FORMAT,
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[],
-            })
-            .create_view(&Default::default());
+        let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("frame depth"),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: DEPTH_FORMAT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let depth = depth_texture.create_view(&Default::default());
         let color = color_texture.create_view(&Default::default());
-        Self { color_texture, color, depth, width, height }
+        Self { color_texture, depth_texture, color, depth, width, height }
     }
 
     pub fn aspect(&self) -> f32 {

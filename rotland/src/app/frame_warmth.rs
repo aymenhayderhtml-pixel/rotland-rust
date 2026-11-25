@@ -15,6 +15,9 @@ pub fn update_weather_and_warmth(dt: f32, play: &mut PlaySide, world: &WorldStat
     if let Some(weather) = play.weather.as_mut() {
         weather.tick(dt_game, player, generator);
     }
+    if let Some(sky) = play.sky.as_mut() {
+        sky.tick(dt_game, play.weather.as_ref().map(|w| &w.state));
+    }
     let (Some(temp), Some(weather), Some(pl)) = (
         play.temperature.as_mut(),
         play.weather.as_ref(),

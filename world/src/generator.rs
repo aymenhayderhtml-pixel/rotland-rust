@@ -64,6 +64,7 @@ pub struct WorldGenerator {
     pub(crate) road_heights: RoadHeightField,
     pub(crate) rivers: RiverNetwork,
     pub(crate) crossings: Vec<(Vec2, f32, f32)>,
+    pub(crate) towns_data: crate::towns::TownsData,
     pub(crate) has_outer: bool,
 }
 

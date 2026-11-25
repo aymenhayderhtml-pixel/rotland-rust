@@ -1,0 +1,51 @@
+{
+  "_why": "R35-04: drifting low-poly cloud parameters per weather and per-biome fog tints.",
+  "cloud_scale": 0.35,
+  "cloud_softness": 0.09,
+  "cloud_alpha": 0.85,
+  "wind_uv_per_mps": 0.015,
+  "sunlit_color": [1.0, 0.98, 0.95],
+  "shadow_color": [0.76, 0.80, 0.86],
+  "overcast_tint": [0.55, 0.58, 0.63],
+  "fog_tint_blend": 0.45,
+  "weather": {
+    "clear": {
+      "_why": "Scattered fair-weather puffs drifting gently.",
+      "cover": 0.28,
+      "grey": 0.0,
+      "speed_mult": 1.0
+    },
+    "rain": {
+      "_why": "Dense grey rain clouds moving faster with the storm.",
+      "cover": 0.82,
+      "grey": 0.85,
+      "speed_mult": 1.4
+    },
+    "snow": {
+      "_why": "Thick pale-grey snow overcast.",
+      "cover": 0.78,
+      "grey": 0.65,
+      "speed_mult": 1.1
+    },
+    "sandstorm": {
+      "_why": "Hazy wind-whipped clouds racing across the desert sky.",
+      "cover": 0.65,
+      "grey": 0.55,
+      "speed_mult": 2.2
+    },
+    "fog": {
+      "_why": "Heavy still overcast trapping damp mist.",
+      "cover": 0.90,
+      "grey": 0.75,
+      "speed_mult": 0.5
+    }
+  },
+  "biome_fog_tint": {
+    "plains": [210, 222, 200],
+    "forest": [190, 210, 195],
+    "desert": [235, 215, 170],
+    "snow": [215, 228, 242],
+    "swamp": [145, 160, 130],
+    "mountains": [210, 220, 235]
+  }
+}

@@ -196,8 +196,23 @@ impl WorldGenerator {
                         )
                         .with_loot_table(&lot.loot_table),
                     );
+                    props.extend(
+                        crate::towns::interior::place(lot, &self.towns_data, self.seed)
+                            .into_iter()
+                            .map(|mut p| {
+                                p.position.y += y;
+                                p
+                            }),
+                    );
                 }
             }
+            props.extend(crate::towns::clutter::place_in_chunk(
+                town,
+                coord,
+                self.seed,
+                |x, z| self.height(x, z),
+                |p| self.roads.distance_to_road(p),
+            ));
         }
     }
 
