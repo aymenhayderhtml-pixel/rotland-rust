@@ -30,6 +30,7 @@ pub mod key_bar;
 mod manager;
 pub mod notification;
 pub mod pickup;
+pub mod region_banner;
 pub mod safe_zone;
 pub mod scope;
 mod state;

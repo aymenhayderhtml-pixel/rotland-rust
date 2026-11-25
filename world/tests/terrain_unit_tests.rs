@@ -12,11 +12,9 @@ fn test_determinism() {
     let gen1 = WorldGenerator::new(42, cfg.clone());
     let gen2 = WorldGenerator::new(42, cfg);
 
-    // Settlements match
     assert_eq!(gen1.settlements().len(), gen2.settlements().len());
     assert_eq!(gen1.settlements()[0].center, gen2.settlements()[0].center);
 
-    // Points match exactly
     for z in -5..=5 {
         for x in -5..=5 {
             let px = x as f32 * 37.5;
@@ -30,7 +28,6 @@ fn test_determinism() {
         }
     }
 
-    // Chunk ground matches exactly
     let chunk1 = gen1.build_chunk_ground(IVec2::new(1, -2));
     let chunk2 = gen2.build_chunk_ground(IVec2::new(1, -2));
     assert_eq!(chunk1.heights, chunk2.heights);
@@ -84,15 +81,8 @@ fn test_heights_in_sane_range() {
         }
     }
 
-    // Typical terrain heights stay between -30 and 150
-    assert!(
-        min_h > -30.0,
-        "Terrain minimum height {min_h} is too low"
-    );
-    assert!(
-        max_h < 150.0,
-        "Terrain maximum height {max_h} is too high"
-    );
+    assert!(min_h > -30.0, "Terrain minimum height {min_h} is too low");
+    assert!(max_h < 150.0, "Terrain maximum height {max_h} is too high");
 }
 
 #[test]
@@ -113,7 +103,6 @@ fn test_chunk_edges_match_seamlessly() {
         let chunk_right = generator.build_chunk_ground(right_c);
         let chunk_down = generator.build_chunk_ground(down_c);
 
-        // Right edge of chunk_center (i = 32) must equal left edge of chunk_right (i = 0)
         for j in 0..n {
             let h_center = chunk_center.heights[j * n + (n - 1)];
             let h_right = chunk_right.heights[j * n];
@@ -123,7 +112,6 @@ fn test_chunk_edges_match_seamlessly() {
             );
         }
 
-        // Bottom edge of chunk_center (j = 32) must equal top edge of chunk_down (j = 0)
         for i in 0..n {
             let h_center = chunk_center.heights[(n - 1) * n + i];
             let h_down = chunk_down.heights[i];
@@ -138,10 +126,9 @@ fn test_chunk_edges_match_seamlessly() {
 #[test]
 fn test_settlement_pad_flattening() {
     let cfg = load_config();
-    let generator = WorldGenerator::new(42, cfg.clone());
+    let generator = WorldGenerator::new(42, cfg);
     let site = &generator.settlements()[0];
 
-    // Center height equals site center Y
     let center_h = generator.height(site.center.x, site.center.z);
     assert!(
         (center_h - site.center.y).abs() < 1e-4,
@@ -149,7 +136,6 @@ fn test_settlement_pad_flattening() {
         site.center.y
     );
 
-    // Inner points within flat_radius should be completely flat at site.center.y
     let inner_offsets = [
         (0.0, 5.0),
         (10.0, 0.0),
@@ -170,10 +156,14 @@ fn test_settlement_pad_flattening() {
 fn test_biome_classification() {
     let cfg = load_config();
     let generator = WorldGenerator::new(42, cfg);
+    let camp = generator.settlements()[0].center;
 
-    for idx in 0..50 {
-        let x = (idx as f32) * 53.0;
-        let z = (idx as f32) * 29.0;
+    for idx in 0..30 {
+        let x = camp.x + (idx as f32) * 35.0;
+        let z = camp.z + (idx as f32) * 23.0;
+        let sample = generator.biome_sample(x, z);
+        assert_eq!(sample.outer, 0.0, "expected core point at ({x}, {z})");
+        assert_eq!(generator.tier(x, z), 0);
         let fw = generator.forest_weight(x, z);
         let b = generator.biome(x, z);
         if fw > 0.5 {

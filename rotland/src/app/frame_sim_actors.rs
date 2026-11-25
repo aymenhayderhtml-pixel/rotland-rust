@@ -86,10 +86,7 @@ pub(super) fn step_wildlife(
     bites: &mut Vec<f32>,
 ) {
     if let (Some(w), Some(p), Some(g)) = (wildlife_opt, player_ctrl, world_gen) {
-        let biome = match g.biome(player.x, player.z) {
-            world::BiomeId::Plains => "plains",
-            world::BiomeId::Forest => "forest",
-        };
+        let biome = g.biome(player.x, player.z).key();
         let no_spawn = |at: Vec3| {
             g.settlements()
                 .iter()

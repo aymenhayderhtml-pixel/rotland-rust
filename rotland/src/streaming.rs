@@ -7,9 +7,9 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 
 use engine::render::{ColorVertex, GpuMesh};
-use physics::{ColliderHandle, PhysicsWorld};
 use game::{DogPoiSite, LadderRail};
 use glam::{IVec2, Vec3};
+use physics::{ColliderHandle, PhysicsWorld};
 use world::{LootSpot, PoiInstance, PropInstance, WorldGenerator};
 
 use crate::props::{Placed, PropLibrary};
@@ -84,7 +84,10 @@ pub struct Streamer {
 impl Streamer {
     pub fn new(world_gen: Arc<WorldGenerator>) -> Self {
         let (tx, rx) = channel();
-        let camp_chunk = world_gen.settlements().first().map_or(IVec2::new(i32::MAX, i32::MAX), |s| terrain::chunk_of(s.center));
+        let camp_chunk = world_gen
+            .settlements()
+            .first()
+            .map_or(IVec2::new(i32::MAX, i32::MAX), |s| terrain::chunk_of(s.center));
         Self {
             world_gen,
             chunks: HashMap::new(),
@@ -136,7 +139,14 @@ impl Streamer {
     }
 
     /// Call once per frame with the player's position.
-    pub fn update(&mut self, device: &wgpu::Device, pack: &pack::ModelPack, library: &mut PropLibrary, physics: &mut PhysicsWorld, player: Vec3) {
+    pub fn update(
+        &mut self,
+        device: &wgpu::Device,
+        pack: &pack::ModelPack,
+        library: &mut PropLibrary,
+        physics: &mut PhysicsWorld,
+        player: Vec3,
+    ) {
         let center = terrain::chunk_of(player);
         self.far_scratch.clear();
         self.far_scratch.extend(
@@ -149,7 +159,11 @@ impl Streamer {
         for i in 0..self.far_scratch.len() {
             let c = self.far_scratch[i];
             if let Some(chunk) = self.chunks.remove(&c) {
-                for h in chunk.colliders.into_iter().chain(chunk.trees.into_iter().filter_map(|t| t.collider)) {
+                for h in chunk
+                    .colliders
+                    .into_iter()
+                    .chain(chunk.trees.into_iter().filter_map(|t| t.collider))
+                {
                     physics.remove_deferred(h);
                 }
             }
@@ -166,7 +180,9 @@ impl Streamer {
             }
         }
         self.missing_scratch.sort_by_key(|c| (*c - center).length_squared());
-        let budget = MAX_IN_FLIGHT.saturating_sub(self.in_flight.len()).min(self.missing_scratch.len());
+        let budget = MAX_IN_FLIGHT
+            .saturating_sub(self.in_flight.len())
+            .min(self.missing_scratch.len());
         for i in 0..budget {
             let coord = self.missing_scratch[i];
             self.in_flight.insert(coord);
@@ -174,7 +190,7 @@ impl Streamer {
             rayon::spawn(move || {
                 let (ground, heights) = terrain::chunk_vertices(&world_gen, coord);
                 let (pois, props) = world_gen.chunk_contents(coord);
-                let crates = world_gen.chunk_crates(coord);
+                let crates = world_gen.chunk_crates_from(coord, &pois, &props);
                 let _ = tx.send(Built { coord, ground, heights, props, pois, crates });
             });
         }
@@ -210,19 +226,36 @@ impl Streamer {
     }
 
     fn shapes_of(&mut self, pack: &pack::ModelPack, id: &str) -> &Vec<Vec<[f32; 3]>> {
-        self.shapes
-            .entry(id.to_string())
-            .or_insert_with(|| pack.find(id).map(|m| m.colliders.iter().map(|c| c.points.clone()).collect()).unwrap_or_default())
+        self.shapes.entry(id.to_string()).or_insert_with(|| {
+            pack.find(id)
+                .map(|m| m.colliders.iter().map(|c| c.points.clone()).collect())
+                .unwrap_or_default()
+        })
     }
 
-    fn upload(&mut self, device: &wgpu::Device, pack: &pack::ModelPack, library: &mut PropLibrary, physics: &mut PhysicsWorld, b: Built) -> LoadedChunk {
+    fn upload(
+        &mut self,
+        device: &wgpu::Device,
+        pack: &pack::ModelPack,
+        library: &mut PropLibrary,
+        physics: &mut PhysicsWorld,
+        b: Built,
+    ) -> LoadedChunk {
         let mut placed = Vec::with_capacity(b.props.len() + b.pois.len() + 1);
         let mut colliders = vec![physics.add_ground_chunk_deferred(b.coord, &b.heights)];
         // (model, position, yaw, scale, is a building)
-        let mut models: Vec<(&str, Vec3, f32, f32, bool)> = b.props.iter().map(|p| (p.model.as_str(), p.position, p.yaw, p.scale, false)).collect();
+        let mut models: Vec<(&str, Vec3, f32, f32, bool)> = b
+            .props
+            .iter()
+            .map(|p| (p.model.as_str(), p.position, p.yaw, p.scale, false))
+            .collect();
         models.extend(b.pois.iter().map(|p| (p.building_id.as_str(), p.position, p.yaw, 1.0, true)));
         let site = self.world_gen.settlements().first().cloned();
-        models.extend(b.crates.iter().map(|c| (crate::crates::CRATE_MODEL, c.position, c.yaw, 1.0, false)));
+        models.extend(
+            b.crates
+                .iter()
+                .map(|c| (crate::crates::CRATE_MODEL, c.position, c.yaw, 1.0, false)),
+        );
         if let (true, Some(site)) = (b.coord == self.camp_chunk, site.as_ref()) {
             models.push(("settlement", site.center, site.yaw, 1.0, true));
         }
@@ -230,13 +263,17 @@ impl Streamer {
         let mut trees = Vec::new();
         let mut static_props = Vec::new();
         for (i, (id, position, yaw, scale, building)) in models.into_iter().enumerate() {
-            // Props come first in `models`, so i is the prop index for them
+            // Props come first in `models`, so i is the prop index for them.
+            // `PropInstance::is_tree` checks `tree*` / `pine_*`; cacti (`cactus_*`) stay non-tree
+            // static props and receive compound colliders like rocks.
             let tree = i < b.props.len() && b.props[i].is_tree();
             if tree && self.felled.contains(&(b.coord, i)) {
                 continue;
             }
             if building && let Some(m) = pack.find(id) {
-                let matrix = glam::Mat4::from_translation(position) * glam::Mat4::from_rotation_y(yaw) * glam::Mat4::from_scale(Vec3::splat(scale));
+                let matrix = glam::Mat4::from_translation(position)
+                    * glam::Mat4::from_rotation_y(yaw)
+                    * glam::Mat4::from_scale(Vec3::splat(scale));
                 ladders.extend(game::ladders_from_markers(&m.markers, matrix));
             }
             let mut placed_at = None;
@@ -251,27 +288,44 @@ impl Streamer {
                 } else {
                     None
                 };
-                trees.push(TreeSlot { index: i, model: id.to_string(), position, yaw, scale, placed: placed_at, collider });
+                trees.push(TreeSlot {
+                    index: i,
+                    model: id.to_string(),
+                    position,
+                    yaw,
+                    scale,
+                    placed: placed_at,
+                    collider,
+                });
             } else {
                 self.shapes_of(pack, id);
                 static_props.push((id, position, yaw, scale));
             }
         }
         if !static_props.is_empty() {
-            let h = physics.add_static_compound_deferred(
-                static_props.iter().filter_map(|&(id, pos, yaw, scale)| {
+            let h = physics.add_static_compound_deferred(static_props.iter().filter_map(
+                |&(id, pos, yaw, scale)| {
                     self.shapes
                         .get(id)
                         .filter(|s| !s.is_empty())
                         .map(|s| (s.as_slice(), pos, yaw, scale))
-                }),
-            );
+                },
+            ));
             if h != ColliderHandle::invalid() {
                 colliders.push(h);
             }
         }
         let origin = Vec3::new(b.coord.x as f32, 0.0, b.coord.y as f32) * WorldGenerator::CHUNK_SIZE;
-        LoadedChunk { ground: GpuMesh::new(device, "ground", &b.ground), origin, placed, crates: b.crates, ladders, trees, pois: b.pois, colliders }
+        LoadedChunk {
+            ground: GpuMesh::new(device, "ground", &b.ground),
+            origin,
+            placed,
+            crates: b.crates,
+            ladders,
+            trees,
+            pois: b.pois,
+            colliders,
+        }
     }
 }
 

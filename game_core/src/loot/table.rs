@@ -6,6 +6,35 @@ use world::BiomeId;
 
 use crate::items::ItemRegistry;
 
+/// Accepts either a `BiomeId` or a string biome key in `LootTableRegistry::for_biome`.
+pub trait BiomeKey {
+    fn as_biome_key(&self) -> &str;
+}
+
+impl BiomeKey for BiomeId {
+    fn as_biome_key(&self) -> &str {
+        self.key()
+    }
+}
+
+impl BiomeKey for str {
+    fn as_biome_key(&self) -> &str {
+        self
+    }
+}
+
+impl BiomeKey for String {
+    fn as_biome_key(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl<T: BiomeKey + ?Sized> BiomeKey for &T {
+    fn as_biome_key(&self) -> &str {
+        (**self).as_biome_key()
+    }
+}
+
 #[derive(Debug)]
 pub enum LootLoadError {
     Io(std::io::Error),
@@ -152,16 +181,18 @@ impl LootTableRegistry {
         Ok(())
     }
 
-    /// Returns the loot table for a biome, falling back to "generic".
-    pub fn for_biome(&self, biome: BiomeId) -> &LootTableData {
-        let name = match biome {
-            BiomeId::Plains => "plains",
-            BiomeId::Forest => "forest",
-        };
-        self.get(name).unwrap_or_else(|| {
-            self.get(Self::FALLBACK_TABLE)
-                .expect("generic table must exist")
-        })
+    /// Returns the loot table for a biome (accepts `BiomeId` or a string key),
+    /// falling back to `"plains"` (then `"generic"`) for unknown keys.
+    pub fn for_biome(&self, biome: impl BiomeKey) -> &LootTableData {
+        let key = biome.as_biome_key();
+        if let Some(id) = BiomeId::from_key(key)
+            && let Some(table) = self.get(id.key())
+        {
+            return table;
+        }
+        self.get(BiomeId::Plains.key())
+            .or_else(|| self.get(Self::FALLBACK_TABLE))
+            .expect("generic table must exist")
     }
 
     /// Looks up a loot table by name.

@@ -1,0 +1,21 @@
+{
+  "core_radius": 2200.0,
+  "blend_band": 400.0,
+  "sectors": [
+    { "biome": "desert", "center_deg": 0.0 },
+    { "biome": "swamp", "center_deg": 90.0 },
+    { "biome": "snow", "center_deg": 180.0 },
+    { "biome": "mountains", "center_deg": 270.0 }
+  ],
+  "sector_blend_deg": 14.0,
+  "warp_deg": 22.0,
+  "warp_frequency": 0.0004,
+  "tier_band": 1500.0,
+  "tiers": [
+    { "zombie_mult": 1.0, "loot_rolls_bonus": 0 },
+    { "zombie_mult": 1.25, "loot_rolls_bonus": 0 },
+    { "zombie_mult": 1.5, "loot_rolls_bonus": 1 },
+    { "zombie_mult": 1.8, "loot_rolls_bonus": 1 },
+    { "zombie_mult": 2.2, "loot_rolls_bonus": 2 }
+  ]
+}

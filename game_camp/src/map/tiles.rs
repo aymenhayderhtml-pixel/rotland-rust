@@ -3,7 +3,7 @@
 //! Port of Godot C# scripts/UI/MapTiles.cs.
 
 use glam::{IVec2, Vec2};
-use world::{BiomeId, WorldGenerator};
+use world::WorldGenerator;
 
 use super::explore::MapExplore;
 
@@ -87,6 +87,46 @@ pub fn render_chunk_tiles(
     pixels
 }
 
+fn rgb_u8_to_f32(c: [u8; 3]) -> [f32; 3] {
+    [c[0] as f32 / 255.0, c[1] as f32 / 255.0, c[2] as f32 / 255.0]
+}
+
+fn lerp_rgb(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
+    let t = t.clamp(0.0, 1.0);
+    [
+        a[0] * (1.0 - t) + b[0] * t,
+        a[1] * (1.0 - t) + b[1] * t,
+        a[2] * (1.0 - t) + b[2] * t,
+    ]
+}
+
+fn ground_color(generator: &WorldGenerator, x: f32, z: f32) -> [f32; 3] {
+    let sample = generator.biome_sample(x, z);
+    let core = if generator.forest_weight(x, z) > 0.5 {
+        [
+            WorldGenerator::FOREST_GRASS.r,
+            WorldGenerator::FOREST_GRASS.g,
+            WorldGenerator::FOREST_GRASS.b,
+        ]
+    } else {
+        [
+            WorldGenerator::PLAINS_GRASS.r,
+            WorldGenerator::PLAINS_GRASS.g,
+            WorldGenerator::PLAINS_GRASS.b,
+        ]
+    };
+
+    if sample.outer <= 0.0 {
+        return core;
+    }
+
+    let registry = generator.biome_registry();
+    let primary = rgb_u8_to_f32(registry.get(sample.primary).map_color);
+    let secondary = rgb_u8_to_f32(registry.get(sample.secondary).map_color);
+    let outer = lerp_rgb(primary, secondary, sample.blend);
+    lerp_rgb(core, outer, sample.outer)
+}
+
 // Godot: MapTiles.cs Shade
 fn shade_texel(
     generator: &WorldGenerator,
@@ -103,18 +143,8 @@ fn shade_texel(
     let is_cliff = slope_x.abs().max(slope_z.abs()) > CLIFF_SLOPE;
     let ground = if is_cliff {
         CLIFF_COLOR
-    } else if generator.biome(x, z) == BiomeId::Forest {
-        [
-            WorldGenerator::FOREST_GRASS.r,
-            WorldGenerator::FOREST_GRASS.g,
-            WorldGenerator::FOREST_GRASS.b,
-        ]
     } else {
-        [
-            WorldGenerator::PLAINS_GRASS.r,
-            WorldGenerator::PLAINS_GRASS.g,
-            WorldGenerator::PLAINS_GRASS.b,
-        ]
+        ground_color(generator, x, z)
     };
 
     let light = 0.85 + 0.3 * ((h + 10.0) / 35.0).clamp(0.0, 1.0);
@@ -124,4 +154,21 @@ fn shade_texel(
         (ground[2] * light * 255.0).round().clamp(0.0, 255.0) as u8,
         255,
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lerp_rgb_interpolates_and_clamps() {
+        let a = [0.0, 0.5, 1.0];
+        let b = [1.0, 0.5, 0.0];
+        let mid = lerp_rgb(a, b, 0.5);
+        assert!((mid[0] - 0.5).abs() < 1e-6);
+        assert!((mid[1] - 0.5).abs() < 1e-6);
+        assert!((mid[2] - 0.5).abs() < 1e-6);
+        assert_eq!(lerp_rgb(a, b, -1.0), a);
+        assert_eq!(lerp_rgb(a, b, 2.0), b);
+    }
 }

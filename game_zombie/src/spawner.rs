@@ -4,7 +4,7 @@
 
 use glam::Vec3;
 use physics::PhysicsWorld;
-pub use world::{SettlementConfigData, SettlementSite};
+pub use world::{BiomeId, SettlementConfigData, SettlementSite};
 
 pub use crate::spawner_config::*;
 
@@ -30,6 +30,8 @@ pub struct SpawnContext<'a> {
     pub ground_check: Option<&'a dyn Fn(Vec3) -> Option<Vec3>>,
     pub zombie_amount: f32,
     pub biome_name: Option<&'a str>,
+    /// Danger-tier density multiplier (1.0 in the core, higher in outer rings).
+    pub tier_mult: f32,
     pub in_city: bool,
     pub in_city_core: bool,
     pub spawn_rate_multiplier: f32,
@@ -55,6 +57,7 @@ impl<'a> SpawnContext<'a> {
             ground_check: None,
             zombie_amount: 1.0,
             biome_name: None,
+            tier_mult: 1.0, // new: DECISIONS 2026-11-25
             in_city: false,
             in_city_core: false,
             spawn_rate_multiplier: 1.0,
@@ -109,6 +112,16 @@ impl<'a> SpawnContext<'a> {
 
     pub fn with_biome(mut self, biome: &'a str) -> Self {
         self.biome_name = Some(biome);
+        self
+    }
+
+    pub fn with_biome_id(mut self, biome: BiomeId) -> Self {
+        self.biome_name = Some(biome.key());
+        self
+    }
+
+    pub fn with_tier_mult(mut self, tier_mult: f32) -> Self {
+        self.tier_mult = tier_mult;
         self
     }
 }
@@ -203,7 +216,7 @@ impl Spawner {
         (self.max_active as f32 * amount).floor() as u32
     }
 
-    /// Full spawn cap taking difficulty, biome, night factor, camp proximity and city into account.
+    /// Full spawn cap taking difficulty, biome, danger tier, night factor, camp proximity and city into account.
     pub fn calculate_cap(&self, ctx: &SpawnContext) -> usize {
         let scaled = self.scaled_max_active(ctx.zombie_amount) as f32;
         let density = if self.ignore_biome_density {
@@ -221,9 +234,10 @@ impl Spawner {
             let camp_dist = nearest_camp_distance(ctx.player_position, ctx.settlements);
             self.config.camp_factor_for(camp_dist, ctx.is_night)
         };
-        let mut day_cap = scaled * density * camp_factor;
+        let tier_mult = if ctx.tier_mult <= 0.0 { 1.0 } else { ctx.tier_mult }; // new: DECISIONS 2026-11-25
+        let mut day_cap = scaled * density * camp_factor * tier_mult;
         if ctx.in_city && let Some(city) = &self.config.city {
-            day_cap = day_cap.min(city.max_active as f32);
+            day_cap = day_cap.min(city.max_active as f32 * tier_mult);
         }
         let night_factor = if ctx.is_night {
             self.config.night_max_active_multiplier

@@ -59,3 +59,43 @@ Rules: `tasks/LEAD.md`. This is the first of 4 "0.3 World" rounds (R31 engine+bi
 6. Lead notes: each task done or not, the last 5 gate lines, the before/after FPS table, all screenshot paths (`/tmp/r31/...`), and anything Claude must check.
 
 ## Lead notes
+- **Neon answers:** all 8 applied with `tools/neon_apply.py` (no refused paths). Read each `## Neon notes`. Lead wiring done: `world/src/biome.rs` removed (`git rm`); `world/src/lib.rs` (terrain_paint, terrain_shape); `rotland/src/main.rs` (region_banner); HUD (`rotland_ui/src/hud/{mod,draw,state}.rs`); `rotland/src/app/state.rs` (PlaySide field), `start_world.rs` (reset), `frame_ui.rs` (tracker update, banner into HUD).
+- **Lead fixes after the first gate runs:**
+  1. `world/src/city/ground.rs` `flatten_road`: `&impl Fn` to `&dyn Fn` (unsized error).
+  2. `world/src/biome/layout.rs`: removed unused `SortedSector.center_deg`; `.1` tuple reads changed to destructuring (checker false positive).
+  3. `world/src/generator.rs`: `chunk_contents` uses `ScatterPlacer::place_with_registry`; `chunk_crates_from` added (R31-03 note).
+  4. `game_core/src/loot/table.rs`: dropped `log::warn!` (it needed a new `log` dependency, which put `Cargo.lock` outside scope). Unknown keys still fall back to plains, without a warning.
+  5. `world/src/city/ground_tests.rs` `city_outside_matches_no_city`: now compares with the same world's `raw_height`. Reason: outer sectors point at Ashford only when a city is attached, so the no-city world has a different biome out there. Intent kept: the city does not change terrain 300 m outside its box.
+  6. `world/src/terrain_shape.rs` `MAX_CELL_STEP_M` 2.8 to 1.6: mountain ridges rose about 3.5 m per 2 m cell, which broke the seam test. Side effect: mountain peaks are lower (about 45 m of amplitude instead of about 62). **Claude: check how the mountains feel.**
+  7. Source tags fixed (`World/...` Godot paths, real line numbers, `// new: DECISIONS 2026-11-25` on new knobs and spatial-hash constants). `255` replaced with `u8::MAX`.
+  8. Removed unused `LayoutData::tier_config` and `terrain_paint::empty_chunk_ground`.
+- **Gate:** last 5 lines of the final run:
+  `clippy: PASS` / `test: PASS (1103 passed)` / `scope: PASS (111 changed paths)` / `numbers: PASS (51 checked)` / `unused: PASS` / `GATE: PASS`. `world/tests/golden.rs` and `golden/world.json` are unchanged and pass.
+- **Blender:** `build_biome_props.py` ran once: 0 Traceback, `BUILD OK` (24 props). Existing models and palette A/B untouched. New: `assets/textures/palette_c.png`. `assets/models.pack` is gitignored (baked locally with `baker`).
+- **Screenshots** (play build, `--save-dir=/tmp/r31-saves`): `/tmp/r31/camp.png`, `/tmp/r31/forest.png`, `/tmp/r31/city.png`, `/tmp/r31/desert.png`, `/tmp/r31/snow.png`, `/tmp/r31/swamp.png`, `/tmp/r31/mountains.png`. Map: `/tmp/r31/worldmap.png` (core in the middle, 4 sectors, tier rings). Each biome looked right when viewed (sand and cacti, snow with shading and pines, swamp trees and reeds, rocky slopes).
+- **FPS** (`tools/perf_scenes.sh --set all --seconds 20`, Intel UHD, log `/tmp/r31-perf.log`):
+
+| Scene | Avg FPS | 1% low | Worst ms | p95 ms | Draws (shadow) |
+|---|---|---|---|---|---|
+| camp | 161.0 | 32.1 | 107.3 | 8.1 | 56 (27) |
+| forest | 121.4 | 46.8 | 147.0 | 10.4 | 73 (21) |
+| city | 126.8 | 37.6 | 135.3 | 12.6 | 61 (31) |
+| night | 168.9 | 47.4 | 127.8 | 7.9 | 61 (0) |
+| zombies | 102.4 | 31.0 | 100.0 | 15.2 | 53 (22) |
+| desert | 169.0 | 37.3 | 123.6 | 10.1 | 38 (15) |
+| snow | 123.9 | 23.5 | 198.5 | 14.3 | 46 (20) |
+| swamp | 147.1 | 49.3 | 126.5 | 11.0 | 48 (20) |
+| mountains | 121.9 | 28.4 | 124.3 | 13.7 | 47 (20) |
+
+  Biome rule (at least forest 121.4 minus 15% = 103.2): all four pass. No "before" build was measured, so the before/after table is missing.
+- **Open / Claude must check:** (a) no Phase 0 "before" screenshots, so camp, forest and Ashford were not compared side by side with the old build; the golden test covers the core heights. (b) Mountains look grey-white on the world map, close to snow; the slopes are pinkish-brown. (c) Mountain peak height reduced (fix 6). (d) `docs/STATUS.md` not updated (lead round step, not done here).
+
+## Gate report
+- date: 2026-11-25
+- base: main
+- files changed (108): assets/models/props/boulder_big.glb, assets/models/props/cactus_round.glb, assets/models/props/cactus_tall.glb, assets/models/props/cattle_skull.glb, assets/models/props/desert_shrub.glb, assets/models/props/lily_mud_patch.glb, assets/models/props/pine_snow.glb, assets/models/props/pine_snow_lod1.glb, assets/models/props/pine_snow_lod2.glb, assets/models/props/reeds.glb, assets/models/props/rock_cliff_01.glb, assets/models/props/rock_ice_01.glb, assets/models/props/rock_sandstone_01.glb, assets/models/props/rock_sandstone_02.glb, assets/models/props/snow_drift.glb, assets/models/props/snow_shrub.glb, assets/models/props/swamp_log_mossy.glb, assets/models/props/swamp_stump.glb, assets/models/props/tree_desert_dead.glb, assets/models/props/tree_desert_dead_lod1.glb, assets/models/props/tree_desert_dead_lod2.glb, assets/models/props/tree_swamp.glb, assets/models/props/tree_swamp_lod1.glb, assets/models/props/tree_swamp_lod2.glb, assets/textures/palette_c.png, data/animals.json, data/biomes.json, data/loot_tables.json, data/poi.json, data/spawning.json, data/world_layout.json, docs/WORLD.md, game_camp/src/map/tiles.rs, game_core/src/loot/mod.rs, game_core/src/loot/table.rs, game/tests/all/biome_keys_tests.rs, game/tests/all/main.rs, game_zombie/src/spawner_config.rs, game_zombie/src/spawner.rs, rotland/src/app/frame_sim_actors.rs, rotland/src/app/frame_ui.rs, rotland/src/app/start_world.rs, rotland/src/app/state.rs, rotland/src/app/test_flags.rs, rotland/src/main.rs, rotland/src/play.rs, rotland/src/props.rs, rotland/src/region_banner.rs, rotland/src/streaming.rs, rotland_ui/src/hud/draw.rs, rotland_ui/src/hud/mod.rs, rotland_ui/src/hud/region_banner.rs, rotland_ui/src/hud/state.rs, tasks/R31-01-biome-core.md, tasks/R31-02-terrain.md, tasks/R31-03-scatter.md, tasks/R31-04-gameplay-keys.md, tasks/R31-05-tools-hud.md, tasks/R31-06-models-desert.md, tasks/R31-07-models-snow-mountain.md, tasks/R31-08-models-swamp.md, tasks/R31-round.md, tools/blender/build_biome_props.py, tools/blender/common.py, tools/blender/palette.py, tools/blender/props/boulder_big.py, tools/blender/props/cactus_round.py, tools/blender/props/cactus_tall.py, tools/blender/props/cattle_skull.py, tools/blender/props/desert_shrub.py, tools/blender/props/lily_mud_patch.py, tools/blender/props/pine_snow_lod1.py, tools/blender/props/pine_snow_lod2.py, tools/blender/props/pine_snow.py, tools/blender/props/reeds.py, tools/blender/props/rock_cliff_01.py, tools/blender/props/rock_ice_01.py, tools/blender/props/rock_sandstone_01.py, tools/blender/props/rock_sandstone_02.py, tools/blender/props/snow_drift.py, tools/blender/props/snow_shrub.py, tools/blender/props/swamp_log_mossy.py, tools/blender/props/swamp_stump.py, tools/blender/props/tree_desert_dead_lod1.py, tools/blender/props/tree_desert_dead_lod2.py, tools/blender/props/tree_desert_dead.py, tools/blender/props/tree_swamp_lod1.py, tools/blender/props/tree_swamp_lod2.py, tools/blender/props/tree_swamp.py, tools/perf_scenes.sh, tools/README_TOOLS.md, world/Cargo.toml, world/examples/worldmap.rs, world/src/biome/layout.rs, world/src/city/ground.rs, world/src/city/ground_tests.rs, world/src/generator.rs, world/src/ground_paint.rs, world/src/lib.rs, world/src/loot.rs, world/src/poi.rs, world/src/scatter.rs, world/src/terrain_paint.rs, world/src/terrain_shape.rs, world/tests/biome_layout_tests.rs, world/tests/biome_scatter_tests.rs, world/tests/biome_terrain_tests.rs, world/tests/terrain_unit_tests.rs
+- tests passed: 1103
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS

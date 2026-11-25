@@ -4,9 +4,6 @@ use paths::repo_path;
 use crate::city::config::{CityConfig, District};
 use crate::city::ground::CityGroundData;
 use crate::generator::{GroundTriangle, WorldGenerator};
-use crate::poi::PoiConfig;
-use crate::scatter::ScatterConfig;
-use crate::settlement::SettlementConfig;
 
 fn load_world_42() -> WorldGenerator {
     let data_dir = repo_path("data");
@@ -141,11 +138,6 @@ fn city_outside_matches_no_city() {
     let gen_with = load_world_42();
     let city = gen_with.city().expect("world should have city");
 
-    let data_dir = repo_path("data");
-    let settlements = SettlementConfig::load_from_file(data_dir.join("settlements.json")).unwrap();
-    let scatter = ScatterConfig::load_from_file(data_dir.join("scatter.json")).unwrap();
-    let poi = PoiConfig::load_from_file(data_dir.join("poi.json")).unwrap();
-    let gen_without = WorldGenerator::with_configs(42, settlements, scatter, poi);
 
     // Pick a point 300m outside the city box away from camp and road
     let camp = Vec2::new(gen_with.settlements()[0].center.x, gen_with.settlements()[0].center.z);
@@ -153,13 +145,12 @@ fn city_outside_matches_no_city() {
     let dir = (city_center - camp).normalize();
     let p = city_center + dir * (city.size * 0.5 + 300.0);
 
+    // R31: the outer biome sectors point at Ashford only when a city is attached, so the
+    // no-city world has a different biome layout out here. Compare with the same world's
+    // unflattened height instead: the city must not change terrain 300 m outside its box.
     let h1 = gen_with.height(p.x, p.y);
-    let h2 = gen_without.height(p.x, p.y);
-    assert_eq!(h1, h2, "height mismatch 300m outside city: {h1} vs {h2}");
-
-    let tri1 = triangle_at(&gen_with, p.x, p.y);
-    let tri2 = triangle_at(&gen_without, p.x, p.y);
-    assert_eq!(tri1.color, tri2.color, "color mismatch 300m outside city");
+    let raw = gen_with.raw_height(p.x, p.y);
+    assert_eq!(h1, raw, "city changed height 300m outside city: {h1} vs raw {raw}");
 }
 
 #[test]

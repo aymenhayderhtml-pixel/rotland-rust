@@ -1,6 +1,7 @@
 //! All game integration tests in one binary (one link instead of 36; much faster test builds).
 
 mod animals_tests;
+mod biome_keys_tests;
 mod bounties_tests;
 mod building_tests;
 mod campfire_tests;

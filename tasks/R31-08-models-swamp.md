@@ -15,3 +15,25 @@ Style: copy `tools/blender/props/tree_oak_big.py` (+ LODs), `log_fallen.py`, `st
 Origin at the ground centre, sunk ~5 cm. Every file has `main()` returning 0/1 via `common.run_model`, because `build_biome_props.py` imports them by name.
 
 ## Worker notes
+
+## Neon notes
+
+* **What was written**: All 7 swamp prop scripts in `tools/blender/props/`, exporting to `assets/models/props/<name>.glb` (`CATEGORY = "props"` per `tasks/R31-round.md` shared names) with `main()` returning `0`/`1` via `common.run_model`:
+* `tree_swamp` (~468 / 500 tris, ~8.7 m tall, trunk collider)
+* `tree_swamp_lod1` (~164 / 180 tris, trunk collider)
+* `tree_swamp_lod2` (~44 / 50 tris, trunk collider)
+* `reeds` (~112 / 120 tris, 10 tall `reed_tan` blades 1.25-1.78 m + 3 `swamp_mud` cattail heads + `swamp_moss` base, no collider)
+* `swamp_log_mossy` (~176 / 200 tris, half-sunk with moss patches, snapped stubs and mud flanks, log collider)
+* `swamp_stump` (~138 / 150 tris, jagged broken top with recessed rotten core, 4 roots and moss, body collider)
+* `lily_mud_patch` (~78 / 80 tris, ~2.6×2.3 m raised 3 cm mud puddle with 5 closed manifold notched lily pads, no collider)
+
+
+* **Origin & ground sink**: `common.Model.finalize_and_export()` lifts `min(z)` to `0.0` whenever `grip is None`. To keep each prop's origin at ground centre `(0, 0, 0)` with bases/skirts sunk ~5-8 cm below ground (and `swamp_log_mossy` half-sunk), every script builds centered around `(0, 0)` and passes `grip=(0.0, 0.0, 0.0)` to `common.run_model`. Since every model's bounding radius exceeds 0.5 m, the `_is_weapon` preview framing floor (`0.12` vs `0.5`) has no effect on preview framing.
+* **Palette & multi-material**: `common.py` already supports multiple material slots per mesh (`sheets` + `poly.material_index`). `tree_swamp` and `tree_swamp_lod1` pair Sheet C (`swamp_bark`, `swamp_moss`) with Sheet A (`leaf_dark`) for deeper canopy shading; all other 5 models stay strictly on Sheet C (`swamp_moss`, `swamp_mud`, `reed_tan`, `swamp_bark`).
+* **What the caller/lead must do**:
+* Apply R31-06 first so Sheet C (`COLORS_C`, `write_palette_png_c`, and `sheet="C"` handling in `palette.py`/`common.py`) and `tools/blender/build_biome_props.py` are in place.
+* Run `flock /tmp/rotland-blender.lock blender -b --python tools/blender/build_biome_props.py > /tmp/r31-props.log 2>&1`, verify 0 tracebacks and `BUILD OK`, inspect the generated previews in `assets/models/_previews/`, and run `cargo run --release -p baker`.
+
+
+* **Known risks**:
+* In `tree_swamp` and `tree_swamp_lod1`, mixing Sheet A (`leaf_dark`) and Sheet C assumes R31-06 extends `common._to_object`'s `sheets` list the same way Sheet B is handled (keeping multi-sheet indexing working). If R31-06 forces single-sheet meshes, switch `"leaf_dark"` to `"swamp_moss"` in those two files.

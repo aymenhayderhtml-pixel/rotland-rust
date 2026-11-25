@@ -57,6 +57,8 @@ pub struct HudState {
     pub dog: Option<DogHudInfo>,
     /// Whether the player is currently inside a settlement safe zone.
     pub in_safe_zone: bool,
+    /// "Entering: <region>" banner (R31-05).
+    pub region_banner: Option<super::region_banner::RegionBannerInfo>,
     /// Compass camp indicator (bearing angle and distance).
     pub camp: Option<CampHudInfo>,
     /// Compass waypoint diamond indicator.
@@ -107,6 +109,7 @@ impl Default for HudState {
             held: HeldKind::None,
             dog: None,
             in_safe_zone: false,
+            region_banner: None,
             camp: None,
             waypoint: None,
             scoped: false,

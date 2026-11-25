@@ -13,9 +13,14 @@ pub mod poi;
 pub mod random;
 pub mod scatter;
 pub mod settlement;
+pub mod terrain_paint;
+pub mod terrain_shape;
 pub mod time;
 
-pub use biome::BiomeId;
+pub use biome::{
+    BiomeDef, BiomeGround, BiomeHeight, BiomeId, BiomeRegistry, BiomeSample, SectorConfig,
+    TierConfig, WorldLayout, WorldLayoutData,
+};
 pub use camp_layout::{
     camp_upgrade_props, camp_upgrade_props_with_config, wall_section_count, CampLayoutConfigData,
     CampLevels, TowerCorner,

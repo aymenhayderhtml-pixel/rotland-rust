@@ -20,3 +20,40 @@ Rules: `tasks/LEAD.md` subagent rules (never run blender; the lead builds once).
 3. **`tools/blender/build_biome_props.py`:** copy `build_world_props.py`, with `MODELS` = ALL new R31 models from the shared names (desert, snow/mountain and swamp, including the `_lod1`/`_lod2` ones). It writes sheet C first (`write_palette_png_c()`), never rewrites A or B, makes a contact sheet `contact_sheet_biomes.png`, and exits 1 on any failure. R31-07 and R31-08 write the other model scripts at the same time, with exactly those names.
 
 ## Worker notes
+
+## Neon notes
+
+* **Sheet C (`palette.py` & `common.py`):**
+* Added `COLORS_C` (all 16 R31 shared names in exact order, unused cells 16–31 filled with `GREY_FILL`), `NAMES_C`, `PNG_PATH_C` (`assets/textures/palette_c.png`), `KEY_C_OFFSET = CELLS * 2`, and `write_palette_png_c()`. Extended `sheet_of`, `index_of`, `key_of`, `name_of_key`, and `sheet_of_key` to support `"C"`.
+* Updated `common.palette_material(sheet="A")` with `MATERIAL_NAME_C = "palette_c"`, and updated `_to_object` so models without sheet C colors keep the exact previous slot layout (`["A"]` or `["A", "B"]`) for byte-for-byte identity, while sheet C models attach only the sheets they actually use (`["C"]`, or `["A", "C"]` for two-sheet models like `tree_desert_dead`).
+* `common.paint` / `paint_faces` automatically support sheet C via `palette.key_of`.
+
+
+* **Origin & ground sink:**
+* All 9 desert props pass `grip=(0.0, 0.0, 0.0)` to `common.run_model` so `finalize_and_export()` keeps the origin strictly at ground centre `(0, 0, 0)` instead of shifting `min(z)` up to `0`. Every prop extends 4.5–8 cm below `z = 0` so it seats cleanly on sloped desert dunes without floating.
+
+
+* **Desert models (`CATEGORY = "props"`, exporting to `assets/models/props/<name>.glb`) & exact triangle counts:**
+* `cactus_tall`: 266 tris (budget 300) — 4.1 m saguaro, 2 bent arms, 8-sided alternating `cactus_green`/`cactus_dark` faces + trunk collider.
+* `cactus_round`: 134 tris (budget 200) — 0.72 m ribbed barrel cactus with 6 small `bone_white` 4-sided pyramid spines + hull collider.
+* `desert_shrub`: 128 tris (budget 150) — 0.8 m low dry tumbleweed-like shrub in `dry_brush` + `sandstone_dark`.
+* `rock_sandstone_01`: 172 tris (budget 200) — 2.7 m wide flat-topped 3-slab layered outcrop with `sandstone`/`sandstone_dark` strata + 2 base chunks + collider.
+* `rock_sandstone_02`: 164 tris (budget 200) — 2.6 m tall layered hoodoo/butte with overhanging flat cap + side step-shelf + collider.
+* `cattle_skull`: 100 tris (budget 120) — 0.6 m `bone_white` skull with curved horns and recessed dark eye-socket facets, resting tilted on the ground.
+* `tree_desert_dead`: 304 tris (budget 400) — 4.2 m bare twisted desert tree using `bark_light` (sheet A) + `dry_brush` (sheet C), roots, 5 bent limbs, 12 twigs, 2 snags + trunk collider.
+* `tree_desert_dead_lod1`: 116 tris (budget 150) — matching twisted silhouette, 5-sided trunk, 4 bent limbs + crown limb + 3 forks + trunk collider.
+* `tree_desert_dead_lod2`: 36 tris (budget 40) — matching 4-sided bent trunk (20 tris) + 4 tapered limbs (16 tris) + trunk collider.
+
+
+* **Build script (`tools/blender/build_biome_props.py`):**
+* Calls `palette.write_palette_png_c()` only (never rewrites A or B), builds all 24 R31 biome models (9 desert, 8 snow/mountain, 7 swamp including `_lod1`/`_lod2`), writes `contact_sheet_biomes.png`, and exits 1 on any failure.
+
+
+* **Caller / Lead actions:**
+* Wait for R31-07 (`pine_snow*`, `rock_ice_01`, `snow_drift`, `snow_shrub`, `boulder_big`, `rock_cliff_01`) and R31-08 (`tree_swamp*`, `reeds`, `swamp_log_mossy`, `swamp_stump`, `lily_mud_patch`) scripts to land in `tools/blender/props/`.
+* Run `flock /tmp/rotland-blender.lock blender -b --python tools/blender/build_biome_props.py > /tmp/r31-props.log 2>&1` once and inspect `assets/models/_previews/contact_sheet_biomes.png` and `/tmp/r31-props.log` (verify 0 `Traceback` and `BUILD OK`), then run `cargo run --release -p baker`.
+* Fill `## Worker notes` in `tasks/R31-06-models-desert.md` if tracking on disk.
+
+
+* **Known risks:**
+* `tree_desert_dead` (+ LODs) exports with 2 materials (`palette` + `palette_c`), matching how existing sheet-B multi-material trees (e.g., `tree_autumn`) export. If any downstream pipeline step assumes single-material props for R31, switching `"bark_light"` to `"sandstone_dark"` or `"swamp_bark"` (sheet C) in those 3 files makes them single-material sheet C only.

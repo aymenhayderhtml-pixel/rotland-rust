@@ -140,6 +140,14 @@ pub fn draw_ui(
             c.is_dead(),
         );
         let mut state = state;
+        if let Some(wg) = world.world_gen.as_ref() {
+            play.region_banner.update(
+                session.last_dt,
+                || wg.biome_sample(p.position.x, p.position.z),
+                |id| wg.biome_registry().get(id).name.clone(),
+            );
+        }
+        state.region_banner = play.region_banner.active();
         let now = ctx.input(|i| i.time);
         let dt = session.last_dt;
         ui.hud.update(dt, now, p.position, p.yaw);

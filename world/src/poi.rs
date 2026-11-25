@@ -77,16 +77,16 @@ pub struct PoiConfigData {
 }
 
 fn default_lot_margin() -> f32 {
-    1.5
+    1.5 // data: poi.json lotMargin
 }
 fn default_max_sink() -> f32 {
-    1.5
+    1.5 // data: poi.json maxSink
 }
 fn default_approach_distance() -> f32 {
-    35.0
+    35.0 // data: poi.json approachDistance
 }
 fn default_max_active_zombies() -> i32 {
-    16
+    16 // data: poi.json maxActiveZombies
 }
 
 impl Default for PoiConfigData {
@@ -187,8 +187,8 @@ impl PoiGeometry {
 pub struct PoiPlacer;
 
 impl PoiPlacer {
-    const PLACEMENT_SALT: i32 = 0x51A7E3B1;
-    const TURNS: i32 = 4;
+    const PLACEMENT_SALT: i32 = 0x51A7E3B1; // godot: PoiPlacer.cs
+    const TURNS: i32 = 4; // godot: PoiPlacer.cs
 
     pub fn place(
         generator: &WorldGenerator,
@@ -236,12 +236,7 @@ impl PoiPlacer {
     }
 
     pub fn biome_weight(def: &PoiBuildingDef, biome: BiomeId) -> f32 {
-        let key = if biome == BiomeId::Forest {
-            "forest"
-        } else {
-            "plains"
-        };
-        def.biome.get(key).copied().unwrap_or(0.0)
+        def.biome.get(biome.key()).copied().unwrap_or(0.0)
     }
 
     fn try_place(

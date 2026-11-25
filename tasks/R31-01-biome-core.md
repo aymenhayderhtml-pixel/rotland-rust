@@ -46,3 +46,24 @@ Rules: `tasks/LEAD.md` subagent rules. Use the "R31 shared names" in `tasks/R31-
 6. **`docs/WORLD.md`** (short, simple English): how the world is laid out (core, rings, sectors, tiers), which data file holds what, and how to add a new biome.
 
 ## Worker notes
+
+## Neon notes
+
+* **Deleted file:** Remove the old `world/src/biome.rs` file now that it has been replaced by the `world/src/biome/` module (`mod.rs`, `registry.rs`, `layout.rs`).
+* **Shared-file re-exports (`world/src/lib.rs`):** Updated `pub use biome::BiomeId;` to:
+```rust
+pub use biome::{
+    BiomeDef, BiomeGround, BiomeHeight, BiomeId, BiomeRegistry, BiomeSample, SectorConfig,
+    TierConfig, WorldLayout, WorldLayoutData,
+};
+
+```
+
+
+* **API & Design Summary:**
+* `BiomeId` (`#[repr(u8)]`) keeps `Plains = 0` and `Forest = 1` and adds `Desert = 2`, `Snow = 3`, `Swamp = 4`, `Mountains = 5`, `BiomeId::ALL`, `key()`, and `from_key()`.
+* `BiomeRegistry` (`load()`, `load_from_file()`, `from_json()`, `get()`) validates that all 6 biome keys exist in `data/biomes.json` and returns an `Err` naming any missing keys; `get(BiomeId)` indexes a fixed `[BiomeDef; 6]` and cannot panic. Reuses `crate::scatter::ScatterRule`.
+* `WorldLayout` (`new()`, `sample()`, `direction_at_deg()`) computes `outer` via `smooth_step(core_radius, core_radius + blend_band, dist)`, `tier` (`0` in core, `1..=5` outside), counter-clockwise sector angles from `reference_dir` (+Y up), noise-warped borders using `GodotNoise::simplex(seed.wrapping_add(201), warp_frequency)`, and smooth border blending up to `0.5` across `sector_blend_deg`.
+
+
+* **Downstream Wiring:** R31-02 (`WorldGenerator`) can now instantiate `BiomeRegistry` and `WorldLayout` (passing camp pad center as `origin` and `city_center - camp` or `Vec2::X` as `reference_dir`) to implement `WorldGenerator::biome_sample()` and `WorldGenerator::tier()`.

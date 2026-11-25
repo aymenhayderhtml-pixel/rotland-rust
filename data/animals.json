@@ -8,7 +8,14 @@
     "outOfViewAngleDeg": 75,
     "dayCap": 6,
     "nightCap": 3,
-    "biomes": { "forest": ["deer", "boar"], "plains": ["deer", "rabbit"] }
+    "biomes": {
+      "forest": ["deer", "boar"],
+      "plains": ["deer", "rabbit"],
+      "desert": ["rabbit"],
+      "snow": ["deer", "rabbit"],
+      "swamp": ["boar"],
+      "mountains": ["deer", "rabbit"]
+    }
   },
   "behaviour": {
     "crouchFactor": 0.5,
