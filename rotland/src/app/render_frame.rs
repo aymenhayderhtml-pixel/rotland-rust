@@ -196,11 +196,55 @@ pub fn render_frame(
         .chain(beds.iter())
         .chain(upgrade_placed.iter())
         .chain(bench_placed.iter());
+    let spot = render.flashlight_on.then(|| {
+        // Held at the camera, pointing where it looks (Godot hangs it on the camera)
+        light::flashlight(render.camera.position, render.camera.forward())
+    });
+    let mut lighting = if let (Some(weather), Some(generator)) =
+        (play.weather.as_ref(), world.world_gen.as_ref())
+    {
+        let wl = weather.light_overrides(actors.player, generator);
+        light::at_hour_weather(play.hour, spot, wl)
+    } else {
+        light::at_hour(play.hour, spot)
+    };
+    // The nearest car with its lights on lights the road (Godot CarLights); the renderer has 3 spots
+    if let Some(cars) = &actors.cars
+        && let Some(car) = cars
+            .live_cars()
+            .filter(|c| c.lights_on)
+            .min_by(|a, b| {
+                a.body
+                    .position
+                    .distance(actors.player)
+                    .total_cmp(&b.body.position.distance(actors.player))
+            })
+    {
+        let [l, r] = car_lights::headlight_spots(
+            car.draw_state().world_matrix,
+            render.car_markers.headlight_l,
+            render.car_markers.headlight_r,
+            true,
+            &cars.config,
+        );
+        lighting.spots[1] = l;
+        lighting.spots[2] = r;
+    }
+    let shadows_on = renderer.shadows.enabled && lighting.sun_energy > 0.01;
+    let sun_frustum = shadows_on.then(|| {
+        let light_vp = engine::render::shadow::light_view_proj(
+            &render.camera,
+            lighting.sun_toward,
+            &renderer.shadows,
+        );
+        engine::render::frustum::Frustum::from_view_proj(&light_vp)
+    });
     let (mut main, mut shadow) = render.library.batches(
         placed,
         &render.camera,
         target.aspect(),
         renderer.shadows.distance,
+        sun_frustum.as_ref(),
     );
     let driven_car = actors.cars.as_ref().and_then(|c| c.driven_car()).map(|car| {
         let world = Mat4::from_rotation_translation(car.body.rotation, car.body.position);
@@ -440,40 +484,6 @@ pub fn render_frame(
                 main.push(engine::render::SkinnedBatch { mesh, instances });
             }
         }
-    }
-    let spot = render.flashlight_on.then(|| {
-        // Held at the camera, pointing where it looks (Godot hangs it on the camera)
-        light::flashlight(render.camera.position, render.camera.forward())
-    });
-    let mut lighting = if let (Some(weather), Some(generator)) =
-        (play.weather.as_ref(), world.world_gen.as_ref())
-    {
-        let wl = weather.light_overrides(actors.player, generator);
-        light::at_hour_weather(play.hour, spot, wl)
-    } else {
-        light::at_hour(play.hour, spot)
-    };
-    // The nearest car with its lights on lights the road (Godot CarLights); the renderer has 3 spots
-    if let Some(cars) = &actors.cars
-        && let Some(car) = cars
-            .live_cars()
-            .filter(|c| c.lights_on)
-            .min_by(|a, b| {
-                a.body
-                    .position
-                    .distance(actors.player)
-                    .total_cmp(&b.body.position.distance(actors.player))
-            })
-    {
-        let [l, r] = car_lights::headlight_spots(
-            car.draw_state().world_matrix,
-            render.car_markers.headlight_l,
-            render.car_markers.headlight_r,
-            true,
-            &cars.config,
-        );
-        lighting.spots[1] = l;
-        lighting.spots[2] = r;
     }
     renderer.draw(
         gpu,

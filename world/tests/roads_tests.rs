@@ -53,9 +53,7 @@ fn four_trailheads_sit_at_sector_angles_and_expected_radius() {
     let trailheads = net.trailheads();
     assert_eq!(trailheads.len(), 4);
 
-    let expected_radius = layout.data().core_radius
-        + layout.data().blend_band
-        + roads_data.trailhead_margin;
+    let expected_radius = layout.data().core_radius + roads_data.trailhead_margin;
     let expected_degs = [0.0_f32, 90.0_f32, 180.0_f32, 270.0_f32];
 
     for (th, deg) in trailheads.iter().zip(expected_degs) {
@@ -118,16 +116,22 @@ fn no_road_point_or_segment_enters_core_plus_blend_band() {
     let layout = sample_layout(77, origin);
     let roads_data = RoadsData::load().expect("load data/roads.json");
     let towns = sample_towns(&layout, origin);
-    let min_outer_radius = layout.data().core_radius + layout.data().blend_band;
+    let min_highway_radius = layout.data().core_radius;
+    let min_trail_radius = layout.data().core_radius + layout.data().blend_band;
 
     let net = RoadNetwork::build(&roads_data, &towns, &layout, 77, origin);
     for road in net.roads() {
         assert!(road.points.len() >= 2);
+        let min_radius = if road.kind == RoadKind::Highway {
+            min_highway_radius
+        } else {
+            min_trail_radius
+        };
         for pt in &road.points {
             let r = pt.distance(origin);
             assert!(
-                r > min_outer_radius,
-                "road '{}' vertex {pt:?} at radius {r} entered core+blend ({min_outer_radius})",
+                r > min_radius,
+                "road '{}' vertex {pt:?} at radius {r} entered min radius ({min_radius})",
                 road.name
             );
         }
@@ -135,8 +139,8 @@ fn no_road_point_or_segment_enters_core_plus_blend_band() {
             let mid = pair[0].lerp(pair[1], 0.5);
             let r = mid.distance(origin);
             assert!(
-                r > min_outer_radius,
-                "road '{}' segment midpoint {mid:?} at radius {r} entered core+blend ({min_outer_radius})",
+                r > min_radius,
+                "road '{}' segment midpoint {mid:?} at radius {r} entered min radius ({min_radius})",
                 road.name
             );
         }

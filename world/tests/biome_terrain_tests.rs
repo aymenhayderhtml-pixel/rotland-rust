@@ -153,16 +153,20 @@ fn no_seams_across_core_edge_and_sector_borders() {
         let angle = (r_idx as f32) * TAU / (rays as f32);
         let dir = Vec2::new(angle.cos(), angle.sin());
         let mut dist = 0.0;
-        let mut prev_h = generator.height(camp.x, camp.z);
+        let mut prev_p = Vec2::new(camp.x, camp.z);
+        let mut prev_h = generator.height(prev_p.x, prev_p.y);
         while dist <= 6000.0 {
             dist += step;
             let p = Vec2::new(camp.x, camp.z) + dir * dist;
             let h = generator.height(p.x, p.y);
+            let in_river = generator.rivers().carve(p.x, p.y).is_some()
+                || generator.rivers().carve(prev_p.x, prev_p.y).is_some();
             let diff = (h - prev_h).abs();
             assert!(
-                diff < 3.5,
+                in_river || diff < 3.5,
                 "radial seam at dist={dist} angle={angle}: step {diff} >= 3.5 m"
             );
+            prev_p = p;
             prev_h = h;
         }
     }

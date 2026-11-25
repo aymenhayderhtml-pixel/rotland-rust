@@ -139,11 +139,12 @@ fn city_outside_matches_no_city() {
     let city = gen_with.city().expect("world should have city");
 
 
-    // Pick a point 300m outside the city box away from camp and road
+    // Pick a point 300m outside the city box away from camp, road, and river
     let camp = Vec2::new(gen_with.settlements()[0].center.x, gen_with.settlements()[0].center.z);
     let city_center = city.origin + Vec2::splat(city.size * 0.5);
     let dir = (city_center - camp).normalize();
-    let p = city_center + dir * (city.size * 0.5 + 300.0);
+    let side = Vec2::new(-dir.y, dir.x);
+    let p = city_center + side * (city.size * 0.5 + 300.0);
 
     // R31: the outer biome sectors point at Ashford only when a city is attached, so the
     // no-city world has a different biome layout out here. Compare with the same world's

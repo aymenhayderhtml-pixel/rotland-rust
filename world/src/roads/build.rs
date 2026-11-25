@@ -36,7 +36,8 @@ pub(crate) fn build_network(
     );
     // data: world_layout.json core_radius, blend_band
     let core_outer_edge = layout.data().core_radius + layout.data().blend_band;
-    let min_clearance_radius = core_outer_edge + CORE_CLEARANCE_BUFFER_M;
+    let highway_clearance_radius = layout.data().core_radius + CORE_CLEARANCE_BUFFER_M;
+    let ring_clearance_radius = core_outer_edge + CORE_CLEARANCE_BUFFER_M;
 
     let sector_trailheads = build_trailheads(data, layout, origin);
     let trailheads: Vec<Vec2> = sector_trailheads.iter().map(|(_, pos)| *pos).collect();
@@ -55,7 +56,7 @@ pub(crate) fn build_network(
             &wiggle_noise,
             road_index,
             origin,
-            min_clearance_radius,
+            highway_clearance_radius,
         );
         road_index += 1;
         roads.push(Road {
@@ -72,7 +73,7 @@ pub(crate) fn build_network(
         &wiggle_noise,
         road_index,
         origin,
-        min_clearance_radius,
+        ring_clearance_radius,
     );
     roads.extend(ring_roads);
 
@@ -92,8 +93,8 @@ fn build_trailheads(
         .collect();
     sectors.sort_by(|a, b| a.1.total_cmp(&b.1));
 
-    // data: world_layout.json core_radius, blend_band; data: roads.json trailhead_margin
-    let radius = layout.data().core_radius + layout.data().blend_band + data.trailhead_margin;
+    // data: world_layout.json core_radius; data: roads.json trailhead_margin
+    let radius = layout.data().core_radius + data.trailhead_margin;
     sectors
         .into_iter()
         .map(|(biome, deg)| {
@@ -290,4 +291,70 @@ fn angle_ccw_deg(delta: Vec2, reference_dir: Vec2) -> f32 {
         .atan2(forward)
         .to_degrees()
         .rem_euclid(FULL_CIRCLE_DEG)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::biome::layout::WorldLayoutData;
+
+    #[test]
+    fn trailheads_sit_at_core_edge_and_roads_stay_outside_core_radius() {
+        let origin = Vec2::new(120.0, -80.0);
+        let layout_data =
+            WorldLayoutData::from_json(include_str!("../../../data/world_layout.json"))
+                .expect("valid world_layout.json");
+        let layout = WorldLayout::new(&layout_data, 42, origin, Vec2::X);
+        let roads_data = RoadsData::from_json(include_str!("../../../data/roads.json"))
+            .expect("valid roads.json");
+        let towns: Vec<TownSite> = layout_data
+            .sectors
+            .iter()
+            .map(|s| {
+                let biome = s.biome;
+                let dir = layout.direction_at_deg(s.center_deg);
+                TownSite {
+                    key: biome.key().to_string(),
+                    name: biome.key().to_string(),
+                    biome,
+                    center: origin + dir * 3400.0,
+                    radius: 120.0,
+                    street_dir: -dir,
+                    lots: Vec::new(),
+                }
+            })
+            .collect();
+
+        let (trailheads, roads) = build_network(&roads_data, &towns, &layout, 42, origin);
+        assert_eq!(trailheads.len(), 4);
+
+        let core_radius = layout_data.core_radius;
+        for th in &trailheads {
+            let r = th.distance(origin);
+            assert!(
+                r >= core_radius + 20.0 && r <= core_radius + 60.0,
+                "trailhead radius {r} must be in [core_radius + 20, core_radius + 60]"
+            );
+        }
+
+        for road in &roads {
+            for pt in &road.points {
+                let r = pt.distance(origin);
+                assert!(
+                    r > core_radius,
+                    "road '{}' point at radius {r} entered core_radius ({core_radius})",
+                    road.name
+                );
+            }
+            for pair in road.points.windows(2) {
+                let mid = pair[0].lerp(pair[1], HALF_FACTOR);
+                let r = mid.distance(origin);
+                assert!(
+                    r > core_radius,
+                    "road '{}' midpoint at radius {r} entered core_radius ({core_radius})",
+                    road.name
+                );
+            }
+        }
+    }
 }

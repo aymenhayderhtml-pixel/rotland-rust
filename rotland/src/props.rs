@@ -11,8 +11,10 @@ use glam::{Mat4, Vec3};
 
 /// Distances from data/scatter.json "visibility".
 const TREE: f32 = 170.0; // data: scatter.json visibility.tree
-const TREE_LOD1: f32 = 45.0; // data: scatter.json visibility.treeLod1
-const TREE_LOD2: f32 = 95.0; // data: scatter.json visibility.treeLod2
+const TREE_PERF_LOD1: f32 = 35.0; // new: PERF R34
+const TREE_PERF_LOD2: f32 = 75.0; // new: PERF R34
+const SMALL_PROP_SHADOW_DIST: f32 = 35.0; // new: PERF R34
+const TREE_SHADOW_LOD1_DIST: f32 = 15.0; // new: PERF R34
 const ROCK: f32 = 80.0; // data: scatter.json visibility.rock
 const BUSH: f32 = 65.0; // data: scatter.json visibility.bush
 const BUSH_LOD1: f32 = 28.0; // data: scatter.json visibility.bushLod1
@@ -112,9 +114,12 @@ pub struct PropModel {
     lods: Vec<GpuMesh>,
     /// Where each LOD stops being used (the last one is the visibility range).
     ends: Vec<f32>,
+    /// Squared maximum visibility range for fast early-out before sqrt.
+    max_range_sq: f32, // new: PERF R34
     /// Dither cross-fade band width (0.0 disables dither-fade so the fast non-discard pipeline is used).
     fade_band: f32,
     casts_shadow: bool,
+    is_small_prop: bool, // new: PERF R34
     radius: f32,
     /// Height of the model's middle above its origin (origins sit on the ground).
     center_y: f32,
@@ -272,6 +277,7 @@ impl PropLibrary {
         camera: &Camera,
         aspect: f32,
         shadow_distance: f32,
+        sun_frustum: Option<&Frustum>,
     ) -> (Vec<SkinnedBatch<'a>>, Vec<SkinnedBatch<'a>>) {
         let frustum = Frustum::from_view_proj(&camera.view_proj(aspect));
         let lod_count = self.lod_map.len();
@@ -291,7 +297,11 @@ impl PropLibrary {
 
             for p in placed {
                 let m = &self.models[p.model];
-                let dist = p.centre.distance(camera.position);
+                let dist_sq = p.centre.distance_squared(camera.position);
+                if dist_sq >= m.max_range_sq {
+                    continue;
+                }
+                let dist = dist_sq.sqrt();
                 let fades = lod_fade(dist, &m.ends, m.fade_band);
                 if fades.is_empty() {
                     continue;
@@ -309,17 +319,27 @@ impl PropLibrary {
                         scratch.main[slot].push(SkinInstance::with_fade(p.matrix, 0, fade, complementary));
                     }
                 }
-                // Like Godot: only the near versions cast shadows, and only inside the shadow distance.
-                // During fade, only the nearer LOD casts the shadow (no double shadows).
-                let nearer_lod = fades[0].0;
-                if m.casts_shadow && nearer_lod < 2 && dist < shadow_distance + m.radius {
-                    let slot = base_slot + nearer_lod;
-                    if scratch.shadow[slot].is_empty() && scratch.shadow[slot].capacity() == 0 {
-                        let last_len = scratch.last_shadow_len[slot];
-                        let v = scratch.take_vec(last_len);
-                        scratch.shadow[slot] = v;
+                // Only cast shadows inside the sun's orthographic box and within shadow distance.
+                // Small props stop casting beyond SMALL_PROP_SHADOW_DIST; trees use LOD1 beyond 15 m.
+                if let Some(sun) = sun_frustum {
+                    let max_shadow = if m.is_small_prop {
+                        shadow_distance.min(SMALL_PROP_SHADOW_DIST)
+                    } else {
+                        shadow_distance
+                    };
+                    if m.casts_shadow
+                        && dist < max_shadow + m.radius
+                        && sun.intersects_aabb(p.centre - r, p.centre + r)
+                        && let Some(shadow_lod) = shadow_lod_for(fades[0].0, m.lods.len(), dist)
+                    {
+                        let slot = base_slot + shadow_lod;
+                        if scratch.shadow[slot].is_empty() && scratch.shadow[slot].capacity() == 0 {
+                            let last_len = scratch.last_shadow_len[slot];
+                            let v = scratch.take_vec(last_len);
+                            scratch.shadow[slot] = v;
+                        }
+                        scratch.shadow[slot].push(SkinInstance::new(p.matrix, 0));
                     }
-                    scratch.shadow[slot].push(SkinInstance::new(p.matrix, 0));
                 }
             }
 
@@ -359,6 +379,15 @@ impl PropLibrary {
     }
 }
 
+fn shadow_lod_for(nearer_lod: usize, lod_count: usize, dist: f32) -> Option<usize> {
+    let shadow_lod = if lod_count >= 3 && dist > TREE_SHADOW_LOD1_DIST {
+        nearer_lod.max(1).min(lod_count - 1)
+    } else {
+        nearer_lod
+    };
+    (shadow_lod < 2).then_some(shadow_lod)
+}
+
 fn load_model(device: &wgpu::Device, pack: &pack::ModelPack, id: &str, building: bool) -> Option<PropModel> {
     let full = pack.find(id)?;
     let mut lods = vec![GpuMesh::new(device, id, &full.vertices)];
@@ -369,15 +398,26 @@ fn load_model(device: &wgpu::Device, pack: &pack::ModelPack, id: &str, building:
     }
     let range = if building { BUILDING } else { range_for(id) };
     let ends = match lods.len() {
-        3 => vec![TREE_LOD1, TREE_LOD2, range],
+        3 => vec![TREE_PERF_LOD1, TREE_PERF_LOD2, range],
         2 if building => vec![BUILDING_LOD1, range],
         2 => vec![BUSH_LOD1, range],
         _ => vec![range],
     };
+    let max_range_sq = range * range;
+    let is_small_prop = !building && lods.len() < 3;
     let fade_band = if !building && is_ground(id) { 0.0 } else { FADE }; // new: PERF R30.5
     let radius = (Vec3::from(full.bounds_max) - Vec3::from(full.bounds_min)).length() * 0.5 * 1.4;
     let center_y = (full.bounds_min[1] + full.bounds_max[1]) * 0.5;
-    Some(PropModel { lods, ends, fade_band, casts_shadow: building || casts_shadow(id), radius, center_y })
+    Some(PropModel {
+        lods,
+        ends,
+        max_range_sq,
+        fade_band,
+        casts_shadow: building || casts_shadow(id),
+        is_small_prop,
+        radius,
+        center_y,
+    })
 }
 
 #[cfg(test)]
@@ -445,7 +485,7 @@ mod tests {
 
     #[test]
     fn test_lod_fade_multi_lod_tree() {
-        let ends = [TREE_LOD1, TREE_LOD2, TREE]; // [45.0, 95.0, 170.0]
+        let ends = [45.0, 95.0, TREE];
         // Below band 0 (40..50)
         assert_eq!(&lod_fade(20.0, &ends, FADE)[..], &[(0, 1.0, false)]);
         // In band 0 (45.0)
@@ -593,5 +633,17 @@ mod tests {
         let reused_small = scratch.take_vec(2);
         assert!(reused_small.is_empty());
         assert!(reused_small.capacity() >= 8);
+    }
+
+    #[test]
+    fn test_shadow_lod_for_trees_and_buildings() {
+        // Close tree uses LOD0, mid-distance tree uses LOD1, far LOD2 casts no shadow.
+        assert_eq!(shadow_lod_for(0, 3, 10.0), Some(0));
+        assert_eq!(shadow_lod_for(0, 3, 25.0), Some(1));
+        assert_eq!(shadow_lod_for(1, 3, 45.0), Some(1));
+        assert_eq!(shadow_lod_for(2, 3, 80.0), None);
+        // 2-LOD building keeps nearer_lod unchanged.
+        assert_eq!(shadow_lod_for(0, 2, 30.0), Some(0));
+        assert_eq!(shadow_lod_for(1, 2, 45.0), Some(1));
     }
 }

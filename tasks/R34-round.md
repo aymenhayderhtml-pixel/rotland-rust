@@ -21,3 +21,35 @@ Must stay true: the home land (2.2 km core) does not change (`world/tests/golden
 - perf_scenes again ("after" in docs/PERF_R34.md).
 
 ## Lead notes
+- **Tasks:**
+  - `R34-01-rivers.md` (Subagent A): Done. Long rivers reach targets without self-crossing or rising water levels; `generator_world.rs` updated; `biome_terrain_tests::no_seams_across_core_edge_and_sector_borders` updated to skip carved riverbanks.
+  - `R34-02-roads-towns.md` (Subagent B): Done. Trailheads sit at `core_radius + 30`; Blackwater boardwalks are parallel walkways along the street; `generator_world.rs`, `roads_tests.rs`, and `towns_tests.rs` updated.
+  - `R34-03-speed.md` (Subagent C): Done. Sun-frustum shadow culling, small-prop/tree shadow LODs, tighter tree LODs, fragment shadow early-out, zero-alloc skinned batch splitting.
+- **Gate (last 5 lines):**
+  ```
+  test: PASS (1195 passed)
+  scope: PASS (21 changed paths)
+  numbers: PASS (5 checked)
+  unused: PASS
+  GATE: PASS
+  ```
+- **Before / After FPS (`perf_scenes.sh`, 20s per scene):**
+  - `forest`: 86.7 -> 106.3 Avg FPS (1% Low 25.6 -> 45.0, p95 20.7 -> 12.9 ms, Draws 75(21) -> 71(19))
+  - `camp`: 132.7 -> 137.6 Avg FPS (Draws 56(27) -> 58(24))
+  - `city`: 100.5 -> 103.4 Avg FPS
+- **Pictures:**
+  - `/tmp/r34/worldmap.png` (3 long rivers, roads touching home land circle)
+  - `/tmp/r34/blackwater.png` (parallel boardwalk walkways)
+  - `/tmp/r34/trailhead0.png` (road at home land edge)
+  - `/tmp/r34/river0.png` (snowy river valley)
+  - `/tmp/r34/camp.png` (green camp)
+
+## Gate report
+- date: 2026-11-25
+- base: main
+- files changed (21): data/rivers.json, data/roads.json, data/towns.json, docs/PERF_R34.md, engine/src/render/lit.rs, engine/src/render/lit.wgsl, rotland/src/app/render_frame.rs, rotland/src/props.rs, tasks/R34-01-rivers.md, tasks/R34-02-roads-towns.md, tasks/R34-03-speed.md, tasks/R34-round.md, world/src/city/ground_tests.rs, world/src/generator_world.rs, world/src/rivers/mod.rs, world/src/rivers/path.rs, world/src/roads/build.rs, world/src/towns/lots.rs, world/tests/biome_terrain_tests.rs, world/tests/roads_tests.rs, world/tests/towns_tests.rs
+- tests passed: 1195
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS

@@ -6,7 +6,7 @@ use super::frustum::Frustum;
 use super::mesh::GpuMesh;
 use super::pipelines::{Layouts, Pipelines};
 use super::shadow::{light_view_proj, ShadowMap, ShadowSettings};
-use super::skinned::{split_batches, GrowBuffer, SkinInstance, SkinnedBatch};
+use super::skinned::{GrowBuffer, SkinInstance, SkinnedBatch};
 use crate::gpu::Gpu;
 use crate::target::FrameTarget;
 
@@ -122,6 +122,8 @@ pub struct LitRenderer {
     offsets_scratch: Vec<u8>,       // new: PERF R30.5
     visible_scratch: Vec<usize>,    // new: PERF R30.5
     instances_scratch: Vec<SkinInstance>, // new: PERF R30.5
+    normal_ranges: Vec<(usize, u32, u32)>, // new: PERF R34
+    fade_ranges: Vec<(usize, u32, u32)>,   // new: PERF R34
     pub shadows: ShadowSettings,
     pub last: FrameCounts,
 }
@@ -183,6 +185,8 @@ impl LitRenderer {
             offsets_scratch: Vec::new(),
             visible_scratch: Vec::new(),
             instances_scratch: Vec::new(),
+            normal_ranges: Vec::new(),
+            fade_ranges: Vec::new(),
             shadows,
             last: FrameCounts::default(),
         }
@@ -234,18 +238,33 @@ impl LitRenderer {
         if self.bones.write(&gpu.device, &gpu.queue, bytemuck::cast_slice(bones)) {
             self.bones_bind = Self::bones_bind(&gpu.device, &self.layouts.bones, &self.bones.buffer);
         }
-        let (normal_batches, fade_batches) = split_batches(instanced);
-        let normal_count: u32 = normal_batches.iter().map(|b| b.instances.len() as u32).sum();
-        let fade_count: u32 = fade_batches.iter().map(|b| b.instances.len() as u32).sum();
-        let main_count = normal_count + fade_count;
         self.instances_scratch.clear();
-        self.instances_scratch.extend(
-            normal_batches
-                .iter()
-                .chain(fade_batches.iter())
-                .chain(shadow_instanced.iter())
-                .flat_map(|b| b.instances.iter().copied()),
-        );
+        self.normal_ranges.clear();
+        self.fade_ranges.clear();
+        for (idx, b) in instanced.iter().enumerate() {
+            let first = self.instances_scratch.len() as u32;
+            self.instances_scratch.extend(b.instances.iter().copied().filter(|inst| !inst.is_fading()));
+            let count = self.instances_scratch.len() as u32 - first;
+            if count > 0 {
+                self.normal_ranges.push((idx, first, count));
+            }
+        }
+        for (idx, b) in instanced.iter().enumerate() {
+            let first = self.instances_scratch.len() as u32;
+            self.instances_scratch.extend(b.instances.iter().copied().filter(|inst| inst.is_fading()));
+            let count = self.instances_scratch.len() as u32 - first;
+            if count > 0 {
+                self.fade_ranges.push((idx, first, count));
+            }
+        }
+        let main_count = self.instances_scratch.len() as u32;
+        if shadows_on {
+            self.instances_scratch.extend(
+                shadow_instanced
+                    .iter()
+                    .flat_map(|b| b.instances.iter().copied()),
+            );
+        }
         self.instances.write(&gpu.device, &gpu.queue, bytemuck::cast_slice(&self.instances_scratch));
 
         let mut counts = FrameCounts::default();
@@ -294,8 +313,8 @@ impl LitRenderer {
             multiview_mask: None,
         });
         let (d0, t0) = self.record_items(&mut pass, items, &self.visible_scratch, &self.pipes.mesh, &self.scene_bind);
-        let (d1, t1) = self.record_skinned(&mut pass, &normal_batches, 0, &self.pipes.skinned, &self.scene_bind);
-        let (d2, t2) = self.record_skinned(&mut pass, &fade_batches, normal_count, &self.pipes.skinned_fade, &self.scene_bind);
+        let (d1, t1) = self.record_skinned_ranges(&mut pass, instanced, &self.normal_ranges, &self.pipes.skinned, &self.scene_bind);
+        let (d2, t2) = self.record_skinned_ranges(&mut pass, instanced, &self.fade_ranges, &self.pipes.skinned_fade, &self.scene_bind);
         // Sky last: it only fills pixels nothing else covered
         pass.set_pipeline(&self.pipes.sky);
         pass.set_bind_group(0, &self.scene_bind, &[]);
@@ -325,6 +344,32 @@ impl LitRenderer {
             pass.draw(0..d.mesh.vertex_count, 0..1);
             draws += 1;
             triangles += d.mesh.vertex_count as u64 / 3;
+        }
+        (draws, triangles)
+    }
+
+    /// Records instanced ranges into a pass without per-frame batch splitting allocations.
+    fn record_skinned_ranges(
+        &self,
+        pass: &mut wgpu::RenderPass,
+        instanced: &[SkinnedBatch],
+        ranges: &[(usize, u32, u32)],
+        skin_pipe: &wgpu::RenderPipeline,
+        scene: &wgpu::BindGroup,
+    ) -> (u32, u64) {
+        let (mut draws, mut triangles) = (0u32, 0u64);
+        if !ranges.is_empty() {
+            pass.set_pipeline(skin_pipe);
+            pass.set_bind_group(0, scene, &[]);
+            pass.set_bind_group(2, &self.bones_bind, &[]);
+            pass.set_vertex_buffer(1, self.instances.buffer.slice(..));
+            for &(idx, first, count) in ranges {
+                let b = &instanced[idx];
+                pass.set_vertex_buffer(0, b.mesh.vertices.slice(..));
+                pass.draw(0..b.mesh.vertex_count, first..first + count);
+                draws += 1;
+                triangles += (b.mesh.vertex_count / 3) as u64 * count as u64;
+            }
         }
         (draws, triangles)
     }

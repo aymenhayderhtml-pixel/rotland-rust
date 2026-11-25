@@ -163,7 +163,15 @@ fn is_eligible(entry: &BuildingEntry, count: usize) -> bool {
     entry.weight > MIN_WEIGHT && entry.max_count.is_none_or(|cap| count < cap)
 }
 
-/// Appends non-overlapping `boardwalk_section` lots along both sides of the main street.
+/// Maximum number of boardwalk sections placed in front of one building.
+// new: DECISIONS 2026-11-25
+const MAX_BOARDWALK_SECTIONS_PER_BUILDING: usize = 3;
+/// Multiplier converting a half-extent to a full width.
+// new: DECISIONS 2026-11-25
+const HALF_TO_FULL: f32 = 2.0;
+
+/// Appends non-overlapping `boardwalk_section` walkways parallel to the street in front of
+/// each building's door side, keeping all sections outside the street surface.
 fn append_boardwalk_lots(
     def: &TownDef,
     data: &TownsData,
@@ -184,15 +192,29 @@ fn append_boardwalk_lots(
         .get(BOARDWALK_MODEL)
         .cloned()
         .unwrap_or_default();
-    let per_side = ((def.street_length / step).floor() as usize).max(1);
-    // new: DECISIONS 2026-11-25 (center boardwalk strip symmetrically around 0)
-    let half_index = (per_side as f32 - 1.0) * 0.5;
+    let yaw = yaw_from_forward(street_dir);
+    let building_spans: Vec<(Vec2, f32)> = lots
+        .iter()
+        .map(|lot| (lot.pos, lot.footprint.x))
+        .collect();
 
-    for side in [1.0_f32, -1.0_f32] {
-        let yaw = yaw_from_forward(-street_right * side);
-        for i in 0..per_side {
-            let along = ((i as f32) - half_index) * step;
-            let pos = center + street_dir * along + street_right * (side * offset);
+    for (b_pos, half_width_along_street) in building_spans {
+        let rel = b_pos - center;
+        let along = rel.dot(street_dir);
+        let side = rel.dot(street_right).signum();
+        if side == 0.0 {
+            continue;
+        }
+
+        let section_count = ((half_width_along_street * HALF_TO_FULL) / step)
+            .round()
+            .clamp(1.0, MAX_BOARDWALK_SECTIONS_PER_BUILDING as f32) as usize;
+        // new: DECISIONS 2026-11-25 (center walkway sections symmetrically in front of building)
+        let half_index = (section_count as f32 - 1.0) * 0.5;
+
+        for i in 0..section_count {
+            let sec_along = along + ((i as f32) - half_index) * step;
+            let pos = center + street_dir * sec_along + street_right * (side * offset);
             let candidate = TownLot {
                 building: BOARDWALK_MODEL.to_string(),
                 pos,
@@ -202,6 +224,67 @@ fn append_boardwalk_lots(
             };
             if !lots.iter().any(|existing| existing.overlaps(&candidate)) {
                 lots.push(candidate);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn blackwater_boardwalks_are_parallel_walkways_outside_street() {
+        let data = TownsData::load_embedded();
+        let blackwater = data
+            .towns
+            .iter()
+            .find(|t| t.key == "blackwater")
+            .expect("blackwater in data/towns.json");
+        let center = Vec2::new(100.0, -50.0);
+        let street_dir = Vec2::new(0.6, -0.8).normalize();
+        let street_right = Vec2::new(-street_dir.y, street_dir.x);
+        let lots = generate_lots(blackwater, &data, center, street_dir, 42);
+
+        let buildings: Vec<&TownLot> = lots
+            .iter()
+            .filter(|l| l.building != BOARDWALK_MODEL)
+            .collect();
+        let boardwalks: Vec<&TownLot> = lots
+            .iter()
+            .filter(|l| l.building == BOARDWALK_MODEL)
+            .collect();
+        assert!(!buildings.is_empty());
+        assert!(!boardwalks.is_empty());
+        assert!(
+            boardwalks.len() <= buildings.len() * MAX_BOARDWALK_SECTIONS_PER_BUILDING,
+            "boardwalk count ({}) should be at most {} per building ({})",
+            boardwalks.len(),
+            MAX_BOARDWALK_SECTIONS_PER_BUILDING,
+            buildings.len()
+        );
+
+        let cos_1_deg = 1.0_f32.to_radians().cos();
+        let street_half_width = 4.0_f32;
+        for bw in &boardwalks {
+            assert!(
+                bw.forward().dot(street_dir) >= cos_1_deg,
+                "boardwalk forward {:?} not parallel to street_dir {:?}",
+                bw.forward(),
+                street_dir
+            );
+            for corner in bw.corners() {
+                let lateral = (corner - center).dot(street_right).abs();
+                assert!(
+                    lateral > street_half_width,
+                    "boardwalk corner lateral {lateral} enters street half-width {street_half_width}"
+                );
+            }
+        }
+
+        for i in 0..lots.len() {
+            for j in (i + 1)..lots.len() {
+                assert!(!lots[i].overlaps(&lots[j]), "overlapping lots {i} and {j}");
             }
         }
     }

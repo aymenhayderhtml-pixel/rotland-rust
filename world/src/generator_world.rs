@@ -401,7 +401,7 @@ fn town_sample_points(center: Vec2, radius: f32) -> Vec<Vec2> {
 
 fn default_roads_data() -> RoadsData {
     RoadsData {
-        trailhead_margin: 60.0,     // data: roads.json trailhead_margin
+        trailhead_margin: 30.0,     // data: roads.json trailhead_margin
         trail_width: 4.0,           // data: roads.json trail_width
         highway_width: 8.0,         // data: roads.json highway_width
         point_spacing: 20.0,        // data: roads.json point_spacing
@@ -414,13 +414,14 @@ fn default_roads_data() -> RoadsData {
 fn default_rivers_data() -> RiversData {
     RiversData {
         step_m: 25.0,               // data: rivers.json step_m
-        max_length_m: 6000.0,       // data: rivers.json max_length_m
+        max_length_m: 9000.0,       // data: rivers.json max_length_m
         core_margin_m: 150.0,       // data: rivers.json core_margin_m
         sample_count: 5,            // data: rivers.json sample_count
         sample_spread_deg: 50.0,    // data: rivers.json sample_spread_deg
         wiggle_deg: 6.0,            // data: rivers.json wiggle_deg
         wiggle_frequency: 0.0025,   // data: rivers.json wiggle_frequency
-        target_pull: 0.25,          // data: rivers.json target_pull
+        target_pull: 0.6,           // data: rivers.json target_pull
+        max_turn_deg: 12.0,         // data: rivers.json max_turn_deg
         width_start_m: 6.0,         // data: rivers.json width_start_m
         width_end_m: 16.0,          // data: rivers.json width_end_m
         depth_m: 1.6,               // data: rivers.json depth_m

@@ -15,6 +15,12 @@ use crate::roads::RoadNetwork;
 
 // new: DECISIONS 2026-11-25
 const RIVER_SEED_STRIDE: i32 = 131;
+// data: rivers.json max_turn_deg
+const DEFAULT_MAX_TURN_DEG: f32 = 12.0;
+
+fn default_max_turn_deg() -> f32 {
+    DEFAULT_MAX_TURN_DEG
+}
 
 /// Starting sector and downhill target direction for one river in `data/rivers.json`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -34,6 +40,8 @@ pub struct RiversData {
     pub core_margin_m: f32,
     pub sample_count: usize,
     pub sample_spread_deg: f32,
+    #[serde(default = "default_max_turn_deg")]
+    pub max_turn_deg: f32,
     pub wiggle_deg: f32,
     pub wiggle_frequency: f32,
     pub target_pull: f32,
@@ -74,6 +82,9 @@ impl RiversData {
         }
         if data.sample_count == 0 {
             return Err("rivers.json sample_count must be at least 1".to_string());
+        }
+        if data.max_turn_deg <= 0.0 {
+            return Err("rivers.json max_turn_deg must be positive".to_string());
         }
         if data.grid_cell_m <= 0.0 {
             return Err("rivers.json grid_cell_m must be positive".to_string());
@@ -167,5 +178,93 @@ impl RiverNetwork {
     /// Finds every crossing between arbitrary XZ road polylines and this river network.
     pub fn crossings_for_polylines(&self, polylines: &[&[Vec2]]) -> Vec<(Vec2, f32, f32)> {
         find_crossings(&self.rivers, &self.grid, &self.data, polylines)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::biome::layout::WorldLayoutData;
+
+    fn hilly_terrain(x: f32, z: f32) -> f32 {
+        let slope = 60.0 - 0.004 * x - 0.002 * z;
+        let hills =
+            6.0 * (x * 0.003).sin() * (z * 0.003).cos() + 3.0 * ((x + z) * 0.007).sin();
+        slope + hills
+    }
+
+    fn cross2(a: Vec2, b: Vec2) -> f32 {
+        a.x * b.y - a.y * b.x
+    }
+
+    fn segments_intersect(a0: Vec2, a1: Vec2, b0: Vec2, b1: Vec2) -> bool {
+        let da = a1 - a0;
+        let db = b1 - b0;
+        let denom = cross2(da, db);
+        if denom.abs() <= 1e-6 {
+            return false;
+        }
+        let diff = b0 - a0;
+        let t = cross2(diff, db) / denom;
+        let u = cross2(diff, da) / denom;
+        (0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u)
+    }
+
+    #[test]
+    fn seed_42_rivers_are_long_reach_target_never_self_cross_and_never_rise() {
+        let data = RiversData::load().expect("load data/rivers.json");
+        let layout_data = WorldLayoutData::load().expect("load data/world_layout.json");
+        let layout = WorldLayout::new(&layout_data, 42, Vec2::ZERO, Vec2::X);
+        let net = RiverNetwork::build(&data, &layout, 42, Vec2::ZERO, &hilly_terrain);
+
+        assert_eq!(net.rivers().len(), data.rivers.len());
+
+        for (spec, river) in data.rivers.iter().zip(net.rivers().iter()) {
+            let total_len: f32 = river
+                .points
+                .windows(2)
+                .map(|w| (w[1] - w[0]).length())
+                .sum();
+            assert!(
+                total_len >= 2500.0,
+                "{} too short: {total_len} m",
+                spec.name
+            );
+
+            let target_pos = layout.direction_at_deg(spec.target_angle_deg) * spec.target_radius_m;
+            let end_pos = *river.points.last().expect("river has points");
+            let end_dist = (end_pos - target_pos).length();
+            assert!(
+                end_dist <= 100.0,
+                "{} ended {end_dist} m from target",
+                spec.name
+            );
+
+            let seg_count = river.points.len().saturating_sub(1);
+            for i in 0..seg_count {
+                for j in (i + 2)..seg_count {
+                    assert!(
+                        !segments_intersect(
+                            river.points[i],
+                            river.points[i + 1],
+                            river.points[j],
+                            river.points[j + 1],
+                        ),
+                        "{} self-crossed between segments {i} and {j}",
+                        spec.name
+                    );
+                }
+            }
+
+            for (i, w) in river.water_levels.windows(2).enumerate() {
+                assert!(
+                    w[1] <= w[0] + 1e-5,
+                    "{} water rose at {i}: {} -> {}",
+                    spec.name,
+                    w[0],
+                    w[1]
+                );
+            }
+        }
     }
 }
