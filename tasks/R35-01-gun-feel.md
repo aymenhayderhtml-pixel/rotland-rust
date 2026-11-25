@@ -1,7 +1,7 @@
-# R31-01: guns kick and flash
+# R35-01: guns kick and flash
 
 Owns: game_player/src/gun_feel.rs, data/gun_feel.json, game/tests/all/gun_feel.rs, rotland/src/gun_feel_view.rs, rotland/src/shooting.rs, rotland/src/fp_weapon.rs, game/src/camera_rig.rs, rotland/src/light.rs
-Rules: `tasks/R31-common.md`. Owner decision: `docs/DECISIONS.md` row 2026-11-25 (weapons).
+Rules: `tasks/R35-common.md`. Owner decision: `docs/DECISIONS.md` row 2026-11-25 (weapons).
 
 **Goal:** shooting feels weak today. `recoil_climb` is parsed in `game_core/src/weapons.rs`, but nothing uses it, and there is no muzzle flash. Add:
 1. **View kick:** each shot pitches the camera up by `kickDeg` plus a small random sideways `kickYawDeg`. It eases back down at `recoverDegPerSec`. Automatic guns (ak47, smg) climb while you hold the trigger, up to `maxClimbDeg`. When aiming, the kick is `aimMul` (0.6) of normal. Works in first and third person.
