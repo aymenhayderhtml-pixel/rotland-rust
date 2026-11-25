@@ -62,7 +62,7 @@ fn spot_lights(world: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
 // Sun shadow: 1 = lit, 0 = shadowed. 1 hardware-filtered 2x2 PCF tap.
 // Fades out toward the shadow distance like Godot.
 fn sun_shadow(world: vec3<f32>, n: vec3<f32>, dist: f32) -> f32 {
-    if (scene.shadow.x < 0.5) {
+    if (scene.shadow.x < 0.5 || dist >= scene.shadow.w) { // new: PERF R34
         return 1.0;
     }
     // Normal offset: push the lookup off the surface a little, which removes most shadow acne

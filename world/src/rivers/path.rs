@@ -13,6 +13,8 @@ const HALF: f32 = 0.5;
 const TANGENT_TIE_EPS: f32 = 1e-3;
 // new: DECISIONS 2026-11-25
 const STRAIGHT_BIAS: f32 = 1e-4;
+// new: DECISIONS 2026-11-25
+const STOP_TARGET_STEPS: f32 = 2.0;
 
 /// Traces a single downhill river polyline outside `core_radius + blend_band + core_margin_m`.
 pub(crate) fn trace_river(
@@ -43,6 +45,7 @@ pub(crate) fn trace_river(
     );
     let max_steps = (data.max_length_m / data.step_m).floor().max(1.0) as usize;
     let spread_rad = data.sample_spread_deg.to_radians();
+    let max_turn_rad = data.max_turn_deg.to_radians();
     let wiggle_rad = data.wiggle_deg.to_radians();
 
     let mut points = Vec::with_capacity(max_steps + 1);
@@ -50,8 +53,12 @@ pub(crate) fn trace_river(
 
     let mut pos = start_pos;
     for _ in 0..max_steps {
-        let to_target = (target_pos - pos).try_normalize().unwrap_or(Vec2::ZERO);
-        let best_angle = pick_downhill_heading(
+        let to_target_vec = target_pos - pos;
+        if to_target_vec.length() <= data.step_m * STOP_TARGET_STEPS {
+            break;
+        }
+        let to_target = to_target_vec.try_normalize().unwrap_or(Vec2::ZERO);
+        let downhill_angle = pick_downhill_heading(
             pos,
             heading,
             to_target,
@@ -59,8 +66,16 @@ pub(crate) fn trace_river(
             spread_rad,
             base_height,
         );
+        let downhill_dir = Vec2::new(downhill_angle.cos(), downhill_angle.sin());
+        let pull = data.target_pull.clamp(0.0, 1.0);
+        let blended_dir = (downhill_dir * (1.0 - pull) + to_target * pull)
+            .try_normalize()
+            .unwrap_or(to_target);
+        let blended_angle = blended_dir.y.atan2(blended_dir.x);
         let wiggle = wiggle_noise.get_noise_2d(pos.x, pos.y) * wiggle_rad;
-        let stepped_angle = best_angle + wiggle;
+        let desired_angle = blended_angle + wiggle;
+        let turn = wrap_angle_rad(desired_angle - heading).clamp(-max_turn_rad, max_turn_rad);
+        let stepped_angle = heading + turn;
         let step_dir = Vec2::new(stepped_angle.cos(), stepped_angle.sin());
         let candidate = pos + step_dir * data.step_m;
 
@@ -143,6 +158,10 @@ fn pick_downhill_heading(
     }
 
     best_angle
+}
+
+fn wrap_angle_rad(angle: f32) -> f32 {
+    (angle + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI
 }
 
 fn turn_along_core_edge(

@@ -143,10 +143,14 @@ fn no_lot_overlaps_and_lots_face_street() {
 
             let rel = lot.pos - site.center;
             let proj = site.street_dir * rel.dot(site.street_dir);
-            let to_street = (proj - rel).normalize();
+            let expected_dir = if lot.building == "boardwalk_section" {
+                site.street_dir
+            } else {
+                (proj - rel).normalize()
+            };
             assert!(
-                lot.forward().dot(to_street) > 0.999,
-                "lot '{}' in '{}' does not face the street",
+                lot.forward().dot(expected_dir) > 0.999,
+                "lot '{}' in '{}' does not face expected direction",
                 lot.building,
                 site.key
             );
