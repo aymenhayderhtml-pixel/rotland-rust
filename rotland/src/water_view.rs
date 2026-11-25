@@ -99,7 +99,9 @@ pub fn draw(
         }
     }
 
-    if patches.is_empty() && custom_lake.is_none() {
+    let river_mesh = crate::river_view::mesh_for_frame(world, spawn, time);
+
+    if patches.is_empty() && custom_lake.is_none() && river_mesh.is_none() {
         return;
     }
 
@@ -108,8 +110,23 @@ pub fn draw(
         Err(poisoned) => poisoned.into_inner(),
     };
     let renderer = guard.get_or_insert_with(|| WaterRenderer::new(gpu));
-    let custom_mesh_ref = custom_lake.as_ref().map(|(k, aabb, verts)| (*k, *aabb, verts.as_slice()));
-    renderer.draw_all(gpu, target, encoder, camera, light, time, &patches, custom_mesh_ref);
+    if !patches.is_empty() || custom_lake.is_some() {
+        let custom_mesh_ref =
+            custom_lake.as_ref().map(|(k, aabb, verts)| (*k, *aabb, verts.as_slice()));
+        renderer.draw_all(gpu, target, encoder, camera, light, time, &patches, custom_mesh_ref);
+    }
+    if let Some((key, aabb, verts)) = river_mesh.as_ref() {
+        renderer.draw_all(
+            gpu,
+            target,
+            encoder,
+            camera,
+            light,
+            time,
+            &[],
+            Some((*key, *aabb, verts.as_slice())),
+        );
+    }
 }
 
 #[cfg(test)]

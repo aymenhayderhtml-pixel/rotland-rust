@@ -30,6 +30,7 @@ mod props;
 mod region_banner;
 mod rescue_play;
 mod rescue_view;
+mod river_view;
 mod session;
 mod siege_view;
 mod guild_task_view;

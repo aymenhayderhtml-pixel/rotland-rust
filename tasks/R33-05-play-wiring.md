@@ -23,3 +23,97 @@ Rules: `tasks/LEAD.md` subagent rules. Use the "R33 shared names" in `tasks/R33-
    Add each to `tools/README_TOOLS.md`, and add `town_desert` / `town_snow` scenes to `tools/perf_scenes.sh` under `--set all` (`--town=dusthollow --autowalk`, `--town=frostmere --autowalk`).
 
 ## Worker notes
+
+### Files changed
+- `rotland/src/river_view.rs` (new): off-thread (`rayon::spawn`) river mesh cache around the player (`water_mesh_near(player_xz, 300.0)`), rebuilding every ~1 s or when moved 50 m, with `std::time::Instant` `log::debug!` timing.
+- `rotland/src/water_view.rs`: draws cached river water mesh via `WaterRenderer::draw_all` in `water_view::draw`.
+- `rotland/src/streaming.rs`: `shapes_of` adds a thin walkable deck box fallback (`bridge_wood`, `bridge_concrete`, `boardwalk_section`) when a deck model has no colliders or only a single tall hull (> 0.6 m).
+- `rotland/src/region_banner.rs`: `RegionBannerTracker::update` now accepts `town_name: impl FnMut() -> Option<String>`, shows `Entering: <town>` (with `Danger <tier>` for tier >= 2) on entering a town radius, and shows nothing when leaving a town.
+- `rotland/src/app/test_flags.rs`: added `--town=<key>`, `--trailhead=<n>`, `--bridge=<n>`, `--river=<n>` flags and startup teleports (25 m away facing target, or on deck for `--bridge`).
+- `tools/README_TOOLS.md`: documented `--town`, `--trailhead`, `--bridge`, `--river`.
+- `tools/perf_scenes.sh`: added `town_desert` (`--town=dusthollow --autowalk`) and `town_snow` (`--town=frostmere --autowalk`) under `--set all`.
+
+### Shared-file lines for the lead (not edited by this worker)
+1. `rotland/src/main.rs` (around line 30):
+```rust
+mod river_view;
+```
+2. `rotland/src/app/frame_ui.rs` (lines 143-149, add the 4th closure argument to `play.region_banner.update`):
+```rust
+        if let Some(wg) = world.world_gen.as_ref() {
+            play.region_banner.update(
+                session.last_dt,
+                || wg.biome_sample(p.position.x, p.position.z),
+                |id| wg.biome_registry().get(id).name.clone(),
+                || wg.town_at(p.position.x, p.position.z).map(|t| t.name.clone()),
+            );
+        }
+```
+3. `game_player/src/swimming.rs` (add `river_zone_at` helper):
+```rust
+/// Classifies a river point as `Land`, `Shallow`, or `Deep` from water level, riverbed height, and player Y.
+pub fn river_zone_at(
+    player_y: f32,
+    ground_y: f32,
+    river_water_level: Option<f32>,
+    cfg: &SwimmingConfig,
+) -> LakeZone {
+    let Some(water_y) = river_water_level else {
+        return LakeZone::Land;
+    };
+    if player_y >= water_y {
+        return LakeZone::Land;
+    }
+    let depth = water_y - ground_y;
+    if depth >= cfg.chest_height {
+        LakeZone::Deep
+    } else if depth > 0.0 {
+        LakeZone::Shallow
+    } else {
+        LakeZone::Land
+    }
+}
+```
+(Re-export `river_zone_at` in `game_player/src/lib.rs` and `game/src/lib.rs` alongside `evaluate_water`.)
+4. `rotland/src/app/frame_sim_player.rs` (`step_water`, lines 106-127, fall back to `wg.rivers().water_at` when outside the lake):
+```rust
+    if let (Some(wg), Some(p)) = (world.world_gen.as_ref(), actors.player_ctrl.as_mut()) {
+        let p_pos2 = glam::Vec2::new(p.position.x, p.position.z);
+        let swim_cfg = play.water.swim_cfg;
+        let lake_opt = wg.lake();
+        let lake_zone = lake_opt.map_or(world::LakeZone::Land, |l| l.zone_at(p_pos2));
+        let on_dock = lake_opt.is_some_and(|l| game::swimming::is_on_dock(l, p_pos2));
+        let (zone, water_level, on_platform) = if lake_zone != world::LakeZone::Land {
+            (lake_zone, lake_opt.map_or(0.0, |l| l.water_level), on_dock)
+        } else {
+            let river_y = wg.rivers().water_at(p.position.x, p.position.z);
+            let ground_y = wg.height(p.position.x, p.position.z);
+            let r_zone = game::swimming::river_zone_at(p.position.y, ground_y, river_y, &swim_cfg);
+            (r_zone, river_y.unwrap_or(0.0), false)
+        };
+        let water_res = game::swimming::evaluate_water(
+            p.position,
+            zone,
+            water_level,
+            p.stamina.current,
+            on_platform,
+            &swim_cfg,
+            dt,
+        );
+        p.apply_water_movement(&water_res);
+        p.water_depth = match water_res.zone {
+            world::LakeZone::Shallow | world::LakeZone::Deep if !on_platform => {
+                (water_level - p.position.y).max(0.0)
+            }
+            _ => 0.0,
+        };
+```
+(And update `in_deep_water` on line 131 to use `!on_platform` instead of `!on_dock`.)
+
+### How to see it
+- Run with `--river=0`, `--bridge=0`, `--trailhead=0`, `--town=dusthollow` (once R33-04 + shared-file lines are wired and `gate.sh` passes).
+- Walk into a river to swim/drown and into Dusthollow to see `Entering: Dusthollow`.
+
+### Known / unsure
+- Did not run `cargo` / `gate.sh` / game per subagent rules; off-thread river mesh rebuild timing (`Instant` log) should be observed during the lead's screenshot run.
+- `frame_water.rs` (`can_fish`) currently only checks `lake`; left untouched unless river fishing is desired.

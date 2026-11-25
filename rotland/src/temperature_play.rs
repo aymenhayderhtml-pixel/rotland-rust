@@ -248,6 +248,14 @@ impl TemperaturePlay {
         self.body.value()
     }
 
+    /// Restores body warmth from a saved world snapshot (`None` resets to comfy `50.0`).
+    pub fn apply_save(&mut self, saved: Option<f32>) {
+        match saved {
+            Some(val) if val.is_finite() => self.body.set(val),
+            _ => self.body.set(self.data.comfy_value),
+        }
+    }
+
     /// Current temperature state band.
     pub fn state(&self) -> TempState {
         self.body.state()

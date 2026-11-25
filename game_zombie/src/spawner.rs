@@ -47,6 +47,7 @@ pub struct SpawnContext<'a> {
     pub tier_mult: f32,
     pub in_city: bool,
     pub in_city_core: bool,
+    pub in_town: bool,
     pub spawn_rate_multiplier: f32,
     pub max_active_multiplier: f32,
     pub special_chance: f32,
@@ -73,6 +74,7 @@ impl<'a> SpawnContext<'a> {
             tier_mult: 1.0, // new: DECISIONS 2026-11-25
             in_city: false,
             in_city_core: false,
+            in_town: false,
             spawn_rate_multiplier: 1.0,
             max_active_multiplier: 1.0,
             special_chance: 0.0,
@@ -93,6 +95,11 @@ impl<'a> SpawnContext<'a> {
 
     pub fn with_in_city_core(mut self, in_city_core: bool) -> Self {
         self.in_city_core = in_city_core;
+        self
+    }
+
+    pub fn with_in_town(mut self, in_town: bool) -> Self {
+        self.in_town = in_town;
         self
     }
 
@@ -236,6 +243,8 @@ impl Spawner {
             1.0
         } else if ctx.in_city && let Some(city) = &self.config.city {
             city.density
+        } else if ctx.in_town {
+            self.config.town_density
         } else if let Some(biome) = ctx.biome_name {
             self.config.density_for(biome)
         } else {

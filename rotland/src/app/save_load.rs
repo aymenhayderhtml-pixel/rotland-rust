@@ -39,6 +39,7 @@ pub fn save_now(
         trees: Some(&world.trees),
         poi_zombies: world.poi_zombies.as_ref(),
         weather: play.weather.as_ref().map(|w| w.to_save()),
+        body_temp: play.temperature.as_ref().map(|t| t.value()),
     };
     let mut file = session::capture(session.loaded_save.as_ref(), &snap);
     crate::rescue_play::save_rescued_ids(play.rescue.as_ref(), &mut file);

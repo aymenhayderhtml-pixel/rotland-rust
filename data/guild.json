@@ -137,6 +137,46 @@
       "item_reward": null
     },
     {
+      "id": "explore_dusthollow",
+      "kind": "explore",
+      "title": "Explore Dusthollow",
+      "place_name": "Dusthollow",
+      "target_range": [1, 1],
+      "dollars_range": [80, 120],
+      "rep_range": [50, 80],
+      "item_reward": { "item_id": "water_bottle", "count": 3 }
+    },
+    {
+      "id": "explore_frostmere",
+      "kind": "explore",
+      "title": "Explore Frostmere",
+      "place_name": "Frostmere",
+      "target_range": [1, 1],
+      "dollars_range": [85, 130],
+      "rep_range": [55, 85],
+      "item_reward": { "item_id": "hand_warmer", "count": 2 }
+    },
+    {
+      "id": "explore_blackwater",
+      "kind": "explore",
+      "title": "Explore Blackwater",
+      "place_name": "Blackwater",
+      "target_range": [1, 1],
+      "dollars_range": [80, 120],
+      "rep_range": [50, 80],
+      "item_reward": { "item_id": "bandage", "count": 3 }
+    },
+    {
+      "id": "explore_ridgeback",
+      "kind": "explore",
+      "title": "Explore Ridgeback Station",
+      "place_name": "Ridgeback Station",
+      "target_range": [1, 1],
+      "dollars_range": [95, 145],
+      "rep_range": [60, 95],
+      "item_reward": { "item_id": "rifle_rounds", "count": 10 }
+    },
+    {
       "id": "clear_house",
       "kind": "clear",
       "title": "Clear Small House",

@@ -122,8 +122,9 @@ pub fn update(side: &mut PlaySide, world: &WorldState, player: Vec3, dt: f32, hu
         guild_panel.rows.clear();
         return;
     };
+    let towns = world.world_gen.as_deref().map_or(&[][..], |g| g.towns());
     let events = match guild_hooks.as_mut() {
-        Some(hooks) => hooks.tick(pl.camp.guild.manager_mut(), &guild_panel.places, player, dt),
+        Some(hooks) => hooks.tick_with_towns(pl.camp.guild.manager_mut(), &guild_panel.places, towns, player, dt),
         None => Vec::new(),
     };
     guild_panel.age += dt;

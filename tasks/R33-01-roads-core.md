@@ -24,3 +24,25 @@ Rules: `tasks/LEAD.md` subagent rules. Use the "R33 shared names" in `tasks/R33-
    - a speed test: 100k `distance_to_road` queries finish fast (no timing assert, just make sure it runs; no `#[ignore]`).
 
 ## Worker notes
+
+## Neon notes
+
+* **What was written:**
+* `data/roads.json`: road network configuration (`trailhead_margin: 60.0`, `trail_width: 4.0`, `highway_width: 8.0`, `point_spacing: 20.0`, `wiggle_m: 40.0`, `wiggle_frequency: 0.0012`, `ring_radius_from_towns: 1.0`).
+* `world/src/roads/mod.rs`: `RoadKind`, `Road`, `RoadsData` (`load`, `load_from_file`, `from_json`), and `RoadNetwork` (`build`, `roads`, `distance_to_road`, `trailheads`).
+* `world/src/roads/build.rs`: sector trailhead placement (`core_radius + blend_band + trailhead_margin` along each sector's `center_deg` via `WorldLayout::direction_at_deg`), sector-matched highways (`"Route to <Town name>"`), polar-arc ring trails joining towns in CCW angle order (`"<A> - <B> Trail"`) outside `core_radius + blend_band`, arc-length resampling (`~point_spacing`), and low-frequency simplex noise lateral wiggle (`seed.wrapping_add(307)`) tapered to `0` at both endpoints.
+* `world/src/roads/index.rs`: 64 m spatial grid index (CSR dense grid with sparse fallback for huge coordinate spans) querying the 3×3 neighborhood around `p` with a 30 m cutoff (`distance_to_road`).
+* `world/tests/roads_tests.rs`: integration tests covering trailhead radii/angles, road endpoints/names, radial clearance outside `core_radius + blend_band`, `distance_to_road` accuracy/cutoff, seed determinism vs. variation, and 100k `distance_to_road` queries.
+
+
+* **Required lines for `world/src/lib.rs` (owned by R33-04):**
+```rust
+pub mod roads;
+pub use roads::{Road, RoadKind, RoadNetwork, RoadsData};
+
+```
+
+
+* **Caller & integration notes:**
+* `world/src/roads/build.rs` imports `crate::towns::TownSite` (from R33-03) and uses `biome`, `name`, and `center`.
+* Ring trails join towns sorted counter-clockwise around `origin` relative to `layout.reference_dir()`, matching `desert (0°) -> swamp (90°) -> snow (180°) -> mountains (270°) -> desert (0°)` in `data/world_layout.json`.

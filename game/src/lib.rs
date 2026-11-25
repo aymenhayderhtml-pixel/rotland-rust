@@ -80,8 +80,8 @@ pub use game_player::player::*;
 pub use game_player::survival::*;
 pub use game_player::swim_hands::{SwimHands, SwimHandsChange};
 pub use game_player::swimming::{
-    evaluate_water, is_on_dock, speed_multiplier_for_zone, try_gather_dirty_water, SwimmingConfig,
-    WaterMovementResult,
+    evaluate_water, is_on_dock, river_zone_at, speed_multiplier_for_zone, try_gather_dirty_water,
+    SwimmingConfig, WaterMovementResult,
 };
 pub use game_player::trees::*;
 pub use game_player::vault::{VaultConfig, VaultKind, VaultPlan, VaultState, find_vault};

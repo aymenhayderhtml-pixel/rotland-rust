@@ -103,32 +103,40 @@ pub(super) fn step_water(
     session: &SessionState,
     audio: &mut AudioState,
 ) {
-    let lake_opt = world.world_gen.as_ref().and_then(|w| w.lake());
-    if let (Some(lake), Some(p)) = (lake_opt, actors.player_ctrl.as_mut()) {
+    if let (Some(wg), Some(p)) = (world.world_gen.as_ref(), actors.player_ctrl.as_mut()) {
         let p_pos2 = glam::Vec2::new(p.position.x, p.position.z);
-        let zone = lake.zone_at(p_pos2);
-        let on_dock = game::swimming::is_on_dock(lake, p_pos2);
         let swim_cfg = play.water.swim_cfg;
+        let lake_opt = wg.lake();
+        let lake_zone = lake_opt.map_or(world::LakeZone::Land, |l| l.zone_at(p_pos2));
+        let on_dock = lake_opt.is_some_and(|l| game::swimming::is_on_dock(l, p_pos2));
+        let (zone, water_level, on_platform) = if lake_zone != world::LakeZone::Land {
+            (lake_zone, lake_opt.map_or(0.0, |l| l.water_level), on_dock)
+        } else {
+            let river_y = wg.rivers().water_at(p.position.x, p.position.z);
+            let ground_y = wg.height(p.position.x, p.position.z);
+            let r_zone = game::swimming::river_zone_at(p.position.y, ground_y, river_y, &swim_cfg);
+            (r_zone, river_y.unwrap_or(0.0), false)
+        };
         let water_res = game::swimming::evaluate_water(
             p.position,
             zone,
-            lake.water_level,
+            water_level,
             p.stamina.current,
-            on_dock,
+            on_platform,
             &swim_cfg,
             dt,
         );
         p.apply_water_movement(&water_res);
         p.water_depth = match water_res.zone {
-            world::LakeZone::Shallow | world::LakeZone::Deep if !on_dock => {
-                (lake.water_level - p.position.y).max(0.0)
+            world::LakeZone::Shallow | world::LakeZone::Deep if !on_platform => {
+                (water_level - p.position.y).max(0.0)
             }
             _ => 0.0,
         };
         // Hands are stowed by frame_water (update_water_play) from this flag
         play.water.in_deep = water_res.disarm_weapons;
 
-        let in_deep_water = water_res.zone == world::LakeZone::Deep && !on_dock;
+        let in_deep_water = water_res.zone == world::LakeZone::Deep && !on_platform;
         if (water_res.drowning_damage > 0.0 || (actors.downed.is_down() && in_deep_water)) && alive
             && let Some(c) = actors.combat.as_mut()
         {

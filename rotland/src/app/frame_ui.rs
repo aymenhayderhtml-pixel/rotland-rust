@@ -145,6 +145,7 @@ pub fn draw_ui(
                 session.last_dt,
                 || wg.biome_sample(p.position.x, p.position.z),
                 |id| wg.biome_registry().get(id).name.clone(),
+                || wg.town_at(p.position.x, p.position.z).map(|t| t.name.clone()),
             );
         }
         state.region_banner = play.region_banner.active();

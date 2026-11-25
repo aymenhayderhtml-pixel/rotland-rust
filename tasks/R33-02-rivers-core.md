@@ -26,3 +26,23 @@ Rules: `tasks/LEAD.md` subagent rules. Use the "R33 shared names" in `tasks/R33-
    - a crossing is found for a hand-made road across a hand-made river (build a small `RiverNetwork` from data in the test).
 
 ## Worker notes
+
+## Neon notes
+
+* **Shared-file line for `world/src/lib.rs` (owned by R33-04):**
+* Add `pub mod rivers;` in alphabetical order (between `pub mod random;` and `pub mod roads;`).
+
+
+* **What was implemented:**
+* `data/rivers.json`: 3 outer rivers (`frost_run` snow -> swamp, `ridge_river` mountains -> desert, `mire_creek` snow -> swamp/desert edge) with all tunable pathing, carving, mesh, grid, and bridge span parameters.
+* `world/src/rivers/mod.rs`: `RiversData`, `RiverSeedSpec`, `River`, and `RiverNetwork` matching the exact R33 shared names (`build`, `carve`, `water_at`, `water_mesh_near`, `crossings`), plus `rivers()`, `data()`, `from_rivers()`, and `crossings_for_polylines()`.
+* `world/src/rivers/path.rs`: 5-direction downhill tracing within ±50° with simplex wiggle, tangent deflection around `core_radius + blend_band + 150 m`, linear width growth (6 -> 16 m), and strictly non-increasing water levels computed against bank terrain (`depth_m = 1.6`).
+* `world/src/rivers/carve.rs`: 64 m spatial cell grid (`SegmentGrid`), smooth bed/bank carving (`level - depth*0.5` at centerline, `blend = 1` in water falling to `0` at `width/2 + bank_m`), `water_at`, and deduplicated road-river crossing detection.
+* `world/src/rivers/mesh.rs`: `RiverWaterMesh` (matching `LakeWaterMesh` format and `+Y` upward triangle winding) generating quad strips extending 1 m into each bank within query radius.
+* `world/tests/rivers_tests.rs`: unit/integration tests covering core exclusion + deflection, non-rising water levels, carve blend & `water_at` profile, `water_mesh_near` budget + winding + empty-far check, and hand-made road/river crossing detection.
+
+
+* **Crossings heading & span notes for R33-04 / lead:**
+* `crossings()` returns `road_heading_yaw_rad` using the Godot yaw convention (`(-dir.x).atan2(-dir.y)`, so `forward = (-sin yaw, 0, -cos yaw)`).
+* `crossings()` delegates to `crossings_for_polylines()` via `roads.roads()`. Because `RoadNetwork` has no raw-road constructor in the R33 shared API (only `RoadNetwork::build` taking `RoadsData` owned by R33-01), `rivers_tests.rs` calls `crossings_for_polylines()` directly.
+* With default `width_start_m = 6`, `width_end_m = 16`, and `bank_m = 6`, `width + 2 * bank_m` is `18..28 m`, so snapping to `bridge_spans_m = [12.0, 16.0]` yields `16.0` for all default rivers (and `12.0` when `width + 2 * bank_m <= 12.0`, as verified in the test). If upstream crossings should select the 12 m `bridge_wood`, adjust the span formula or `bridge_spans_m` in `data/rivers.json`.

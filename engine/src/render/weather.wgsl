@@ -44,6 +44,9 @@ const RAIN_ALPHA: f32 = 0.35;       // new: DECISIONS 2026-11-25 (task: alpha 0.
 const SNOW_ALPHA: f32 = 0.8;        // new: DECISIONS 2026-11-25 (soft flake core)
 const SAND_ALPHA: f32 = 0.32;       // new: DECISIONS 2026-11-25 (Claude: 0.18 was invisible)
 const NEAR_FADE: f32 = 0.5;         // new: DECISIONS 2026-11-25 (task: fade in < 0.5 m)
+const RAIN_NEAR_MIN: f32 = 2.5;     // new: DECISIONS 2026-11-25 (task R33-10: fade rain out fully within 2.5 m)
+const RAIN_NEAR_MAX: f32 = 7.0;     // new: DECISIONS 2026-11-25 (task R33-10: lower near rain alpha)
+const RAIN_MAX_NDC_HALF: f32 = 0.06; // new: DECISIONS 2026-11-25 (task R33-10: cap streak to ~6% screen height)
 const EDGE_FADE: f32 = 2.0;         // new: DECISIONS 2026-11-25 (fade band at the box edges)
 const SNOW_SWAY: f32 = 0.3;         // new: DECISIONS 2026-11-25 (sway amplitude in m)
 const SNOW_SWAY_SPEED: f32 = 1.3;   // new: DECISIONS 2026-11-25 (sway speed in rad/s)
@@ -154,6 +157,15 @@ fn vs_main(v: VsIn, @builtin(instance_index) id: u32) -> VsOut {
         soft = 0.0;
         let fy_m = cy - box_min.y;
         vert_fade = smoothstep(0.0, EDGE_FADE, min(fy_m, BOX_SIZE - fy_m));
+        // Clamp near rain streak screen length to <= ~6% of screen height.
+        let c_clip = u.view_proj * vec4<f32>(center, 1.0);
+        let tip_clip = u.view_proj * vec4<f32>(center + half_long * axis_long, 1.0);
+        if (c_clip.w > 0.001 && tip_clip.w > 0.001) {
+            let ndc_half = length(tip_clip.xy / tip_clip.w - c_clip.xy / c_clip.w);
+            if (ndc_half > RAIN_MAX_NDC_HALF) {
+                half_long = half_long * (RAIN_MAX_NDC_HALF / ndc_half);
+            }
+        }
     }
 
     let offset = v.corner.x * half_short * axis_short + v.corner.y * half_long * axis_long;
@@ -161,7 +173,12 @@ fn vs_main(v: VsIn, @builtin(instance_index) id: u32) -> VsOut {
 
     // Fade near the camera and at the box edges, so wrapping never pops.
     let dist = distance(center, u.camera_pos.xyz);
-    let near_fade = smoothstep(0.0, NEAR_FADE, dist);
+    var near_fade: f32;
+    if (kind == 2.0 || kind == 3.0) {
+        near_fade = smoothstep(0.0, NEAR_FADE, dist);
+    } else {
+        near_fade = smoothstep(RAIN_NEAR_MIN, RAIN_NEAR_MAX, dist);
+    }
     let edge_x = min(world.x - box_min.x, box_min.x + BOX_SIZE - world.x);
     let edge_z = min(world.z - box_min.z, box_min.z + BOX_SIZE - world.z);
     let edge_fade = smoothstep(0.0, EDGE_FADE, min(edge_x, edge_z));

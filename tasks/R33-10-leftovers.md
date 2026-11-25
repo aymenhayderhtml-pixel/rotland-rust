@@ -19,3 +19,58 @@ Rules: `tasks/LEAD.md` subagent rules. Use the "R33 shared names" in `tasks/R33-
 5. **Tests:** the save round-trip (warmth 22 saved and loaded as 22, old save → 50); the stamina regen multiplier of 0.5 halves regen.
 
 ## Worker notes
+
+### What changed
+- `save/src/systems/world.rs`: Added `pub body_temp: Option<f32>` (`#[serde(default, skip_serializing_if = "Option::is_none")]`) to `WorldSaveData`, initialized to `None` in `WorldSaveData::new`. Added unit tests `old_save_without_body_temp_loads_as_none` and `world_save_round_trips_body_temp` (22.0).
+- `rotland/src/temperature_play.rs`: Added `TemperaturePlay::apply_save(&mut self, saved: Option<f32>)` (restores finite saved value, or resets to `self.data.comfy_value` = 50.0 on `None`).
+- `game_player/src/player.rs`: Added `pub warmth_regen_multiplier: f32` (default `1.0`) to `Stamina`, and multiplied `Stamina::update` regen by `self.warmth_regen_multiplier` so `update_stamina_regen_multiplier` (hunger/thirst) does not overwrite it.
+- `engine/src/render/weather.wgsl`: For rain only (`kind != 2.0 && kind != 3.0`), faded out fully within `2.5 m` (`RAIN_NEAR_MIN = 2.5`), lowered near alpha with `smoothstep(2.5, 7.0, dist)` (`RAIN_NEAR_MAX = 7.0`), and clamped projected streak half-length in NDC to `0.06` (`~6%` of screen height). Snow and sandstorm keep `NEAR_FADE = 0.5` and their existing geometry/alpha.
+- `game/tests/all/warmth_save_tests.rs`: Added tests for `BodyTemp` save round-trip (22.0 -> 22.0, empty JSON -> 50.0), `Stamina` regen with `warmth_regen_multiplier = 0.5` halving regen, and `BodyTemp` freezing `stamina_regen_mult()` applied to `Stamina`.
+
+### Shared-file lines for the lead
+1. `game/tests/all/main.rs`:
+   ```rust
+   mod warmth_save_tests;
+   ```
+2. `rotland/src/session.rs`:
+   - In `pub struct Snapshot<'a>` (after `weather`):
+     ```rust
+     /// Player body warmth snapshot (R33-10); `None` loads as 50.0 (comfy).
+     pub body_temp: Option<f32>,
+     ```
+   - In `pub fn capture(...)` (`sys.world = Some(...)`):
+     ```rust
+     sys.world = Some(save::WorldSaveData { seed: s.seed, weather: s.weather.clone(), body_temp: s.body_temp });
+     ```
+3. `rotland/src/app/save_load.rs` (in `save_now`, inside `session::Snapshot { ... }`):
+   ```rust
+   body_temp: play.temperature.as_ref().map(|t| t.value()),
+   ```
+4. `rotland/src/app/start_world.rs` (inside `TemperaturePlay::new(...)` `Ok(mut temp)` arm):
+   ```rust
+   Ok(mut temp) => {
+       if let Some(file) = session.loaded_save.as_ref() {
+           temp.apply_save(file.systems.world.as_ref().and_then(|w| w.body_temp));
+       }
+       play.temperature = Some(temp);
+   }
+   ```
+5. `rotland/src/app/frame_warmth.rs`:
+   - Line 51 (`TemperatureTickInput`): replace `indoors: false,` with:
+     ```rust
+     indoors: generator.indoors(player.x, player.z),
+     ```
+   - After `let res = temp.tick(...);`, apply stamina regen multiplier:
+     ```rust
+     if let Some(p) = actors.player_ctrl.as_mut() {
+         p.stamina.warmth_regen_multiplier = res.stamina_regen_mult;
+     }
+     ```
+
+### How to see it
+- Run `--weather=rain` in camp and verify no long white streaks appear near the camera.
+- Enter snow/cold biome, verify stamina regenerates slower when Cold/Freezing, save & reload, and verify warmth value persists.
+- Step inside a town/POI building footprint (`generator.indoors(x, z)`) and verify warmth recovers toward comfy.
+
+### Unsure / notes
+- Did not run `cargo` or `tools/gate.sh` per subagent rules. Lead needs to apply the shared-file lines above and run the gate.

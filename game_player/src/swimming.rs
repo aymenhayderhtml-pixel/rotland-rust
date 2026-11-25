@@ -205,6 +205,29 @@ pub fn evaluate_water(
     }
 }
 
+/// Classifies a river point as `Land`, `Shallow`, or `Deep` from water level, riverbed height, and player Y.
+pub fn river_zone_at(
+    player_y: f32,
+    ground_y: f32,
+    river_water_level: Option<f32>,
+    cfg: &SwimmingConfig,
+) -> LakeZone {
+    let Some(water_y) = river_water_level else {
+        return LakeZone::Land;
+    };
+    if player_y >= water_y {
+        return LakeZone::Land;
+    }
+    let depth = water_y - ground_y;
+    if depth >= cfg.chest_height {
+        LakeZone::Deep
+    } else if depth > 0.0 {
+        LakeZone::Shallow
+    } else {
+        LakeZone::Land
+    }
+}
+
 /// Checks if a player can gather dirty water while standing in shallow water.
 pub fn try_gather_dirty_water(
     zone: LakeZone,

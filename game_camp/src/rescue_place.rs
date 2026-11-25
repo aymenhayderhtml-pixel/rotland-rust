@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use glam::{IVec2, Quat, Vec2, Vec3};
 use serde::{Deserialize, Serialize};
-use world::{DotnetRandom, PoiConfigData, PoiInstance, PoiPlacer, WorldGenerator};
+use world::{DotnetRandom, PoiConfigData, PoiInstance, PoiPlacer, TownLot, TownSite, WorldGenerator};
 
 use crate::guild::{GuildRecruit, RecruitDef, RecruitOrder, RecruitRole};
 use game_core::loot::crate_seed;
@@ -12,6 +12,18 @@ use crate::rescue::RescueConfig;
 
 /// POI building IDs eligible to hold a trapped survivor.
 pub const RESCUE_BUILDINGS: &[&str] = &["house_small", "cabin", "shop", "apartment", "fish_shack"];
+/// Town building models eligible to hold a trapped survivor.
+pub const TOWN_RESCUE_BUILDINGS: &[&str] = &[
+    "adobe_house",
+    "motel",
+    "desert_store",
+    "log_cabin_snow",
+    "research_station",
+    "bait_shop",
+    "stilt_shack",
+    "ranger_station",
+    "cabin",
+];
 
 /// Extra metres in front of the building's front lot edge so the survivor stands outside walls.
 const FRONT_OFFSET_EXTRA: f32 = 1.5; // new: DECISIONS 2026-11-25
@@ -53,6 +65,11 @@ impl RescueSpot {
 /// True if `building_id` is a house or shop POI type that can hold a survivor.
 pub fn is_rescue_building(building_id: &str) -> bool {
     RESCUE_BUILDINGS.contains(&building_id)
+}
+
+/// True if `building` is an enclosed town building model that can hold a survivor.
+pub fn is_town_rescue_building(building: &str) -> bool {
+    TOWN_RESCUE_BUILDINGS.contains(&building)
 }
 
 /// Parses a recruit role string from `data/guild.json` into `RecruitRole`.
@@ -222,6 +239,90 @@ pub fn collect_candidate_pois(world_gen: &WorldGenerator) -> Vec<PoiInstance> {
     pois
 }
 
+fn town_lot_spot_position(lot: &TownLot) -> Vec3 {
+    let offset = Quat::from_rotation_y(lot.yaw) * Vec3::new(0.0, 0.0, lot.footprint.y + FRONT_OFFSET_EXTRA);
+    Vec3::new(lot.pos.x, 0.0, lot.pos.y) + offset
+}
+
+/// Deterministically places `cfg.per_town` (e.g. 1-2) rescue spots per town from eligible town lots.
+pub fn place_town_survivors(
+    world_seed: i32,
+    towns: &[TownSite],
+    cfg: &RescueConfig,
+    recruits: &[RecruitDef],
+    id_offset: usize,
+    used_names: &mut HashSet<String>,
+) -> Vec<RescueSpot> {
+    let lo = cfg.per_town[0].min(cfg.per_town[1]);
+    let hi = cfg.per_town[0].max(cfg.per_town[1]);
+    if hi == 0 || towns.is_empty() {
+        return Vec::new();
+    }
+
+    let fallback = [RecruitDef {
+        id: "rescue_default".to_string(),
+        name: "Alex Mercer".to_string(),
+        role: "fighter".to_string(),
+        level: 1,
+        daily_wage: 15, // data: guild.json daily_wage
+        health: 100,
+        hire_cost: 0,
+    }];
+    let templates: &[RecruitDef] = if recruits.is_empty() { &fallback } else { recruits };
+    let mut spots = Vec::new();
+
+    for town in towns {
+        let mut eligible: Vec<(usize, &TownLot)> = town
+            .lots
+            .iter()
+            .enumerate()
+            .filter(|(_, lot)| is_town_rescue_building(&lot.building))
+            .collect();
+        if eligible.is_empty() {
+            continue;
+        }
+        let seed = crate_seed(world_seed, &format!("town_{}/rescue", town.key));
+        let mut rng = DotnetRandom::new(seed);
+        let want = if hi > lo {
+            rng.next_range(lo as i32, hi as i32 + 1) as usize
+        } else {
+            lo
+        }
+        .min(eligible.len());
+
+        for _ in 0..want {
+            let pick_idx = rng.next(eligible.len() as i32) as usize;
+            let (lot_idx, lot) = eligible.swap_remove(pick_idx);
+            let unused: Vec<&RecruitDef> = templates
+                .iter()
+                .filter(|r| !used_names.contains(r.name.as_str()))
+                .collect();
+            let tmpl = if unused.is_empty() {
+                &templates[rng.next(templates.len() as i32) as usize]
+            } else {
+                unused[rng.next(unused.len() as i32) as usize]
+            };
+            used_names.insert(tmpl.name.clone());
+
+            let id = format!("rescue_{}", id_offset + spots.len() + 1);
+            spots.push(RescueSpot {
+                id,
+                poi_id: format!("town_{}_{lot_idx}", town.key),
+                building_id: lot.building.clone(),
+                name: tmpl.name.clone(),
+                role: parse_recruit_role(&tmpl.role),
+                level: tmpl.level,
+                daily_wage: tmpl.daily_wage,
+                max_health: tmpl.health,
+                position: town_lot_spot_position(lot),
+                yaw: lot.yaw,
+            });
+        }
+    }
+
+    spots
+}
+
 /// Places rescue survivors for a `WorldGenerator` and snaps their Y coordinate to terrain height.
 pub fn place_survivors_in_world(
     world_gen: &WorldGenerator,
@@ -238,7 +339,21 @@ pub fn place_survivors_in_world(
         cfg,
         recruits,
     );
-    for spot in &mut spots {
+    let mut used_names: HashSet<String> = spots.iter().map(|s| s.name.clone()).collect();
+    let town_spots = place_town_survivors(
+        world_gen.seed(),
+        world_gen.towns(),
+        cfg,
+        recruits,
+        spots.len(),
+        &mut used_names,
+    );
+    let keep_core = cfg.max_survivors.saturating_sub(town_spots.len());
+    spots.truncate(keep_core);
+    spots.extend(town_spots);
+    spots.truncate(cfg.max_survivors);
+    for (idx, spot) in spots.iter_mut().enumerate() {
+        spot.id = format!("rescue_{}", idx + 1);
         spot.position.y = world_gen.height(spot.position.x, spot.position.z);
     }
     spots

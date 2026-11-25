@@ -2,7 +2,7 @@
 //!
 //! Port of Godot C# scripts/UI/MapIcons.cs.
 
-use engine::egui::{self, vec2, Align2, Color32, FontId, Pos2, Rect, Stroke};
+use engine::egui::{self, vec2, Align2, Color32, FontId, Pos2, Rect, Stroke, StrokeKind};
 
 // Godot: MapIcons.cs Camp
 pub fn draw_camp_icon(painter: &egui::Painter, at: Pos2) {
@@ -166,4 +166,61 @@ pub fn draw_player_icon(painter: &egui::Painter, at: Pos2, yaw_rad: f32) {
     );
 
     painter.add(egui::Shape::convex_polygon(points, player_col, Stroke::new(1.5, outline_col)));
+}
+
+// new: DECISIONS 2026-11-25
+pub fn draw_town_icon(painter: &egui::Painter, at: Pos2, name: &str) {
+    let town_col = Color32::from_rgb(245, 240, 225);
+    let outline_col = Color32::from_rgba_premultiplied(
+        game::OUTLINE_COLOR[0],
+        game::OUTLINE_COLOR[1],
+        game::OUTLINE_COLOR[2],
+        game::OUTLINE_COLOR[3],
+    );
+    let marker_rect = Rect::from_center_size(at, vec2(8.0, 8.0));
+    painter.rect(
+        marker_rect,
+        0.0,
+        town_col,
+        Stroke::new(1.5, outline_col),
+        StrokeKind::Outside,
+    );
+    let label_pos = at + vec2(0.0, -14.0);
+    painter.text(
+        label_pos + vec2(1.0, 1.0),
+        Align2::CENTER_CENTER,
+        name,
+        FontId::proportional(16.0),
+        Color32::from_black_alpha(220),
+    );
+    painter.text(
+        label_pos,
+        Align2::CENTER_CENTER,
+        name,
+        FontId::proportional(16.0),
+        town_col,
+    );
+}
+
+// new: DECISIONS 2026-11-25
+pub fn draw_signpost_icon(painter: &egui::Painter, at: Pos2) {
+    let sign_col = Color32::from_rgb(205, 165, 105);
+    let outline_col = Color32::from_rgba_premultiplied(
+        game::OUTLINE_COLOR[0],
+        game::OUTLINE_COLOR[1],
+        game::OUTLINE_COLOR[2],
+        game::OUTLINE_COLOR[3],
+    );
+    painter.line_segment(
+        [at + vec2(0.0, -7.0), at + vec2(0.0, 7.0)],
+        Stroke::new(2.0, outline_col),
+    );
+    let board = Rect::from_center_size(at + vec2(0.0, -3.5), vec2(10.0, 5.0));
+    painter.rect(
+        board,
+        0.0,
+        sign_col,
+        Stroke::new(1.0, outline_col),
+        StrokeKind::Outside,
+    );
 }

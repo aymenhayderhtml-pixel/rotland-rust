@@ -4,6 +4,8 @@ pub mod city;
 pub mod color;
 pub mod daynight;
 pub mod generator;
+mod generator_contents;
+mod generator_world;
 pub mod ground_paint;
 pub mod lake;
 pub mod loot;
@@ -11,11 +13,14 @@ pub mod math;
 pub mod noise;
 pub mod poi;
 pub mod random;
+pub mod rivers;
+pub mod roads;
 pub mod scatter;
 pub mod settlement;
 pub mod terrain_paint;
 pub mod terrain_shape;
 pub mod time;
+pub mod towns;
 pub mod weather;
 
 pub use biome::ambient_temperature;
@@ -45,6 +50,8 @@ pub use math::{lerp, smooth_step};
 pub use noise::GodotNoise;
 pub use poi::{PoiBuildingDef, PoiConfig, PoiConfigData, PoiGeometry, PoiInstance, PoiPlacer};
 pub use random::DotnetRandom;
+pub use rivers::{River, RiverNetwork, RiversData};
+pub use roads::{Road, RoadKind, RoadNetwork, RoadsData};
 pub use scatter::{
     PropInstance, ScatterConfig, ScatterConfigData, ScatterLootData, ScatterPlacer, ScatterRule,
     ScatterVisibility,
@@ -53,4 +60,5 @@ pub use settlement::{
     SettlementConfig, SettlementConfigData, SettlementGround, SettlementPlacer, SettlementSite,
 };
 pub use time::{Clock, ClockChanges};
+pub use towns::{place_towns, TownLot, TownSite, TownsData};
 pub use weather::{WeatherData, WeatherKind, WeatherKindDef, WeatherState, WeatherWeight};

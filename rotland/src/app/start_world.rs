@@ -404,7 +404,12 @@ pub fn start_world(
     match game::survival::temperature::TemperatureData::load(&paths::repo_path("data/temperature.json")) {
         Ok(temp_data) => {
             match crate::temperature_play::TemperaturePlay::new(temp_data, &paths::repo_path("data/items.json")) {
-                Ok(temp) => play.temperature = Some(temp),
+                Ok(mut temp) => {
+                    if let Some(file) = session.loaded_save.as_ref() {
+                        temp.apply_save(file.systems.world.as_ref().and_then(|w| w.body_temp));
+                    }
+                    play.temperature = Some(temp);
+                }
                 Err(e) => log::error!("warmth: {e}"),
             }
         }

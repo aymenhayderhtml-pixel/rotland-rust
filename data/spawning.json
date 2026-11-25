@@ -34,5 +34,6 @@
       { "id": "walker", "weight": 0.4 },
       { "id": "runner", "weight": 0.6 }
     ]
-  }
+  },
+  "townDensity": 1.8
 }

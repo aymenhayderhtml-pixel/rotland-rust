@@ -4,16 +4,25 @@ use serde::{Deserialize, Serialize};
 use crate::biome::BiomeId;
 use crate::biome::layout::{BiomeSample, WorldLayout, WorldLayoutData};
 use crate::biome::registry::BiomeRegistry;
-use crate::city::{CityConfigData, CityGround, CityGroundData, CityLayout};
+use crate::city::{CityGround, CityLayout};
 use crate::color::Color;
-use crate::lake::{LakeConfigData, LakeLayout};
+use crate::generator_world::RoadHeightField;
+use crate::lake::LakeLayout;
 use crate::math::{lerp, smooth_step};
 use crate::noise::GodotNoise;
-use crate::poi::{PoiConfigData, PoiGeometry, PoiInstance, PoiPlacer};
-use crate::scatter::{PropInstance, ScatterConfigData, ScatterPlacer};
-use crate::settlement::{SettlementConfigData, SettlementGround, SettlementPlacer, SettlementSite};
+use crate::poi::{PoiConfigData, PoiGeometry, PoiPlacer};
+use crate::rivers::RiverNetwork;
+use crate::roads::RoadNetwork;
+use crate::scatter::{ScatterConfigData, ScatterPlacer};
+use crate::settlement::{SettlementConfigData, SettlementSite};
 use crate::terrain_paint::{ChunkPaintContext, TerrainPaint};
 use crate::terrain_shape::TerrainShape;
+use crate::towns::TownSite;
+
+// new: DECISIONS 2026-11-25
+const TOWN_EDGE_BLEND_M: f32 = 30.0;
+// new: DECISIONS 2026-11-25
+const BRIDGE_APPROACH_PAD_M: f32 = 3.0;
 
 /// A flat-shaded triangle with local vertex positions, surface normal, and RGBA color.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -33,22 +42,29 @@ pub struct ChunkGround {
 
 /// Makes the terrain from a seed, biome registry, world layout, and settlement config.
 pub struct WorldGenerator {
-    seed: i32,
-    config: SettlementConfigData,
-    scatter_config: ScatterConfigData,
-    poi_config: PoiConfigData,
-    biome_registry: BiomeRegistry,
-    layout_data: WorldLayoutData,
-    layout: WorldLayout,
-    origin: Vec2,
-    core_radius_sq: f32,
-    biome: GodotNoise,
-    shape: TerrainShape,
-    paint: TerrainPaint,
-    settlements: Vec<SettlementSite>,
-    city: Option<CityLayout>,
-    city_ground: Option<CityGround>,
-    lake: Option<LakeLayout>,
+    pub(crate) seed: i32,
+    pub(crate) config: SettlementConfigData,
+    pub(crate) scatter_config: ScatterConfigData,
+    pub(crate) poi_config: PoiConfigData,
+    pub(crate) biome_registry: BiomeRegistry,
+    pub(crate) layout_data: WorldLayoutData,
+    pub(crate) layout: WorldLayout,
+    pub(crate) origin: Vec2,
+    pub(crate) core_radius_sq: f32,
+    pub(crate) biome: GodotNoise,
+    pub(crate) shape: TerrainShape,
+    pub(crate) paint: TerrainPaint,
+    pub(crate) settlements: Vec<SettlementSite>,
+    pub(crate) city: Option<CityLayout>,
+    pub(crate) city_ground: Option<CityGround>,
+    pub(crate) lake: Option<LakeLayout>,
+    pub(crate) towns: Vec<TownSite>,
+    pub(crate) town_avg_heights: Vec<f32>,
+    pub(crate) roads: RoadNetwork,
+    pub(crate) road_heights: RoadHeightField,
+    pub(crate) rivers: RiverNetwork,
+    pub(crate) crossings: Vec<(Vec2, f32, f32)>,
+    pub(crate) has_outer: bool,
 }
 
 impl WorldGenerator {
@@ -66,169 +82,6 @@ impl WorldGenerator {
     // godot: World/WorldGenerator.cs:27
     pub const FOREST_GRASS: Color = Color::new(63.0 / 255.0, 106.0 / 255.0, 44.0 / 255.0, 1.0);
 
-    /// The normal way to make a world: reads settlements, scatter, poi, biomes, and world_layout
-    /// from `data_dir` (the repo's data/ folder).
-    pub fn from_data_dir(seed: i32, data_dir: impl AsRef<std::path::Path>) -> Result<Self, String> {
-        let dir = data_dir.as_ref();
-        let read = |name: &str| dir.join(name);
-        let settlements = crate::settlement::SettlementConfig::load_from_file(read("settlements.json"))
-            .map_err(|e| format!("settlements.json: {e}"))?;
-        let scatter = crate::scatter::ScatterConfig::load_from_file(read("scatter.json"))
-            .map_err(|e| format!("scatter.json: {e}"))?;
-        let poi = crate::poi::PoiConfig::load_from_file(read("poi.json"))
-            .map_err(|e| format!("poi.json: {e}"))?;
-        let biomes_text = std::fs::read_to_string(read("biomes.json"))
-            .map_err(|e| format!("biomes.json: {e}"))?;
-        let biome_registry = BiomeRegistry::from_json(&biomes_text)
-            .map_err(|e| format!("biomes.json: {e}"))?;
-        let layout_text = std::fs::read_to_string(read("world_layout.json"))
-            .map_err(|e| format!("world_layout.json: {e}"))?;
-        let layout_data: WorldLayoutData = serde_json::from_str(&layout_text)
-            .map_err(|e| format!("world_layout.json: {e}"))?;
-
-        let mut generator = Self::with_all_configs(
-            seed,
-            settlements,
-            scatter,
-            poi,
-            biome_registry,
-            layout_data,
-        );
-        let city_path = read("city.json");
-        if city_path.exists() {
-            let city = CityConfigData::load_from_file(city_path)
-                .map_err(|e| format!("city.json: {e}"))?;
-            let city_ground_path = read("city_ground.json");
-            let ground_cfg = if city_ground_path.exists() {
-                Some(
-                    CityGroundData::load_from_file(city_ground_path)
-                        .map_err(|e| format!("city_ground.json: {e}"))?,
-                )
-            } else {
-                None
-            };
-            generator.attach_city_with_ground(&city, ground_cfg.as_ref());
-        }
-        let lake_path = read("lake.json");
-        if lake_path.exists() {
-            let lake = LakeConfigData::load_from_file(lake_path)
-                .map_err(|e| format!("lake.json: {e}"))?;
-            generator.attach_lake(&lake);
-        }
-        Ok(generator)
-    }
-
-    /// Lays out the ruined city around the camp and orients the outer biome layout toward Ashford.
-    pub fn attach_city(&mut self, cfg: &CityConfigData) {
-        self.attach_city_with_ground(cfg, None);
-    }
-
-    pub fn attach_city_with_ground(&mut self, cfg: &CityConfigData, ground_cfg: Option<&CityGroundData>) {
-        let camp = self.settlements.first().map_or(Vec2::ZERO, |s| Vec2::new(s.center.x, s.center.z));
-        let mut layout = CityLayout::generate(self.seed, camp, cfg, |p| self.forest_weight(p.x, p.y));
-        layout.road = vec![camp, layout.entry];
-        if let Some(g_cfg) = ground_cfg {
-            let cg = CityGround::new(
-                self.seed,
-                &layout,
-                &|x, z| self.raw_height(x, z),
-                cfg.max_slope,
-                g_cfg.clone(),
-            );
-            self.city_ground = Some(cg);
-        }
-        let city_center = layout.origin + Vec2::splat(layout.size * 0.5);
-        let to_city = city_center - camp;
-        let reference_dir = if to_city.length_squared() > 1e-6 {
-            to_city.normalize()
-        } else {
-            Vec2::X
-        };
-        self.origin = camp;
-        self.layout = WorldLayout::new(&self.layout_data, self.seed, camp, reference_dir);
-        self.city = Some(layout);
-    }
-
-    pub fn city(&self) -> Option<&CityLayout> { self.city.as_ref() }
-    pub fn city_ground(&self) -> Option<&CityGround> { self.city_ground.as_ref() }
-
-    /// Attaches the lake & coast opposite the city (or camp if no city).
-    pub fn attach_lake(&mut self, cfg: &LakeConfigData) {
-        let camp = self.settlements.first().map_or(Vec2::ZERO, |s| Vec2::new(s.center.x, s.center.z));
-        let city_center = self.city.as_ref().map(|c| c.origin + Vec2::splat(c.size * 0.5));
-        let layout = LakeLayout::generate(self.seed, camp, city_center, cfg, |p| self.raw_height(p.x, p.y));
-        self.lake = Some(layout);
-    }
-
-    pub fn lake(&self) -> Option<&LakeLayout> { self.lake.as_ref() }
-
-    /// Terrain only (empty scatter and POI data). Use `from_data_dir` for the real world.
-    pub fn new(seed: i32, config: SettlementConfigData) -> Self {
-        Self::with_configs(seed, config, ScatterConfigData::default(), PoiConfigData::default())
-    }
-
-    pub fn with_configs(
-        seed: i32,
-        config: SettlementConfigData,
-        scatter_config: ScatterConfigData,
-        poi_config: PoiConfigData,
-    ) -> Self {
-        let biome_registry = BiomeRegistry::load().expect("failed to load data/biomes.json");
-        let layout_text = std::fs::read_to_string(paths::repo_path("data/world_layout.json"))
-            .expect("failed to read data/world_layout.json");
-        let layout_data: WorldLayoutData =
-            serde_json::from_str(&layout_text).expect("failed to parse data/world_layout.json");
-        Self::with_all_configs(
-            seed,
-            config,
-            scatter_config,
-            poi_config,
-            biome_registry,
-            layout_data,
-        )
-    }
-
-    pub fn with_all_configs(
-        seed: i32,
-        config: SettlementConfigData,
-        scatter_config: ScatterConfigData,
-        poi_config: PoiConfigData,
-        biome_registry: BiomeRegistry,
-        layout_data: WorldLayoutData,
-    ) -> Self {
-        // godot: World/WorldGenerator.cs:45
-        let biome = GodotNoise::simplex(seed, 0.0025);
-        let shape = TerrainShape::new(seed, &biome_registry);
-        let paint = TerrainPaint::new(seed);
-        let core_radius_sq = layout_data.core_radius * layout_data.core_radius;
-        let initial_layout = WorldLayout::new(&layout_data, seed, Vec2::ZERO, Vec2::X);
-
-        let mut world_gen = Self {
-            seed,
-            config: config.clone(),
-            scatter_config,
-            poi_config,
-            biome_registry,
-            layout_data,
-            layout: initial_layout,
-            origin: Vec2::ZERO,
-            core_radius_sq,
-            biome,
-            shape,
-            paint,
-            settlements: Vec::new(),
-            city: None,
-            city_ground: None,
-            lake: None,
-        };
-        let site = SettlementPlacer::find(&world_gen, &config);
-        let camp = Vec2::new(site.center.x, site.center.z);
-        world_gen.origin = camp;
-        world_gen.layout = WorldLayout::new(&world_gen.layout_data, seed, camp, Vec2::X);
-        world_gen.settlements = vec![site];
-        world_gen
-    }
-
     pub fn seed(&self) -> i32 { self.seed }
     pub fn settlements(&self) -> &[SettlementSite] { &self.settlements }
     pub fn config(&self) -> &SettlementConfigData { &self.config }
@@ -238,9 +91,55 @@ impl WorldGenerator {
     pub fn world_layout(&self) -> &WorldLayout { &self.layout }
     pub fn set_scatter_config(&mut self, cfg: ScatterConfigData) { self.scatter_config = cfg; }
     pub fn set_poi_config(&mut self, cfg: PoiConfigData) { self.poi_config = cfg; }
+    pub fn city(&self) -> Option<&CityLayout> { self.city.as_ref() }
+    pub fn city_ground(&self) -> Option<&CityGround> { self.city_ground.as_ref() }
+    pub fn lake(&self) -> Option<&LakeLayout> { self.lake.as_ref() }
+    pub fn towns(&self) -> &[TownSite] { &self.towns }
+    pub fn roads(&self) -> &RoadNetwork { &self.roads }
+    pub fn rivers(&self) -> &RiverNetwork { &self.rivers }
+
+    /// Returns the town whose circular radius contains `(x, z)`, if any.
+    pub fn town_at(&self, x: f32, z: f32) -> Option<&TownSite> {
+        let p = Vec2::new(x, z);
+        self.towns.iter().find(|t| t.contains_point(p))
+    }
+
+    /// True when `(x, z)` lies inside any town building lot or POI building footprint.
+    pub fn indoors(&self, x: f32, z: f32) -> bool {
+        let p = Vec2::new(x, z);
+        if self.towns.iter().any(|t| t.contains_point(p) && t.indoors(p)) {
+            return true;
+        }
+        let coord = IVec2::new(
+            (x / Self::CHUNK_SIZE).floor() as i32,
+            (z / Self::CHUNK_SIZE).floor() as i32,
+        );
+        let placed = PoiPlacer::place(self, &self.poi_config, coord);
+        if PoiGeometry::is_in_any_lot(&placed, &self.poi_config, x, z, 0.0) {
+            return true;
+        }
+        if let Some(city) = self.city()
+            && city.contains(p)
+        {
+            for (idx, lot) in city.lots.iter().enumerate() {
+                let poi = crate::poi::PoiInstance::new(
+                    format!("city_{idx}"),
+                    &lot.building_id,
+                    Vec3::new(lot.center.x, 0.0, lot.center.y),
+                    lot.yaw,
+                );
+                if let Some(def) = self.poi_config.get(&poi.building_id)
+                    && PoiGeometry::contains(&poi, def, x, z, 0.0)
+                {
+                    return true;
+                }
+            }
+        }
+        false
+    }
 
     #[inline]
-    fn in_core_radius(&self, x: f32, z: f32) -> bool {
+    pub(crate) fn in_core_radius(&self, x: f32, z: f32) -> bool {
         let dx = x - self.origin.x;
         let dz = z - self.origin.y;
         dx * dx + dz * dz <= self.core_radius_sq
@@ -309,7 +208,7 @@ impl WorldGenerator {
         } else {
             self.layout.sample(x, z)
         };
-        let height = self.shape.sample_height(
+        let mut height = self.shape.sample_height(
             x,
             z,
             core_fw,
@@ -322,6 +221,9 @@ impl WorldGenerator {
             self.lake.as_ref(),
             &|rx, rz| self.raw_height(rx, rz),
         );
+        if self.has_outer && sample.outer > 0.0 {
+            height = self.apply_outer_height(x, z, height);
+        }
         let forest = if sample.outer <= 0.0 {
             core_fw
         } else {
@@ -329,6 +231,46 @@ impl WorldGenerator {
             lerp(core_fw, outer_fw, sample.outer)
         };
         (height, forest)
+    }
+
+    fn apply_outer_height(&self, x: f32, z: f32, mut h: f32) -> f32 {
+        let p = Vec2::new(x, z);
+        for (town, &avg_h) in self.towns.iter().zip(&self.town_avg_heights) {
+            let d = p.distance(town.center);
+            if d < town.radius + TOWN_EDGE_BLEND_M {
+                let t = if d <= town.radius {
+                    0.0
+                } else {
+                    smooth_step(town.radius, town.radius + TOWN_EDGE_BLEND_M, d)
+                };
+                h = lerp(avg_h, h, t);
+            }
+        }
+
+        let at_bridge = self.crossings.iter().any(|(cp, _, span)| {
+            let r = span * 0.5 + BRIDGE_APPROACH_PAD_M;
+            p.distance_squared(*cp) <= r * r
+        });
+        let in_water = self.rivers.water_at(x, z).is_some();
+
+        if at_bridge {
+            if in_water {
+                if let Some((bed, blend)) = self.rivers.carve(x, z) {
+                    h = lerp(h, bed, blend);
+                }
+            } else if let Some((road_h, w)) = self.road_heights.sample(x, z) {
+                h = lerp(h, road_h, w);
+            }
+            return h;
+        }
+
+        if let Some((road_h, w)) = self.road_heights.sample(x, z) {
+            h = lerp(h, road_h, w);
+        }
+        if let Some((bed, blend)) = self.rivers.carve(x, z) {
+            h = lerp(h, bed, blend);
+        }
+        h
     }
 
     pub fn height(&self, x: f32, z: f32) -> f32 { self.sample(x, z).0 }
@@ -387,139 +329,12 @@ impl WorldGenerator {
             city_ground: self.city_ground.as_ref(),
             lake: self.lake.as_ref(),
             registry: &self.biome_registry,
+            roads: self.has_outer.then_some(&self.roads),
+            rivers: self.has_outer.then_some(&self.rivers),
+            towns: &self.towns,
         };
         let triangles = self.paint.build_triangles(&ctx, &|wx, wz| self.biome_sample(wx, wz));
         ChunkGround { coord, heights, triangles }
-    }
-
-    /// POIs and props for one chunk, following BuildChunk rules.
-    pub fn chunk_contents(&self, coord: IVec2) -> (Vec<PoiInstance>, Vec<PropInstance>) {
-        let placed_pois = PoiPlacer::place(self, &self.poi_config, coord);
-        let mut pois = SettlementGround::remove_pois(
-            &self.settlements,
-            placed_pois,
-            &self.poi_config,
-            self.config.clear_radius,
-        );
-        let placed_props =
-            ScatterPlacer::place_with_registry(self, &self.scatter_config, &self.biome_registry, coord);
-
-        if let Some(city) = self.city() {
-            pois.retain(|poi| !city.contains(Vec2::new(poi.position.x, poi.position.z)));
-            for (idx, lot) in city.lots.iter().enumerate() {
-                let cx = (lot.center.x / Self::CHUNK_SIZE).floor() as i32;
-                let cy = (lot.center.y / Self::CHUNK_SIZE).floor() as i32;
-                if cx == coord.x && cy == coord.y {
-                    let y = self.height(lot.center.x, lot.center.y);
-                    pois.push(PoiInstance::new(
-                        format!("city_{idx}"),
-                        &lot.building_id,
-                        Vec3::new(lot.center.x, y, lot.center.y),
-                        lot.yaw,
-                    ));
-                }
-            }
-        }
-
-        if let Some(lake) = self.lake() {
-            pois.retain(|poi| {
-                let p = Vec2::new(poi.position.x, poi.position.z);
-                !lake.contains_region(p) || lake.shore_distance(p) > lake.config.beach_width + 10.0
-            });
-            for (idx, lot) in lake.village_lots.iter().enumerate() {
-                let cx = (lot.center.x / Self::CHUNK_SIZE).floor() as i32;
-                let cy = (lot.center.y / Self::CHUNK_SIZE).floor() as i32;
-                if cx == coord.x && cy == coord.y {
-                    let y = self.height(lot.center.x, lot.center.y);
-                    pois.push(PoiInstance::new(
-                        format!("lake_village_{idx}"),
-                        &lot.building_id,
-                        Vec3::new(lot.center.x, y, lot.center.y),
-                        lot.yaw,
-                    ));
-                }
-            }
-        }
-
-        let filtered_props: Vec<PropInstance> = placed_props
-            .into_iter()
-            .filter(|prop| {
-                let p = Vec2::new(prop.position.x, prop.position.z);
-                if let Some(city) = self.city()
-                    && city.contains(p)
-                {
-                    let is_park = city.district_at(p) == Some(crate::city::District::Park);
-                    let on_street = city.street_at(p).is_some();
-                    return is_park
-                        && !on_street
-                        && (prop.is_tree() || crate::city::place::is_ground_cover(&prop.model));
-                }
-                if let Some(lake) = self.lake()
-                    && lake.contains_region(p)
-                    && lake.shore_distance(p) < 0.0
-                {
-                    return false;
-                }
-                true
-            })
-            .collect();
-
-        let cleared_props = PoiGeometry::remove_cleared(&pois, filtered_props, &self.poi_config);
-        let mut props = SettlementGround::remove_props(&self.settlements, cleared_props, self.config.clear_radius);
-
-        if let Some(city) = self.city() {
-            let city_props = crate::city::place::place_street_props(self, city, coord);
-            for cp in city_props {
-                let clear = !props.iter().any(|p| {
-                    let dx = p.position.x - cp.position.x;
-                    let dz = p.position.z - cp.position.z;
-                    dx * dx + dz * dz < 3.0 * 3.0 - 1e-4
-                });
-                if clear {
-                    props.push(cp);
-                }
-            }
-        }
-
-        if let Some(lake) = self.lake() {
-            let lake_props = crate::lake::place::place_lake_props(self, lake, coord);
-            for lp in lake_props {
-                let clear = !props.iter().any(|p| {
-                    let dx = p.position.x - lp.position.x;
-                    let dz = p.position.z - lp.position.z;
-                    dx * dx + dz * dz < 2.0 * 2.0 - 1e-4
-                });
-                if clear {
-                    props.push(lp);
-                }
-            }
-        }
-
-        (pois, props)
-    }
-
-    /// Loot crate spots for one chunk, following BuildChunk rules.
-    pub fn chunk_crates(&self, coord: IVec2) -> Vec<crate::loot::LootSpot> {
-        let (pois, props) = self.chunk_contents(coord);
-        self.chunk_crates_from(coord, &pois, &props)
-    }
-
-    /// Crate spots for one chunk, reusing already-built POIs and props (R31-03).
-    pub fn chunk_crates_from(
-        &self,
-        coord: IVec2,
-        pois: &[PoiInstance],
-        props: &[PropInstance],
-    ) -> Vec<crate::loot::LootSpot> {
-        let placed = crate::loot::LootPlacer::place(
-            self,
-            &self.scatter_config,
-            &self.poi_config,
-            coord,
-            props,
-            pois,
-        );
-        SettlementGround::remove_crates(&self.settlements, placed, self.config.clear_radius)
     }
 
     /// Densest forest chunk within 300m of spawn, matching BenchmarkPlacement.

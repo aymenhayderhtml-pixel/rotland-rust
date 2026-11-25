@@ -28,6 +28,9 @@ const RAY_MAX_M: f32 = 20_000.0; // new: DECISIONS 2026-11-25
 const CORE_SEARCH_STEP_M: f32 = 32.0; // new: DECISIONS 2026-11-25
 const CORE_SEARCH_MAX_M: f32 = 4000.0; // new: DECISIONS 2026-11-25
 
+/// Distance in metres to place the player from town/trailhead/river targets.
+const WORLD_TP_DISTANCE_M: f32 = 25.0; // new: DECISIONS 2026-11-25
+
 /// Fallback recruit definition if `data/guild.json` has no `recruits` entries.
 const FALLBACK_NAME: &str = "Mark Vance";
 const FALLBACK_LEVEL: u32 = 1;
@@ -45,10 +48,19 @@ pub struct TestFlags {
     pub weather: Option<WeatherKind>,
     /// `--spawn-zombie=<kind>`: one zombie of that kind in front of the player (R32-07).
     pub spawn_zombie: Option<String>,
+    /// `--town=<key>`: teleport 25 m from that town's centre, facing it (R33-05).
+    pub town: Option<String>,
+    /// `--trailhead=<n>`: teleport 25 m before trailhead `n`, facing outward along the road (R33-05).
+    pub trailhead: Option<usize>,
+    /// `--bridge=<n>`: teleport onto the `n`-th road-river bridge deck (R33-05).
+    pub bridge: Option<usize>,
+    /// `--river=<n>`: teleport 25 m from river `n` on a bank, facing the water (R33-05).
+    pub river: Option<usize>,
 }
 
 impl TestFlags {
-    /// Parses `--down-at`, `--team`, `--tp-rescue`, `--hold-e`, `--biome`, and `--weather` from CLI args.
+    /// Parses `--down-at`, `--team`, `--tp-rescue`, `--hold-e`, `--biome`, `--weather`,
+    /// `--spawn-zombie`, `--town`, `--trailhead`, `--bridge`, and `--river` from CLI args.
     pub fn from_args(args: &EngineArgs) -> Self {
         let biome = args.value("--biome").and_then(|raw| {
             let key = raw.trim().to_ascii_lowercase();
@@ -80,6 +92,19 @@ impl TestFlags {
                 .value("--spawn-zombie")
                 .map(|s| s.trim().to_ascii_lowercase())
                 .filter(|s| !s.is_empty()),
+            town: args
+                .value("--town")
+                .map(|s| s.trim().to_ascii_lowercase())
+                .filter(|s| !s.is_empty()),
+            trailhead: args
+                .value("--trailhead")
+                .and_then(|s| s.trim().parse::<usize>().ok()),
+            bridge: args
+                .value("--bridge")
+                .and_then(|s| s.trim().parse::<usize>().ok()),
+            river: args
+                .value("--river")
+                .and_then(|s| s.trim().parse::<usize>().ok()),
         }
     }
 }
@@ -268,6 +293,18 @@ pub fn apply_startup(
     if let Some(biome) = session.test_flags.biome {
         apply_biome_tp(gpu, render, world, actors, session, biome);
     }
+    if let Some(key) = session.test_flags.town.as_deref() {
+        apply_town_tp(gpu, render, world, actors, session, key);
+    }
+    if let Some(index) = session.test_flags.trailhead {
+        apply_trailhead_tp(gpu, render, world, actors, session, index);
+    }
+    if let Some(index) = session.test_flags.bridge {
+        apply_bridge_tp(gpu, render, world, actors, session, index);
+    }
+    if let Some(index) = session.test_flags.river {
+        apply_river_tp(gpu, render, world, actors, session, index);
+    }
     if let (Some(kind), Some(weather)) = (session.test_flags.weather, play.weather.as_mut()) {
         weather.force(kind);
     }
@@ -343,6 +380,147 @@ fn apply_biome_tp(
     let Some((xz, yaw)) = find_biome_point(camp, target, |x, z| world_gen.biome_sample(x, z))
     else {
         log::warn!("--biome={}: no matching biome point found", target.key());
+        return;
+    };
+    teleport_player_and_stream(gpu, render, world, actors, session, xz, yaw);
+}
+
+/// Computes `(pos_xz, godot_yaw)` 25 m from `town.center` along `-street_dir`, facing the town centre.
+pub fn town_tp_pose(town: &world::towns::TownSite) -> (Vec2, f32) {
+    let dir = town.street_dir.normalize_or(Vec2::X);
+    let pos = town.center - dir * WORLD_TP_DISTANCE_M;
+    let yaw = (-dir.x).atan2(-dir.y);
+    (pos, yaw)
+}
+
+/// Computes `(pos_xz, godot_yaw)` 25 m before `trailhead`, facing outward along the nearest road.
+pub fn trailhead_tp_pose(trailhead: Vec2, roads: &[world::roads::Road], camp: Vec2) -> (Vec2, f32) {
+    let outward = (trailhead - camp).normalize_or(Vec2::X);
+    let mut best_dist = f32::INFINITY;
+    let mut road_dir = outward;
+    for road in roads {
+        if road.points.len() < 2 {
+            continue;
+        }
+        let d_start = road.points[0].distance_squared(trailhead);
+        if d_start < best_dist {
+            best_dist = d_start;
+            road_dir = (road.points[1] - road.points[0]).normalize_or(outward);
+        }
+        let last = road.points.len() - 1;
+        let d_end = road.points[last].distance_squared(trailhead);
+        if d_end < best_dist {
+            best_dist = d_end;
+            road_dir = (road.points[last - 1] - road.points[last]).normalize_or(outward);
+        }
+    }
+    if road_dir.dot(outward) < 0.0 {
+        road_dir = -road_dir;
+    }
+    let pos = trailhead - road_dir * WORLD_TP_DISTANCE_M;
+    let yaw = (-road_dir.x).atan2(-road_dir.y);
+    (pos, yaw)
+}
+
+/// Computes `(pos_xz, godot_yaw)` on the bank 25 m from river `river`'s midpoint, facing the water.
+pub fn river_tp_pose(river: &world::rivers::River) -> Option<(Vec2, f32)> {
+    if river.points.len() < 2 {
+        return None;
+    }
+    let mid = river.points.len() / 2;
+    let p_prev = river.points[mid.saturating_sub(1)];
+    let p_next = river.points[(mid + 1).min(river.points.len() - 1)];
+    let tangent = (p_next - p_prev).normalize_or(Vec2::X);
+    let bank_normal = Vec2::new(-tangent.y, tangent.x);
+    let center = river.points[mid];
+    let pos = center + bank_normal * WORLD_TP_DISTANCE_M;
+    let to_water = -bank_normal;
+    let yaw = (-to_water.x).atan2(-to_water.y);
+    Some((pos, yaw))
+}
+
+fn apply_town_tp(
+    gpu: &Gpu,
+    render: &mut RenderState,
+    world: &mut WorldState,
+    actors: &mut ActorsState,
+    session: &SessionState,
+    key: &str,
+) {
+    let Some(world_gen) = world.world_gen.clone() else {
+        return;
+    };
+    let Some(town) = world_gen
+        .towns()
+        .iter()
+        .find(|t| t.key.eq_ignore_ascii_case(key))
+    else {
+        log::warn!("--town={key}: no matching town found");
+        return;
+    };
+    let (xz, yaw) = town_tp_pose(town);
+    teleport_player_and_stream(gpu, render, world, actors, session, xz, yaw);
+}
+
+fn apply_trailhead_tp(
+    gpu: &Gpu,
+    render: &mut RenderState,
+    world: &mut WorldState,
+    actors: &mut ActorsState,
+    session: &SessionState,
+    index: usize,
+) {
+    let Some(world_gen) = world.world_gen.clone() else {
+        return;
+    };
+    let Some(&th) = world_gen.roads().trailheads().get(index) else {
+        log::warn!("--trailhead={index}: trailhead index out of range");
+        return;
+    };
+    let camp = world_gen
+        .settlements()
+        .first()
+        .map_or(Vec2::ZERO, |s| Vec2::new(s.center.x, s.center.z));
+    let (xz, yaw) = trailhead_tp_pose(th, world_gen.roads().roads(), camp);
+    teleport_player_and_stream(gpu, render, world, actors, session, xz, yaw);
+}
+
+fn apply_bridge_tp(
+    gpu: &Gpu,
+    render: &mut RenderState,
+    world: &mut WorldState,
+    actors: &mut ActorsState,
+    session: &SessionState,
+    index: usize,
+) {
+    let Some(world_gen) = world.world_gen.clone() else {
+        return;
+    };
+    let crossings = world_gen.rivers().crossings(world_gen.roads());
+    let Some(&(xz, road_yaw, _span)) = crossings.get(index) else {
+        log::warn!("--bridge={index}: crossing index out of range");
+        return;
+    };
+    teleport_player_and_stream(gpu, render, world, actors, session, xz, road_yaw);
+}
+
+fn apply_river_tp(
+    gpu: &Gpu,
+    render: &mut RenderState,
+    world: &mut WorldState,
+    actors: &mut ActorsState,
+    session: &SessionState,
+    index: usize,
+) {
+    let Some(world_gen) = world.world_gen.clone() else {
+        return;
+    };
+    let Some(river) = world_gen.rivers().rivers().get(index) else {
+        log::warn!("--river={index}: river index out of range");
+        return;
+    };
+    let Some((xz, yaw)) = river_tp_pose(river) else {
+        log::warn!("--river={index}: river has too few points");
         return;
     };
     teleport_player_and_stream(gpu, render, world, actors, session, xz, yaw);
@@ -517,6 +695,10 @@ mod tests {
             "--hold-e",
             "--biome=desert",
             "--weather=sandstorm",
+            "--town=Dusthollow",
+            "--trailhead=2",
+            "--bridge=1",
+            "--river=0",
         ]));
         assert_eq!(parsed.down_at, Some(1.5));
         assert_eq!(parsed.team, 3);
@@ -524,6 +706,10 @@ mod tests {
         assert!(parsed.hold_e);
         assert_eq!(parsed.biome, Some(BiomeId::Desert));
         assert_eq!(parsed.weather, Some(WeatherKind::Sandstorm));
+        assert_eq!(parsed.town.as_deref(), Some("dusthollow"));
+        assert_eq!(parsed.trailhead, Some(2));
+        assert_eq!(parsed.bridge, Some(1));
+        assert_eq!(parsed.river, Some(0));
 
         let invalid = TestFlags::from_args(&make_args(&[
             "rotland",

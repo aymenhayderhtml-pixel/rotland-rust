@@ -10,7 +10,7 @@ use std::time::Instant;
 
 use glam::{Vec2, Vec3};
 use world::biome::registry::BiomeRegistry;
-use world::{BiomeId, WorldGenerator};
+use world::{BiomeId, RoadKind, WorldGenerator};
 
 const DEFAULT_SEED: i32 = 42; // new: DECISIONS 2026-11-25
 const DEFAULT_SIZE_M: f32 = 12_000.0; // new: DECISIONS 2026-11-25
@@ -185,6 +185,11 @@ fn main() {
         }
     }
 
+    draw_rivers(&mut rgb, &generator, origin_x, origin_z, step, px);
+    draw_roads(&mut rgb, &generator, origin_x, origin_z, step, px);
+    draw_bridges(&mut rgb, &generator, origin_x, origin_z, step, px);
+    draw_towns(&mut rgb, &generator, origin_x, origin_z, step, px);
+
     // Draw the camp as a white dot at the centre with a thin dark outline.
     let cx = (px / 2) as i32;
     let cy = (px / 2) as i32;
@@ -249,6 +254,170 @@ fn blend_pixel(rgb: &mut [u8], idx: usize, overlay: [u8; 3], alpha: f32) {
     rgb[off] = mix_u8(rgb[off], overlay[0], alpha);
     rgb[off + 1] = mix_u8(rgb[off + 1], overlay[1], alpha);
     rgb[off + 2] = mix_u8(rgb[off + 2], overlay[2], alpha);
+}
+
+fn draw_rivers(
+    rgb: &mut [u8],
+    generator: &WorldGenerator,
+    origin_x: f32,
+    origin_z: f32,
+    step: f32,
+    px: usize,
+) {
+    const RIVER_COLOR: [u8; 3] = [66, 135, 245]; // data: map.json water_color
+    for river in generator.rivers().rivers() {
+        for i in 0..river.points.len().saturating_sub(1) {
+            let a = world_to_px(river.points[i], origin_x, origin_z, step);
+            let b = world_to_px(river.points[i + 1], origin_x, origin_z, step);
+            let w_m = (river.widths[i] + river.widths[i + 1]) * 0.5;
+            let width_px = (w_m / step).max(1.0);
+            draw_segment(rgb, px, a, b, width_px, RIVER_COLOR);
+        }
+    }
+}
+
+fn draw_roads(
+    rgb: &mut [u8],
+    generator: &WorldGenerator,
+    origin_x: f32,
+    origin_z: f32,
+    step: f32,
+    px: usize,
+) {
+    const HIGHWAY_COLOR: [u8; 3] = [64, 64, 68]; // new: DECISIONS 2026-11-25
+    const TRAIL_COLOR: [u8; 3] = [150, 110, 70]; // new: DECISIONS 2026-11-25
+    for road in generator.roads().roads() {
+        let (width_px, color) = match road.kind {
+            RoadKind::Highway => (2.0, HIGHWAY_COLOR),
+            RoadKind::Trail => (1.0, TRAIL_COLOR),
+        };
+        for w in road.points.windows(2) {
+            let a = world_to_px(w[0], origin_x, origin_z, step);
+            let b = world_to_px(w[1], origin_x, origin_z, step);
+            draw_segment(rgb, px, a, b, width_px, color);
+        }
+    }
+}
+
+fn draw_bridges(
+    rgb: &mut [u8],
+    generator: &WorldGenerator,
+    origin_x: f32,
+    origin_z: f32,
+    step: f32,
+    px: usize,
+) {
+    for (pos, _yaw, _span) in generator.rivers().crossings(generator.roads()) {
+        let (cx, cy) = world_to_px(pos, origin_x, origin_z, step);
+        draw_disc(rgb, px, cx.round() as i32, cy.round() as i32, 2, [255, 255, 255]);
+    }
+}
+
+fn draw_towns(
+    rgb: &mut [u8],
+    generator: &WorldGenerator,
+    origin_x: f32,
+    origin_z: f32,
+    step: f32,
+    px: usize,
+) {
+    for town in generator.towns() {
+        let (fx, fy) = world_to_px(town.center, origin_x, origin_z, step);
+        let cx = fx.round() as i32;
+        let cy = fy.round() as i32;
+        for dy in -2..=2 {
+            for dx in -2..=2 {
+                plot_px(rgb, px, cx + dx, cy + dy, [15, 15, 15]);
+            }
+        }
+        let label = town.name.to_ascii_uppercase();
+        let text_w = label.len() as i32 * 6;
+        let tx = (cx - text_w / 2).clamp(2, (px as i32 - text_w - 2).max(2));
+        let ty = (cy - 11).clamp(2, (px as i32 - 9).max(2));
+        draw_text_5x7(rgb, px, tx + 1, ty + 1, &label, [20, 20, 20]);
+        draw_text_5x7(rgb, px, tx, ty, &label, [245, 240, 225]);
+    }
+}
+
+fn world_to_px(p: Vec2, origin_x: f32, origin_z: f32, step: f32) -> (f32, f32) {
+    ((p.x - origin_x) / step, (p.y - origin_z) / step)
+}
+
+fn plot_px(rgb: &mut [u8], px: usize, x: i32, y: i32, color: [u8; 3]) {
+    if x >= 0 && y >= 0 && x < px as i32 && y < px as i32 {
+        set_pixel(rgb, y as usize * px + x as usize, color);
+    }
+}
+
+fn draw_disc(rgb: &mut [u8], px: usize, cx: i32, cy: i32, r: i32, color: [u8; 3]) {
+    for dy in -r..=r {
+        for dx in -r..=r {
+            if dx * dx + dy * dy <= r * r {
+                plot_px(rgb, px, cx + dx, cy + dy, color);
+            }
+        }
+    }
+}
+
+fn draw_segment(
+    rgb: &mut [u8],
+    px: usize,
+    a: (f32, f32),
+    b: (f32, f32),
+    width_px: f32,
+    color: [u8; 3],
+) {
+    let steps = ((b.0 - a.0).hypot(b.1 - a.1) * 2.0).ceil().max(1.0) as i32;
+    let r = (width_px * 0.5).floor() as i32;
+    for s in 0..=steps {
+        let t = s as f32 / steps as f32;
+        let x = (a.0 + (b.0 - a.0) * t).round() as i32;
+        let y = (a.1 + (b.1 - a.1) * t).round() as i32;
+        if width_px <= 1.2 {
+            plot_px(rgb, px, x, y, color);
+        } else {
+            draw_disc(rgb, px, x, y, r.max(1), color);
+        }
+    }
+}
+
+fn draw_text_5x7(rgb: &mut [u8], px: usize, x0: i32, y0: i32, text: &str, color: [u8; 3]) {
+    for (ci, ch) in text.chars().enumerate() {
+        let gx = x0 + ci as i32 * 6;
+        let rows = glyph_5x7(ch);
+        for (ry, &bits) in rows.iter().enumerate() {
+            for rx in 0..5 {
+                if (bits >> (4 - rx)) & 1 == 1 {
+                    plot_px(rgb, px, gx + rx, y0 + ry as i32, color);
+                }
+            }
+        }
+    }
+}
+
+fn glyph_5x7(ch: char) -> [u8; 7] {
+    match ch {
+        'A' => [0b01110, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
+        'B' => [0b11110, 0b10001, 0b10001, 0b11110, 0b10001, 0b10001, 0b11110],
+        'C' => [0b01110, 0b10001, 0b10000, 0b10000, 0b10000, 0b10001, 0b01110],
+        'D' => [0b11100, 0b10010, 0b10001, 0b10001, 0b10001, 0b10010, 0b11100],
+        'E' => [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b11111],
+        'F' => [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b10000],
+        'G' => [0b01110, 0b10001, 0b10000, 0b10111, 0b10001, 0b10001, 0b01110],
+        'H' => [0b10001, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
+        'I' => [0b01110, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
+        'K' => [0b10001, 0b10010, 0b10100, 0b11000, 0b10100, 0b10010, 0b10001],
+        'L' => [0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b11111],
+        'M' => [0b10001, 0b11011, 0b10101, 0b10101, 0b10001, 0b10001, 0b10001],
+        'N' => [0b10001, 0b11001, 0b10101, 0b10011, 0b10001, 0b10001, 0b10001],
+        'O' => [0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
+        'R' => [0b11110, 0b10001, 0b10001, 0b11110, 0b10100, 0b10010, 0b10001],
+        'S' => [0b01111, 0b10000, 0b10000, 0b01110, 0b00001, 0b00001, 0b11110],
+        'T' => [0b11111, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100],
+        'U' => [0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
+        'W' => [0b10001, 0b10001, 0b10001, 0b10101, 0b10101, 0b11011, 0b10001],
+        _ => [0; 7],
+    }
 }
 
 /// Self-contained uncompressed RGB8 PNG encoder (stored DEFLATE blocks + IEEE CRC-32 + Adler-32).

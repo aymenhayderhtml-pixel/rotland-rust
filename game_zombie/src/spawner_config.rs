@@ -12,6 +12,10 @@ fn default_hard_cap() -> usize {
     60 // data: spawning.json hardCap
 }
 
+fn default_town_density() -> f32 {
+    1.8 // data: spawning.json townDensity
+}
+
 /// Shape of data/spawning.json.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -33,6 +37,8 @@ pub struct SpawnConfig {
     pub types: SpawnTypeTable,
     #[serde(default)]
     pub city: Option<CitySpawnConfig>,
+    #[serde(default = "default_town_density")]
+    pub town_density: f32,
 }
 
 /// One biome-specific special spawn share entry in `data/spawning.json` `biomeSpecials`.

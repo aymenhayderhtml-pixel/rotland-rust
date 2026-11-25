@@ -19,3 +19,15 @@ Props:
 - `boardwalk_section` (≤ 120): a 4 m × 2 m plank walkway on short posts, top at y = 0.4.
 
 ## Worker notes
+- Added 4 buildings in `tools/blender/buildings/`:
+  - `radio_tower.py`: 25 m lattice mast (5 bays narrowing from 3.0 m to 0.7 m, red/white top bays + antenna spire) + walk-in metal equipment hut at `+Y` (`lot_size` 6 × 7 m, `door_1`, `loot_1..2`, `spawn_1`).
+  - `ranger_station.py`: 2-storey wooden lookout lodge with exterior stair along `+X`, wrap-around balcony, sign board, upper lookout room, and walk-in ground floor (`lot_size` 11 × 8 m, `door_1`, `loot_1..4`, `spawn_1..2`).
+  - `stilt_shack.py`: wooden shack on 1.2 m stilts with 5 front steps, porch, and rust/metal tin roof (`lot_size` 6 × 7.5 m, `door_1`, `loot_1..2`, `spawn_1..2`).
+  - `bait_shop.py`: walk-in swamp bait shop with porch, big front sign board, crates, and ice/fridge box out front (`lot_size` 7 × 6.5 m, `door_1`, `loot_1..3`, `spawn_1..2`).
+- Added 4 props in `tools/blender/props/` and registered them in `tools/blender/build_biome_props.py` (`MODELS`):
+  - `bridge_wood.py` (budget 400): 12 m × 5 m plank deck (`GRIP=(0,0,0)`), top at Blender `z = 0.5` (glTF/Godot `y = 0.5`).
+  - `bridge_concrete.py` (budget 300): 16 m × 9 m slab deck (`GRIP=(0,0,0)`), top at Blender `z = 0.6` (glTF/Godot `y = 0.6`), side walls, and 2 piers extending to `z = -2.0`.
+  - `signpost.py` (budget 120): 2.5 m wooden post with 3 angled arrow boards.
+  - `boardwalk_section.py` (budget 120): 4 m × 2 m plank walkway on 4 short posts (`GRIP=(0,0,0)`), top at Blender `z = 0.4` (glTF/Godot `y = 0.4`).
+- **Bridge/boardwalk deck axis:** Decks run along Blender `Y` (which exports with `export_yup=True` as **local `+Z / -Z`** in glTF/Godot/Rotland), with width along `X` and height along `Y` (Blender `Z`).
+- Not run: `blender`, `cargo`, `tools/gate.sh` (per subagent rules). Note that `radio_tower.py` uses `bmesh`/`mathutils` directly inside `_strut` and has not yet been executed in Blender.

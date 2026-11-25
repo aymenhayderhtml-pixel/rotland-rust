@@ -22,6 +22,15 @@ pub const UNEXPLORED_COLOR: [u8; 4] = [51, 48, 43, 255];
 // Godot: MapTiles.cs Cliff ("6b5236" -> 107, 82, 54)
 pub const CLIFF_COLOR: [f32; 3] = [107.0 / 255.0, 82.0 / 255.0, 54.0 / 255.0];
 
+// new: DECISIONS 2026-11-25
+pub const HIGHWAY_MAP_COLOR: [u8; 4] = [72, 72, 76, 255];
+// new: DECISIONS 2026-11-25
+pub const TRAIL_MAP_COLOR: [u8; 4] = [166, 132, 92, 255];
+// new: DECISIONS 2026-11-25
+const HIGHWAY_MAP_HALF_WIDTH_M: f32 = 4.0;
+// new: DECISIONS 2026-11-25
+const TRAIL_MAP_HALF_WIDTH_M: f32 = 3.0;
+
 fn sample_chunk_heights(
     generator: &WorldGenerator,
     origin_x: f32,
@@ -136,6 +145,29 @@ fn shade_texel(
     x: f32,
     z: f32,
 ) -> [u8; 4] {
+    let layout = generator.world_layout();
+    let origin = layout.origin();
+    let core_r = layout.data().core_radius;
+    let dx = x - origin.x;
+    let dz = z - origin.y;
+    if dx * dx + dz * dz > core_r * core_r {
+        if generator.rivers().water_at(x, z).is_some() {
+            return super::lake::LAKE_WATER_COLOR;
+        }
+        if let Some((dist, kind)) = generator.roads().distance_to_road(Vec2::new(x, z)) {
+            let max_dist = match kind {
+                world::RoadKind::Highway => HIGHWAY_MAP_HALF_WIDTH_M,
+                world::RoadKind::Trail => TRAIL_MAP_HALF_WIDTH_M,
+            };
+            if dist <= max_dist {
+                return match kind {
+                    world::RoadKind::Highway => HIGHWAY_MAP_COLOR,
+                    world::RoadKind::Trail => TRAIL_MAP_COLOR,
+                };
+            }
+        }
+    }
+
     let h = heights[k][m];
     let slope_x = (heights[k + 1][m] - heights[k - 1][m]) / (2.0 * TEXEL_METRES);
     let slope_z = (heights[k][m + 1] - heights[k][m - 1]) / (2.0 * TEXEL_METRES);
@@ -170,5 +202,60 @@ mod tests {
         assert!((mid[2] - 0.5).abs() < 1e-6);
         assert_eq!(lerp_rgb(a, b, -1.0), a);
         assert_eq!(lerp_rgb(a, b, 2.0), b);
+    }
+
+    #[test]
+    fn road_texel_outside_core_has_road_color() {
+        let generator = WorldGenerator::from_data_dir(42, paths::repo_path("data"))
+            .expect("load data dir");
+        let origin = generator.world_layout().origin();
+        let core_r = generator.world_layout().data().core_radius;
+
+        let mut found = None;
+        'outer: for road in generator.roads().roads() {
+            for &pt in &road.points {
+                if pt.distance(origin) > core_r + 10.0
+                    && generator.rivers().water_at(pt.x, pt.y).is_none()
+                {
+                    found = Some((pt, road.kind));
+                    break 'outer;
+                }
+            }
+        }
+        let (pt, kind) = found.expect("expected a road point outside core");
+
+        let chunk = IVec2::new(
+            (pt.x / WorldGenerator::CHUNK_SIZE).floor() as i32,
+            (pt.y / WorldGenerator::CHUNK_SIZE).floor() as i32,
+        );
+        let ox = chunk.x as f32 * WorldGenerator::CHUNK_SIZE;
+        let oz = chunk.y as f32 * WorldGenerator::CHUNK_SIZE;
+        let i = (((pt.x - ox) / TEXEL_METRES).floor() as usize).min(TEXELS_PER_CHUNK - 1);
+        let j = (((pt.y - oz) / TEXEL_METRES).floor() as usize).min(TEXELS_PER_CHUNK - 1);
+
+        let pixels = render_chunk_terrain_rgb(&generator, chunk);
+        let expected = match kind {
+            world::RoadKind::Highway => [
+                HIGHWAY_MAP_COLOR[0],
+                HIGHWAY_MAP_COLOR[1],
+                HIGHWAY_MAP_COLOR[2],
+            ],
+            world::RoadKind::Trail => [
+                TRAIL_MAP_COLOR[0],
+                TRAIL_MAP_COLOR[1],
+                TRAIL_MAP_COLOR[2],
+            ],
+        };
+        assert_eq!(pixels[j * TEXELS_PER_CHUNK + i], expected);
+    }
+
+    #[test]
+    fn core_tile_is_unchanged() {
+        let generator = WorldGenerator::from_data_dir(42, paths::repo_path("data"))
+            .expect("load data dir");
+        let plain = WorldGenerator::new(42, generator.config().clone());
+        let a = render_chunk_terrain_rgb(&generator, IVec2::ZERO);
+        let b = render_chunk_terrain_rgb(&plain, IVec2::ZERO);
+        assert_eq!(a, b);
     }
 }

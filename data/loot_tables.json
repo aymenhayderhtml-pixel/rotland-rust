@@ -361,5 +361,62 @@
       { "id": "flashlight", "weight": 8, "count": [1, 1] },
       { "id": "knife", "weight": 6, "count": [1, 1] }
     ]
+  },
+  "town_home": {
+    "rolls": [2, 3],
+    "cash": { "chance": 0.45, "min": 3, "max": 14 },
+    "entries": [
+      { "id": "canned_beans", "weight": 26, "count": [1, 2] },
+      { "id": "water_bottle", "weight": 24, "count": [1, 2] },
+      { "id": "bread", "weight": 14, "count": [1, 2] },
+      { "id": "apple", "weight": 14, "count": [1, 3] },
+      { "id": "bandage", "weight": 22, "count": [1, 2] },
+      { "id": "cloth", "weight": 18, "count": [1, 3] },
+      { "id": "pistol_ammo", "weight": 12, "count": [4, 10] },
+      { "id": "shells_12g", "weight": 6, "count": [2, 6] },
+      { "id": "flashlight", "weight": 6, "count": [1, 1] },
+      { "id": "knife", "weight": 4, "count": [1, 1] }
+    ]
+  },
+  "town_store": {
+    "rolls": [2, 4],
+    "cash": { "chance": 0.6, "min": 5, "max": 22 },
+    "entries": [
+      { "id": "canned_beans", "weight": 26, "count": [1, 3] },
+      { "id": "soda", "weight": 24, "count": [1, 3] },
+      { "id": "water_bottle", "weight": 24, "count": [1, 2] },
+      { "id": "bread", "weight": 16, "count": [1, 2] },
+      { "id": "apple", "weight": 14, "count": [1, 3] },
+      { "id": "bandage", "weight": 14, "count": [1, 2] },
+      { "id": "cloth", "weight": 12, "count": [1, 2] },
+      { "id": "scrap_metal", "weight": 14, "count": [1, 3] },
+      { "id": "flashlight", "weight": 10, "count": [1, 1] },
+      { "id": "crowbar", "weight": 8, "count": [1, 1] },
+      { "id": "axe", "weight": 6, "count": [1, 1] },
+      { "id": "fuel_can", "weight": 8, "count": [1, 1] },
+      { "id": "campfire_kit", "weight": 5, "count": [1, 1] },
+      { "id": "pistol_ammo", "weight": 8, "count": [4, 10] }
+    ]
+  },
+  "town_station": {
+    "rolls": [3, 5],
+    "cash": { "chance": 0.65, "min": 12, "max": 45 },
+    "entries": [
+      { "id": "pistol_ammo", "weight": 34, "count": [6, 16] },
+      { "id": "shells_12g", "weight": 24, "count": [4, 10] },
+      { "id": "rifle_rounds", "weight": 18, "count": [4, 12] },
+      { "id": "ammo_762", "weight": 14, "count": [4, 12] },
+      { "id": "medkit", "weight": 18, "count": [1, 2] },
+      { "id": "bandage", "weight": 20, "count": [1, 3] },
+      { "id": "scrap_metal", "weight": 16, "count": [1, 3] },
+      { "id": "flashlight", "weight": 10, "count": [1, 1] },
+      { "id": "crowbar", "weight": 8, "count": [1, 1] },
+      { "id": "fire_axe", "weight": 4, "count": [1, 1] },
+      { "id": "pistol", "weight": 6, "count": [1, 1] },
+      { "id": "shotgun", "weight": 4, "count": [1, 1] },
+      { "id": "smg", "weight": 3, "count": [1, 1] },
+      { "id": "rifle", "weight": 3, "count": [1, 1] },
+      { "id": "ak47", "weight": 1, "count": [1, 1] }
+    ]
   }
 }
