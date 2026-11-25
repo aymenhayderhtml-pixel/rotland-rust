@@ -2,6 +2,28 @@
 
 A solo, offline, 3D open-world zombie survival game built in Rust with its own engine (`wgpu`, `winit`, `egui`, `rapier3d` physics, and `kira` audio). You start in a walled camp, venture out into the world to loot houses and crates, sell what you find to the trader, and fight to get back before nightfall. Survive as long as you can: battle zombies with guns and melee weapons, hunt wildlife, farm crops, cook, drive a car, keep a companion dog, and level up your skills.
 
+## Screenshots
+
+The world: a green home land around the camp, with desert, snow, swamp and mountains beyond it (R31).
+
+![World map](docs/screenshots/world-map.jpg)
+
+| Desert | Snow forest |
+|---|---|
+| ![Desert](docs/screenshots/desert.jpg) | ![Snow forest](docs/screenshots/snow-forest.jpg) |
+| **Swamp** | **Mountains** |
+| ![Swamp](docs/screenshots/swamp.jpg) | ![Mountains](docs/screenshots/mountains.jpg) |
+
+Weather, warmth and the new zombies (R32):
+
+| Snowfall | Sandstorm |
+|---|---|
+| ![Snowfall](docs/screenshots/snowfall.jpg) | ![Sandstorm](docs/screenshots/sandstorm.jpg) |
+| **Bloater (swamp)** | **Husk (desert)** |
+| ![Bloater](docs/screenshots/bloater.jpg) | ![Husk](docs/screenshots/husk.jpg) |
+| **Snow at night** | **Rain at camp** |
+| ![Snow at night](docs/screenshots/snow-night.jpg) | ![Rain](docs/screenshots/rain.jpg) |
+
 ## Play it
 
 To build and run the game from this folder:
