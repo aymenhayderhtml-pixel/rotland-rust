@@ -9,6 +9,7 @@ mod camp_tests;
 mod camp_upgrades_tests;
 mod combat_tests;
 mod companion_tests;
+mod companion_rescue_start;
 mod crafting_tests;
 mod data_integrity;
 mod difficulty_tests;

@@ -38,6 +38,8 @@ pub struct CompanionSquad {
     pub(super) members: Vec<MemberBody>,
     /// Reusable snapshot of `(position, downed)` for separation checks without per-tick allocation.
     pub(super) positions_scratch: Vec<(Vec3, bool)>,
+    /// One-shot world spawn positions for newly recruited teammates (e.g. rescued survivors).
+    pub(super) spawn_overrides: Vec<(String, Vec3)>,
 }
 
 impl CompanionSquad {
@@ -47,7 +49,23 @@ impl CompanionSquad {
             cfg,
             members: Vec::new(),
             positions_scratch: Vec::new(),
+            spawn_overrides: Vec::new(),
         }
+    }
+
+    /// Records an initial world position for a newly recruited teammate so the next `sync`
+    /// spawns them at `position` instead of a camp slot.
+    pub fn set_spawn_position(&mut self, id: &str, position: Vec3) {
+        if let Some(entry) = self.spawn_overrides.iter_mut().find(|(k, _)| k == id) {
+            entry.1 = position;
+        } else {
+            self.spawn_overrides.push((id.to_string(), position));
+        }
+    }
+
+    fn take_spawn_override(&mut self, id: &str) -> Option<Vec3> {
+        let idx = self.spawn_overrides.iter().position(|(k, _)| k == id)?;
+        Some(self.spawn_overrides.swap_remove(idx).1) // new: DECISIONS 2026-11-25
     }
 
     /// Adds bodies for newly hired teammates, removes dismissed ones, and applies new orders.
@@ -72,8 +90,14 @@ impl CompanionSquad {
                     existing.cornered_blocked = false;
                     existing.patrol_pause = 0.0;
                 }
+                self.take_spawn_override(&recruit.id);
             } else {
-                let offset = camp_slot_offset(slot);
+                let position = if let Some(pos) = self.take_spawn_override(&recruit.id) {
+                    pos
+                } else {
+                    let offset = camp_slot_offset(slot);
+                    Vec3::new(camp.x + offset.x, camp.y, camp.z + offset.y)
+                };
                 let hp = (recruit.health as f32).clamp(0.0, max_hp);
                 let downed = hp <= 0.0;
                 let stagger = ((slot % STAGGER_SLOTS) as f32 / STAGGER_SLOTS as f32)
@@ -84,7 +108,7 @@ impl CompanionSquad {
                     role: recruit.role,
                     level: recruit.level,
                     order,
-                    position: Vec3::new(camp.x + offset.x, camp.y, camp.z + offset.y),
+                    position,
                     yaw: 0.0,
                     health: hp,
                     max_health: max_hp,

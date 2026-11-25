@@ -19,7 +19,7 @@ pub const LOAD_RADIUS: i32 = 3;
 pub const UNLOAD_RADIUS: i32 = 4;
 /// More than Godot's 2: our builds are cheap and run on all cores.
 const MAX_IN_FLIGHT: usize = 6;
-const MAX_APPLIED_PER_FRAME: usize = 3;
+const MAX_APPLIED_PER_FRAME: usize = 1; // new: DECISIONS 2026-11-25
 
 struct Built {
     coord: IVec2,
@@ -150,7 +150,7 @@ impl Streamer {
             let c = self.far_scratch[i];
             if let Some(chunk) = self.chunks.remove(&c) {
                 for h in chunk.colliders.into_iter().chain(chunk.trees.into_iter().filter_map(|t| t.collider)) {
-                    physics.remove(h);
+                    physics.remove_deferred(h);
                 }
             }
         }
@@ -217,7 +217,7 @@ impl Streamer {
 
     fn upload(&mut self, device: &wgpu::Device, pack: &pack::ModelPack, library: &mut PropLibrary, physics: &mut PhysicsWorld, b: Built) -> LoadedChunk {
         let mut placed = Vec::with_capacity(b.props.len() + b.pois.len() + 1);
-        let mut colliders = vec![physics.add_ground_chunk(b.coord, &b.heights)];
+        let mut colliders = vec![physics.add_ground_chunk_deferred(b.coord, &b.heights)];
         // (model, position, yaw, scale, is a building)
         let mut models: Vec<(&str, Vec3, f32, f32, bool)> = b.props.iter().map(|p| (p.model.as_str(), p.position, p.yaw, p.scale, false)).collect();
         models.extend(b.pois.iter().map(|p| (p.building_id.as_str(), p.position, p.yaw, 1.0, true)));
@@ -246,7 +246,7 @@ impl Streamer {
             let shapes = self.shapes_of(pack, id).clone();
             let mut collider = None;
             if !shapes.is_empty() {
-                let h = physics.add_static(&shapes, position, yaw, scale);
+                let h = physics.add_static_deferred(&shapes, position, yaw, scale);
                 if tree {
                     collider = Some(h);
                 } else {

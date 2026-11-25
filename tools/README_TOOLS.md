@@ -73,3 +73,14 @@ Always pass `--save-dir=/tmp/...` so real saves stay untouched:
   `flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/block.png --weapon=bat --block --cam-yaw=90`
 - `--sprint` (with `--autowalk`) — sprints forward:
   `flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/sprint.png --autowalk --sprint --cam-yaw=90`
+
+## Downed, revive & rescue screenshot flags (used with `--shot=<png>`)
+
+- `--down-at=<seconds>` — deals a lethal hit through the zombie-bite downed path at `<seconds>` so the player enters the knocked-down crawl state:
+  `flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/down.png --down-at=1 --frames=120 --cam-yaw=90`
+- `--team=<n>` — adds `<n>` free rescued-style teammates (`Follow` order) next to the player at startup (with `--down-at`, one walks over and revives):
+  `flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/revive.png --team=1 --down-at=1 --frames=180 --cam-yaw=90`
+- `--tp-rescue` — teleports the player `6 m` from the nearest unrescued survivor spot, facing it, so the survivor and `[E] Rescue` prompt are visible:
+  `flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/rescue.png --tp-rescue --frames=30`
+- `--hold-e` — holds the interact key (`E`) the whole run (e.g. for self-revive with `--give=bandage`):
+  `flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/self_revive.png --give=bandage --down-at=1 --hold-e --frames=180 --cam-yaw=90`

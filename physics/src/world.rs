@@ -39,6 +39,14 @@ impl PhysicsWorld {
     /// The triangles are split `a-b-c` / `b-d-c` per 2m cell, exactly matching
     /// `world::WorldGenerator::build_chunk_ground`.
     pub fn add_ground_chunk(&mut self, coord: IVec2, heights: &[f32]) -> ColliderHandle {
+        let handle = self.add_ground_chunk_deferred(coord, heights);
+        self.update_broad_phase();
+        handle
+    }
+
+    /// Add collision for one ground chunk without refreshing the broad-phase yet.
+    /// Caller must call `update_broad_phase()` before running queries.
+    pub fn add_ground_chunk_deferred(&mut self, coord: IVec2, heights: &[f32]) -> ColliderHandle {
         assert_eq!(
             heights.len(),
             CHUNK_SAMPLES * CHUNK_SAMPLES,
@@ -83,9 +91,7 @@ impl PhysicsWorld {
             )
             .build();
 
-        let handle = self.raw.insert_collider(collider, None);
-        self.update_broad_phase();
-        handle
+        self.raw.insert_collider(collider, None)
     }
 
     /// Add a placed static model (props, rocks, trees, buildings) with convex colliders.
@@ -102,9 +108,37 @@ impl PhysicsWorld {
         self.add_static_tagged(colliders, position, yaw, scale, 0)
     }
 
+    /// Like `add_static`, without refreshing the broad-phase yet.
+    pub fn add_static_deferred(
+        &mut self,
+        colliders: &[Vec<[f32; 3]>],
+        position: Vec3,
+        yaw: f32,
+        scale: f32,
+    ) -> ColliderHandle {
+        self.add_static_tagged_deferred(colliders, position, yaw, scale, 0)
+    }
+
     /// Like `add_static`, with a tag (non-zero) that `raycast_except` can skip: a parked car's box
     /// must not be seen by that same car's wheel rays.
     pub fn add_static_tagged(
+        &mut self,
+        colliders: &[Vec<[f32; 3]>],
+        position: Vec3,
+        yaw: f32,
+        scale: f32,
+        tag: u128,
+    ) -> ColliderHandle {
+        let handle = self.add_static_tagged_deferred(colliders, position, yaw, scale, tag);
+        if handle != ColliderHandle::invalid() {
+            self.update_broad_phase();
+        }
+        handle
+    }
+
+    /// Like `add_static_tagged`, without refreshing the broad-phase yet.
+    /// Caller must call `update_broad_phase()` before running queries.
+    pub fn add_static_tagged_deferred(
         &mut self,
         colliders: &[Vec<[f32; 3]>],
         position: Vec3,
@@ -154,21 +188,25 @@ impl PhysicsWorld {
             .user_data(tag)
             .build();
 
-        let handle = self.raw.insert_collider(collider, None);
-        self.update_broad_phase();
-        handle
+        self.raw.insert_collider(collider, None)
     }
 
     /// Remove a collider by handle. Returns true if removed, false if handle was invalid.
     pub fn remove(&mut self, handle: ColliderHandle) -> bool {
-        if handle == ColliderHandle::invalid() {
-            return false;
-        }
-        let removed = self.raw.remove_collider(handle).is_some();
+        let removed = self.remove_deferred(handle);
         if removed {
             self.update_broad_phase();
         }
         removed
+    }
+
+    /// Remove a collider by handle without refreshing the broad-phase yet.
+    /// Caller must call `update_broad_phase()` before running queries.
+    pub fn remove_deferred(&mut self, handle: ColliderHandle) -> bool {
+        if handle == ColliderHandle::invalid() {
+            return false;
+        }
+        self.raw.remove_collider(handle).is_some()
     }
 
     /// Number of active colliders in the physics world.
@@ -227,5 +265,39 @@ impl PhysicsWorld {
             normal: hit_normal.normalize_or_zero(),
             distance: toi,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deferred_colliders_match_immediate_after_broad_phase() {
+        let mut world = PhysicsWorld::new();
+        let heights = vec![2.0_f32; CHUNK_SAMPLES * CHUNK_SAMPLES];
+        let ground = world.add_ground_chunk_deferred(IVec2::ZERO, &heights);
+        let box_pts = vec![
+            [-1.0, 0.0, -1.0],
+            [1.0, 0.0, -1.0],
+            [1.0, 0.0, 1.0],
+            [-1.0, 0.0, 1.0],
+            [-1.0, 3.0, -1.0],
+            [1.0, 3.0, -1.0],
+            [1.0, 3.0, 1.0],
+            [-1.0, 3.0, 1.0],
+        ];
+        let box_h = world.add_static_deferred(&[box_pts], Vec3::new(10.0, 2.0, 10.0), 0.0, 1.0);
+        world.update_broad_phase();
+
+        let h_ground = world.ground_height(4.0, 4.0);
+        assert!(h_ground.is_some_and(|y| (y - 2.0).abs() < 1e-3));
+        let h_box = world.ground_height(10.0, 10.0);
+        assert!(h_box.is_some_and(|y| (y - 5.0).abs() < 1e-3));
+
+        assert!(world.remove_deferred(box_h));
+        assert!(world.remove_deferred(ground));
+        world.update_broad_phase();
+        assert!(world.is_empty());
     }
 }

@@ -157,6 +157,7 @@ pub fn init(
         .and_then(|s| s.parse::<f32>().ok())
         .map(f32::to_radians);
     session.anim_shot = super::anim_shot::AnimShotState::from_args(args);
+    session.test_flags = super::test_flags::TestFlags::from_args(args);
     session.near_animals = args
         .value("--animals")
         .map(|s| {
@@ -221,4 +222,5 @@ pub fn init(
     {
         rig.is_first_person = false;
     }
+    super::test_flags::apply_startup(gpu, render, world, actors, play, session);
 }
