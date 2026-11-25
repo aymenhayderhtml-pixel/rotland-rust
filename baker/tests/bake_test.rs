@@ -235,7 +235,7 @@ fn assert_ccw_outward(rel: &str) -> pack::Model {
 }
 
 #[test]
-fn baked_human_player_has_ccw_winding_22_joints_and_valid_height() {
+fn baked_human_player_has_ccw_winding_30_joints_and_valid_height() {
     for name in [
         "human_player",
         "npc_trader",
@@ -249,7 +249,7 @@ fn baked_human_player_has_ccw_winding_22_joints_and_valid_height() {
         let rel = format!("characters/{name}.glb");
         let model = assert_ccw_outward(&rel);
         let skeleton = model.skeleton.as_ref().unwrap_or_else(|| panic!("{name} must have a skeleton"));
-        assert_eq!(skeleton.joints.len(), 22, "{name} should have 22 joints");
+        assert_eq!(skeleton.joints.len(), 30, "{name} should have 30 joints (22 + 8 finger bones)");
         assert!(model.vertices.len() / 3 <= 5000, "{name} exceeds 5000 triangles");
         let height = model.bounds_max[1] - model.bounds_min[1];
         assert!((1.70..=1.94).contains(&height), "{name} height out of range: {height}");

@@ -516,10 +516,10 @@ def _arms(mb, look, lm, hunched, arm_points):
             wmid = _lerp(w0, w1, 0.5) + back * 0.036
             mb.add_ellipsoid(wmid, (0.012, 0.014, 0.008), "chrome", "forearm_L", segs=6, rings=3)
 
-        _hand(mb, skin, look.get("gloves"), "hand_" + side, wrist, a, back, across)
+        _hand(mb, skin, look.get("gloves"), "hand_" + side, side, wrist, a, back, across, not look.get("zombie"))
 
 
-def _hand(mb, skin, glove, bone, wrist, a, back, across):
+def _hand(mb, skin, glove, bone, side, wrist, a, back, across, include_fingers=True):
     """Sculpted low-poly hand with optional fingerless tactical glove."""
     palm_col = glove if glove else skin
     mb.add_loft(
@@ -532,13 +532,16 @@ def _hand(mb, skin, glove, bone, wrist, a, back, across):
         bone,
         segs=6,
     )
+    f_bones = ["fingers_1_" + side, "fingers_2_" + side, "fingers_2_" + side] if include_fingers else bone
+    t_bones = ["thumb_1_" + side, "thumb_2_" + side, "thumb_2_" + side] if include_fingers else bone
     base_c = wrist + a * 0.072
     for dy, length in _FINGERS:
         base = base_c + across * dy
         mid = base + a * (length * 0.52) - back * 0.004
         tip = base + a * length - back * 0.014
         cols = [palm_col, skin] if glove else skin
-        mb.add_loft([(base, 0.0095, 0.0085), (mid, 0.009, 0.008), (tip, 0.007, 0.0065)], cols, bone, segs=5)
+        mb.add_loft([(base, 0.0095, 0.0085), (mid, 0.009, 0.008), (tip, 0.007, 0.0065)], cols, f_bones, segs=5)
     t0 = wrist + a * 0.022 + across * 0.028 - back * 0.006
     t1 = wrist + a * 0.064 + across * 0.046 - back * 0.012
-    mb.add_loft([(t0, 0.012, 0.011), (t1, 0.0095, 0.009)], skin, bone, segs=5)
+    t_mid = (t0 + t1) * 0.5
+    mb.add_loft([(t0, 0.012, 0.011), (t_mid, 0.0108, 0.010), (t1, 0.0095, 0.009)], skin, t_bones, segs=5)
