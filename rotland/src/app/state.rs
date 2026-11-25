@@ -104,6 +104,9 @@ pub struct RenderState {
     pub fps: f32,
     pub flashlight_on: bool,
     pub scratch_beds: Vec<props::Placed>,
+    /// Toxic cloud puffs (R32-07).
+    pub toxic_cloud_view: crate::toxic_cloud_view::ToxicCloudView,
+    pub toxic_puff_scratch: Vec<crate::toxic_cloud_view::PuffInstance>,
 }
 
 /// Terrain, streaming chunks, static physics, trees, and POI markers.
@@ -141,6 +144,8 @@ pub struct ActorsState {
     pub mover: physics::CharacterMover,
     pub combat: Option<combat::Combat>,
     pub zombies: Option<zombies::Zombies>,
+    /// Active bloater toxic clouds (R32-07).
+    pub toxic_clouds: game::zombie::ToxicClouds,
     pub wildlife: Option<wildlife::Wildlife>,
     pub dogs: Option<dog_view::DogView>,
     /// Teammates' person models on screen (R23-N5).
@@ -237,6 +242,10 @@ pub struct PlaySide {
     pub rescue: Option<game::rescue::RescueState>,
     /// Region name banner when crossing biomes (R31-05).
     pub region_banner: crate::region_banner::RegionBannerTracker,
+    /// Weather state, particles and fog for the current biome (R32-03).
+    pub weather: Option<crate::weather_play::WeatherPlay>,
+    /// Body warmth bar and warm gear (R32-05).
+    pub temperature: Option<crate::temperature_play::TemperaturePlay>,
 }
 
 impl Default for PlaySide {
@@ -263,6 +272,8 @@ impl Default for PlaySide {
             region_banner: crate::region_banner::RegionBannerTracker::default(),
             guild_panel: super::frame_guild::GuildTaskPanel::default(),
             rescue: None,
+            weather: None,
+            temperature: None,
         }
     }
 }

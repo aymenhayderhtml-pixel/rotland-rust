@@ -38,6 +38,7 @@ pub fn save_now(
         play_time: session.play_time,
         trees: Some(&world.trees),
         poi_zombies: world.poi_zombies.as_ref(),
+        weather: play.weather.as_ref().map(|w| w.to_save()),
     };
     let mut file = session::capture(session.loaded_save.as_ref(), &snap);
     crate::rescue_play::save_rescued_ids(play.rescue.as_ref(), &mut file);

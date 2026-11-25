@@ -1,5 +1,5 @@
-//! Live special zombies (brute, screamer, crawler): runs the pure `SpecialState` each frame and applies
-//! its directive to the zombie's brain output, body and the call / damage queues. R25-N7.
+//! Live special zombies (brute, screamer, crawler, frozen, husk, bloater): runs the pure `SpecialState`
+//! each frame and applies its directive to the zombie's brain output, body and call / damage / burst queues.
 
 use game::zombie::senses::{CHEST_HEIGHT, EYE_HEIGHT};
 use game::zombie::specials::SpecialPose;
@@ -7,7 +7,7 @@ use game::zombie::{AnimClip, BrainOutput, SpecialConfig, SpecialDirective};
 use glam::{Vec2, Vec3};
 use physics::PhysicsWorld;
 
-use super::types::{Zombie, ZombieFrame};
+use super::types::{ToxicBurst, Zombie, ZombieFrame};
 
 /// Line-of-sight checks for specials run this often (4 times a second). // new: DECISIONS 2026-11-23
 pub const SIGHT_EVERY: f32 = 0.25;
@@ -16,6 +16,15 @@ pub const WALL_RATIO: f32 = 0.5;
 /// Radius of the old, untuned screamer call. Only used when data/special_zombies.json fails to load.
 /// // new: DECISIONS 2026-11-23 (old hardcoded 60.0, fallback only)
 pub const LEGACY_CALL_RADIUS: f32 = 60.0;
+
+/// Default bloater toxic cloud radius in metres. // new: DECISIONS 2026-11-25
+pub const BLOATER_RADIUS: f32 = 4.0;
+/// Default bloater toxic cloud duration in seconds. // new: DECISIONS 2026-11-25
+pub const BLOATER_DURATION: f32 = 6.0;
+/// Default bloater toxic cloud damage per second to the player. // new: DECISIONS 2026-11-25
+pub const BLOATER_PLAYER_DPS: f32 = 4.0;
+/// Default bloater toxic cloud damage per second to other zombies. // new: DECISIONS 2026-11-25
+pub const BLOATER_ZOMBIE_DPS: f32 = 2.0;
 
 /// A screamer call waiting for the end of the frame (all zombies have moved by then).
 #[derive(Clone, Copy, Debug)]
@@ -60,6 +69,28 @@ pub fn step(
     apply(&d, z.id, z.position, out, frame, calls);
 }
 
+/// Builds a `ToxicBurst` at `position` with the standard bloater tuning values.
+pub fn bloater_burst_at(position: Vec3) -> ToxicBurst {
+    ToxicBurst {
+        position,
+        radius: BLOATER_RADIUS,
+        duration: BLOATER_DURATION,
+        player_dps: BLOATER_PLAYER_DPS,
+        zombie_dps: BLOATER_ZOMBIE_DPS,
+    }
+}
+
+/// Emits a `ToxicBurst` once when a bloater dies or is struck by fire.
+pub fn maybe_bloater_burst(z: &mut Zombie, on_fire: bool, frame: &mut ZombieFrame) {
+    if z.kind != "bloater" || z.bloater_burst_done {
+        return;
+    }
+    if z.health.is_dead() || on_fire {
+        z.bloater_burst_done = true;
+        frame.toxic_bursts.push(bloater_burst_at(z.position));
+    }
+}
+
 /// Copies one directive onto the zombie's frame output.
 fn apply(
     d: &SpecialDirective,
@@ -95,6 +126,7 @@ fn apply(
 }
 
 /// Maps a special pose to the nearest existing clip. `Normal` leaves the choice to the brain.
+/// Both crawler and husk use `SpecialPose::Lunge` -> `AnimClip::Attack` (crawler overrides the clip via `clips`).
 fn pose_clip(pose: SpecialPose) -> Option<AnimClip> {
     Some(match pose {
         SpecialPose::Normal => return None,
@@ -137,7 +169,7 @@ pub fn apply_calls(list: &mut [Zombie], calls: &[PendingCall]) {
     }
 }
 
-/// Xorshift roll in [0, 1) for the crawler's lunge chance. Advances `state`.
+/// Xorshift roll in [0, 1) for the crawler and husk lunge chance. Advances `state`.
 pub fn next_roll(state: &mut u64) -> f32 {
     *state ^= *state << 13;
     *state ^= *state >> 7;
@@ -158,4 +190,20 @@ fn sight_clear(physics: &PhysicsWorld, feet: Vec3, target: Vec3) -> bool {
 
 fn horizontal(v: Vec3) -> Vec3 {
     Vec3::new(v.x, 0.0, v.z)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bloater_burst_matches_tuning() {
+        let pos = Vec3::new(3.0, 1.0, -4.0);
+        let burst = bloater_burst_at(pos);
+        assert_eq!(burst.position, pos);
+        assert!((burst.radius - 4.0).abs() < 1e-5);
+        assert!((burst.duration - 6.0).abs() < 1e-5);
+        assert!((burst.player_dps - 4.0).abs() < 1e-5);
+        assert!((burst.zombie_dps - 2.0).abs() < 1e-5);
+    }
 }

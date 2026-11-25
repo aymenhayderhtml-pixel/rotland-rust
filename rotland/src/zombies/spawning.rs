@@ -2,13 +2,33 @@
 
 use std::sync::{Arc, Mutex};
 
-use game::zombie::{SpecialKind, SpecialState, ZombieBehaviourDef, ZombieBrain, ZombieDef, ZombieHorde};
 use game::Health;
+use game::zombie::{
+    AnimClip, SpecialKind, SpecialState, ZombieBehaviourDef, ZombieBrain, ZombieDef, ZombieHorde,
+};
 use glam::Vec3;
 use physics::PhysicsWorld;
 
-use super::types::Zombie;
 use super::Zombies;
+use super::types::Zombie;
+
+/// Distance in front of the player for `--spawn-zombie=<kind>` showcase spawns. // new: DECISIONS 2026-11-25
+const SHOWCASE_DISTANCE_M: f32 = 5.0;
+/// Idle lock duration in seconds for `--spawn-zombie=<kind>` showcase spawns. // new: DECISIONS 2026-11-25
+const SHOWCASE_IDLE_SECONDS: f32 = 3.0;
+
+/// Fallback model asset name for a zombie kind if `data/zombies.json` omits `models`.
+fn default_model_for_kind(kind: &str) -> &'static str {
+    match kind {
+        "brute" => "zombie_brute",
+        "screamer" => "zombie_screamer",
+        "crawler" => "zombie_crawler",
+        "frozen" => "zombie_frozen",
+        "husk" => "zombie_husk",
+        "bloater" => "zombie_bloater",
+        _ => "zombie_01",
+    }
+}
 
 impl Zombies {
     pub(super) fn rand(&mut self) -> f32 {
@@ -49,7 +69,10 @@ impl Zombies {
     ) {
         let look_names: Vec<&str> = def.models.iter().map(String::as_str).collect();
         let pick = (self.rand() * look_names.len() as f32) as usize;
-        let chosen_name = look_names.get(pick).copied().unwrap_or("zombie_01");
+        let chosen_name = look_names
+            .get(pick)
+            .copied()
+            .unwrap_or_else(|| default_model_for_kind(kind));
         let look = self.looks.iter().position(|l| l.name == chosen_name).unwrap_or(0);
         let roll = self.rand();
         let gaits = &self.defs.behaviour.gaits;
@@ -67,7 +90,11 @@ impl Zombies {
             brain.set_crawler(true);
         }
         // With data/special_zombies.json loaded, a special's own call replaces the brain's once-per-life scream.
-        let special = self.special_cfg.as_ref().and_then(|_| SpecialKind::from_id(kind)).map(SpecialState::new);
+        let special = self
+            .special_cfg
+            .as_ref()
+            .and_then(|_| SpecialKind::from_id(kind))
+            .map(SpecialState::new);
         if kind == "screamer" {
             brain.set_screamer(special.is_none());
             if special.is_some() {
@@ -90,7 +117,7 @@ impl Zombies {
             yaw,
             on_floor: true,
             gait,
-            anim: game::zombie::AnimClip::Idle,
+            anim: AnimClip::Idle,
             anim_time: phase,
             fade: game::zombie::anim_fade::AnimFade::default(),
             last_knock: Vec3::ZERO,
@@ -103,6 +130,8 @@ impl Zombies {
             special_hit_wall: false,
             special_los: false,
             special_sight_timer: 0.0,
+            bloater_burst_done: false,
+            idle_lock_timer: 0.0,
         });
     }
 
@@ -112,6 +141,44 @@ impl Zombies {
         let id = self.next_id;
         self.spawn(kind, &def, at, None);
         Some(id)
+    }
+
+    /// Spawns one zombie of `kind` at `at`, facing `yaw`, locked idle for `idle_seconds`.
+    pub fn spawn_idle_showcase(
+        &mut self,
+        kind: &str,
+        at: Vec3,
+        yaw: f32,
+        idle_seconds: f32,
+    ) -> Option<u64> {
+        let id = self.spawn_kind(kind, at)?;
+        if let Some(z) = self.list.iter_mut().find(|z| z.id == id) {
+            z.yaw = yaw;
+            z.anim = AnimClip::Idle;
+            z.idle_lock_timer = idle_seconds.max(0.0);
+        }
+        Some(id)
+    }
+
+    /// Spawns one zombie of `kind` 5 m in front of the player, facing them, idle for 3 s (`--spawn-zombie`).
+    pub fn spawn_in_front_of_player(
+        &mut self,
+        kind: &str,
+        player_pos: Vec3,
+        player_yaw: f32,
+        physics: &PhysicsWorld,
+    ) -> Option<u64> {
+        // Godot yaw convention: forward = (-sin yaw, 0, -cos yaw)
+        let forward = Vec3::new(-player_yaw.sin(), 0.0, -player_yaw.cos());
+        let target = player_pos + forward * SHOWCASE_DISTANCE_M;
+        let y = physics.ground_height(target.x, target.z).unwrap_or(player_pos.y);
+        let face_player_yaw = player_yaw + std::f32::consts::PI;
+        self.spawn_idle_showcase(
+            kind,
+            Vec3::new(target.x, y, target.z),
+            face_player_yaw,
+            SHOWCASE_IDLE_SECONDS,
+        )
     }
 
     /// Spawns a horde of zombies that share one ZombieHorde wander target (Godot ZombieSpawner:186).

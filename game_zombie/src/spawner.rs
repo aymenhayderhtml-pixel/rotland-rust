@@ -18,6 +18,19 @@ pub const SPAWN_ATTEMPTS_PER_TICK: usize = 12;
 /// A chasing zombie is kept this much farther than the normal despawn distance.
 pub const CHASE_KEEP_FACTOR: f32 = 1.5;
 
+/// All special zombie kind ids, including biome specials.
+pub const SPECIAL_KINDS: &[&str] = &[
+    "brute",
+    "screamer",
+    "crawler",
+    "frozen",
+    "husk",
+    "bloater",
+];
+
+/// Global (non-biome) specials rolled at night or in cities.
+const GLOBAL_SPECIAL_KINDS: &[&str] = &["brute", "screamer", "crawler"];
+
 /// Snapshot of the game state needed to place or despawn zombies this tick.
 pub struct SpawnContext<'a> {
     pub player_position: Vec3,
@@ -252,6 +265,32 @@ impl Spawner {
         cap.min(hard)
     }
 
+    /// Picks the zombie type id for a single spawn: biome special first, then global special, then table.
+    pub fn pick_spawn_type_id(
+        &mut self,
+        biome_name: Option<&str>,
+        is_night: bool,
+        in_city: bool,
+        in_city_core: bool,
+        special_chance: f32,
+    ) -> &str {
+        if let Some(biome) = biome_name
+            && let Some(kind) = self.config.pick_biome_special(&mut self.rng, biome)
+        {
+            kind
+        } else if (is_night || in_city)
+            && special_chance > 0.0
+            && self.rng.range(0.0, 1.0) < special_chance
+        {
+            let idx = (self.rng.next_f32() * GLOBAL_SPECIAL_KINDS.len() as f32)
+                .min(GLOBAL_SPECIAL_KINDS.len() as f32 - 1.0) as usize;
+            GLOBAL_SPECIAL_KINDS[idx]
+        } else {
+            self.config
+                .pick_type_id_core(&mut self.rng, is_night, in_city_core)
+        }
+    }
+
     /// Advances time, issues despawns for out-of-range zombies, and attempts spawning up to the cap.
     pub fn update(&mut self, dt: f32, ctx: &SpawnContext) -> SpawnOrders {
         let mut orders = SpawnOrders::default();
@@ -329,16 +368,13 @@ impl Spawner {
                 },
             };
 
-            let type_id = if (ctx.is_night || ctx.in_city)
-                && ctx.special_chance > 0.0
-                && self.rng.range(0.0, 1.0) < ctx.special_chance
-            {
-                let specials = ["brute", "screamer", "crawler"];
-                let idx = (self.rng.next_f32() * specials.len() as f32).min(specials.len() as f32 - 1.0) as usize;
-                specials[idx]
-            } else {
-                self.config.pick_type_id_core(&mut self.rng, ctx.is_night, ctx.in_city_core)
-            };
+            let type_id = self.pick_spawn_type_id(
+                ctx.biome_name,
+                ctx.is_night,
+                ctx.in_city,
+                ctx.in_city_core,
+                ctx.special_chance,
+            );
             return Some(SpawnOrder {
                 type_id: type_id.to_string(),
                 position: feet,

@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
 
+pub mod ambient;
 pub mod layout;
 pub mod registry;
 
+pub use ambient::ambient_temperature;
 pub use layout::{BiomeSample, SectorConfig, TierConfig, WorldLayout, WorldLayoutData};
 pub use registry::{BiomeDef, BiomeGround, BiomeHeight, BiomeRegistry};
 

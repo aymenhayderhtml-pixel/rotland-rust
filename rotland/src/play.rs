@@ -71,6 +71,8 @@ pub struct PlayState {
     pub thirst: game::NeedStat,
     pub survival: game::SurvivalData,
     use_cooldown: f32,
+    /// A hand warmer was used from the hotbar this frame; the warmth system consumes it (R32-05).
+    pub hand_warmer_pending: bool,
     /// Health is full this frame (bandages are refused then, like Godot).
     pub health_full: bool,
     /// Wallet, bank, trader, skills, bounties and difficulty.
@@ -156,6 +158,7 @@ impl PlayState {
             thirst,
             survival,
             use_cooldown: 0.0,
+            hand_warmer_pending: false,
             health_full: true,
             camp,
             picked_up: false,
@@ -239,6 +242,14 @@ impl PlayState {
 
     /// Eats, drinks or uses a bandage: one item is used up (Godot ItemUse.TryUse).
     fn use_item(&mut self, item_id: &str) -> Option<HandChange> {
+        if item_id == "hand_warmer" {
+            // Tool, not food: the warmth system starts its timer and removes the item (R32-05).
+            if self.use_cooldown <= 0.0 && self.inventory.count(item_id) > 0 {
+                self.hand_warmer_pending = true;
+                self.use_cooldown = USE_COOLDOWN;
+            }
+            return None;
+        }
         let def = self.items.get(item_id)?.clone();
         use game::items::ItemCategory;
         if self.use_cooldown > 0.0 || !matches!(def.category, ItemCategory::Food | ItemCategory::Drink | ItemCategory::Medical) {

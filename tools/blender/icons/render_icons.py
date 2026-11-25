@@ -140,6 +140,10 @@ def main():
     for item_id, item in items.items():
         if only is not None and item_id not in only:
             continue
+        if "weaponId" not in item and item_id not in item_meshes.BUILDERS:
+            # No mesh builder yet (e.g. fishing_rod): keep the existing PNG instead of stopping the run.
+            print("SKIP (no mesh builder)", item_id)
+            continue
         _render_icon(item_id, _meshes_for(item_id, item))
         print("ICON", item_id)
     if only is None:

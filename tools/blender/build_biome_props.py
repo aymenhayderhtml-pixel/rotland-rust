@@ -44,6 +44,8 @@ MODELS = [
     "swamp_log_mossy",
     "swamp_stump",
     "lily_mud_patch",
+    # R32-09
+    "toxic_puff",
 ]
 
 

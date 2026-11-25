@@ -2,7 +2,7 @@ use engine::egui::{self, pos2, Align2, Color32, FontId};
 
 use super::{
     ammo, clock, compass, crosshair, damage, death, downed, events, fps, hotbar, key_bar,
-    notification, pickup, region_banner, safe_zone, scope, text, vehicle, vitals, HudConfig, HudState, IconCache,
+    notification, pickup, region_banner, safe_zone, scope, text, vehicle, vitals, warmth, HudConfig, HudState, IconCache,
 };
 
 /// Draws the HUD overlay using egui painter with explicit IconCache.
@@ -77,6 +77,9 @@ pub fn draw_hud(ctx: &egui::Context, s: &HudState, icons: &mut IconCache) {
                 scale,
                 &config,
             );
+
+            // 8b. Body warmth bar (R32-05)
+            warmth::draw_warmth_bar(painter, &screen, time, s.warmth.as_ref(), scale, &config);
 
             // 9. Pet Dog HUD strip above needs
             vitals::draw_dog_hud(painter, &screen, time, s.dog.as_ref(), scale);

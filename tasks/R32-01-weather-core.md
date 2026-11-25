@@ -36,3 +36,26 @@ Rules: `tasks/LEAD.md` subagent rules. Use the "R32 shared names" in `tasks/R32-
    - `fog_mult` is 1 when clear.
 
 ## Worker notes
+
+## Neon notes
+
+* **Implemented:**
+* `data/weather.json`: Added all 6 biome weather tables (`plains`, `forest`, `desert`, `snow`, `mountains`, `swamp`) with `_biomes_why`, plus all 5 weather kinds (`clear`, `rain`, `snow`, `sandstorm`, `fog`) with `_why` and normalized `[0.0..=1.0]` RGB `tint` values matching `WeatherParams.tint: [f32; 3]`.
+* `world/src/weather/data.rs`: Added `WeatherData`, `WeatherKindDef`, and `WeatherWeight` with `load()` (via `paths::repo_path("data/weather.json")`), `load_from_file()`, and `from_json(&str)` validating all 6 biomes and 5 kinds.
+* `world/src/weather/mod.rs`: Added `WeatherKind` (`Clear`, `Rain`, `Snow`, `Sandstorm`, `Fog` with `key()`, `from_key()`, `index()`, `as_u32()`) and `WeatherState` (`new(seed)`, `update(dt_game_seconds, biome, data)`, `set_weather(kind, intensity, data)`, `fog_mult()`, `visibility()`, `noise_mask()`). Reuses `crate::random::DotnetRandom` and tracks `(seed, rng_calls)` so `WeatherState` derives `Serialize`/`Deserialize` without modifying `world/src/random.rs` while preserving deterministic RNG continuity across save/load.
+* `world/src/lib.rs`: Added `pub mod weather;` and `pub use weather::{WeatherData, WeatherKind, WeatherKindDef, WeatherState, WeatherWeight};`.
+* `world/tests/weather_tests.rs`: Added integration tests covering data loading/validation, deterministic stepping, snow never starting sandstorms, desert-to-snow sandstorm fade-out within `fade_seconds` (both natural and 60 Hz ticks), intensity bounds, clear `fog_mult` and blending, wind drift/scaling, and serde round-trip determinism.
+* `docs/WORLD.md`: Added `data/weather.json` to the Data Files table, noted weather table updates in "How to Add a New Biome", and added Section 4 ("Weather").
+
+
+* **Caller / downstream wiring (R32-02, R32-03, R32-04):**
+* Load `WeatherData::load()` once at startup and create `WeatherState::new(seed)` (or deserialize from save).
+* Each frame call `weather.update(dt_game_seconds, current_biome, &weather_data)`.
+* For `--weather=<kind>` in R32-03, call `weather.set_weather(kind, 1.0, &weather_data)`.
+* Pass `kind.as_u32()`, `weather.intensity`, `[weather.wind.x, weather.wind.y]`, and `weather_data.kind(weather.kind).tint` into `WeatherParams` (R32-02/R32-03).
+
+
+* **Notes / risks:**
+* `world/src/math.rs` was not in the read list, so private `lerp_f32` and `smoothstep_01` helpers were written locally in `world/src/weather/mod.rs` to avoid assuming uninspected signatures.
+* `WeatherKindDef.tint` uses normalized `0.0..=1.0` `[f32; 3]` floats to match `WeatherParams.tint: [f32; 3]` directly; R32-03 should keep this scale when blending with `BiomeDef.fog_tint` (which is `[u8; 3]` in `0..=255`).
+* `WeatherData::load()` uses `paths::repo_path("data/weather.json")` as specified; switch to `paths::try_repo_path` if non-panicking repo-root lookup is desired later.

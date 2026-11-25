@@ -16,6 +16,9 @@ pub mod settlement;
 pub mod terrain_paint;
 pub mod terrain_shape;
 pub mod time;
+pub mod weather;
+
+pub use biome::ambient_temperature;
 
 pub use biome::{
     BiomeDef, BiomeGround, BiomeHeight, BiomeId, BiomeRegistry, BiomeSample, SectorConfig,
@@ -50,3 +53,4 @@ pub use settlement::{
     SettlementConfig, SettlementConfigData, SettlementGround, SettlementPlacer, SettlementSite,
 };
 pub use time::{Clock, ClockChanges};
+pub use weather::{WeatherData, WeatherKind, WeatherKindDef, WeatherState, WeatherWeight};

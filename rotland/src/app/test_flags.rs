@@ -1,4 +1,4 @@
-//! Dev-only gameplay/screenshot test flags (`--down-at`, `--team`, `--tp-rescue`, `--hold-e`, `--biome`).
+//! Dev-only gameplay/screenshot test flags (`--down-at`, `--team`, `--tp-rescue`, `--hold-e`, `--biome`, `--weather`).
 //!
 //! All flags default to off so normal gameplay is untouched.
 
@@ -9,6 +9,7 @@ use game::guild::{GuildConfig, GuildRecruit, RecruitDef, RecruitRole};
 use game::rescue_place::RescueSpot;
 use glam::{Vec2, Vec3};
 use world::biome::layout::BiomeSample;
+use world::weather::WeatherKind;
 use world::BiomeId;
 
 use super::state::{ActorsState, AudioState, PlaySide, RenderState, SessionState, WorldState};
@@ -41,16 +42,27 @@ pub struct TestFlags {
     pub tp_rescue: bool,
     pub hold_e: bool,
     pub biome: Option<BiomeId>,
+    pub weather: Option<WeatherKind>,
+    /// `--spawn-zombie=<kind>`: one zombie of that kind in front of the player (R32-07).
+    pub spawn_zombie: Option<String>,
 }
 
 impl TestFlags {
-    /// Parses `--down-at`, `--team`, `--tp-rescue`, `--hold-e`, and `--biome` from CLI args.
+    /// Parses `--down-at`, `--team`, `--tp-rescue`, `--hold-e`, `--biome`, and `--weather` from CLI args.
     pub fn from_args(args: &EngineArgs) -> Self {
         let biome = args.value("--biome").and_then(|raw| {
             let key = raw.trim().to_ascii_lowercase();
             let parsed = BiomeId::from_key(&key);
             if parsed.is_none() {
                 log::warn!("--biome: unknown biome key '{raw}'");
+            }
+            parsed
+        });
+        let weather = args.value("--weather").and_then(|raw| {
+            let key = raw.trim().to_ascii_lowercase();
+            let parsed = WeatherKind::from_key(&key);
+            if parsed.is_none() {
+                log::warn!("--weather: unknown weather kind '{raw}'");
             }
             parsed
         });
@@ -63,6 +75,11 @@ impl TestFlags {
             tp_rescue: args.flag("--tp-rescue"),
             hold_e: args.flag("--hold-e"),
             biome,
+            weather,
+            spawn_zombie: args
+                .value("--spawn-zombie")
+                .map(|s| s.trim().to_ascii_lowercase())
+                .filter(|s| !s.is_empty()),
         }
     }
 }
@@ -239,7 +256,7 @@ pub fn build_rescued_recruits(count: usize, templates: &[RecruitDef]) -> Vec<Gui
         .collect()
 }
 
-/// Applies startup dev flags (`--biome`, `--tp-rescue`, `--team`) after the world is initialized.
+/// Applies startup dev flags (`--biome`, `--weather`, `--tp-rescue`, `--team`) after the world is initialized.
 pub fn apply_startup(
     gpu: &Gpu,
     render: &mut RenderState,
@@ -250,6 +267,14 @@ pub fn apply_startup(
 ) {
     if let Some(biome) = session.test_flags.biome {
         apply_biome_tp(gpu, render, world, actors, session, biome);
+    }
+    if let (Some(kind), Some(weather)) = (session.test_flags.weather, play.weather.as_mut()) {
+        weather.force(kind);
+    }
+    if let Some(kind) = session.test_flags.spawn_zombie.as_deref()
+        && let (Some(zombies), Some(pc)) = (actors.zombies.as_mut(), actors.player_ctrl.as_ref())
+    {
+        zombies.spawn_in_front_of_player(kind, pc.position, pc.yaw, &world.physics);
     }
     if session.test_flags.tp_rescue {
         apply_tp_rescue(gpu, render, world, actors, play, session);
@@ -491,22 +516,26 @@ mod tests {
             "--tp-rescue",
             "--hold-e",
             "--biome=desert",
+            "--weather=sandstorm",
         ]));
         assert_eq!(parsed.down_at, Some(1.5));
         assert_eq!(parsed.team, 3);
         assert!(parsed.tp_rescue);
         assert!(parsed.hold_e);
         assert_eq!(parsed.biome, Some(BiomeId::Desert));
+        assert_eq!(parsed.weather, Some(WeatherKind::Sandstorm));
 
         let invalid = TestFlags::from_args(&make_args(&[
             "rotland",
             "--down-at=-2",
             "--team=abc",
             "--biome=mars",
+            "--weather=acid",
         ]));
         assert_eq!(invalid.down_at, None);
         assert_eq!(invalid.team, 0);
         assert_eq!(invalid.biome, None);
+        assert_eq!(invalid.weather, None);
     }
 
     #[test]

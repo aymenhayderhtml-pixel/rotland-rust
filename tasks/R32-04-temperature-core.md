@@ -35,3 +35,27 @@ Rules: `tasks/LEAD.md` subagent rules. Use the "R32 shared names" in `tasks/R32-
    - `chill` lowers the value.
 
 ## Worker notes
+
+## Neon notes
+
+* **What was implemented:**
+* `data/temperature.json`: Complete body warmth curve (`comfy_value = 50.0`, `neutral_ambient_c = 18.0`, `degree_to_points = 1.1`, `follow_rate = 0.01`, `sun_peak_hour = 14.0`, `sun_low_hour = 4.0`), warmth sources (`near_fire +35` capped at `55`, `in_camp +20`, `indoors +15`, `insulation * 30` cold-only, `sun_protection * 25` heat-only), state thresholds (`15 / 35 / 65 / 85`), gameplay effects (`Cold` stamina ×0.7, `Freezing` stamina ×0.5 + `0.25/s` drain floored at `10` HP, `Hot` thirst ×1.3, `Overheated` thirst ×1.8 + stamina ×0.7), and weather offsets (`rain -3`, `snow -3`, `sandstorm +2`, `fog -1`), all with `_why` notes.
+* `world/src/biome/ambient.rs` & `world/src/biome/mod.rs`: `ambient_temperature(registry: &BiomeRegistry, sample: &BiomeSample, hour: f32, weather: &WeatherState) -> f32` using a C¹ piecewise cosine sun curve (peak 14:00, low 04:00), primary/secondary blending via `sample.blend`, home biome (`BiomeId::Plains`) blending via `sample.outer`, and intensity-scaled weather offsets lazily loaded from `data/temperature.json`.
+* `game_player/src/survival/temperature.rs` & `game_player/src/survival/mod.rs`: `BodyTemp`, `TempState`, `TemperatureData`, `WarmthSources` matching R32 shared names exactly, plus `from_config`, `target_value`, `chill`, `min_health_floor`, `health_drain_for` (enforces the 10 HP cold floor), and `to_save`/`from_save`.
+* `world/tests/ambient_tests.rs` & `game/tests/all/temperature_tests.rs`: All required unit and integration tests.
+* `game/tests/all/main.rs`: Added `mod biome_zombies_tests;`, `mod temperature_tests;`, and `mod warmth_items_tests;` per the overlap rule.
+
+
+* **Shared-file line for the lead (`world/src/lib.rs`, owned by R32-01):**
+Add the following re-export to `world/src/lib.rs` (alongside R32-01's `pub mod weather;`):
+```rust
+pub use biome::ambient_temperature;
+
+```
+
+
+* **Wiring notes & known risks:**
+* `world/src/biome/ambient.rs` and `world/tests/ambient_tests.rs` depend on R32-01 providing `world::weather::{WeatherKind, WeatherState}` with public `kind: WeatherKind`, `intensity: f32`, and `WeatherState::new(seed: i32)` exactly per R32 shared names.
+* `game/tests/all/main.rs` declares `mod warmth_items_tests;` (R32-05) and `mod biome_zombies_tests;` (R32-06); those files must be present before running `cargo test -p game`.
+* `game/tests/all/temperature_tests.rs` imports `game_player::survival::temperature::...` directly; if `game/Cargo.toml` does not list `game_player` directly in `[dependencies]` or `[dev-dependencies]` (only re-exporting via `game`), swap the import prefix from `game_player::` to `game::`.
+* For R32-05 wiring: apply cold health damage via `body_temp.health_drain_for(player.health, dt)` so freezing never drops health below 10 HP (and never heals if already below 10 HP).

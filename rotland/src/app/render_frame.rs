@@ -138,6 +138,19 @@ pub fn render_frame(
     } else {
         Vec::new()
     };
+    // Toxic cloud puffs from bloater bursts (R32-07)
+    if let Some(pack) = render.pack.as_ref() {
+        render.toxic_cloud_view.fill_instances(&mut render.toxic_puff_scratch);
+        if let Some(slot) = render.library.get(&gpu.device, pack, crate::toxic_cloud_view::PROP_NAME, false) {
+            for puff in &render.toxic_puff_scratch {
+                beds.push(crate::props::Placed {
+                    model: slot,
+                    matrix: puff.matrix(),
+                    centre: puff.position,
+                });
+            }
+        }
+    }
     // Base building: placed parts and ghost preview model
     if let Some(pack) = render.pack.as_ref() {
         build_mode::render_placed_and_ghost(
@@ -428,13 +441,18 @@ pub fn render_frame(
             }
         }
     }
-    let mut lighting = light::at_hour(
-        play.hour,
-        render.flashlight_on.then(|| {
-            // Held at the camera, pointing where it looks (Godot hangs it on the camera)
-            light::flashlight(render.camera.position, render.camera.forward())
-        }),
-    );
+    let spot = render.flashlight_on.then(|| {
+        // Held at the camera, pointing where it looks (Godot hangs it on the camera)
+        light::flashlight(render.camera.position, render.camera.forward())
+    });
+    let mut lighting = if let (Some(weather), Some(generator)) =
+        (play.weather.as_ref(), world.world_gen.as_ref())
+    {
+        let wl = weather.light_overrides(actors.player, generator);
+        light::at_hour_weather(play.hour, spot, wl)
+    } else {
+        light::at_hour(play.hour, spot)
+    };
     // The nearest car with its lights on lights the road (Godot CarLights); the renderer has 3 spots
     if let Some(cars) = &actors.cars
         && let Some(car) = cars
@@ -478,6 +496,9 @@ pub fn render_frame(
         world,
         actors.player,
     );
+    if let Some(weather) = play.weather.as_mut() {
+        weather.draw(gpu, target, encoder, &render.camera, session.time);
+    }
     drop(items);
     crate::props::recycle_batches(main, shadow);
     if let (Some(bench), Some(r)) = (session.bench.as_mut(), render.renderer.as_ref()) {

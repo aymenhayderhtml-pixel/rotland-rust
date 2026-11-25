@@ -13,6 +13,8 @@
     { "id": "heavy", "text": "Heavy bag. Sell or bank loot at the camp.", "trigger": "bag_over:0.8" },
     { "id": "wood", "text": "4 wood make a campfire kit (backpack → Craft).", "trigger": "has_item:wood" },
     { "id": "dog_breeder", "text": "A dog breeder sells puppies [{interact}]. The dog follows you and fights. {dog_stay}: stay. If it dies, it is gone for good.", "trigger": "near_npc:breeder:6" },
-    { "id": "bounty","text": "Bounties pay dollars and XP. Take up to 2 at a time from the board [{interact}].", "trigger": "board_near:8", "doneWhen": "board_used" }
+    { "id": "bounty","text": "Bounties pay dollars and XP. Take up to 2 at a time from the board [{interact}].", "trigger": "board_near:8", "doneWhen": "board_used" },
+    { "id": "cold", "text": "You're getting cold. A campfire, warm clothes or shelter will help.", "trigger": "temp_cold" },
+    { "id": "hot", "text": "The heat makes you thirsty. Drink water and cover your head.", "trigger": "temp_hot" }
   ]
 }

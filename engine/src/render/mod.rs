@@ -7,6 +7,7 @@ pub mod pipelines;
 pub mod shadow;
 pub mod skinned;
 pub mod water;
+pub mod weather;
 
 pub use camera::Camera;
 pub use lit::{DrawItem, FrameCounts, Lighting, LitRenderer, SpotLight};

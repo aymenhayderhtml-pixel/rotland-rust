@@ -37,6 +37,7 @@ mod state;
 pub mod text;
 pub mod vehicle;
 pub mod vitals;
+pub mod warmth;
 
 #[path = "../icons.rs"]
 pub mod icons;
@@ -60,3 +61,4 @@ pub use pickup::PickupPopup;
 pub use state::{HotbarSlot, HudState, KeyLabels};
 pub use vehicle::VehicleHudInfo;
 pub use vitals::{DogHudInfo, VitalsTrailState};
+pub use warmth::{WarmthHudInfo, WarmthHudState};

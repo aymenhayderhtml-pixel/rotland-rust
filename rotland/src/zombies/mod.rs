@@ -241,12 +241,22 @@ impl Zombies {
                 o
             };
 
-            if let (Some(cfg), Some(p), false, true) =
+            if z.idle_lock_timer > 0.0 && !dead {
+                // Showcase spawns (`--spawn-zombie`) stand still for a few seconds (R32-07).
+                z.idle_lock_timer = (z.idle_lock_timer - dt).max(0.0);
+                out.velocity = Vec3::ZERO;
+                out.yaw = z.yaw;
+                out.anim = AnimClip::Idle;
+                out.attack_hit = None;
+                out.scream = false;
+            } else if let (Some(cfg), Some(p), false, true) =
                 (self.special_cfg.as_deref(), effective_player, dead, z.special.is_some())
             {
                 let roll = specials::next_roll(&mut roll_state);
                 specials::step(z, cfg, physics, p, dt, roll, &mut out, &mut frame, &mut calls);
             }
+            // Bloaters burst into a toxic cloud on death (R32-07).
+            specials::maybe_bloater_burst(z, false, &mut frame);
             if let Some(bite) = out.attack_hit {
                 frame.bites.push(bite);
             }

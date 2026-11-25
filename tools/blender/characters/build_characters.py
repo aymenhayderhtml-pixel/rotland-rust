@@ -6,11 +6,14 @@ Characters:
             dark pants, slightly hunched posture
 - zombie_02: broader and a little bigger, faded red shirt, one bare arm (torn sleeve)
 - zombie_03: thin and tall, pale skin, torn blue hospital gown
+- zombie_frozen: pale blue-white skin, dark winter jacket, ice shards on shoulders/head
+- zombie_husk: dried thin tall desert zombie, tan skin, bare ribbed chest, torn khaki
+- zombie_bloater: swollen swamp zombie, sickly green-yellow belly with boils, ragged shoulders
 
 Clips are listed in poses.py. The player gets every non-zombie clip; zombies get ZOMBIE_CLIPS.
 
 Exports:
-- assets/models/characters/human_player.glb, zombie_01.glb, zombie_02.glb, zombie_03.glb
+- assets/models/characters/human_player.glb, zombie_01.glb, zombie_02.glb, zombie_03.glb, ...
 - assets/models/_previews/<name>.png (rest pose 384x384)
 - assets/models/_previews/<name>_<clip>.png (8-frame contact sheet, 200x260 per frame)
 """
@@ -197,6 +200,46 @@ VARIANTS = [
             "zombie_bang": "zombie_crawler_crawl",
             "zombie_eat": "zombie_crawler_eat",
         },
+    },
+    {
+        "name": "zombie_frozen",
+        "skin": "ice_blue",
+        "hair": "hair_dark",
+        "shirt": "pants_dark",
+        "jacket": "pine_snow_dark",
+        "pants": "pants_dark",
+        "shoes": "tire_black",
+        "long_sleeves": True,
+        "blood": "blood_dark",
+        "hunched": False,
+        "proportions": {"width": 1.05, "depth": 1.05, "height": 1.0},
+        "posture": {"spine": (-4, 0, 0), "chest": (-3, 0, 0), "neck": (2, 0, 0), "head": (-4, 0, 0)},
+    },
+    {
+        "name": "zombie_husk",
+        "skin": "sand_dark",
+        "hair": "hair_dark",
+        "hair_style": "none",
+        "shirt": "sand_dark",
+        "pants": "canvas_khaki",
+        "shoes": "leather",
+        "blood": "blood_dark",
+        "hunched": True,
+        "proportions": {"width": 0.80, "depth": 0.82, "height": 1.08},
+        "posture": {"spine": (-18, 0, 0), "chest": (-14, 0, 0), "neck": (8, 0, 0), "head": (16, 0, 0)},
+    },
+    {
+        "name": "zombie_bloater",
+        "skin": "swamp_moss",
+        "hair": "hair_dark",
+        "hair_style": "none",
+        "shirt": "swamp_moss",
+        "pants": "pants_dark",
+        "shoes": "shoe_dark",
+        "blood": "blood_dark",
+        "hunched": False,
+        "proportions": {"width": 1.7, "depth": 1.8, "height": 1.0},
+        "posture": {"spine": (-5, 0, 0), "chest": (-6, 0, 0), "neck": (-4, 0, 0), "head": (-5, 0, 0)},
     },
 ]
 
@@ -461,6 +504,7 @@ def build_one_character(variant):
     common.reset_scene()
     palette.write_palette_png()
     palette.write_palette_png_b()
+    palette.write_palette_png_c()
 
     arm_obj, mesh_obj = humanoid.build_humanoid(variant)
     tris = len(mesh_obj.data.polygons)
@@ -473,6 +517,8 @@ def build_one_character(variant):
         target_z, cam_dist_mult = 0.24, 0.85
     elif name == "zombie_brute":
         target_z, cam_dist_mult = 1.10, 1.35
+    elif name == "zombie_bloater":
+        target_z, cam_dist_mult = 0.85, 1.18
     else:
         target_z, cam_dist_mult = 0.82, 1.0
 

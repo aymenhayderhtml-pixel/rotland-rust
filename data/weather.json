@@ -1,0 +1,92 @@
+{
+  "_why": "R32 weather timings (fade 40s, spells 4-12 min) and per-biome weather tables from tasks/R32-round.md and tasks/R32-01-weather-core.md.",
+  "fade_seconds": 40.0,
+  "min_spell_seconds": 240.0,
+  "max_spell_seconds": 720.0,
+  "_biomes_why": {
+    "plains": "Temperate home grasslands: mostly clear (0.7) with occasional rain (0.25) and light morning fog (0.05).",
+    "forest": "Temperate woodland matching plains weather mix: mostly clear (0.7), periodic rain (0.25), rare fog (0.05).",
+    "desert": "Arid dunes: mostly clear sun (0.65) interrupted by harsh sandstorms (0.35), never rain or snow.",
+    "snow": "Frigid boreal snowfield: frequent snowfall (0.6), clear cold breaks (0.35), and rare freezing fog (0.05).",
+    "mountains": "Alpine ridges: heavy snow (0.5), clear alpine skies (0.4), and cloud-level fog (0.1).",
+    "swamp": "Damp boggy wetlands: persistent fog (0.45) and frequent rain (0.35), with brief clear spells (0.2)."
+  },
+  "biomes": {
+    "plains": [
+      { "kind": "clear", "weight": 0.7 },
+      { "kind": "rain", "weight": 0.25 },
+      { "kind": "fog", "weight": 0.05 }
+    ],
+    "forest": [
+      { "kind": "clear", "weight": 0.7 },
+      { "kind": "rain", "weight": 0.25 },
+      { "kind": "fog", "weight": 0.05 }
+    ],
+    "desert": [
+      { "kind": "clear", "weight": 0.65 },
+      { "kind": "sandstorm", "weight": 0.35 }
+    ],
+    "snow": [
+      { "kind": "clear", "weight": 0.35 },
+      { "kind": "snow", "weight": 0.6 },
+      { "kind": "fog", "weight": 0.05 }
+    ],
+    "mountains": [
+      { "kind": "clear", "weight": 0.4 },
+      { "kind": "snow", "weight": 0.5 },
+      { "kind": "fog", "weight": 0.1 }
+    ],
+    "swamp": [
+      { "kind": "fog", "weight": 0.45 },
+      { "kind": "rain", "weight": 0.35 },
+      { "kind": "clear", "weight": 0.2 }
+    ]
+  },
+  "kinds": {
+    "clear": {
+      "_why": "Baseline clear sky: full visibility, no fog pull-in, no noise masking, gentle 1 m/s breeze.",
+      "fog_mult": 1.0,
+      "visibility": 1.0,
+      "noise_mask": 0.0,
+      "wind": 1.0,
+      "particles_per_m3": 0.0,
+      "tint": [1.0, 1.0, 1.0]
+    },
+    "rain": {
+      "_why": "Steady rainfall: moderate fog pull-in (0.75), slightly reduced visibility (0.8), rain patter masks footsteps (0.35), grey-blue tint.",
+      "fog_mult": 0.75,
+      "visibility": 0.8,
+      "noise_mask": 0.35,
+      "wind": 3.0,
+      "particles_per_m3": 0.06,
+      "tint": [0.68, 0.75, 0.86]
+    },
+    "snow": {
+      "_why": "Steady snowfall: denser haze (0.6 fog), 0.7 visibility, muffled acoustics (0.2 noise mask), crisp white flakes.",
+      "fog_mult": 0.6,
+      "visibility": 0.7,
+      "noise_mask": 0.2,
+      "wind": 2.0,
+      "particles_per_m3": 0.05,
+      "tint": [0.95, 0.97, 1.0]
+    },
+    "sandstorm": {
+      "_why": "Severe desert gale: heavy fog pull-in (0.3), low visibility (0.4), roaring wind masks half of noise (0.5), 9 m/s wind, dense sand grit.",
+      "fog_mult": 0.3,
+      "visibility": 0.4,
+      "noise_mask": 0.5,
+      "wind": 9.0,
+      "particles_per_m3": 0.12,
+      "tint": [0.86, 0.74, 0.52]
+    },
+    "fog": {
+      "_why": "Thick still mist: strong fog pull-in (0.4), halved visibility (0.5), calm 0.5 m/s air with no falling particles, damp grey-green tint.",
+      "fog_mult": 0.4,
+      "visibility": 0.5,
+      "noise_mask": 0.1,
+      "wind": 0.5,
+      "particles_per_m3": 0.0,
+      "tint": [0.65, 0.71, 0.63]
+    }
+  }
+}

@@ -66,3 +66,6 @@ mod zombie_brain_tests;
 mod zombie_extras_tests;
 mod zombie_tests;
 mod zombie_voices_tests;
+mod biome_zombies_tests;
+mod temperature_tests;
+mod warmth_items_tests;

@@ -37,3 +37,17 @@ Rules: `tasks/LEAD.md` subagent rules. Use the "R32 shared names" in `tasks/R32-
    - husk speed > walker speed.
 
 ## Worker notes
+
+## Neon notes
+
+* **Shared-file line for lead (`game/tests/all/main.rs`):** add `mod biome_zombies_tests;`
+* **Follow-up for lead / R32-07 (`rotland/src/play.rs:523`):** replace the hardcoded `["brute", "screamer", "crawler"]` special-kind list with `game::spawner::SPECIAL_KINDS` (or `SpecialKind::from_id(kind).is_some()`), which now includes `"frozen"`, `"husk"`, and `"bloater"`.
+* **What was wired:**
+* `data/zombies.json`: added `frozen`, `husk`, and `bloater` types with speed/health scaled from `walker` and models `zombie_frozen`, `zombie_husk`, `zombie_bloater`.
+* `data/special_zombies.json`: added `frozen`, `husk` (80% of crawler lunge numbers + multipliers), and `bloater` blocks.
+* `data/spawning.json` + `game_zombie/src/spawner_config.rs` + `game_zombie/src/spawner.rs`: added `biomeSpecials` (`snow` 0.35 frozen, `mountains` 0.25 frozen, `desert` 0.35 husk, `swamp` 0.25 bloater), rolled before the existing night/city global special roll; added `SPECIAL_KINDS` constant and `Spawner::pick_spawn_type_id`.
+* `game_zombie/src/zombie/specials_biome.rs` + `specials.rs` + `mod.rs`: added `FrozenConfig`, `HuskConfig`, `BloaterConfig`, `BiteEffect { chill }`, `ToxicBurst`, `SpecialEvent`, `ToxicCloud`, `ToxicClouds`, and `SpecialState` support (`tick_husk` reuses `tick_crawler` via `HuskConfig::to_crawler_config()`, `on_attack_landed`, `on_hit_at`, `on_death`).
+
+
+* **Design note / risk:** `SpecialDirective` and `SpecialHit` fields were intentionally not modified because `specials_brute.rs`, `specials_crawler.rs`, and `specials_screamer.rs` are outside this task's file list and may construct them with explicit field lists. R32-07 should call `special.on_attack_landed(&special_cfg)` when a zombie's melee bite lands (to read `chill`) and `special.on_hit_at(&special_cfg, pos, killed, is_fire)` / `special.on_death(&special_cfg, pos)` to feed `ToxicClouds::spawn`.
+* `game_zombie/src/zombie/defs.rs` required no changes because `ZombieDef` already supports all fields of the new zombie types.

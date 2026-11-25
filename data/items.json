@@ -106,5 +106,17 @@
   "fish_raw":       { "name": "Raw Fish", "shortName": "Raw Fish", "category": "food", "weight": 0.4, "maxStack": 10, "value": 5,
                       "color": "#5b8a99", "effects": { "hunger": 8, "health": -3 }, "description": "Raw fish from the lake. Cook it at a campfire." },
   "fish_cooked":    { "name": "Cooked Fish", "shortName": "Cooked Fish", "category": "food", "weight": 0.35, "maxStack": 10, "value": 14,
-                      "color": "#c48843", "effects": { "hunger": 35, "health": 5 }, "description": "Grilled fish. Good, hearty meal." }
+                      "color": "#c48843", "effects": { "hunger": 35, "health": 5 }, "description": "Grilled fish. Good, hearty meal." },
+  "warm_jacket":    { "name": "Warm Jacket", "shortName": "Jacket", "category": "tool", "weight": 1.4, "maxStack": 1, "value": 45,
+                      "color": "#4f6d7a", "slot": "body", "insulation": 0.5,
+                      "description": "Thick insulated jacket. Carry in your bag to stay warm in cold biomes." },
+  "wool_hat":       { "name": "Wool Hat", "shortName": "Hat", "category": "tool", "weight": 0.2, "maxStack": 1, "value": 18,
+                      "color": "#7a5248", "slot": "head", "insulation": 0.2,
+                      "description": "Warm knit hat. Carry in your bag to slow cold loss." },
+  "desert_scarf":   { "name": "Desert Scarf", "shortName": "Scarf", "category": "tool", "weight": 0.2, "maxStack": 1, "value": 20,
+                      "color": "#d4b483", "slot": "head", "sun_protection": 0.5,
+                      "description": "Light cloth wrap. Carry in your bag to shield your head from desert heat." },
+  "hand_warmer":    { "name": "Hand Warmer", "shortName": "Warmer", "category": "tool", "weight": 0.15, "maxStack": 5, "value": 12,
+                      "color": "#c85a32", "consumable": true, "warmth_seconds": 60,
+                      "description": "Single-use warmer. Activate for 60 seconds of campfire-level warmth." }
 }
