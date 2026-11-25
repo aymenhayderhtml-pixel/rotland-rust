@@ -6,6 +6,7 @@ pub mod daynight;
 pub mod generator;
 mod generator_contents;
 mod generator_world;
+pub mod ground_detail;
 pub mod ground_paint;
 pub mod lake;
 pub mod loot;

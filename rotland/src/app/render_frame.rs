@@ -189,13 +189,23 @@ pub fn render_frame(
         .as_ref()
         .map(|p| p.camp.upgrade_view.placed())
         .unwrap_or(&empty_upgrade);
+    if let (Some(pack), Some(world_gen)) = (render.pack.as_ref(), world.world_gen.as_ref()) {
+        render.ground_detail.update(
+            &gpu.device,
+            pack,
+            &mut render.library,
+            world_gen,
+            actors.player,
+        );
+    }
     let placed = streamer
         .chunks
         .values()
         .flat_map(|c| c.placed.iter())
         .chain(beds.iter())
         .chain(upgrade_placed.iter())
-        .chain(bench_placed.iter());
+        .chain(bench_placed.iter())
+        .chain(render.ground_detail.placed().iter());
     let spot = render.flashlight_on.then(|| {
         // Held at the camera, pointing where it looks (Godot hangs it on the camera)
         light::flashlight(render.camera.position, render.camera.forward())
@@ -208,6 +218,9 @@ pub fn render_frame(
     } else {
         light::at_hour(play.hour, spot)
     };
+    if let (Some(sky), Some(generator)) = (play.sky.as_ref(), world.world_gen.as_ref()) {
+        sky.apply_biome_fog(&mut lighting, actors.player, generator);
+    }
     // The nearest car with its lights on lights the road (Godot CarLights); the renderer has 3 spots
     if let Some(cars) = &actors.cars
         && let Some(car) = cars
@@ -496,6 +509,16 @@ pub fn render_frame(
         &shadow,
         &render.bones,
     );
+    if let Some(sky) = play.sky.as_ref() {
+        sky.draw(
+            gpu,
+            target,
+            encoder,
+            &render.camera,
+            &lighting,
+            play.weather.as_ref().map(|w| &w.state),
+        );
+    }
     crate::water_view::draw(
         gpu,
         target,

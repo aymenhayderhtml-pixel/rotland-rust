@@ -19,6 +19,8 @@ use crate::towns::{BOARDWALK_MODEL, TownSite};
 pub struct TerrainPaint {
     paint: GroundPaint,
     hue: GodotNoise,
+    patch_broad: GodotNoise,
+    patch_fine: GodotNoise,
 }
 
 /// Per-chunk context passed to triangle painting so `emit_triangle` stays concise.
@@ -72,12 +74,36 @@ impl TerrainPaint {
     const RIVERBANK_DARKEN: f32 = 0.62;
     // new: DECISIONS 2026-11-25
     const RIVERBANK_BLEND: f32 = 0.85;
+    // new: DECISIONS 2026-11-25
+    const RIVERBANK_DAMP_POWER: f32 = 0.75;
+    // new: DECISIONS 2026-11-25
+    const PATCH_BROAD_WEIGHT: f32 = 0.65;
+    // new: DECISIONS 2026-11-25
+    const PATCH_FINE_WEIGHT: f32 = 0.35;
+    // new: DECISIONS 2026-11-25
+    const PATCH_BRIGHTNESS: f32 = 0.08;
+    // new: DECISIONS 2026-11-25
+    const DESERT_DRY_START: f32 = 0.15;
+    // new: DECISIONS 2026-11-25
+    const DESERT_DRY_FULL: f32 = 0.65;
+    // new: DECISIONS 2026-11-25
+    const DESERT_DRY_STRENGTH: f32 = 0.35;
+    // new: DECISIONS 2026-11-25
+    const DESERT_DRY_COLOR: Color = Color::new(242.0 / 255.0, 222.0 / 255.0, 178.0 / 255.0, 1.0);
+    // new: DECISIONS 2026-11-25
+    const SNOW_HOLLOW_DEPTH_M: f32 = 2.0;
+    // new: DECISIONS 2026-11-25
+    const SNOW_HOLLOW_STRENGTH: f32 = 0.55;
 
     pub fn new(seed: i32) -> Self {
         Self {
             paint: GroundPaint::new(seed),
             // godot: World/WorldGenerator.cs:67
             hue: GodotNoise::simplex(seed + 3, 0.012),
+            // new: DECISIONS 2026-11-25
+            patch_broad: GodotNoise::simplex(seed + 17, 0.007),
+            // new: DECISIONS 2026-11-25
+            patch_fine: GodotNoise::simplex(seed + 31, 0.042),
         }
     }
 
@@ -144,8 +170,12 @@ impl TerrainPaint {
         let mut color = if sample.outer <= 0.0 {
             core_color
         } else {
-            let mut biome_color = self.biome_colour(&sample, tri_y, normal, hue_n, ctx.registry);
-            biome_color = Self::paint_outer_features(ctx, &sample, wx, wz, biome_color);
+            let patch_n = (Self::PATCH_BROAD_WEIGHT * self.patch_broad.get_noise_2d(wx, wz)
+                + Self::PATCH_FINE_WEIGHT * self.patch_fine.get_noise_2d(wx, wz))
+            .clamp(-1.0, 1.0);
+            let mut biome_color =
+                self.biome_colour(&sample, tri_y, normal, hue_n, patch_n, ctx.registry);
+            biome_color = Self::paint_outer_features(ctx, wx, wz, biome_color);
             core_color.lerp(biome_color, sample.outer)
         };
 
@@ -156,7 +186,6 @@ impl TerrainPaint {
 
     fn paint_outer_features(
         ctx: &ChunkPaintContext<'_>,
-        sample: &BiomeSample,
         wx: f32,
         wz: f32,
         mut color: Color,
@@ -189,14 +218,14 @@ impl TerrainPaint {
         if let Some(rivers) = ctx.rivers
             && let Some((_, blend)) = rivers.carve(wx, wz)
         {
-            let base = Self::rgb_color(ctx.registry.get(sample.primary).ground.base);
+            let damp = blend.powf(Self::RIVERBANK_DAMP_POWER);
             let wet_bank = Color::new(
-                base.r * Self::RIVERBANK_DARKEN,
-                base.g * Self::RIVERBANK_DARKEN,
-                base.b * Self::RIVERBANK_DARKEN,
+                color.r * Self::RIVERBANK_DARKEN,
+                color.g * Self::RIVERBANK_DARKEN,
+                color.b * Self::RIVERBANK_DARKEN,
                 1.0,
             );
-            color = color.lerp(wet_bank, blend * Self::RIVERBANK_BLEND);
+            color = color.lerp(wet_bank, damp * Self::RIVERBANK_BLEND);
         }
 
         let in_water = ctx.rivers.is_some_and(|r| r.water_at(wx, wz).is_some());
@@ -230,18 +259,35 @@ impl TerrainPaint {
         tri_y: f32,
         normal: Vec3,
         hue_n: f32,
+        patch_n: f32,
         registry: &BiomeRegistry,
     ) -> Color {
-        let c_primary = self.single_biome_colour(sample.primary, sample.outer, tri_y, normal, hue_n, registry);
+        let c_primary = self.single_biome_colour(
+            sample.primary,
+            sample.outer,
+            tri_y,
+            normal,
+            hue_n,
+            patch_n,
+            registry,
+        );
         if sample.blend > 0.0 && sample.secondary != sample.primary {
-            let c_secondary =
-                self.single_biome_colour(sample.secondary, sample.outer, tri_y, normal, hue_n, registry);
+            let c_secondary = self.single_biome_colour(
+                sample.secondary,
+                sample.outer,
+                tri_y,
+                normal,
+                hue_n,
+                patch_n,
+                registry,
+            );
             c_primary.lerp(c_secondary, sample.blend)
         } else {
             c_primary
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn single_biome_colour(
         &self,
         id: BiomeId,
@@ -249,11 +295,18 @@ impl TerrainPaint {
         tri_y: f32,
         normal: Vec3,
         hue_n: f32,
+        patch_n: f32,
         registry: &BiomeRegistry,
     ) -> Color {
         let def = registry.get(id);
-        let alt_mix = (hue_n * 0.5 + 0.5).clamp(0.0, 1.0);
+        let alt_mix = ((hue_n * 0.6 + patch_n * 0.4) * 0.5 + 0.5).clamp(0.0, 1.0); // new: DECISIONS 2026-11-25
         let mut c = Self::rgb_color(def.ground.base).lerp(Self::rgb_color(def.ground.alt), alt_mix);
+        c *= 1.0 + Self::PATCH_BRIGHTNESS * patch_n;
+
+        if id == BiomeId::Desert && patch_n > Self::DESERT_DRY_START {
+            let dry = smooth_step(Self::DESERT_DRY_START, Self::DESERT_DRY_FULL, patch_n);
+            c = c.lerp(Self::DESERT_DRY_COLOR, dry * Self::DESERT_DRY_STRENGTH);
+        }
 
         if id == BiomeId::Swamp {
             let local_avg = lerp(Self::CORE_AVG_HEIGHT_M, def.height.base, outer);
@@ -263,9 +316,16 @@ impl TerrainPaint {
             }
         }
 
-        if id == BiomeId::Snow && normal.z > Self::SNOW_NORTH_START {
-            let shadow = smooth_step(Self::SNOW_NORTH_START, Self::SNOW_NORTH_FULL, normal.z);
-            c = c.lerp(Self::SNOW_SHADOW, shadow * Self::SNOW_SHADOW_STRENGTH);
+        if id == BiomeId::Snow {
+            let local_avg = lerp(Self::CORE_AVG_HEIGHT_M, def.height.base, outer);
+            if tri_y < local_avg {
+                let hollow = smooth_step(0.0, Self::SNOW_HOLLOW_DEPTH_M, local_avg - tri_y);
+                c = c.lerp(Self::SNOW_SHADOW, hollow * Self::SNOW_HOLLOW_STRENGTH);
+            }
+            if normal.z > Self::SNOW_NORTH_START {
+                let shadow = smooth_step(Self::SNOW_NORTH_START, Self::SNOW_NORTH_FULL, normal.z);
+                c = c.lerp(Self::SNOW_SHADOW, shadow * Self::SNOW_SHADOW_STRENGTH);
+            }
         }
 
         let steep = GroundPaint::steepness(normal.y);
@@ -309,5 +369,35 @@ impl TerrainPaint {
         h = h.wrapping_mul(0x5bd1e995); // new: DECISIONS 2026-11-25
         h ^= h >> 15; // new: DECISIONS 2026-11-25
         ((h & 0xFFFF) as f32) / 32767.5 - 1.0 // new: DECISIONS 2026-11-25
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn desert_dry_patches_brighten_and_snow_hollows_tint_blue() {
+        let registry = BiomeRegistry::load().expect("load data/biomes.json");
+        let paint = TerrainPaint::new(42);
+
+        let desert_base = paint.single_biome_colour(BiomeId::Desert, 1.0, 4.0, Vec3::Y, 0.0, 0.0, &registry);
+        let desert_dry = paint.single_biome_colour(BiomeId::Desert, 1.0, 4.0, Vec3::Y, 0.0, 0.8, &registry);
+        assert!(desert_dry.r > desert_base.r && desert_dry.g > desert_base.g);
+
+        let snow_flat = paint.single_biome_colour(BiomeId::Snow, 1.0, 10.0, Vec3::Y, 0.0, 0.0, &registry);
+        let snow_hollow = paint.single_biome_colour(BiomeId::Snow, 1.0, 0.0, Vec3::Y, 0.0, 0.0, &registry);
+        assert!(snow_hollow.b > snow_hollow.r);
+        assert!(snow_hollow.r < snow_flat.r);
+    }
+
+    #[test]
+    fn outer_plains_grass_stays_green_with_patch_variation() {
+        let registry = BiomeRegistry::load().expect("load data/biomes.json");
+        let paint = TerrainPaint::new(42);
+        for p in [-0.9, -0.3, 0.0, 0.4, 0.9] {
+            let c = paint.single_biome_colour(BiomeId::Plains, 1.0, 2.0, Vec3::Y, 0.0, p, &registry);
+            assert!(c.g > c.r && c.g > c.b, "plains grass must stay green: {c:?}");
+        }
     }
 }

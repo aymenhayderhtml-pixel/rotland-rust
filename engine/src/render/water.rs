@@ -65,6 +65,30 @@ impl Default for WaterStyle {
     }
 }
 
+/// Per-vertex data for water surfaces (`position` + horizontal `flow` direction).
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
+pub struct WaterVertex {
+    pub position: [f32; 3],
+    pub flow: [f32; 2],
+}
+
+impl WaterVertex {
+    pub fn still(pos: Vec3) -> Self {
+        Self {
+            position: pos.to_array(),
+            flow: [0.0, 0.0],
+        }
+    }
+
+    pub fn with_flow(pos: Vec3, flow: Vec2) -> Self {
+        Self {
+            position: pos.to_array(),
+            flow: flow.to_array(),
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 struct WaterUniforms {
@@ -77,17 +101,24 @@ struct WaterUniforms {
     shallow_color: [f32; 4],
     deep_color: [f32; 4],
     params: [f32; 4],          // x: time, y: wave_amplitude, z: wave_frequency, w: wave_speed
-    lighting_params: [f32; 4], // x: specular_strength, y: specular_power, z: fresnel_power, w: unused
+    lighting_params: [f32; 4], // x: specular_strength, y: specular_power, z: fresnel_power, w: camera_near
 }
 
 const VERTEX_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {
-    array_stride: std::mem::size_of::<[f32; 3]>() as u64,
+    array_stride: std::mem::size_of::<WaterVertex>() as u64,
     step_mode: wgpu::VertexStepMode::Vertex,
-    attributes: &[wgpu::VertexAttribute {
-        format: wgpu::VertexFormat::Float32x3,
-        offset: 0,
-        shader_location: 0,
-    }],
+    attributes: &[
+        wgpu::VertexAttribute {
+            format: wgpu::VertexFormat::Float32x3,
+            offset: 0,
+            shader_location: 0,
+        },
+        wgpu::VertexAttribute {
+            format: wgpu::VertexFormat::Float32x2,
+            offset: std::mem::size_of::<[f32; 3]>() as u64,
+            shader_location: 1,
+        },
+    ],
 };
 
 /// Builds a non-indexed triangle list for a 4 m cell grid over the patch.
@@ -170,11 +201,19 @@ struct CachedMesh {
     vertex_count: u32,
 }
 
+struct DepthCopy {
+    width: u32,
+    height: u32,
+    texture: wgpu::Texture,
+    bind_group: wgpu::BindGroup,
+}
+
 /// Renders water surfaces with alpha blending and depth testing (depth write disabled).
 pub struct WaterRenderer {
     pipeline: wgpu::RenderPipeline,
-    bind_group: wgpu::BindGroup,
+    bind_group_layout: wgpu::BindGroupLayout,
     uniform_buf: wgpu::Buffer,
+    depth_copy: Option<DepthCopy>,
     cache: HashMap<PatchKey, CachedMesh>,
     custom_cache: HashMap<u64, CachedMesh>,
     pub style: WaterStyle,
@@ -202,25 +241,28 @@ impl WaterRenderer {
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("water layout"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
-        });
-
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("water bind group"),
-            layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform_buf.as_entire_binding(),
-            }],
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Depth,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+            ],
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -271,8 +313,9 @@ impl WaterRenderer {
 
         Self {
             pipeline,
-            bind_group,
+            bind_group_layout,
             uniform_buf,
+            depth_copy: None,
             cache: HashMap::new(),
             custom_cache: HashMap::new(),
             style,
@@ -294,7 +337,7 @@ impl WaterRenderer {
         self.draw_all(gpu, target, encoder, camera, light, time, patches, None);
     }
 
-    /// Draws all visible water patches and an optional custom water mesh in a single pass.
+    /// Draws all visible water patches and an optional custom water mesh (still water) in a single pass.
     #[allow(clippy::too_many_arguments)]
     pub fn draw_all(
         &mut self,
@@ -306,6 +349,27 @@ impl WaterRenderer {
         time: f32,
         patches: &[WaterPatch],
         custom_mesh: Option<(u64, (Vec3, Vec3), &[Vec3])>,
+    ) {
+        let converted: Option<(u64, (Vec3, Vec3), Vec<WaterVertex>)> = custom_mesh.map(|(k, aabb, verts)| {
+            let v = verts.iter().map(|&p| WaterVertex::still(p)).collect();
+            (k, aabb, v)
+        });
+        let custom_ref = converted.as_ref().map(|(k, aabb, v)| (*k, *aabb, v.as_slice()));
+        self.draw_all_with_flow(gpu, target, encoder, camera, light, time, patches, custom_ref);
+    }
+
+    /// Draws all visible water patches and an optional custom water mesh with per-vertex flow vectors.
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_all_with_flow(
+        &mut self,
+        gpu: &Gpu,
+        target: &FrameTarget,
+        encoder: &mut wgpu::CommandEncoder,
+        camera: &Camera,
+        light: &Lighting,
+        time: f32,
+        patches: &[WaterPatch],
+        custom_mesh: Option<(u64, (Vec3, Vec3), &[WaterVertex])>,
     ) {
         let view_proj = camera.view_proj(target.aspect());
         let frustum = Frustum::from_view_proj(&view_proj);
@@ -327,6 +391,18 @@ impl WaterRenderer {
         }
 
         self.write_uniforms(gpu, camera, light, view_proj, time);
+        self.ensure_depth_copy(gpu, target);
+        if let Some(dc) = &self.depth_copy {
+            encoder.copy_texture_to_texture(
+                target.depth_texture.as_image_copy(),
+                dc.texture.as_image_copy(),
+                wgpu::Extent3d {
+                    width: target.width,
+                    height: target.height,
+                    depth_or_array_layers: 1,
+                },
+            );
+        }
 
         // Ensure meshes for all visible patches are cached on GPU
         for &i in &visible_indices {
@@ -334,7 +410,7 @@ impl WaterRenderer {
             let key = PatchKey::from_patch(p);
             if let std::collections::hash_map::Entry::Vacant(slot) = self.cache.entry(key) {
                 let verts = build_water_grid(p);
-                let raw: Vec<[f32; 3]> = verts.iter().map(|v| v.to_array()).collect();
+                let raw: Vec<WaterVertex> = verts.iter().map(|&v| WaterVertex::still(v)).collect();
                 let buf = gpu.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("water patch"),
                     contents: bytemuck::cast_slice(&raw),
@@ -352,10 +428,9 @@ impl WaterRenderer {
             && let Some((mesh_key, _, verts)) = custom_mesh
             && let std::collections::hash_map::Entry::Vacant(slot) = self.custom_cache.entry(mesh_key)
         {
-            let raw: Vec<[f32; 3]> = verts.iter().map(|v| v.to_array()).collect();
             let buf = gpu.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("lake water mesh"),
-                contents: bytemuck::cast_slice(&raw),
+                label: Some("custom water mesh"),
+                contents: bytemuck::cast_slice(verts),
                 usage: wgpu::BufferUsages::VERTEX,
             });
             slot.insert(CachedMesh {
@@ -363,6 +438,10 @@ impl WaterRenderer {
                 vertex_count: verts.len() as u32,
             });
         }
+
+        let Some(dc) = &self.depth_copy else {
+            return;
+        };
 
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("water"),
@@ -389,7 +468,7 @@ impl WaterRenderer {
         });
 
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, &self.bind_group, &[]);
+        pass.set_bind_group(0, &dc.bind_group, &[]);
         for &i in &visible_indices {
             let key = PatchKey::from_patch(&patches[i]);
             if let Some(mesh) = self.cache.get(&key) {
@@ -404,6 +483,51 @@ impl WaterRenderer {
             pass.set_vertex_buffer(0, mesh.buffer.slice(..));
             pass.draw(0..mesh.vertex_count, 0..1);
         }
+    }
+
+    fn ensure_depth_copy(&mut self, gpu: &Gpu, target: &FrameTarget) {
+        let needs_new = self
+            .depth_copy
+            .as_ref()
+            .is_none_or(|dc| dc.width != target.width || dc.height != target.height);
+        if !needs_new {
+            return;
+        }
+        let texture = gpu.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("water depth copy"),
+            size: wgpu::Extent3d {
+                width: target.width,
+                height: target.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: DEPTH_FORMAT,
+            usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&Default::default());
+        let bind_group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("water bind group"),
+            layout: &self.bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: self.uniform_buf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(&view),
+                },
+            ],
+        });
+        self.depth_copy = Some(DepthCopy {
+            width: target.width,
+            height: target.height,
+            texture,
+            bind_group,
+        });
     }
 
     fn write_uniforms(&self, gpu: &Gpu, camera: &Camera, light: &Lighting, view_proj: Mat4, time: f32) {
@@ -427,7 +551,7 @@ impl WaterRenderer {
                 self.style.specular_strength,
                 self.style.specular_power,
                 self.style.fresnel_power,
-                0.0,
+                camera.near,
             ],
         };
         gpu.queue.write_buffer(&self.uniform_buf, 0, bytemuck::bytes_of(&uniforms));
@@ -490,5 +614,16 @@ mod tests {
         for c in s.deep_color {
             assert!((0.0..=1.0).contains(&c));
         }
+    }
+
+    #[test]
+    fn water_vertex_stores_position_and_flow() {
+        let still = WaterVertex::still(Vec3::new(1.0, 2.0, 3.0));
+        assert_eq!(still.position, [1.0, 2.0, 3.0]);
+        assert_eq!(still.flow, [0.0, 0.0]);
+
+        let river = WaterVertex::with_flow(Vec3::new(4.0, 5.0, 6.0), Vec2::new(0.6, -0.8));
+        assert_eq!(river.position, [4.0, 5.0, 6.0]);
+        assert_eq!(river.flow, [0.6, -0.8]);
     }
 }

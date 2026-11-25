@@ -143,6 +143,14 @@ fn is_ground(id: &str) -> bool {
         "lily_mud_patch",
         "desert_shrub",
         "snow_shrub",
+        "tumbleweed",
+        "bleached_bones",
+        "snow_bush_small",
+        "ice_shards",
+        "cattails",
+        "swamp_moss_clump",
+        "scree_patch",
+        "alpine_flowers",
     ]
     .iter()
     .any(|p| id.starts_with(p))

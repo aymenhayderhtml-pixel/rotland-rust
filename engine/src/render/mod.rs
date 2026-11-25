@@ -6,6 +6,7 @@ pub mod mesh;
 pub mod pipelines;
 pub mod shadow;
 pub mod skinned;
+pub mod sky;
 pub mod water;
 pub mod weather;
 
@@ -14,4 +15,4 @@ pub use lit::{DrawItem, FrameCounts, Lighting, LitRenderer, SpotLight};
 pub use mesh::{ColorVertex, GpuMesh};
 pub use shadow::ShadowSettings;
 pub use skinned::{split_batches, split_instances, SkinInstance, SkinnedBatch};
-pub use water::{WaterPatch, WaterRenderer, WaterStyle};
+pub use water::{WaterPatch, WaterRenderer, WaterStyle, WaterVertex};

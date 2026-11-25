@@ -116,7 +116,7 @@ pub fn draw(
         renderer.draw_all(gpu, target, encoder, camera, light, time, &patches, custom_mesh_ref);
     }
     if let Some((key, aabb, verts)) = river_mesh.as_ref() {
-        renderer.draw_all(
+        renderer.draw_all_with_flow(
             gpu,
             target,
             encoder,

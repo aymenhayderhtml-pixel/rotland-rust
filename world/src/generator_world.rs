@@ -283,6 +283,7 @@ impl WorldGenerator {
         self.roads = roads;
         self.crossings = crossings;
         self.road_heights = road_heights;
+        self.towns_data = towns_data.clone();
         self.has_outer = true;
     }
 
@@ -375,6 +376,7 @@ impl WorldGenerator {
             road_heights: RoadHeightField::empty(),
             rivers: RiverNetwork::from_rivers(&default_rivers_data(), Vec::new()),
             crossings: Vec::new(),
+            towns_data: TownsData::load_embedded(),
             has_outer: false,
         };
         let site = SettlementPlacer::find(&world_gen, &config);
