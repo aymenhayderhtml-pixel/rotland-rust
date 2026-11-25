@@ -16,7 +16,7 @@ const HIGHWAY_HALF_WIDTH_M: f32 = 4.0;
 // data: roads.json trail_width
 const TRAIL_HALF_WIDTH_M: f32 = 2.0;
 // new: DECISIONS 2026-11-25
-const ROAD_PROP_CLEAR_M: f32 = 2.0;
+const ROAD_PROP_CLEAR_M: f32 = 4.0;
 
 #[inline]
 fn in_chunk(p: Vec2, coord: IVec2) -> bool {
@@ -154,10 +154,15 @@ impl WorldGenerator {
         if self.rivers.water_at(p.x, p.y).is_some() {
             return false;
         }
-        if let Some(town) = self.town_at(p.x, p.y)
-            && town.lots.iter().any(|lot| lot.contains_point(p))
-        {
-            return false;
+        if let Some(town) = self.town_at(p.x, p.y) {
+            if town.lots.iter().any(|lot| lot.contains_point(p)) {
+                return false;
+            }
+            // Keep the town's main street (painted through the centre) clear too.
+            let right = Vec2::new(-town.street_dir.y, town.street_dir.x);
+            if (p - town.center).dot(right).abs() < HIGHWAY_HALF_WIDTH_M + ROAD_PROP_CLEAR_M {
+                return false;
+            }
         }
         true
     }
