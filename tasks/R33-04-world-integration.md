@@ -39,3 +39,10 @@ Rules: `tasks/LEAD.md` subagent rules. Use the "R33 shared names" in `tasks/R33-
    - `indoors` is true at a lot centre and false in the street.
 
 ## Worker notes
+- Split `world/src/generator.rs` into `world/src/generator.rs`, `world/src/generator_world.rs`, and `world/src/generator_contents.rs` (each under ~300 lines), keeping all existing public method signatures intact and registering the two private submodules in `world/src/lib.rs`.
+- Added `WorldGenerator::attach_outer_world(&TownsData, &RiversData, &RoadsData)` (called in `from_data_dir` after `attach_city_with_ground` and `attach_lake`), building `place_towns`, `RiverNetwork::build`, `RoadNetwork::build`, precomputed smoothed road heights (±40 m), town average heights, and bridge crossings.
+- Added `towns()`, `roads()`, `rivers()`, `town_at(x, z)`, and `indoors(x, z)` on `WorldGenerator`.
+- Applied outer-only terrain flattening/carving (towns -> roads -> rivers, with road height preserved on bridge approaches and river bed carved under bridges) and outer-only terrain painting (highways/town streets = asphalt, trails/town lots = packed dirt, riverbanks = darkened biome base). Core (`in_core_radius` / `sample.outer <= 0.0`) is skipped completely.
+- Updated `world/src/poi.rs` (`PoiInstance.loot_table: Option<String>` + `with_loot_table`) and `chunk_contents` to emit town building POIs, boardwalk props, bridge props (`bridge_wood` / `bridge_concrete` scaled by `span / 12.0` or `span / 16.0`), trailhead `signpost` props facing outward, and filter out scattered props on roads, in rivers, and on town lots.
+- Added `world/tests/integration_r33_tests.rs` covering core height parity, town flatness, river vs bank height, bridge props at crossings, 3 m road tree clearance, and `indoors` lot vs street checks.
+- Note: did not run `cargo` or `tools/gate.sh` per subagent rules.

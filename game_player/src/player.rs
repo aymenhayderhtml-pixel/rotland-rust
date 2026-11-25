@@ -32,6 +32,7 @@ pub struct Stamina {
     pub regen_per_second: f32,
     pub regen_delay: f32,
     pub regen_multiplier: f32,
+    pub warmth_regen_multiplier: f32,
     pub time_since_use: f32,
     pub sprint_cost_per_sec: f32,
     pub min_to_start_sprint: f32,
@@ -46,6 +47,8 @@ impl Default for Stamina {
             regen_per_second: 18.0,
             regen_delay: 0.8,
             regen_multiplier: 1.0,
+            // new: DECISIONS 2026-11-25
+            warmth_regen_multiplier: 1.0,
             time_since_use: 0.8,
             sprint_cost_per_sec: 15.0,
             min_to_start_sprint: 10.0,
@@ -59,8 +62,12 @@ impl Stamina {
     pub fn update(&mut self, dt: f32) {
         self.time_since_use += dt;
         if self.time_since_use >= self.regen_delay && self.current < self.max {
-            self.current =
-                (self.current + self.regen_per_second * self.regen_multiplier * dt).min(self.max);
+            self.current = (self.current
+                + self.regen_per_second
+                    * self.regen_multiplier
+                    * self.warmth_regen_multiplier
+                    * dt)
+                .min(self.max);
         }
     }
 

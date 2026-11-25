@@ -109,7 +109,7 @@ fn parse_color(v: &serde_json::Value) -> Option<Color32> {
     }
 }
 
-/// Draws city streets, camp road, blocked street crosses, and city/district labels.
+/// Draws city streets, camp road, blocked street crosses, city/district labels, outer towns, and trailheads.
 pub fn draw_city_and_road(
     painter: &egui::Painter,
     state: &MapUiState,
@@ -120,9 +120,6 @@ pub fn draw_city_and_road(
     let Some(world_gen) = view.generator else {
         return;
     };
-    let Some(city) = world_gen.city() else {
-        return;
-    };
 
     let scale = state.scale();
     let cfg = &state.streets_cfg;
@@ -131,6 +128,24 @@ pub fn draw_city_and_road(
     let to_screen_pos = |world: Vec2| -> Pos2 {
         let s = game::world_to_screen(world, state.centre, scale, view_size);
         pos2(rect.min.x + s.x, rect.min.y + s.y)
+    };
+
+    // Outer towns and trailheads (outside core)
+    for town in world_gen.towns() {
+        let p = to_screen_pos(town.center);
+        if rect.expand(48.0).contains(p) {
+            super::draw_icons::draw_town_icon(painter, p, &town.name);
+        }
+    }
+    for &trailhead in world_gen.roads().trailheads() {
+        let p = to_screen_pos(trailhead);
+        if rect.expand(16.0).contains(p) {
+            super::draw_icons::draw_signpost_icon(painter, p);
+        }
+    }
+
+    let Some(city) = world_gen.city() else {
+        return;
     };
 
     let (vis_min, vis_max) =

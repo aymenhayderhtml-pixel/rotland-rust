@@ -15,6 +15,8 @@
     { "id": "dog_breeder", "text": "A dog breeder sells puppies [{interact}]. The dog follows you and fights. {dog_stay}: stay. If it dies, it is gone for good.", "trigger": "near_npc:breeder:6" },
     { "id": "bounty","text": "Bounties pay dollars and XP. Take up to 2 at a time from the board [{interact}].", "trigger": "board_near:8", "doneWhen": "board_used" },
     { "id": "cold", "text": "You're getting cold. A campfire, warm clothes or shelter will help.", "trigger": "temp_cold" },
-    { "id": "hot", "text": "The heat makes you thirsty. Drink water and cover your head.", "trigger": "temp_hot" }
+    { "id": "hot", "text": "The heat makes you thirsty. Drink water and cover your head.", "trigger": "temp_hot" },
+    { "id": "trailhead", "text": "Roads lead out to the far lands. The farther you go, the more dangerous it gets.", "trigger": "after:999999" },
+    { "id": "town", "text": "Towns have good loot but many zombies. Watch your back.", "trigger": "after:999999" }
   ]
 }

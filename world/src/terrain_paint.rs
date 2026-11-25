@@ -1,4 +1,4 @@
-use glam::{IVec2, Vec3};
+use glam::{IVec2, Vec2, Vec3};
 
 use crate::biome::BiomeId;
 use crate::biome::layout::BiomeSample;
@@ -10,7 +10,10 @@ use crate::ground_paint::GroundPaint;
 use crate::lake::LakeLayout;
 use crate::math::{lerp, smooth_step};
 use crate::noise::GodotNoise;
+use crate::rivers::RiverNetwork;
+use crate::roads::{RoadKind, RoadNetwork};
 use crate::settlement::{SettlementConfigData, SettlementGround, SettlementSite};
+use crate::towns::{BOARDWALK_MODEL, TownSite};
 
 /// Paints chunk triangles for both the exact core world and outer biomes.
 pub struct TerrainPaint {
@@ -29,6 +32,9 @@ pub struct ChunkPaintContext<'a> {
     pub city_ground: Option<&'a CityGround>,
     pub lake: Option<&'a LakeLayout>,
     pub registry: &'a BiomeRegistry,
+    pub roads: Option<&'a RoadNetwork>,
+    pub rivers: Option<&'a RiverNetwork>,
+    pub towns: &'a [TownSite],
 }
 
 impl TerrainPaint {
@@ -52,6 +58,20 @@ impl TerrainPaint {
     const SWAMP_LOW_DARKEN: f32 = 0.42;
     // new: DECISIONS 2026-11-25
     const CORE_AVG_HEIGHT_M: f32 = 3.5;
+    // data: city_ground.json asphalt
+    const ASPHALT: Color = Color::new(50.0 / 255.0, 50.0 / 255.0, 52.0 / 255.0, 1.0);
+    // data: city_ground.json dirt
+    const PACKED_DIRT: Color = Color::new(110.0 / 255.0, 86.0 / 255.0, 56.0 / 255.0, 1.0);
+    // data: roads.json highway_width
+    const HIGHWAY_HALF_WIDTH_M: f32 = 4.0;
+    // data: roads.json trail_width
+    const TRAIL_HALF_WIDTH_M: f32 = 2.0;
+    // new: DECISIONS 2026-11-25
+    const ROAD_PAINT_EDGE_M: f32 = 2.0;
+    // new: DECISIONS 2026-11-25
+    const RIVERBANK_DARKEN: f32 = 0.62;
+    // new: DECISIONS 2026-11-25
+    const RIVERBANK_BLEND: f32 = 0.85;
 
     pub fn new(seed: i32) -> Self {
         Self {
@@ -124,13 +144,84 @@ impl TerrainPaint {
         let mut color = if sample.outer <= 0.0 {
             core_color
         } else {
-            let biome_color = self.biome_colour(&sample, tri_y, normal, hue_n, ctx.registry);
+            let mut biome_color = self.biome_colour(&sample, tri_y, normal, hue_n, ctx.registry);
+            biome_color = Self::paint_outer_features(ctx, &sample, wx, wz, biome_color);
             core_color.lerp(biome_color, sample.outer)
         };
 
         color *= 1.0 + Self::BRIGHTNESS_JITTER * Self::jitter(ctx.coord, cell_x, cell_z, half);
         color = Self::apply_hue(color, hue_n);
         GroundTriangle { positions: p, normal, color }
+    }
+
+    fn paint_outer_features(
+        ctx: &ChunkPaintContext<'_>,
+        sample: &BiomeSample,
+        wx: f32,
+        wz: f32,
+        mut color: Color,
+    ) -> Color {
+        let p = Vec2::new(wx, wz);
+        if let Some(town) = ctx.towns.iter().find(|t| t.contains_point(p)) {
+            if town
+                .lots
+                .iter()
+                .any(|lot| lot.building != BOARDWALK_MODEL && lot.contains_point(p))
+            {
+                color = Self::PACKED_DIRT;
+            }
+            let right = Vec2::new(-town.street_dir.y, town.street_dir.x);
+            let street_dist = (p - town.center).dot(right).abs();
+            if street_dist < Self::HIGHWAY_HALF_WIDTH_M + Self::ROAD_PAINT_EDGE_M {
+                let t = if street_dist <= Self::HIGHWAY_HALF_WIDTH_M {
+                    0.0
+                } else {
+                    smooth_step(
+                        Self::HIGHWAY_HALF_WIDTH_M,
+                        Self::HIGHWAY_HALF_WIDTH_M + Self::ROAD_PAINT_EDGE_M,
+                        street_dist,
+                    )
+                };
+                color = Self::ASPHALT.lerp(color, t);
+            }
+        }
+
+        if let Some(rivers) = ctx.rivers
+            && let Some((_, blend)) = rivers.carve(wx, wz)
+        {
+            let base = Self::rgb_color(ctx.registry.get(sample.primary).ground.base);
+            let wet_bank = Color::new(
+                base.r * Self::RIVERBANK_DARKEN,
+                base.g * Self::RIVERBANK_DARKEN,
+                base.b * Self::RIVERBANK_DARKEN,
+                1.0,
+            );
+            color = color.lerp(wet_bank, blend * Self::RIVERBANK_BLEND);
+        }
+
+        let in_water = ctx.rivers.is_some_and(|r| r.water_at(wx, wz).is_some());
+        if !in_water
+            && let Some(roads) = ctx.roads
+            && let Some((dist, kind)) = roads.distance_to_road(p)
+        {
+            let half_w = match kind {
+                RoadKind::Highway => Self::HIGHWAY_HALF_WIDTH_M,
+                RoadKind::Trail => Self::TRAIL_HALF_WIDTH_M,
+            };
+            if dist < half_w + Self::ROAD_PAINT_EDGE_M {
+                let road_col = match kind {
+                    RoadKind::Highway => Self::ASPHALT,
+                    RoadKind::Trail => Self::PACKED_DIRT,
+                };
+                let t = if dist <= half_w {
+                    0.0
+                } else {
+                    smooth_step(half_w, half_w + Self::ROAD_PAINT_EDGE_M, dist)
+                };
+                color = road_col.lerp(color, t);
+            }
+        }
+        color
     }
 
     fn biome_colour(

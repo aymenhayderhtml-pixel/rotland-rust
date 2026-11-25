@@ -16,3 +16,53 @@ Rules: `tasks/LEAD.md` subagent rules. Use the "R33 shared names" in `tasks/R33-
 6. **Tests:** the loot tables use only existing items; town density > 1; 1-2 rescue spots per town; an explore task can target a town.
 
 ## Worker notes
+
+### Files changed
+- `data/loot_tables.json`: added `town_home`, `town_store`, and `town_station` loot tables using only item ids from `data/items.json`.
+- `data/spawning.json`: added `"townDensity": 1.8`.
+- `data/rescue.json`: added `"perTown": [1, 2]`.
+- `data/guild.json`: added 4 town explore task templates (`explore_dusthollow`, `explore_frostmere`, `explore_blackwater`, `explore_ridgeback`).
+- `data/hints.json`: added `trailhead` and `town` hints (with `"trigger": "after:999999"` so `HintConfig::check` validates them without modifying `game_core/src/hints/triggers.rs`; triggered via `hints.request(...)`).
+- `game_zombie/src/spawner_config.rs`: added `town_density: f32` (default `1.8`) to `SpawnConfig`.
+- `game_zombie/src/spawner.rs`: added `pub in_town: bool` and `with_in_town` to `SpawnContext`, and applied `self.config.town_density` in `Spawner::calculate_cap` when `ctx.in_town` is true.
+- `game_camp/src/rescue.rs`: added `pub per_town: [usize; 2]` (default `[1, 2]`) to `RescueConfig`.
+- `game_camp/src/rescue_place.rs`: added `TOWN_RESCUE_BUILDINGS`, `is_town_rescue_building`, `place_town_survivors`, and wired `place_survivors_in_world` to also place `perTown` (1–2) survivors per town from `world_gen.towns()`.
+- `game_camp/src/guild/task_hooks.rs`: added `GuildTaskHooks::tick_with_towns` (called by `tick` with `&[]`) so explore tasks match `TownSite::name` when the player is inside `town.contains_point(player_xz)`.
+- `game/tests/all/towns_gameplay_tests.rs`: new integration test file covering town loot tables, `townDensity` cap scaling, 1–2 rescue spots per town, guild explore tasks targeting towns, and town/trailhead hints.
+
+### Shared-file lines for the lead
+1. `game/tests/all/main.rs` — add:
+   ```rust
+   mod towns_gameplay_tests;
+   mod warmth_save_tests;
+   ```
+2. `game/tests/all/hints_tests.rs:14` — update `assert_eq!(config.hints.len(), 14);` to `16`.
+3. `rotland/src/play.rs` (around lines 427-466, `SpawnContext` struct literal) — add `in_town`:
+   ```rust
+   let in_town = world_gen.town_at(player.x, player.z).is_some();
+   // ... inside SpawnContext { ... }:
+   in_town,
+   ```
+4. `rotland/src/app/frame_guild.rs:125-128` — pass towns to `tick_with_towns`:
+   ```rust
+   let towns = world.world_gen.as_deref().map_or(&[][..], |g| g.towns());
+   let events = match guild_hooks.as_mut() {
+       Some(hooks) => hooks.tick_with_towns(pl.camp.guild.manager_mut(), &guild_panel.places, towns, player, dt),
+       None => Vec::new(),
+   };
+   ```
+5. `rotland/src/app/frame_camp.rs` (inside `if let Some(hints) = play_state.hints.as_mut()`, where `at = actors.player`) — request trailhead & town hints:
+   ```rust
+   if let Some(g) = world.world_gen.as_ref() {
+       let p2 = glam::Vec2::new(at.x, at.z);
+       if g.roads().trailheads().iter().any(|&th| th.distance_squared(p2) <= 144.0) {
+           hints.request("trailhead");
+       }
+       if g.town_at(at.x, at.z).is_some() {
+           hints.request("town");
+       }
+   }
+   ```
+
+### Known issues / notes
+- Did not run `cargo` or `tools/gate.sh` per subagent rules; `rotland/src/play.rs` will fail to compile until `in_town` is added to its `SpawnContext { ... }` literal, and `game/tests/all/hints_tests.rs:14` expects 14 hints until updated to 16.

@@ -29,7 +29,7 @@ pub use player::*;
 pub use survival::*;
 pub use swim_hands::{SwimHands, SwimHandsChange};
 pub use swimming::{
-    evaluate_water, is_on_dock, speed_multiplier_for_zone, try_gather_dirty_water,
+    evaluate_water, is_on_dock, river_zone_at, speed_multiplier_for_zone, try_gather_dirty_water,
     SwimmingConfig, WaterMovementResult,
 };
 pub use trees::*;

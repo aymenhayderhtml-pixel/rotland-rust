@@ -94,6 +94,14 @@ pub fn update_camp_and_stats(
             play.hint_ctx.is_menu_open = menu_open;
             play.hint_ctx.is_dead = !alive;
             if let Some(g) = world.world_gen.as_ref() {
+                let p2 = glam::Vec2::new(at.x, at.z);
+                // new: DECISIONS 2026-11-25 (12 m trailhead hint radius -> 144 m^2)
+                if g.roads().trailheads().iter().any(|&th| th.distance_squared(p2) <= 144.0) {
+                    hints.request("trailhead");
+                }
+                if g.town_at(at.x, at.z).is_some() {
+                    hints.request("town");
+                }
                 let safe_bonus = play_state.camp.effects().safe_zone_half_bonus;
                 hints.on_safe_zone_changed(
                     g.settlements()

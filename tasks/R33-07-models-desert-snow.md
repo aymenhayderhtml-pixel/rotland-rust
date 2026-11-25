@@ -19,3 +19,13 @@ Models (low-poly, flat palette colours, the same scale as `house_small`; tri bud
 Each script has `main()` returning 0/1 via the same runner the other buildings use. Add an `_lod1` only if the similar existing building has one (e.g. if `house_small` has none, don't make one).
 
 ## Worker notes
+- Created `tools/blender/buildings/build_town_buildings.py` with `BUILDINGS` containing only the 10 new R33 town buildings (`adobe_house`, `motel`, `water_tower`, `desert_store`, `log_cabin_snow`, `research_station`, `radio_tower`, `ranger_station`, `stilt_shack`, `bait_shop`), never rebuilding old core buildings.
+- Created the 6 desert/snow building scripts following `house_small.py`, `cabin.py`, `gas_station.py`, `watchtower.py`, `kit.py`, and `common.py` conventions (same `FLOOR_TOP`, `DOOR_H`, wall thickness, `lot_size`/`door_1`/`loot_*`/`spawn_*` empties, palette sheet A/C colors, and `main()` returning 0/1):
+  - `tools/blender/buildings/adobe_house.py` (7 x 5 m walk-in, rounded 8-sided corner pillars, vigas, parapet, budget 4000)
+  - `tools/blender/buildings/motel.py` (15 x 7.2 m, 5 walk-in rooms with `door_1`..`door_5`, covered walkway on posts, tall pole sign, budget 5500)
+  - `tools/blender/buildings/water_tower.py` (4 x 4 m base, 10.2 m tall wooden tank on 4 braced legs + visual ladder with `ladder_bottom`/`ladder_top`, budget 3500)
+  - `tools/blender/buildings/desert_store.py` (10 x 6.5 m walk-in, faded sandstone false front + porch with 4 posts, budget 4500)
+  - `tools/blender/buildings/log_cabin_snow.py` (7 x 5.5 m walk-in, alternating bark courses, steep roof with thick `snow_white` slabs and `snow_shadow` overhang, chimney, budget 4000)
+  - `tools/blender/buildings/research_station.py` (2 connected metal-panel modules on 0.5 m stilts, walkable front steps, roof antenna + dish, budget 5000)
+- Verified all 7 scripts pass `python3 -m py_compile`. Blender was not run (per subagent rules).
+- After R33-08 finishes its 4 scripts, run: `flock /tmp/rotland-blender.lock blender -b --python tools/blender/buildings/build_town_buildings.py > /tmp/r33-bld.log 2>&1` and bake.

@@ -446,6 +446,7 @@ impl PlayState {
 
         let tier = world_gen.tier(player.x, player.z);
         let tier_mult = self.tier_zombie_mult(tier);
+        let in_town = world_gen.town_at(player.x, player.z).is_some();
         let ctx = SpawnContext {
             player_position: player,
             player_forward: forward,
@@ -460,6 +461,7 @@ impl PlayState {
             tier_mult,
             in_city,
             in_city_core,
+            in_town,
             spawn_rate_multiplier: dir_out.spawn_rate_multiplier,
             max_active_multiplier: dir_out.max_active_multiplier,
             special_chance: dir_out.special_chance,

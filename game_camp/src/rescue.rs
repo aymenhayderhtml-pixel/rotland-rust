@@ -19,6 +19,7 @@ pub struct RescueConfig {
     pub clear_radius: f32,
     pub talk_range: f32,
     pub min_zombies_near: usize,
+    pub per_town: [usize; 2],
 }
 
 impl Default for RescueConfig {
@@ -30,6 +31,7 @@ impl Default for RescueConfig {
             clear_radius: 12.0,      // data: rescue.json clearRadius
             talk_range: 2.5,         // data: rescue.json talkRange
             min_zombies_near: 3,     // data: rescue.json minZombiesNear
+            per_town: [1, 2],        // data: rescue.json perTown
         }
     }
 }

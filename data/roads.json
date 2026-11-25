@@ -1,0 +1,9 @@
+{
+  "trailhead_margin": 60.0,
+  "trail_width": 4.0,
+  "highway_width": 8.0,
+  "point_spacing": 20.0,
+  "wiggle_m": 40.0,
+  "wiggle_frequency": 0.0012,
+  "ring_radius_from_towns": 1.0
+}

@@ -16,6 +16,8 @@ pub struct PoiInstance {
     pub building_id: String,
     pub position: Vec3,
     pub yaw: f32,
+    #[serde(default)]
+    pub loot_table: Option<String>,
 }
 
 impl PoiInstance {
@@ -25,7 +27,14 @@ impl PoiInstance {
             building_id: building_id.into(),
             position,
             yaw,
+            loot_table: None,
         }
+    }
+
+    pub fn with_loot_table(mut self, loot_table: impl Into<String>) -> Self {
+        let table = loot_table.into();
+        self.loot_table = if table.is_empty() { None } else { Some(table) };
+        self
     }
 }
 

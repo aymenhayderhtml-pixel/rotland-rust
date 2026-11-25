@@ -15,14 +15,22 @@ const FADE_OUT_S: f32 = 0.5; // new: DECISIONS 2026-11-25
 const DANGER_SUBTITLE_MIN_TIER: u8 = 2; // new: DECISIONS 2026-11-25
 
 /// Normalized region identity used for change detection.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum RegionState {
     Core,
     Outer { biome: BiomeId, tier: u8 },
+    Town { name: String, biome: BiomeId, tier: u8 },
 }
 
 impl RegionState {
-    fn from_sample(sample: BiomeSample) -> Self {
+    fn from_sample(sample: BiomeSample, town_name: Option<String>) -> Self {
+        if let Some(name) = town_name {
+            return Self::Town {
+                name,
+                biome: sample.primary,
+                tier: sample.tier,
+            };
+        }
         if sample.outer <= 0.0 || sample.tier == 0 {
             Self::Core
         } else {
@@ -61,6 +69,7 @@ impl RegionBannerTracker {
         dt: f32,
         mut sample_fn: impl FnMut() -> BiomeSample,
         mut biome_name: impl FnMut(BiomeId) -> String,
+        mut town_name: impl FnMut() -> Option<String>,
     ) {
         let dt = dt.max(0.0);
         self.hysteresis_remaining = (self.hysteresis_remaining - dt).max(0.0);
@@ -74,7 +83,7 @@ impl RegionBannerTracker {
 
         // Initialize immediately on the first tick without showing a banner.
         if self.current.is_none() {
-            self.current = Some(RegionState::from_sample(sample_fn()));
+            self.current = Some(RegionState::from_sample(sample_fn(), town_name()));
             return;
         }
 
@@ -88,17 +97,22 @@ impl RegionBannerTracker {
             return;
         }
 
-        let next = RegionState::from_sample(sample_fn());
-        let Some(prev) = self.current else {
+        let next = RegionState::from_sample(sample_fn(), town_name());
+        let Some(prev) = self.current.as_ref() else {
             self.current = Some(next);
             return;
         };
-        if next == prev {
+        if &next == prev {
             return;
         }
 
-        self.current = Some(next);
+        let leaving_town = matches!(prev, RegionState::Town { .. })
+            && !matches!(next, RegionState::Town { .. });
+        self.current = Some(next.clone());
         self.hysteresis_remaining = HYSTERESIS_S;
+        if leaving_town {
+            return;
+        }
         self.banner = Some(match next {
             RegionState::Core => ActiveBanner {
                 title: "Back in home lands".to_string(),
@@ -107,6 +121,11 @@ impl RegionBannerTracker {
             },
             RegionState::Outer { biome, tier } => ActiveBanner {
                 title: format!("Entering: {}", biome_name(biome)),
+                subtitle: (tier >= DANGER_SUBTITLE_MIN_TIER).then(|| format!("Danger {tier}")),
+                elapsed: 0.0,
+            },
+            RegionState::Town { name, tier, .. } => ActiveBanner {
+                title: format!("Entering: {name}"),
                 subtitle: (tier >= DANGER_SUBTITLE_MIN_TIER).then(|| format!("Danger {tier}")),
                 elapsed: 0.0,
             },
@@ -166,11 +185,11 @@ mod tests {
     #[test]
     fn no_banner_on_start_or_between_core_biomes() {
         let mut tracker = RegionBannerTracker::default();
-        tracker.update(0.016, || core_sample(BiomeId::Plains), display_name);
+        tracker.update(0.016, || core_sample(BiomeId::Plains), display_name, || None);
         assert!(tracker.active().is_none());
 
         for _ in 0..10 {
-            tracker.update(0.5, || core_sample(BiomeId::Forest), display_name);
+            tracker.update(0.5, || core_sample(BiomeId::Forest), display_name, || None);
             assert!(tracker.active().is_none());
         }
     }
@@ -178,20 +197,20 @@ mod tests {
     #[test]
     fn entering_outer_biome_shows_banner_and_danger_for_tier_2_plus() {
         let mut tracker = RegionBannerTracker::default();
-        tracker.update(0.016, || core_sample(BiomeId::Plains), display_name);
+        tracker.update(0.016, || core_sample(BiomeId::Plains), display_name, || None);
 
         // Before 0.5 s check interval, no sample is taken.
-        tracker.update(0.25, || outer_sample(BiomeId::Desert, 1), display_name);
+        tracker.update(0.25, || outer_sample(BiomeId::Desert, 1), display_name, || None);
         assert!(tracker.active().is_none());
 
         // Crossing 0.5 s triggers tier 1 Desert banner (no Danger line).
-        tracker.update(0.3, || outer_sample(BiomeId::Desert, 1), display_name);
+        tracker.update(0.3, || outer_sample(BiomeId::Desert, 1), display_name, || None);
         let b1 = tracker.active().expect("desert tier 1 banner");
         assert_eq!(b1.title, "Entering: Desert");
         assert_eq!(b1.subtitle, None);
 
         // Wait past 3 s hysteresis and enter tier 3.
-        tracker.update(3.5, || outer_sample(BiomeId::Desert, 3), display_name);
+        tracker.update(3.5, || outer_sample(BiomeId::Desert, 3), display_name, || None);
         let b2 = tracker.active().expect("desert tier 3 banner");
         assert_eq!(b2.title, "Entering: Desert");
         assert_eq!(b2.subtitle.as_deref(), Some("Danger 3"));
@@ -200,22 +219,51 @@ mod tests {
     #[test]
     fn hysteresis_blocks_border_flicker_and_return_to_core_shows_home_lands() {
         let mut tracker = RegionBannerTracker::default();
-        tracker.update(0.016, || core_sample(BiomeId::Plains), display_name);
-        tracker.update(0.5, || outer_sample(BiomeId::Snow, 2), display_name);
+        tracker.update(0.016, || core_sample(BiomeId::Plains), display_name, || None);
+        tracker.update(0.5, || outer_sample(BiomeId::Snow, 2), display_name, || None);
         assert_eq!(tracker.active().unwrap().title, "Entering: Snow");
 
         // Stepping back into core within 3 s hysteresis does not replace the banner.
-        tracker.update(1.0, || core_sample(BiomeId::Plains), display_name);
+        tracker.update(1.0, || core_sample(BiomeId::Plains), display_name, || None);
         assert_eq!(tracker.active().unwrap().title, "Entering: Snow");
 
         // After 3 s total, banner expires and hysteresis clears -> returning to core announces it.
-        tracker.update(2.1, || core_sample(BiomeId::Plains), display_name);
+        tracker.update(2.1, || core_sample(BiomeId::Plains), display_name, || None);
         let back = tracker.active().expect("back in home lands");
         assert_eq!(back.title, "Back in home lands");
         assert_eq!(back.subtitle, None);
 
         // After 3 s display time, banner disappears.
-        tracker.update(3.0, || core_sample(BiomeId::Plains), display_name);
+        tracker.update(3.0, || core_sample(BiomeId::Plains), display_name, || None);
+        assert!(tracker.active().is_none());
+    }
+
+    #[test]
+    fn entering_town_shows_banner_and_leaving_shows_nothing() {
+        let mut tracker = RegionBannerTracker::default();
+        tracker.update(0.016, || outer_sample(BiomeId::Desert, 2), display_name, || None);
+        assert!(tracker.active().is_none());
+
+        tracker.update(
+            0.5,
+            || outer_sample(BiomeId::Desert, 2),
+            display_name,
+            || Some("Dusthollow".to_string()),
+        );
+        let b = tracker.active().expect("town banner");
+        assert_eq!(b.title, "Entering: Dusthollow");
+        assert_eq!(b.subtitle.as_deref(), Some("Danger 2"));
+
+        // Wait for banner & hysteresis to expire, then leave town -> no banner.
+        tracker.update(
+            3.5,
+            || outer_sample(BiomeId::Desert, 2),
+            display_name,
+            || Some("Dusthollow".to_string()),
+        );
+        assert!(tracker.active().is_none());
+
+        tracker.update(0.5, || outer_sample(BiomeId::Desert, 2), display_name, || None);
         assert!(tracker.active().is_none());
     }
 }

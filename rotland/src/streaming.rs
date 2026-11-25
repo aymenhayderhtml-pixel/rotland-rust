@@ -227,9 +227,14 @@ impl Streamer {
 
     fn shapes_of(&mut self, pack: &pack::ModelPack, id: &str) -> &Vec<Vec<[f32; 3]>> {
         self.shapes.entry(id.to_string()).or_insert_with(|| {
-            pack.find(id)
-                .map(|m| m.colliders.iter().map(|c| c.points.clone()).collect())
-                .unwrap_or_default()
+            let Some(m) = pack.find(id) else {
+                return Vec::new();
+            };
+            let cols: Vec<Vec<[f32; 3]>> = m.colliders.iter().map(|c| c.points.clone()).collect();
+            if is_walkable_deck_model(id) && needs_deck_fallback(&cols) {
+                return vec![deck_box_points(m.bounds_min, m.bounds_max)];
+            }
+            cols
         })
     }
 
@@ -341,5 +346,76 @@ impl Streamer {
             physics.remove(h);
         }
         Some(slot)
+    }
+}
+
+fn is_walkable_deck_model(id: &str) -> bool {
+    matches!(id, "bridge_wood" | "bridge_concrete" | "boardwalk_section")
+}
+
+/// Returns true if the model has no colliders or only a single tall hull that would block walking on the deck.
+fn needs_deck_fallback(colliders: &[Vec<[f32; 3]>]) -> bool {
+    if colliders.is_empty() {
+        return true;
+    }
+    if colliders.len() == 1 && !colliders[0].is_empty() {
+        let mut min_y = f32::INFINITY;
+        let mut max_y = f32::NEG_INFINITY;
+        for &[_, y, _] in &colliders[0] {
+            min_y = min_y.min(y);
+            max_y = max_y.max(y);
+        }
+        return (max_y - min_y) > 0.6; // new: DECISIONS 2026-11-25
+    }
+    false
+}
+
+/// Builds an 8-corner thin box covering the horizontal bounds around the deck surface (`y = 0`).
+fn deck_box_points(bounds_min: [f32; 3], bounds_max: [f32; 3]) -> Vec<[f32; 3]> {
+    let [min_x, min_y, min_z] = bounds_min;
+    let [max_x, max_y, max_z] = bounds_max;
+    let (y0, y1) = if min_y <= 0.05 && max_y >= 0.0 {
+        (-0.25_f32.max(min_y), max_y.min(0.05)) // new: DECISIONS 2026-11-25
+    } else {
+        (min_y, (min_y + 0.25).min(max_y)) // new: DECISIONS 2026-11-25
+    };
+    vec![
+        [min_x, y0, min_z],
+        [max_x, y0, min_z],
+        [max_x, y0, max_z],
+        [min_x, y0, max_z],
+        [min_x, y1, min_z],
+        [max_x, y1, min_z],
+        [max_x, y1, max_z],
+        [min_x, y1, max_z],
+    ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bridge_deck_fallback_triggers_for_empty_or_tall_single_hull() {
+        assert!(needs_deck_fallback(&[]));
+        let tall = vec![vec![[0.0, -0.5, 0.0], [1.0, 1.2, 1.0]]];
+        assert!(needs_deck_fallback(&tall));
+        let flat = vec![vec![[0.0, -0.2, 0.0], [1.0, 0.05, 1.0]]];
+        assert!(!needs_deck_fallback(&flat));
+        let multi = vec![
+            vec![[0.0, -0.2, 0.0], [1.0, 0.05, 1.0]],
+            vec![[0.0, 0.0, 0.0], [0.1, 1.0, 1.0]],
+        ];
+        assert!(!needs_deck_fallback(&multi));
+    }
+
+    #[test]
+    fn deck_box_covers_horizontal_bounds_with_thin_slab() {
+        let pts = deck_box_points([-6.0, -1.5, -2.5], [6.0, 1.2, 2.5]);
+        assert_eq!(pts.len(), 8);
+        let min_y = pts.iter().map(|p| p[1]).fold(f32::INFINITY, f32::min);
+        let max_y = pts.iter().map(|p| p[1]).fold(f32::NEG_INFINITY, f32::max);
+        assert!(min_y >= -0.25 - 1e-5);
+        assert!(max_y <= 0.05 + 1e-5);
     }
 }

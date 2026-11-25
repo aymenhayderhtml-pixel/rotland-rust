@@ -1,0 +1,121 @@
+{
+  "_why": "R33 outer biome towns: placement search parameters, per-model half-extent footprints, and 4 biome town definitions.",
+  "placement": {
+    "spiral_step_m": 80.0,
+    "spiral_max_m": 600.0,
+    "street_setback_m": 8.0,
+    "boardwalk_offset_m": 5.5,
+    "boardwalk_step_m": 4.1,
+    "_why": "Spiral search steps 80 m up to 600 m per R33-03; 8 m street setback clears an 8 m highway plus shoulder/boardwalk; 4.1 m step leaves a 0.1 m seam between 4 m boardwalk sections."
+  },
+  "footprints": {
+    "adobe_house": [5.0, 4.5],
+    "motel": [9.0, 5.0],
+    "water_tower": [3.5, 3.5],
+    "desert_store": [7.0, 5.5],
+    "gas_station": [8.0, 6.0],
+    "log_cabin_snow": [5.5, 4.5],
+    "research_station": [8.5, 6.0],
+    "shed": [3.0, 2.5],
+    "stilt_shack": [4.5, 4.0],
+    "bait_shop": [6.0, 4.5],
+    "boardwalk_section": [2.0, 1.0],
+    "ranger_station": [7.5, 5.5],
+    "radio_tower": [3.5, 3.5],
+    "cabin": [5.0, 4.5],
+    "watchtower": [3.0, 3.0]
+  },
+  "towns": [
+    {
+      "key": "dusthollow",
+      "name": "Dusthollow",
+      "biome": "desert",
+      "distance_m": 3600.0,
+      "radius": 140.0,
+      "street_length": 220.0,
+      "lot_spacing": 30.0,
+      "boardwalk": false,
+      "buildings": [
+        { "model": "motel", "weight": 1.0, "unique": true },
+        { "model": "water_tower", "weight": 1.0, "unique": true },
+        { "model": "desert_store", "weight": 1.0, "unique": true },
+        { "model": "gas_station", "weight": 1.0, "unique": true },
+        { "model": "adobe_house", "weight": 5.0, "unique": false }
+      ],
+      "loot_tables": {
+        "adobe_house": "town_home",
+        "motel": "town_home",
+        "water_tower": "town_station",
+        "desert_store": "town_store",
+        "gas_station": "town_store"
+      },
+      "_why": "Desert roadside town at 3600 m along the 0 deg sector beyond Ashford with motel, store, gas station, water tower, and adobe houses."
+    },
+    {
+      "key": "frostmere",
+      "name": "Frostmere",
+      "biome": "snow",
+      "distance_m": 3800.0,
+      "radius": 125.0,
+      "street_length": 190.0,
+      "lot_spacing": 28.0,
+      "boardwalk": false,
+      "buildings": [
+        { "model": "research_station", "weight": 1.0, "unique": true },
+        { "model": "log_cabin_snow", "weight": 4.0, "unique": false },
+        { "model": "shed", "weight": 1.0, "unique": false, "max_count": 3 }
+      ],
+      "loot_tables": {
+        "log_cabin_snow": "town_home",
+        "research_station": "town_station",
+        "shed": "town_home"
+      },
+      "_why": "Snow outpost at 3800 m along the 180 deg sector beyond the lake anchored by a research station and snow log cabins."
+    },
+    {
+      "key": "blackwater",
+      "name": "Blackwater",
+      "biome": "swamp",
+      "distance_m": 3400.0,
+      "radius": 130.0,
+      "street_length": 196.0,
+      "lot_spacing": 28.0,
+      "boardwalk": true,
+      "buildings": [
+        { "model": "bait_shop", "weight": 1.0, "unique": true },
+        { "model": "stilt_shack", "weight": 4.0, "unique": false },
+        { "model": "shed", "weight": 1.0, "unique": false, "max_count": 2 }
+      ],
+      "loot_tables": {
+        "stilt_shack": "town_home",
+        "bait_shop": "town_store",
+        "shed": "town_home",
+        "boardwalk_section": ""
+      },
+      "_why": "Swamp stilt settlement at 3400 m along the 90 deg sector with a bait shop, stilt shacks, and elevated boardwalks along both sides of the street."
+    },
+    {
+      "key": "ridgeback_station",
+      "name": "Ridgeback Station",
+      "biome": "mountains",
+      "distance_m": 4200.0,
+      "radius": 120.0,
+      "street_length": 180.0,
+      "lot_spacing": 32.0,
+      "boardwalk": false,
+      "buildings": [
+        { "model": "ranger_station", "weight": 1.0, "unique": true },
+        { "model": "radio_tower", "weight": 1.0, "unique": true },
+        { "model": "watchtower", "weight": 1.0, "unique": true },
+        { "model": "cabin", "weight": 1.0, "unique": false, "max_count": 4 }
+      ],
+      "loot_tables": {
+        "ranger_station": "town_station",
+        "radio_tower": "town_station",
+        "watchtower": "town_station",
+        "cabin": "town_home"
+      },
+      "_why": "Mountain ranger outpost at 4200 m along the 270 deg sector with ranger station, radio tower, watchtower, and 3-4 cabins."
+    }
+  ]
+}

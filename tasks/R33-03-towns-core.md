@@ -30,3 +30,22 @@ Rules: `tasks/LEAD.md` subagent rules. Use the "R33 shared names" in `tasks/R33-
    - a failing `flat_check` still places a town (fallback) without a panic.
 
 ## Worker notes
+
+## Neon notes
+
+* **Shared-file lines for the Lead (`world/src/lib.rs`, owned by R33-04):**
+Add alphabetically:
+```rust
+pub mod towns;
+
+```
+
+
+* **Missing API signature (`world/src/biome/layout.rs`):**
+`world/src/biome/layout.rs` was not included in the task pack's `API signatures`, so the adapter `layout_frame(layout: &WorldLayout)` at the bottom of `world/src/towns/place.rs` assumes `layout.reference_dir()`, `layout.core_radius()`, `layout.blend_band()`, and `layout.sector_center_deg(biome)`. Verify those 4 calls against the real fields/methods on `WorldLayout` (all other logic in `place.rs`, `lots.rs`, and `towns_tests.rs` goes through `LayoutFrame` and needs no changes). You may also add one integration test in `world/tests/towns_tests.rs` calling `world::towns::place_towns` directly with `WorldLayout`'s real constructor.
+* **Logging crate:**
+`world/Cargo.toml` was not included in the task pack, so the fallback log line in `world/src/towns/place.rs` uses `eprintln!`. Swap to `log::warn!` or `tracing::warn!` if `world` depends on either crate.
+* **Boardwalk loot & indoors convention (for R33-04 & R33-09):**
+`boardwalk_section` lots in Blackwater have `loot_table: ""` and are excluded from `TownSite::indoors(p)` so boardwalks do not count as enclosed indoor shelters or spawn indoor loot crates.
+* **Per-town lot counts & footprints:**
+All building footprints in `data/towns.json` are half-extents `[half_width_along_street, half_depth_perpendicular_to_street]`. `ridgeback_station` caps `cabin` at `max_count: 4` (giving 1 ranger station, 1 radio tower, 1 watchtower, and 4 cabins).

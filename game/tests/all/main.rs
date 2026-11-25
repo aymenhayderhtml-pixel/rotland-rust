@@ -68,4 +68,6 @@ mod zombie_tests;
 mod zombie_voices_tests;
 mod biome_zombies_tests;
 mod temperature_tests;
+mod towns_gameplay_tests;
 mod warmth_items_tests;
+mod warmth_save_tests;

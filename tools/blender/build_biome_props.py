@@ -46,6 +46,11 @@ MODELS = [
     "lily_mud_patch",
     # R32-09
     "toxic_puff",
+    # R33-08: bridges, signpost, boardwalk
+    "bridge_wood",
+    "bridge_concrete",
+    "signpost",
+    "boardwalk_section",
 ]
 
 

@@ -2,6 +2,7 @@
 
 use glam::{Vec2, Vec3};
 use serde::Deserialize;
+use world::TownSite;
 
 use super::manager::GuildManager;
 use super::tasks::GuildTaskKind;
@@ -230,6 +231,18 @@ impl GuildTaskHooks {
         player: Vec3,
         dt: f32,
     ) -> Vec<GuildTaskEvent> {
+        self.tick_with_towns(manager, places, &[], player, dt)
+    }
+
+    /// Throttled: checks `places` (within `place_radius`) and `towns` (within each town's radius).
+    pub fn tick_with_towns(
+        &mut self,
+        manager: &mut GuildManager,
+        places: &[NamedPlace<'_>],
+        towns: &[TownSite],
+        player: Vec3,
+        dt: f32,
+    ) -> Vec<GuildTaskEvent> {
         if !dt.is_finite() || dt <= 0.0 {
             return Vec::new();
         }
@@ -245,6 +258,7 @@ impl GuildTaskHooks {
             }
         }
 
+        let player_xz = horizontal_pos(player);
         let mut events = Vec::new();
         for task in &mut manager.board_mut().active {
             if task.is_done() {
@@ -261,7 +275,16 @@ impl GuildTaskHooks {
                                 self.cfg.place_radius,
                             )
                     })
-                    .map(|place| place.name),
+                    .map(|place| place.name)
+                    .or_else(|| {
+                        towns
+                            .iter()
+                            .find(|town| {
+                                town.name.eq_ignore_ascii_case(place_name)
+                                    && town.contains_point(player_xz)
+                            })
+                            .map(|town| town.name.as_str())
+                    }),
                 _ => None,
             };
             if let Some(name) = matched_name {

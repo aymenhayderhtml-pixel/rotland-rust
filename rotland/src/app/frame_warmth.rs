@@ -48,11 +48,14 @@ pub fn update_weather_and_warmth(dt: f32, play: &mut PlaySide, world: &WorldStat
             weather: &weather.state,
             lit_campfires: &lit,
             in_camp,
-            indoors: false,
+            indoors: generator.indoors(player.x, player.z),
             inventory: &pl.inventory,
         },
         Some(&mut pl.thirst),
     );
+    if let Some(p) = actors.player_ctrl.as_mut() {
+        p.stamina.warmth_regen_multiplier = res.stamina_regen_mult;
+    }
     temp.hud_tier = sample.tier;
     use game::survival::temperature::TempState;
     play.hint_ctx.temp_cold = matches!(res.state, TempState::Freezing | TempState::Cold);

@@ -15,6 +15,10 @@ folder `/home/aymen/Documents/rotland-rust/target` and `/tmp/rotland-heavy.lock`
 - `cargo run --release -p world --example worldmap -- --seed=42 --size=12000 --px=1200 --out=/tmp/worldmap.png` — renders a top-down biome + hillshade PNG centred on the camp (with the `core_radius` circle, tier rings, and camp dot) and prints each biome's area share to stdout.
 - `--biome=<key>` (`plains`, `forest`, `desert`, `snow`, `swamp`, `mountains`) — teleports the player on startup into that biome (outer biomes: `core_radius + blend_band + 300 m` along the sector centre angle, facing outward; `plains`/`forest`: nearest core point):
   `flock /tmp/rotland-heavy.lock target/release/rotland --save-dir=/tmp/scratch --shot=/tmp/desert.png --biome=desert --frames=30`
+- `--town=<key>` (`dusthollow`, `frostmere`, `blackwater`, `ridgeback`) — teleports the player 25 m from that town's centre along its street, facing the town.
+- `--trailhead=<n>` — teleports the player 25 m before trailhead `n`, facing outward along the road.
+- `--bridge=<n>` — teleports the player onto the deck of the `n`-th road-river bridge crossing, facing along the road.
+- `--river=<n>` — teleports the player to a bank point 25 m from river `n`, facing the water.
 - `--weather=<kind>` (`clear`, `rain`, `snow`, `sandstorm`, `fog`) — forces that weather at full intensity (`1.0`) from startup with no changes for the whole run (for screenshots, e.g. `--biome=snow --weather=snow`).
 - `--spawn-zombie=<kind>`: spawn one zombie of `<kind>` 5 m in front of the player (idle for 3 s, works with `--biome=`), e.g. `--biome=snow --spawn-zombie=frozen`.
 

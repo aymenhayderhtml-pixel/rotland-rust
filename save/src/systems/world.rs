@@ -37,6 +37,9 @@ pub struct WorldSaveData {
     /// Saved weather snapshot; absent in old saves (loads as clear weather).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weather: Option<WeatherSaveData>,
+    /// Saved player body warmth (`0..=100`); absent in old saves (loads as 50.0 = comfy).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub body_temp: Option<f32>,
 }
 
 impl WorldSaveData {
@@ -44,6 +47,7 @@ impl WorldSaveData {
         Self {
             seed,
             weather: None,
+            body_temp: None,
         }
     }
 }
@@ -68,9 +72,28 @@ mod tests {
                 intensity: 0.85,
                 wind: [2.5, -1.0],
             }),
+            body_temp: None,
         };
         let json = serde_json::to_string(&data).expect("serialize");
         let back: WorldSaveData = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(back, data);
+    }
+
+    #[test]
+    fn old_save_without_body_temp_loads_as_none() {
+        let loaded: WorldSaveData = serde_json::from_str(r#"{"seed":42}"#).expect("old save json");
+        assert_eq!(loaded.body_temp, None);
+    }
+
+    #[test]
+    fn world_save_round_trips_body_temp() {
+        let data = WorldSaveData {
+            seed: 99,
+            weather: None,
+            body_temp: Some(22.0),
+        };
+        let json = serde_json::to_string(&data).expect("serialize");
+        let back: WorldSaveData = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.body_temp, Some(22.0));
     }
 }
