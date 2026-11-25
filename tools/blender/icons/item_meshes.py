@@ -9,6 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import common  # noqa: E402
+import warm_clothes_meshes  # noqa: E402
 
 
 def _cyl(r0, r1, z0, z1, color, seg=10):
@@ -349,4 +350,8 @@ BUILDERS = {
     "bread": bread,
     "baked_potato": baked_potato,
     "vegetable_stew": vegetable_stew,
+    "warm_jacket": warm_clothes_meshes.warm_jacket,
+    "wool_hat": warm_clothes_meshes.wool_hat,
+    "desert_scarf": warm_clothes_meshes.desert_scarf,
+    "hand_warmer": warm_clothes_meshes.hand_warmer,
 }

@@ -21,6 +21,34 @@ pub struct Noise {
     pub radius: f32,
 }
 
+/// Environment multipliers applied to zombie sight range and hearing radius (e.g. weather).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SenseMultipliers {
+    /// Multiplier on `sight_range` (weather `visibility`, 0..1). Defaults to `1.0`.
+    pub sight_mult: f32,
+    /// Multiplier on hearing radius (`1.0 - noise_mask`, 0..1). Defaults to `1.0`.
+    pub hearing_mult: f32,
+}
+
+impl Default for SenseMultipliers {
+    fn default() -> Self {
+        Self {
+            sight_mult: 1.0,
+            hearing_mult: 1.0,
+        }
+    }
+}
+
+impl SenseMultipliers {
+    /// Builds multipliers from weather `visibility` and `noise_mask` (both `0..1`).
+    pub fn from_weather(visibility: f32, noise_mask: f32) -> Self {
+        Self {
+            sight_mult: visibility.clamp(0.0, 1.0),
+            hearing_mult: (1.0 - noise_mask).clamp(0.0, 1.0),
+        }
+    }
+}
+
 /// True when a zombie with feet at `feet` hears `noise` (3D distance, same as the Godot rule).
 pub fn hears(feet: Vec3, noise: &Noise, hearing_multiplier: f32) -> bool {
     feet.distance(noise.position) <= noise.radius * hearing_multiplier
@@ -32,6 +60,8 @@ pub struct Senses {
     sight_range: f32,
     sight_fov_deg: f32,
     lose_target_time: f32,
+    sight_mult: f32,
+    hearing_mult: f32,
     /// Counts down to the next sight check.
     timer: f32,
     can_see: bool,
@@ -46,6 +76,8 @@ impl Senses {
             sight_range: def.sight_range,
             sight_fov_deg: def.sight_fov_deg,
             lose_target_time: def.lose_target_time,
+            sight_mult: 1.0,
+            hearing_mult: 1.0,
             timer: 0.0,
             can_see: false,
             last_seen: Vec3::ZERO,
@@ -65,6 +97,18 @@ impl Senses {
         self.time_since_seen
     }
 
+    /// Sets weather/environment multipliers for sight range and hearing radius.
+    pub fn set_multipliers(&mut self, mults: SenseMultipliers) {
+        self.sight_mult = mults.sight_mult.max(0.0);
+        self.hearing_mult = mults.hearing_mult.max(0.0);
+    }
+
+    /// True when this zombie hears `noise`, factoring in both its base `hearing_multiplier`
+    /// and the current environment `hearing_mult` (`1.0 - noise_mask`).
+    pub fn hears(&self, feet: Vec3, noise: &Noise, hearing_multiplier: f32) -> bool {
+        hears(feet, noise, hearing_multiplier * self.hearing_mult)
+    }
+
     /// The zombie has lost sight for longer than `lose_target_time`. It then walks to `last_seen`
     /// instead of chasing. The memory itself is kept until a new sighting.
     pub fn memory_expired(&self) -> bool {
@@ -79,6 +123,8 @@ impl Senses {
 
     /// Forget everything. Used when a pooled zombie is handed out again.
     pub fn reset(&mut self) {
+        self.sight_mult = 1.0;
+        self.hearing_mult = 1.0;
         self.timer = 0.0;
         self.can_see = false;
         self.last_seen = Vec3::ZERO;
@@ -123,10 +169,10 @@ impl Senses {
         }
     }
 
-    fn sees(&self, feet: Vec3, facing: Vec3, target: Vec3, world: &PhysicsWorld) -> bool {
+    fn in_sight_cone(&self, feet: Vec3, facing: Vec3, target: Vec3) -> bool {
         let to_target = Vec2::new(target.x - feet.x, target.z - feet.z);
         let distance = to_target.length();
-        if distance > self.sight_range {
+        if distance > self.sight_range * self.sight_mult {
             return false;
         }
 
@@ -137,6 +183,14 @@ impl Senses {
             if angle_between(forward, to_target) > half_fov {
                 return false;
             }
+        }
+
+        true
+    }
+
+    fn sees(&self, feet: Vec3, facing: Vec3, target: Vec3, world: &PhysicsWorld) -> bool {
+        if !self.in_sight_cone(feet, facing, target) {
+            return false;
         }
 
         let eye = feet + Vec3::Y * EYE_HEIGHT;
@@ -154,4 +208,62 @@ impl Senses {
 fn angle_between(a: Vec2, b: Vec2) -> f32 {
     let cross = a.x * b.y - a.y * b.x;
     cross.abs().atan2(a.dot(b))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_senses(sight_range: f32, sight_fov_deg: f32) -> Senses {
+        Senses {
+            sight_range,
+            sight_fov_deg,
+            lose_target_time: 5.0,
+            sight_mult: 1.0,
+            hearing_mult: 1.0,
+            timer: 0.0,
+            can_see: false,
+            last_seen: Vec3::ZERO,
+            time_since_seen: 0.0,
+        }
+    }
+
+    #[test]
+    fn sight_multiplier_scales_sight_range() {
+        let mut senses = test_senses(20.0, 120.0);
+        let feet = Vec3::ZERO;
+        let facing = Vec3::NEG_Z;
+        let target_15m = Vec3::new(0.0, 0.0, -15.0);
+        let target_9m = Vec3::new(0.0, 0.0, -9.0);
+
+        // Default sight_mult = 1.0 sees 15 m target within 20 m range.
+        assert!(senses.in_sight_cone(feet, facing, target_15m));
+
+        // 0.5 visibility shrinks effective sight range to 10 m.
+        senses.set_multipliers(SenseMultipliers::from_weather(0.5, 0.0));
+        assert!(!senses.in_sight_cone(feet, facing, target_15m));
+        assert!(senses.in_sight_cone(feet, facing, target_9m));
+    }
+
+    #[test]
+    fn hearing_multiplier_masks_noise_radius() {
+        let mut senses = test_senses(20.0, 120.0);
+        let feet = Vec3::ZERO;
+        let far_noise = Noise {
+            position: Vec3::new(15.0, 0.0, 0.0),
+            radius: 20.0,
+        };
+        let near_noise = Noise {
+            position: Vec3::new(9.0, 0.0, 0.0),
+            radius: 20.0,
+        };
+
+        // Default hearing_mult = 1.0 hears a 20 m sound from 15 m away.
+        assert!(senses.hears(feet, &far_noise, 1.0));
+
+        // 0.5 noise_mask reduces hearing_mult to 0.5 (effective radius 10 m).
+        senses.set_multipliers(SenseMultipliers::from_weather(1.0, 0.5));
+        assert!(!senses.hears(feet, &far_noise, 1.0));
+        assert!(senses.hears(feet, &near_noise, 1.0));
+    }
 }

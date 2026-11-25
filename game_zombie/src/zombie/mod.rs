@@ -13,6 +13,7 @@ pub mod hideouts;
 mod rng;
 pub mod senses;
 pub mod specials;
+pub mod specials_biome;
 mod specials_brute;
 mod specials_crawler;
 mod specials_screamer;
@@ -26,6 +27,9 @@ pub use defs::{ZombieBehaviourDef, ZombieDef, ZombieDefs};
 pub use grid::SpatialGrid;
 pub use herd::{find_chasing_near, HerdZombie, ZombieHorde};
 pub use senses::{hears, Noise, Senses};
-pub use specials::{SpecialConfig, SpecialDirective, SpecialKind, SpecialState};
+pub use specials::{
+    BiteEffect, BloaterConfig, FrozenConfig, HuskConfig, SpecialConfig, SpecialDirective,
+    SpecialEvent, SpecialKind, SpecialState, ToxicBurst, ToxicCloud, ToxicClouds,
+};
 pub use state::ZombieState;
 pub use steering::ZombieSteering;

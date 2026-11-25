@@ -218,7 +218,7 @@ class MeshBuilder:
         self.bm.to_mesh(mesh)
         for poly in mesh.polygons:
             poly.use_smooth = False
-        sheets = ["A"] + (["B"] if any(palette.sheet_of_key(k) == "B" for k in keys) else [])
+        sheets = ["A"] + [s for s in ("B", "C") if any(palette.sheet_of_key(k) == s for k in keys)]
         for sheet in sheets:
             mesh.materials.append(common.palette_material(sheet))
         for poly, key in zip(mesh.polygons, keys):

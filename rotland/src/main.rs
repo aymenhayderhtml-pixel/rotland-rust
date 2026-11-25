@@ -34,6 +34,9 @@ mod session;
 mod siege_view;
 mod guild_task_view;
 mod swim_view;
+mod temperature_play;
+mod toxic_cloud_view;
+mod weather_play;
 mod shooting;
 mod streaming;
 mod terrain;
@@ -137,6 +140,8 @@ impl Game for R0 {
             &mut self.actors,
             &mut self.audio.audio,
         );
+
+        app::frame_warmth::update_weather_and_warmth(dt, &mut self.play, &self.world, &mut self.actors);
 
         app::frame_world::update_world_interactions(
             input,

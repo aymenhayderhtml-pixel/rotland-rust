@@ -7,6 +7,9 @@ All zombies get sunken eyes, open mouth details, and torn hems. Then each look g
 - zombie_brute: 1.35x scale, very broad shoulders, huge arms, torn work overalls, metal plate strapped to chest
 - zombie_screamer: thin, long neck, jaw wide open, pale skin, ragged dress/coat
 - zombie_crawler: legs missing below knee (stumps), dragging scrapes and torn rags
+- zombie_frozen: pale ice-blue skin, frosted winter jacket collar, ice/snow shards on shoulders and head
+- zombie_husk: dried thin desert zombie, bare chest with rib stripes, torn khaki waist/shoulder rags
+- zombie_bloater: swollen belly sphere on spine with boils, ragged shirt covering only the shoulders
 """
 import math
 
@@ -22,6 +25,8 @@ def add(mb, look, lm, arm_points):
     elif kind == "zombie_crawler":
         _face(mb, lm)
         _crawler_torn_hem(mb, look, lm)
+    elif kind in ("zombie_husk", "zombie_bloater"):
+        _face(mb, lm)
     else:
         _face(mb, lm)
         _torn_hem(mb, look, lm)
@@ -46,6 +51,14 @@ def add(mb, look, lm, arm_points):
         _screamer_hair(mb, look, lm)
     elif kind == "zombie_crawler":
         _crawler_stumps(mb, look, lm)
+    elif kind == "zombie_frozen":
+        _frozen_frost(mb, lm, arm_points)
+    elif kind == "zombie_husk":
+        _husk_ribs(mb, lm)
+        _husk_torn_clothes(mb, look, lm)
+    elif kind == "zombie_bloater":
+        _bloater_belly(mb, lm)
+        _bloater_ragged_shoulders(mb, lm, arm_points)
 
 
 def _face(mb, lm):
@@ -337,3 +350,112 @@ def _crawler_torn_hem(mb, look, lm):
     mb.add_box((-0.12, lm["sy"] + 0.088, sz - 0.02), (0.12, lm["sy"] + 0.106, sz + 0.08), "dirt", "spine")
     mb.add_box((-0.09, lm["cy"] + 0.098, lm["chest_z"] + 0.02),
                (0.09, lm["cy"] + 0.114, lm["chest_z"] + 0.14), "blood_dark", "chest")
+
+
+def _frozen_frost(mb, lm, arm_points):
+    """Six jagged ice/snow shards on the shoulders and head, plus a frosted winter collar."""
+    h, top, f = lm["head_z"], lm["head_top"], lm["fy"]
+    span = top - h
+
+    # 2 frost shards emerging from the crown/temples of the head
+    head_shards = (
+        (Vector((0.058, f + 0.015, h + 0.80 * span)), Vector((0.042, 0.022, 0.072)), "ice_blue"),
+        (Vector((-0.052, f - 0.022, h + 0.85 * span)), Vector((-0.036, -0.026, 0.064)), "snow_white"),
+    )
+    for base, tip, col in head_shards:
+        mb.add_loft([(base, 0.020, 0.016), (base + tip * 0.55, 0.013, 0.010), (base + tip, 0.002, 0.002)],
+                    col, "head", segs=4)
+
+    # 4 frost shards (2 per shoulder) riding on the shoulder bones
+    for sign, side, col_a, col_b in ((1, "R", "ice_blue", "snow_white"), (-1, "L", "snow_white", "ice_blue")):
+        shoulder, _, _, _ = arm_points(sign, lm["hy"], lm["hips_z"] + 0.52)
+        bone = "shoulder_" + side
+        b1 = shoulder + Vector((-sign * 0.015, 0.008, 0.042))
+        t1 = Vector((sign * 0.048, -0.012, 0.088))
+        mb.add_loft([(b1, 0.024, 0.020), (b1 + t1 * 0.55, 0.015, 0.013), (b1 + t1, 0.002, 0.002)],
+                    col_a, bone, segs=4)
+        b2 = shoulder + Vector((-sign * 0.048, -0.020, 0.046))
+        t2 = Vector((sign * 0.024, -0.030, 0.062))
+        mb.add_loft([(b2, 0.018, 0.015), (b2 + t2 * 0.55, 0.011, 0.009), (b2 + t2, 0.002, 0.002)],
+                    col_b, bone, segs=4)
+
+    # Frosted winter jacket collar around the neck
+    mb.add_loft([((0.0, lm["ny"], lm["neck_z"] - 0.010), 0.115, 0.092),
+                 ((0.0, lm["ny"], lm["neck_z"] + 0.032), 0.105, 0.084)],
+                "snow_shadow", "chest", segs=10)
+
+
+def _husk_ribs(mb, lm):
+    """Four thin dark horizontal rib stripes across the bare desiccated chest."""
+    cz, pc = lm["chest_z"], (lm["sy"] + lm["cy"]) / 2 + 0.006
+    for k, half_w in enumerate((0.095, 0.108, 0.114, 0.106)):
+        z = cz + 0.022 + k * 0.034
+        for s in (-1, 1):
+            x0, x1 = sorted((s * 0.016, s * half_w))
+            mb.add_box((x0, pc + 0.084, z), (x1, pc + 0.104, z + 0.010), "bark_dark", "chest")
+
+
+def _husk_torn_clothes(mb, look, lm):
+    """Torn khaki waistband shreds and a single shredded shoulder rag leaving the chest bare."""
+    sz, hy = lm["spine_z"], lm["hy"]
+    cloth = look["pants"]
+    mb.add_loft([((0.0, hy, sz - 0.030), 0.156, 0.095),
+                 ((0.0, hy, sz + 0.020), 0.154, 0.093)], cloth, "spine", segs=10)
+    for ang, drop, col in ((20, 0.09, cloth), (65, 0.06, "dry_brush"), (110, 0.10, cloth),
+                           (155, 0.07, cloth), (205, 0.09, "dry_brush"), (255, 0.08, cloth),
+                           (305, 0.10, cloth), (345, 0.06, "dry_brush")):
+        a = math.radians(ang)
+        x, y = 0.155 * math.cos(a), hy + 0.094 * math.sin(a)
+        top = sz - 0.022
+        mb.add_loft([((x, y, top), 0.022, 0.012), ((x * 1.02, y * 1.02, top - drop), 0.003, 0.003)],
+                    col, "hips", segs=5)
+    # Shredded cloth strip draped over the left shoulder, clear of the bare ribbed chest
+    cz, pc = lm["chest_z"], (lm["sy"] + lm["cy"]) / 2 + 0.006
+    mb.add_loft([((-0.115, pc + 0.096, cz + 0.145), 0.024, 0.010),
+                 ((-0.110, lm["cy"] + 0.008, lm["neck_z"] + 0.012), 0.024, 0.010),
+                 ((-0.115, pc - 0.096, cz + 0.110), 0.022, 0.010)], cloth, "chest", segs=6)
+
+
+def _bloater_belly(mb, lm):
+    """Big swollen green-yellow belly ellipsoid on the spine bone, dotted with 4 swamp-mud boils."""
+    belly_z = (lm["spine_z"] + lm["chest_z"]) * 0.5 - 0.01
+    belly_y = lm["sy"] + 0.085
+    rx, ry, rz = 0.175, 0.145, 0.195
+    mb.add_ellipsoid((0.0, belly_y, belly_z), (rx, ry, rz), "crop_green", "spine", segs=12, rings=8)
+
+    for theta, phi, b_rad in (
+        (0.45, 0.28, (0.028, 0.022, 0.032)),
+        (-0.52, -0.15, (0.032, 0.024, 0.036)),
+        (0.12, -0.38, (0.024, 0.020, 0.028)),
+        (-0.22, 0.42, (0.022, 0.018, 0.026)),
+    ):
+        bx = rx * math.cos(phi) * math.sin(theta)
+        by = belly_y + ry * math.cos(phi) * math.cos(theta)
+        bz = belly_z + rz * math.sin(phi)
+        mb.add_ellipsoid((bx, by, bz), b_rad, "swamp_mud", "spine", segs=8, rings=4)
+
+
+def _bloater_ragged_shoulders(mb, lm, arm_points):
+    """Tattered shirt remnant covering only the upper chest and shoulders above the bare belly."""
+    cz, pc = lm["chest_z"], (lm["sy"] + lm["cy"]) / 2 + 0.006
+    cloth = "shirt_zombie"
+    mb.add_loft([
+        ((0.0, lm["ny"], lm["neck_z"] + 0.015), 0.105, 0.085),
+        ((0.0, lm["cy"], cz + 0.19), 0.195, 0.118),
+        ((0.0, pc, cz + 0.09), 0.190, 0.115),
+    ], cloth, "chest", segs=12)
+
+    for sign, side in ((1, "R"), (-1, "L")):
+        shoulder, elbow, _, _ = arm_points(sign, lm["hy"], lm["hips_z"] + 0.52)
+        p0 = shoulder + Vector((-sign * 0.03, 0.0, 0.005))
+        p1 = shoulder.lerp(elbow, 0.34)
+        mb.add_loft([(p0, 0.064, 0.064), (p1, 0.056, 0.056)], cloth, "upper_arm_" + side, segs=8)
+
+    for ang, drop, col in ((20, 0.06, cloth), (65, 0.045, "dirt"), (115, 0.055, cloth),
+                           (165, 0.05, cloth), (215, 0.065, "dirt"), (270, 0.07, cloth),
+                           (320, 0.05, cloth)):
+        a = math.radians(ang)
+        x, y = 0.188 * math.cos(a), pc + 0.114 * math.sin(a)
+        top = cz + 0.095
+        mb.add_loft([((x, y, top), 0.024, 0.012), ((x * 1.02, y * 1.02, top - drop), 0.003, 0.003)],
+                    col, "chest", segs=4)

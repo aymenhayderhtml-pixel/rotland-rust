@@ -2,7 +2,7 @@
 //!
 //! Port of Godot C# scripts/UI/HintTriggers.cs.
 
-pub const TRIGGER_NAMES: [&str; 12] = [
+pub const TRIGGER_NAMES: [&str; 14] = [
     "start",
     "after",
     "safe_zone_left",
@@ -15,6 +15,8 @@ pub const TRIGGER_NAMES: [&str; 12] = [
     "died",
     "bag_over",
     "has_item",
+    "temp_cold",
+    "temp_hot",
 ];
 
 pub const NUMBER_TRIGGERS: [&str; 7] = [

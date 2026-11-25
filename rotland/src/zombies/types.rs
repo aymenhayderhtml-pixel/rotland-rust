@@ -2,8 +2,8 @@
 
 use engine::anim::Rig;
 use engine::render::GpuMesh;
-use game::zombie::specials::SpecialHit;
 use game::zombie::anim_fade::{AnimFade, clip_key, death_clip};
+use game::zombie::specials::SpecialHit;
 use game::zombie::{AnimClip, AttackHit, BrainOutput, Noise, SpecialState, ZombieBrain, ZombieDef};
 use game::{DamageInfo, Health};
 use glam::Vec3;
@@ -64,7 +64,7 @@ pub struct Zombie {
     /// Accumulated delta time for distant throttled thinking (Godot Zombie.cs:285).
     pub think_accumulator: f32,
     pub last_out: Option<BrainOutput>,
-    /// Brute, screamer or crawler only (None for walkers and runners, zero cost).
+    /// Special zombie state (None for plain walkers and runners, zero cost).
     pub special: Option<SpecialState>,
     /// From the last special directive: open to extra damage (stunned or recovering).
     pub special_vulnerable: bool,
@@ -73,6 +73,20 @@ pub struct Zombie {
     /// Last sight check for specials (throttled).
     pub special_los: bool,
     pub special_sight_timer: f32,
+    /// Ensures a bloater emits its toxic cloud at most once.
+    pub bloater_burst_done: bool,
+    /// Countdown (seconds) during which this zombie stays idle (used by `--spawn-zombie`).
+    pub idle_lock_timer: f32,
+}
+
+/// A toxic cloud burst emitted when a bloater dies or is hit by fire.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ToxicBurst {
+    pub position: Vec3,
+    pub radius: f32,
+    pub duration: f32,
+    pub player_dps: f32,
+    pub zombie_dps: f32,
 }
 
 /// What happened to the world / player this frame.
@@ -85,6 +99,10 @@ pub struct ZombieFrame {
     pub noises: Vec<Noise>,
     /// Positions where zombies started screaming this frame, for audio trigger.
     pub screams: Vec<Vec3>,
+    /// Toxic cloud bursts triggered this frame (bloater death or fire hit).
+    pub toxic_bursts: Vec<ToxicBurst>,
+    /// Extra body-warmth chill emitted directly by zombie simulation this frame.
+    pub chill: f32,
     /// Alert and pacing events emitted this frame.
     pub events: Vec<ZombieEvent>,
 }
@@ -96,6 +114,14 @@ pub enum ZombieEvent {
     HordeNear { size: usize, distance: f32 },
     SpecialSeen { kind: String },
     CampAttacked,
+}
+
+/// Returns true if `kind` triggers a "nearby!" special-zombie HUD alert.
+pub fn is_notable_special_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "brute" | "screamer" | "crawler" | "frozen" | "husk" | "bloater"
+    )
 }
 
 /// Tracks alerts for hordes, specials, and camp attacks to prevent spam.
@@ -154,11 +180,11 @@ impl ZombieEventTracker {
             }
         }
 
-        // 3. SpecialSeen: first sighting of brute, screamer, or crawler within special_distance
+        // 3. SpecialSeen: first sighting of any special or biome zombie within special_distance
         if let Some(p) = player {
             for z in zombies {
                 if !z.health.is_dead()
-                    && matches!(z.kind.as_str(), "brute" | "screamer" | "crawler")
+                    && is_notable_special_kind(&z.kind)
                     && z.position.distance(p) <= special_distance
                     && self.seen_specials.insert(z.id)
                 {
@@ -235,6 +261,16 @@ pub(super) fn resolved_clip_name<'a>(z: &'a Zombie, look: &Look) -> &'a str {
 mod tests {
     use super::*;
     use game::horde::Horde;
+
+    #[test]
+    fn biome_zombies_are_notable_specials() {
+        for kind in ["brute", "screamer", "crawler", "frozen", "husk", "bloater"] {
+            assert!(is_notable_special_kind(kind), "{kind} should trigger SpecialSeen");
+        }
+        for kind in ["walker", "runner"] {
+            assert!(!is_notable_special_kind(kind), "{kind} should not trigger SpecialSeen");
+        }
+    }
 
     #[test]
     fn test_hud_horde_near_fires_once_per_horde() {

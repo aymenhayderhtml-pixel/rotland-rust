@@ -390,6 +390,26 @@ pub fn start_world(
     );
     world.streamer = Some(streamer);
     world.world_gen = Some(world_gen);
+    // R32-03: weather (fog, sky tint, particles, zombie senses) and R32-05: body warmth.
+    match world::weather::WeatherData::load() {
+        Ok(weather_data) => {
+            let mut weather = crate::weather_play::WeatherPlay::new(gpu, session.seed, weather_data);
+            if let Some(file) = session.loaded_save.as_ref() {
+                weather.apply_save(file.systems.world.as_ref().and_then(|w| w.weather.as_ref()));
+            }
+            play.weather = Some(weather);
+        }
+        Err(e) => log::error!("weather data: {e}"),
+    }
+    match game::survival::temperature::TemperatureData::load(&paths::repo_path("data/temperature.json")) {
+        Ok(temp_data) => {
+            match crate::temperature_play::TemperaturePlay::new(temp_data, &paths::repo_path("data/items.json")) {
+                Ok(temp) => play.temperature = Some(temp),
+                Err(e) => log::error!("warmth: {e}"),
+            }
+        }
+        Err(e) => log::error!("temperature data: {e}"),
+    }
     if session.scene == "play" && !session.free_cam {
         if let (Some(rig), Some(p)) = (actors.camera_rig.as_ref(), actors.player_ctrl.as_ref()) {
             render.camera = rig.camera(&p.position, &world.physics);

@@ -26,11 +26,21 @@ pub struct SpawnConfig {
     pub start_delay: f32,
     pub out_of_view_angle_deg: f32,
     pub biome_density: HashMap<String, f32>,
+    #[serde(default)]
+    pub biome_specials: HashMap<String, Vec<BiomeSpecialEntry>>,
     pub night_max_active_multiplier: f32,
     pub camp_density: CampDensityRule,
     pub types: SpawnTypeTable,
     #[serde(default)]
     pub city: Option<CitySpawnConfig>,
+}
+
+/// One biome-specific special spawn share entry in `data/spawning.json` `biomeSpecials`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BiomeSpecialEntry {
+    pub kind: String,
+    pub share: f32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -103,6 +113,31 @@ impl SpawnConfig {
     /// Biome density multiplier for a typed `BiomeId`.
     pub fn density_for_biome(&self, biome: BiomeId) -> f32 {
         self.density_for(biome.key())
+    }
+
+    /// Rolls a biome-specific special zombie kind for `biome_name`, if configured.
+    pub fn pick_biome_special<'a>(
+        &'a self,
+        rng: &mut SpawnerRng,
+        biome_name: &str,
+    ) -> Option<&'a str> {
+        let entries = self
+            .biome_specials
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case(biome_name))
+            .map(|(_, v)| v.as_slice())?;
+        if entries.is_empty() {
+            return None;
+        }
+        let mut roll = rng.next_f32();
+        for entry in entries {
+            let share = entry.share.max(0.0);
+            if roll < share {
+                return Some(entry.kind.as_str());
+            }
+            roll -= share;
+        }
+        None
     }
 
     /// Every zombie type id that either table can spawn.
@@ -235,12 +270,8 @@ impl From<(u64, Vec3)> for ActiveZombie {
 }
 
 impl From<(u64, Vec3, bool)> for ActiveZombie {
-    fn from((id, position, is_chasing): (u64, Vec3, bool)) -> Self {
-        Self {
-            id,
-            position,
-            is_chasing,
-        }
+    fn from((id, position, _is_chasing): (u64, Vec3, bool)) -> Self {
+        Self::new(id, position)
     }
 }
 

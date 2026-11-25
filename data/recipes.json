@@ -30,5 +30,21 @@
   { "id": "fish_cooked", "name": "Cook Fish", "station": "campfire",
     "inputs": [ { "id": "fish_raw", "count": 1 } ],
     "outputs": [ { "id": "fish_cooked", "count": 1 } ],
-    "time": 6, "xp": { "skill": "cooking", "amount": 8 } }
+    "time": 6, "xp": { "skill": "cooking", "amount": 8 } },
+  { "id": "warm_jacket", "name": "Warm Jacket", "station": "hand",
+    "inputs": [ { "id": "cloth", "count": 4 }, { "id": "hide", "count": 2 } ],
+    "outputs": [ { "id": "warm_jacket", "count": 1 } ],
+    "time": 6 },
+  { "id": "wool_hat", "name": "Wool Hat", "station": "hand",
+    "inputs": [ { "id": "cloth", "count": 2 } ],
+    "outputs": [ { "id": "wool_hat", "count": 1 } ],
+    "time": 3 },
+  { "id": "desert_scarf", "name": "Desert Scarf", "station": "hand",
+    "inputs": [ { "id": "cloth", "count": 2 } ],
+    "outputs": [ { "id": "desert_scarf", "count": 1 } ],
+    "time": 3 },
+  { "id": "hand_warmer", "name": "Hand Warmer", "station": "hand",
+    "inputs": [ { "id": "scrap_metal", "count": 1 }, { "id": "cloth", "count": 1 } ],
+    "outputs": [ { "id": "hand_warmer", "count": 1 } ],
+    "time": 3 }
 ]

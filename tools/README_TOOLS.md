@@ -15,6 +15,8 @@ folder `/home/aymen/Documents/rotland-rust/target` and `/tmp/rotland-heavy.lock`
 - `cargo run --release -p world --example worldmap -- --seed=42 --size=12000 --px=1200 --out=/tmp/worldmap.png` — renders a top-down biome + hillshade PNG centred on the camp (with the `core_radius` circle, tier rings, and camp dot) and prints each biome's area share to stdout.
 - `--biome=<key>` (`plains`, `forest`, `desert`, `snow`, `swamp`, `mountains`) — teleports the player on startup into that biome (outer biomes: `core_radius + blend_band + 300 m` along the sector centre angle, facing outward; `plains`/`forest`: nearest core point):
   `flock /tmp/rotland-heavy.lock target/release/rotland --save-dir=/tmp/scratch --shot=/tmp/desert.png --biome=desert --frames=30`
+- `--weather=<kind>` (`clear`, `rain`, `snow`, `sandstorm`, `fog`) — forces that weather at full intensity (`1.0`) from startup with no changes for the whole run (for screenshots, e.g. `--biome=snow --weather=snow`).
+- `--spawn-zombie=<kind>`: spawn one zombie of `<kind>` 5 m in front of the player (idle for 3 s, works with `--biome=`), e.g. `--biome=snow --spawn-zombie=frozen`.
 
 ## `tools/gate.sh` — the only build command a worker runs
 
@@ -22,6 +24,7 @@ folder `/home/aymen/Documents/rotland-rust/target` and `/tmp/rotland-heavy.lock`
 tools/gate.sh                                  # full check + whole test suite
 tools/gate.sh --task tasks/R11-01-....md       # also check scope / numbers / unused
 tools/gate.sh --test minimap                   # only tests whose name matches
+
 
 ```
 
@@ -39,6 +42,7 @@ never edit it by hand.
 python3 -I tools/gate_checks.py --base main --task tasks/R11-01-....md
 python3 -I tools/gate_checks.py --selftest     # quick self-test, no repo needed
 
+
 ```
 
 Needs a source tag on the same line (or the line above) for each new number in
@@ -54,6 +58,7 @@ Needs a source tag on the same line (or the line above) for each new number in
 ```bash
 python3 -I tools/neon_pack.py tasks/R11-01-....md
 
+
 ```
 
 Writes `neon/out/<task>.prompt.md` (about 2000 tokens per 8 KB). It reads the
@@ -67,6 +72,7 @@ output into AI Studio.
 # save Neon's answer as neon/in/<task>.md first
 python3 -I tools/neon_apply.py neon/in/R11-01-....md --task tasks/R11-01-....md --dry-run
 python3 -I tools/neon_apply.py neon/in/R11-01-....md --task tasks/R11-01-....md
+
 
 ```
 

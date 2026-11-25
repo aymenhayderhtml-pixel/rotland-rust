@@ -24,3 +24,72 @@ Rules: `tasks/LEAD.md` subagent rules. Use the "R32 shared names" in `tasks/R32-
 5. **`--weather=<kind>` dev flag:** force that kind at intensity 1 from the start, with no changes for the whole run (for screenshots).
 
 ## Worker notes
+
+## Neon notes
+
+### What was implemented
+1. **`rotland/src/weather_play.rs`**: Added `WeatherPlay` holding `WeatherState`, `WeatherData`, and `WeatherRenderer`, with `tick`, `params`, `light_overrides`, `visibility`, `noise_mask`, `force`, `to_save`, `apply_save`, and `draw`.
+2. **`rotland/src/light.rs`**: Added `WeatherLight`, `rgb_u8_to_vec3`, and `at_hour_weather(hour, spot, weather)` while keeping `at_hour(hour, spot)` intact. Fog distances scale by `fog_mult` (clamped to `25 m` / `45 m`). Fog mixes toward `BiomeDef::fog_tint` by `outer`, then toward `weather_tint` by `intensity * 0.5`; sky horizon/top also shift subtly during active weather. Tints are luminance-capped to the base colour so night fog/sky never brighten. Added 4 unit tests.
+3. **`rotland/src/app/render_frame.rs`**: Wired `light::at_hour_weather` for fog/sky and `weather.draw(...)` immediately after `crate::water_view::draw(...)`. Also restored three `* Mat4::from_...` multiplications that had been mangled to `- Mat4::from_...` in the prompt pack.
+4. **`game_zombie/src/zombie/senses.rs`**: Added `SenseMultipliers { pub sight_mult: f32, pub hearing_mult: f32 }` (both default `1.0`, plus `from_weather(visibility, noise_mask)`), `Senses::set_multipliers`, and `Senses::hears` while preserving existing `Senses::update` and free `hears` signatures. Added 2 unit tests (`sight_multiplier_scales_sight_range`, `hearing_multiplier_masks_noise_radius`).
+5. **`save/src/systems/world.rs`**: Added optional `weather: Option<WeatherSaveData>` on `WorldSaveData` (`skip_serializing_if = "Option::is_none"`, `#[serde(default)]`). Kept `WorldSaveData::new(seed)` unchanged so old saves load as `None` (clear weather). Note: dropped `Eq` derive from `WorldSaveData` because `WeatherSaveData` stores `f32`s (`PartialEq` remains). Added 2 unit tests.
+6. **`rotland/src/app/test_flags.rs` & `tools/README_TOOLS.md`**: Added `--weather=<kind>` parsing, startup application (`weather.force(kind)`), test assertions, and README documentation.
+
+### Shared-file lines for the lead to add
+1. **`rotland/src/main.rs`**:
+   ```rust
+   mod weather_play;
+
+```
+
+2. **`rotland/src/app/state.rs`** (in `PlaySide` struct + `impl Default for PlaySide`):
+```rust
+pub weather: Option<crate::weather_play::WeatherPlay>,
+// in Default:
+weather: None,
+
+```
+
+
+3. **`rotland/src/app/start_world.rs`** (right after `world.world_gen` is created and before `test_flags::apply_startup`):
+```rust
+let weather_data = world::weather::WeatherData::load().unwrap_or_default(); // match R32-01's loader name
+let mut weather = crate::weather_play::WeatherPlay::new(gpu, session.seed, weather_data);
+if let Some(saved) = file.as_ref().and_then(|f| f.world.weather.as_ref()) {
+    weather.apply_save(Some(saved));
+}
+play.weather = Some(weather);
+
+```
+
+
+(Call `test_flags::apply_startup` after this so `--weather=<kind>` overrides loaded weather.)
+4. **Frame update (next to the `play.clock` day/night tick, e.g. `rotland/src/app/frame_update.rs` or `mod.rs`)**:
+```rust
+if let (Some(weather), Some(generator)) = (play.weather.as_mut(), world.world_gen.as_ref()) {
+    let dt_game = if play.clock_frozen { 0.0 } else { dt * play.clock.time_scale() }; // match your Clock's game-seconds delta
+    weather.tick(dt_game, actors.player, generator);
+}
+
+```
+
+
+5. **Zombie senses update (in `game_zombie/src/zombie/mod.rs` and the `rotland/` zombie tick)**:
+* Re-export `pub use senses::SenseMultipliers;` if desired from `game_zombie` / `game::zombie`.
+* Pass `let mults = play.weather.as_ref().map_or_else(SenseMultipliers::default, |w| SenseMultipliers::from_weather(w.visibility(), w.noise_mask()));` into zombie updates, call `zombie.senses.set_multipliers(mults)`, and use `zombie.senses.hears(feet, noise, def.hearing_multiplier)` (or `hears(feet, noise, def.hearing_multiplier * mults.hearing_mult)`).
+
+
+6. **World save builder (where `WorldSaveData::new(session.seed)` is built)**:
+```rust
+let mut world_save = save::systems::world::WorldSaveData::new(session.seed);
+world_save.weather = play.weather.as_ref().map(|w| w.to_save());
+
+```
+
+
+
+### Known cross-task alignment points (R32-01 & R32-02 built in parallel)
+
+* **`world::weather::WeatherData` (R32-01)**: `weather_play.rs` reads `self.data.kinds.get(kind.key())` with fields `.tint: [f32; 3]` and `.wind: f32` (matching `data/weather.json` in `tasks/R32-round.md`). Adjust `kind_tint` / `kind_wind` if R32-01 exposes a getter method instead of a `pub kinds` map.
+* **`engine::render::weather::WeatherRenderer` (R32-02)**: `weather_play.rs` calls `WeatherRenderer::new(gpu)` and `self.renderer.draw(gpu, target, encoder, camera, &params)` mirroring `WaterRenderer` (`engine/src/render/water.rs`). If R32-02 took `(gpu, format, depth_format)` or `(&mut pass, &gpu.queue, view_proj, &params)`, only those two lines in `rotland/src/weather_play.rs` need adjustment.
+* **`engine::render::Camera` import**: Adjust to `engine::Camera` in `weather_play.rs` if `Camera` is only exported at the crate root.

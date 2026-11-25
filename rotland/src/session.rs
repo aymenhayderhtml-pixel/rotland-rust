@@ -173,13 +173,15 @@ pub struct Snapshot<'a> {
     pub play_time: f64,
     pub trees: Option<&'a game::TreeFelling>,
     pub poi_zombies: Option<&'a game::PoiZombies>,
+    /// Weather snapshot (R32-03); `None` saves as clear weather.
+    pub weather: Option<save::systems::world::WeatherSaveData>,
 }
 
 pub fn capture(base: Option<&SaveFile>, s: &Snapshot) -> SaveFile {
     let mut file = base.cloned().unwrap_or_else(|| SaveFile::new_populated(s.seed));
     file.saved_at_utc = save::utc_now_iso8601();
     let sys = &mut file.systems;
-    sys.world = Some(save::WorldSaveData { seed: s.seed });
+    sys.world = Some(save::WorldSaveData { seed: s.seed, weather: s.weather.clone() });
     let mut player = sys.player.clone().unwrap_or_default();
     player.position = d3(s.player.position);
     player.body_yaw = s.player.yaw;

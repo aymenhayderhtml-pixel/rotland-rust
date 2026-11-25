@@ -3,6 +3,18 @@
 use glam::Vec3;
 
 use super::state::{AudioState, PlaySide, WorldState};
+use crate::zombies::types::ToxicBurst;
+
+/// Body warmth lost when bitten by a frozen zombie. // new: DECISIONS 2026-11-25
+const FROZEN_BITE_CHILL: f32 = 8.0;
+
+/// Side-effects from one frame of zombie simulation for the caller to route to player/world systems.
+pub(super) struct ZombieStepOut {
+    pub hit_from: Option<Vec3>,
+    pub big_knock: Vec3,
+    pub chill: f32,
+    pub toxic_bursts: Vec<ToxicBurst>,
+}
 
 /// Runs the zombie simulation, processes screams, guard blocks, knockback, and horde/director HUD events.
 pub(super) fn step_zombies_and_events(
@@ -24,7 +36,7 @@ pub(super) fn step_zombies_and_events(
     hud: &mut crate::hud::Hud,
     audio: &mut AudioState,
     bites: &mut Vec<f32>,
-) -> (Option<Vec3>, Vec3) {
+) -> ZombieStepOut {
     z.camp_center = world_gen.and_then(|g| g.settlements().first().map(|s| s.center));
     z.camp_wall_radius = hud.config.horde_events.camp_wall_radius_m;
     let mut heard = std::mem::take(heard_scratch);
@@ -48,6 +60,7 @@ pub(super) fn step_zombies_and_events(
             a.play_at("zombie_groan", *at);
         }
     }
+    let mut chill = frame.chill;
     {
         static GUARD_CFG: std::sync::OnceLock<game::GuardConfig> = std::sync::OnceLock::new();
         let guard_cfg = GUARD_CFG.get_or_init(|| game::GuardConfig::from_repo().unwrap_or_default());
@@ -56,17 +69,30 @@ pub(super) fn step_zombies_and_events(
             .list
             .iter()
             .filter(|zz| zz.last_out.as_ref().is_some_and(|o| o.attack_hit.is_some()))
-            .map(|zz| zz.position);
+            .map(|zz| (zz.position, zz.kind.as_str()));
         let mut blocked_any = false;
         for b in &frame.bites {
-            let attacker = biters.next();
+            let (attacker, attacker_kind) = match biters.next() {
+                Some((pos, kind)) => (Some(pos), Some(kind)),
+                None => (None, None),
+            };
             let dmg = if let Some(pc) = player_ctrl.as_deref_mut() {
-                let (d, blocked) = guard.filter_bite(b.damage, pc.position, pc.yaw, attacker, &mut pc.stamina, guard_cfg);
+                let (d, blocked) = guard.filter_bite(
+                    b.damage,
+                    pc.position,
+                    pc.yaw,
+                    attacker,
+                    &mut pc.stamina,
+                    guard_cfg,
+                );
                 blocked_any |= blocked;
                 d
             } else {
                 b.damage
             };
+            if dmg > 0.0 && attacker_kind == Some("frozen") {
+                chill += FROZEN_BITE_CHILL;
+            }
             bites.push(dmg);
         }
         if blocked_any && let Some(pv) = player_visual {
@@ -121,6 +147,9 @@ pub(super) fn step_zombies_and_events(
                         "brute" => "Brute",
                         "screamer" => "Screamer",
                         "crawler" => "Crawler",
+                        "frozen" => "Frozen",
+                        "husk" => "Husk",
+                        "bloater" => "Bloater",
                         other => other,
                     };
                     hud.notify(
@@ -179,7 +208,12 @@ pub(super) fn step_zombies_and_events(
         }
     }
 
-    (hit_from, big_knock)
+    ZombieStepOut {
+        hit_from,
+        big_knock,
+        chill,
+        toxic_bursts: frame.toxic_bursts,
+    }
 }
 
 /// Wakes POI zombies near the player, despawns distant ones, and credits cleared POIs.

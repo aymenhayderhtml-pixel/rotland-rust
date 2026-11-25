@@ -11,7 +11,7 @@ fn hints_tests_data_loads_and_validates() {
     let config = HintConfig::load_default().expect("data/hints.json must load and validate");
     assert!(config.enabled);
     assert!((config.show_seconds - 8.0).abs() < 1e-6);
-    assert_eq!(config.hints.len(), 12);
+    assert_eq!(config.hints.len(), 14);
 
     // Hand-verified hint list from data/hints.json:
     let expected_ids = [
@@ -27,6 +27,8 @@ fn hints_tests_data_loads_and_validates() {
         "wood",
         "dog_breeder",
         "bounty",
+        "cold",
+        "hot",
     ];
 
     for (i, &expected_id) in expected_ids.iter().enumerate() {

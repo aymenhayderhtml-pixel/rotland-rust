@@ -37,7 +37,7 @@ pub fn update_sim(
         let mut bites = std::mem::take(&mut actors.bites_scratch);
         bites.clear();
 
-        let (hit_from, big_knock) = step_zombies_and_events(
+        let z_out = step_zombies_and_events(
             dt,
             z,
             alive,
@@ -57,6 +57,42 @@ pub fn update_sim(
             audio,
             &mut bites,
         );
+        let (hit_from, big_knock) = (z_out.hit_from, z_out.big_knock);
+        // R32-06/07: frozen bites chill the body; bloater bursts make toxic clouds.
+        if z_out.chill > 0.0
+            && let Some(temp) = play.temperature.as_mut()
+        {
+            temp.body.chill(z_out.chill);
+        }
+        for b in z_out.toxic_bursts {
+            render.toxic_cloud_view.spawn(b.position, b.radius, b.duration);
+            actors.toxic_clouds.spawn(game::zombie::ToxicBurst {
+                pos: b.position,
+                radius: b.radius,
+                seconds: b.duration,
+                player_dps: b.player_dps,
+                zombie_dps: b.zombie_dps,
+            });
+        }
+        actors.toxic_clouds.update(dt);
+        render.toxic_cloud_view.update(dt);
+        if alive {
+            let (player_dps, _) = actors.toxic_clouds.damage_at(actors.player);
+            if player_dps > 0.0
+                && let Some(c) = actors.combat.as_mut()
+            {
+                let now = actors.downed.last_play_time();
+                c.take_damage_with_downed(&[player_dps * dt], &mut actors.downed.machine, now, false);
+            }
+        }
+        for zb in &mut z.list {
+            let (_, zombie_dps) = actors.toxic_clouds.damage_at(zb.position);
+            if zombie_dps > 0.0 && !zb.health.is_dead() {
+                let mut info = game::DamageInfo::new(zombie_dps * dt);
+                info.damage_type = "toxic".to_string();
+                zb.health.take_damage(info);
+            }
+        }
 
         step_poi_zombies(
             z,

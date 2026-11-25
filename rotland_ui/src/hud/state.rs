@@ -47,6 +47,8 @@ pub struct HudState {
     /// Food and water bars: fill 0..1 and whether it is low (the bar pulses red).
     pub food: Option<(f32, bool)>,
     pub water: Option<(f32, bool)>,
+    /// Body warmth bar (R32-05); `None` hides it.
+    pub warmth: Option<super::warmth::WarmthHudInfo>,
     pub message: Option<String>,
     pub dead: bool,
 
@@ -104,6 +106,7 @@ impl Default for HudState {
             fps: 60.0,
             food: None,
             water: None,
+            warmth: None,
             message: None,
             dead: false,
             held: HeldKind::None,

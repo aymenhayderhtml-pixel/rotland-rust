@@ -247,6 +247,8 @@ impl HintSystem {
             "died" => self.died_and_respawned,
             "bag_over" => ctx.bag_weight_ratio.is_some_and(|r| r >= parse_number(arg)),
             "has_item" => ctx.inventory_items.contains(arg),
+            "temp_cold" => ctx.temp_cold,
+            "temp_hot" => ctx.temp_hot,
             _ => false,
         }
     }

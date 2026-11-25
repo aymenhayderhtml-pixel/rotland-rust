@@ -1,28 +1,39 @@
-//! Pure state machines for special zombie behaviours (brute, screamer, crawler).
+//! Pure state machines for special zombie behaviours (brute, screamer, crawler, frozen, husk, bloater).
 
 use glam::Vec3;
 use serde::Deserialize;
+
+pub use super::specials_biome::{
+    bite_effect, BiteEffect, BloaterConfig, FrozenConfig, HuskConfig, SpecialEvent, ToxicBurst,
+    ToxicCloud, ToxicClouds,
+};
 
 // new: DECISIONS 2026-11-23
 const DIR_EPSILON: f32 = 1e-4;
 // new: DECISIONS 2026-11-23
 const TIMER_EPS_FRACTION: f64 = 1e-2;
 
-/// The three special zombie archetypes that carry a [`SpecialState`].
+/// Special zombie archetypes that carry a [`SpecialState`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SpecialKind {
     Brute,
     Screamer,
     Crawler,
+    Frozen,
+    Husk,
+    Bloater,
 }
 
 impl SpecialKind {
-    /// Returns the special kind for `"brute"`, `"screamer"`, or `"crawler"`; walkers and runners return `None`.
+    /// Returns the special kind for known special ids; walkers and runners return `None`.
     pub fn from_id(id: &str) -> Option<Self> {
         match id {
             "brute" => Some(Self::Brute),
             "screamer" => Some(Self::Screamer),
             "crawler" => Some(Self::Crawler),
+            "frozen" => Some(Self::Frozen),
+            "husk" => Some(Self::Husk),
+            "bloater" => Some(Self::Bloater),
             _ => None,
         }
     }
@@ -43,7 +54,7 @@ pub enum SpecialPose {
     Retreat,
 }
 
-/// One-frame melee/impact hit emitted when a brute charge or crawler lunge connects.
+/// One-frame melee/impact hit emitted when a brute charge or crawler/husk lunge connects.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SpecialHit {
     pub amount: f32,
@@ -72,7 +83,7 @@ pub struct SpecialDirective {
     /// Set only on the single tick a screamer call is emitted.
     pub call: Option<SpecialCall>,
     pub stunned: bool,
-    /// True while open to extra damage (stunned brute or recovering crawler).
+    /// True while open to extra damage (stunned brute or recovering crawler/husk).
     pub vulnerable: bool,
 }
 
@@ -84,6 +95,9 @@ pub struct SpecialConfig {
     pub brute: BruteConfig,
     pub screamer: ScreamerConfig,
     pub crawler: CrawlerConfig,
+    pub frozen: FrozenConfig,
+    pub husk: HuskConfig,
+    pub bloater: BloaterConfig,
 }
 
 /// Tuning numbers for the brute charge behaviour.
@@ -167,6 +181,7 @@ pub struct SpecialState {
     pub(super) cooldown: f64,
     pub(super) dir: Vec3,
     pub(super) hit_done: bool,
+    pub(super) burst_emitted: bool,
     killed: bool,
 }
 
@@ -192,6 +207,7 @@ impl SpecialState {
             cooldown: 0.0,
             dir: Vec3::ZERO,
             hit_done: false,
+            burst_emitted: false,
             killed: false,
         }
     }
@@ -256,6 +272,8 @@ impl SpecialState {
             SpecialKind::Brute => self.tick_brute(&cfg.brute, ctx),
             SpecialKind::Screamer => self.tick_screamer(&cfg.screamer, ctx),
             SpecialKind::Crawler => self.tick_crawler(&cfg.crawler, ctx, roll),
+            SpecialKind::Husk => self.tick_husk(&cfg.husk, ctx, roll),
+            SpecialKind::Frozen | SpecialKind::Bloater => SpecialDirective::default(),
         }
     }
 }

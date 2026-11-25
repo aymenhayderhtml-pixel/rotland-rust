@@ -10,7 +10,10 @@
     "runner": 1.5,
     "crawler": 1.0,
     "screamer": 0.8,
-    "brute": 18.0
+    "brute": 18.0,
+    "frozen": 2.0,
+    "husk": 1.0,
+    "bloater": 2.0
   },
   "defaultDamage": 1.5
 }

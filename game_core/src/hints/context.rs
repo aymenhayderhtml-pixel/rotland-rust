@@ -18,6 +18,10 @@ pub struct HintContext {
     pub is_menu_open: bool,
     pub is_dead: bool,
     pub hints_wanted: bool,
+    /// Body warmth is in the Freezing or Cold band (R32-05 `temp_cold` trigger).
+    pub temp_cold: bool,
+    /// Body warmth is in the Hot or Overheated band (R32-05 `temp_hot` trigger).
+    pub temp_hot: bool,
 }
 
 impl Default for HintContext {
@@ -34,6 +38,8 @@ impl Default for HintContext {
             is_menu_open: false,
             is_dead: false,
             hints_wanted: true,
+            temp_cold: false,
+            temp_hot: false,
         }
     }
 }

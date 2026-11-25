@@ -19,7 +19,7 @@ Rotland uses an endless procedural world built around a preserved inner **core**
 - **Danger Tiers (`1 .. 5`):**
   - Beyond `core_radius`, danger increases by 1 tier every `tier_band` (`1500 m`):
     `tier = min(5, 1 + floor((distance - core_radius) / tier_band))`.
-  - Higher tiers increase zombie spawn density (`zombie_mult`) and grant extra loot rolls (`loot_rolls_bonus`) in crates and POIs.
+- Higher tiers increase zombie spawn density (`zombie_mult`) and grant extra loot rolls (`loot_rolls_bonus`) in crates and POIs.
 
 ## 2. Data Files
 
@@ -27,6 +27,7 @@ Rotland uses an endless procedural world built around a preserved inner **core**
 | --- | --- |
 | `data/biomes.json` | All 6 biome definitions (`plains`, `forest`, `desert`, `snow`, `swamp`, `mountains`): display name, map/fog colors, ground RGB colors (`base`, `alt`, `slope`, `peak`, `peak_height`), heightfield parameters (`base`, `amplitude`, `frequency`, `octaves`, `ridged`, `dune`), scatter rules, `zombie_density`, `loot_table`, `animals`, `temperature_day`/`temperature_night`, `thirst_mult`, and `footstep`. |
 | `data/world_layout.json` | Radial ring distances (`core_radius`, `blend_band`), sector directions (`sectors`), border warping/blending (`sector_blend_deg`, `warp_deg`, `warp_frequency`), and danger tier multipliers (`tier_band`, `tiers`). |
+| `data/weather.json` | Weather spell durations (`min_spell_seconds`, `max_spell_seconds`), transition `fade_seconds`, per-biome weighted weather tables (`biomes`), and per-kind gameplay/render properties (`fog_mult`, `visibility`, `noise_mask`, `wind`, `particles_per_m3`, `tint`). |
 | `data/scatter.json` | Core Plains/Forest prop rules, visibility distances, and crate placement defaults. |
 | `data/spawning.json` | Base spawn caps, distances, day/night zombie weights, and camp/city density modifiers. |
 | `data/loot_tables.json` | Loot roll tables referenced by each biome's `loot_table` key. |
@@ -38,5 +39,15 @@ Rotland uses an endless procedural world built around a preserved inner **core**
 1. **Enum (`world/src/biome/mod.rs`):** Add the new `#[repr(u8)]` variant to `BiomeId`, update `BiomeId::COUNT` and `BiomeId::ALL`, and add its snake_case string to `BiomeId::key()` and `BiomeId::from_key()`.
 2. **Biome Data (`data/biomes.json`):** Add an entry matching the new `key` with ground colors, height settings, scatter rules, temperatures, and gameplay multipliers. (`BiomeRegistry::load()` validates that every `BiomeId` variant is present.)
 3. **World Sector (`data/world_layout.json`):** Add `{ "biome": "<key>", "center_deg": <angle> }` to `sectors` and adjust neighboring sector angles.
-4. **Assets & Gameplay Tables:** Export any new prop `.glb` models in `tools/blender/` + `assets/models/props/` and add corresponding loot entries in `data/loot_tables.json`.
-5. **Verify:** Run `cargo test -p world` to check registry loading and layout invariants.
+4. **Weather Table (`data/weather.json`):** Add a weighted weather list under `biomes.<key>` and a `_biomes_why.<key>` note. (`WeatherData::load()` validates that every `BiomeId` variant has a non-empty list.)
+5. **Assets & Gameplay Tables:** Export any new prop `.glb` models in `tools/blender/` + `assets/models/props/` and add corresponding loot entries in `data/loot_tables.json`.
+6. **Verify:** Run `cargo test -p world` to check registry loading, layout invariants, and weather rules.
+
+## 4. Weather
+
+Weather is simulated deterministically in `world::weather` (`WeatherKind`, `WeatherState`, `WeatherData`) using `data/weather.json`:
+
+- **Kinds:** `clear`, `rain`, `snow`, `sandstorm`, and `fog`. Each kind defines `fog_mult`, `visibility`, `noise_mask`, `wind` speed, `particles_per_m3`, and normalized RGB `tint`.
+- **Biome Spells:** A spell lasts between `min_spell_seconds` (`240 s`) and `max_spell_seconds` (`720 s`) of game time. When a spell ends, the next kind is drawn from the current biome's weighted list using `DotnetRandom` seeded from the world seed.
+- **Smooth Transitions & Biome Crossings:** Switching kinds fades `intensity` smoothly to `0` over `fade_seconds` (`40 s`), swaps `kind`, and fades back to `1`. Entering a biome whose list excludes the active weather (such as bringing a desert `sandstorm` into `snow`) starts fading out immediately and picks a valid weather kind for the new biome.
+- **Gameplay Outputs & Wind:** `fog_mult()`, `visibility()`, and `noise_mask()` blend linearly between `clear` and the current kind by `intensity`. Horizontal `wind` (`glam::Vec2` in m/s on XZ) drifts slowly in direction (`~2–4°/min`) with magnitude `kinds[k].wind * intensity`. `WeatherState` derives `Serialize`/`Deserialize` for save files.

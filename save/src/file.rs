@@ -82,7 +82,7 @@ impl Systems {
             stats: Some(StatsSaveData::default()),
             inventory: Some(InventorySaveData::default()),
             time: Some(TimeSaveData::default()),
-            world: Some(WorldSaveData { seed }),
+            world: Some(WorldSaveData::new(seed)),
             worldstate: Some(WorldStateSaveData::default()),
             difficulty: Some(DifficultySaveData::default()),
             wallet: Some(WalletSaveData::default()),
