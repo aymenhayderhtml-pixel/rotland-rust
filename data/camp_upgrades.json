@@ -241,5 +241,56 @@
       "hasMechanic": true,
       "traderStockTier": 1
     }
+  ],
+  "gunsmith": [
+    {
+      "level": 0,
+      "name": "Field Bench",
+      "cost": { "cash": 0, "materials": [], "buildHours": 0.0 },
+      "gunsmithTier": 0
+    },
+    {
+      "level": 1,
+      "name": "Reloading Press",
+      "cost": {
+        "cash": 100,
+        "materials": [
+          { "id": "wood", "count": 12 },
+          { "id": "scrap_metal", "count": 8 }
+        ],
+        "buildHours": 1.5
+      },
+      "gunsmithTier": 1
+    },
+    {
+      "level": 2,
+      "name": "Armory Rack",
+      "cost": {
+        "cash": 250,
+        "materials": [
+          { "id": "scrap_metal", "count": 18 },
+          { "id": "wood", "count": 16 }
+        ],
+        "buildHours": 3.5
+      },
+      "requires": {
+        "line": "workshop",
+        "level": 1
+      },
+      "gunsmithTier": 2
+    },
+    {
+      "level": 3,
+      "name": "Master Gunsmith",
+      "cost": {
+        "cash": 500,
+        "materials": [
+          { "id": "scrap_metal", "count": 30 },
+          { "id": "cloth", "count": 10 }
+        ],
+        "buildHours": 6.0
+      },
+      "gunsmithTier": 3
+    }
   ]
 }

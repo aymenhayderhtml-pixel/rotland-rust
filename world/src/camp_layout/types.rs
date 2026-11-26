@@ -11,6 +11,8 @@ pub struct CampLevels {
     pub guards: u8,
     pub workshop: u8,
     pub traders: u8,
+    #[serde(default)]
+    pub gunsmith: u8,
 }
 
 /// One tower corner position and local orientation.
@@ -38,6 +40,16 @@ const DEFAULT_WORKSHOP_OFFSET: [f32; 2] = [13.5, 3.5];
 const DEFAULT_DOCTOR_OFFSET: [f32; 2] = [-14.0, -13.5];
 // data: camp_layout.json mechanicOffset
 const DEFAULT_MECHANIC_OFFSET: [f32; 2] = [14.5, -12.0];
+// data: camp_layout.json gunsmithOffset
+const DEFAULT_GUNSMITH_OFFSET: [f32; 2] = [-14.0, -7.5];
+
+fn default_gunsmith_offset() -> [f32; 2] {
+    DEFAULT_GUNSMITH_OFFSET
+}
+
+fn default_gunsmith_yaw() -> f32 {
+    std::f32::consts::PI
+}
 
 /// Configuration layout data loaded from `data/camp_layout.json`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -59,6 +71,10 @@ pub struct CampLayoutConfigData {
     pub mechanic_offset: [f32; 2],
     #[serde(default)]
     pub mechanic_yaw: f32,
+    #[serde(default = "default_gunsmith_offset")]
+    pub gunsmith_offset: [f32; 2],
+    #[serde(default = "default_gunsmith_yaw")]
+    pub gunsmith_yaw: f32,
 }
 
 impl Default for CampLayoutConfigData {
@@ -87,6 +103,8 @@ impl Default for CampLayoutConfigData {
             doctor_yaw: 0.0,
             mechanic_offset: DEFAULT_MECHANIC_OFFSET,
             mechanic_yaw: 0.0,
+            gunsmith_offset: DEFAULT_GUNSMITH_OFFSET,
+            gunsmith_yaw: std::f32::consts::PI,
         }
     }
 }

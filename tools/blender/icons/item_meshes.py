@@ -212,6 +212,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import arrow as arrow_weapon  # noqa: E402
 import crossbow_bolt as crossbow_bolt_weapon  # noqa: E402
 import grenade as grenade_weapon  # noqa: E402
+import attachments as weapon_attachments  # noqa: E402
 
 
 class _Bag:
@@ -382,4 +383,5 @@ BUILDERS = {
     "revolver_ammo": revolver_ammo,
     "crossbow_bolt": crossbow_bolt,
     "grenade": grenade,
+    **weapon_attachments.ICON_BUILDERS,
 }

@@ -638,6 +638,7 @@ fn roundtrip_camp_upgrades() {
             guards_level: 1,
             workshop_level: 3,
             traders_level: 4,
+            gunsmith_level: 2,
             in_progress: Some(UpgradeInProgressSaveData {
                 line: "walls".to_string(),
                 target_level: 3,
@@ -655,6 +656,7 @@ fn roundtrip_camp_upgrades() {
     assert_eq!(s.camp_upgrades.guards_level, 1);
     assert_eq!(s.camp_upgrades.workshop_level, 3);
     assert_eq!(s.camp_upgrades.traders_level, 4);
+    assert_eq!(s.camp_upgrades.gunsmith_level, 2);
     let prog = s.camp_upgrades.in_progress.expect("in_progress missing");
     assert_eq!(prog.line, "walls");
     assert_eq!(prog.target_level, 3);

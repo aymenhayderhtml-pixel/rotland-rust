@@ -52,6 +52,8 @@ pub fn start_world(
     actors.camera_rig = None;
     actors.camp_npcs = None;
     actors.rescue_view = None;
+    actors.gunsmith_world = Default::default();
+    render.attachment_view = None;
     actors.camp_guards = None;
     actors.wildlife = None;
     actors.dogs = None;
@@ -163,6 +165,8 @@ pub fn start_world(
             ));
             actors.backpack_view =
                 Some(crate::backpack_view::BackpackView::load(&gpu.device, pack));
+            render.attachment_view =
+                Some(crate::attachment_view::AttachmentView::new(&gpu.device, pack));
         }
     }
     // The camp's people (play scene)
@@ -178,6 +182,12 @@ pub fn start_world(
             Err(e) => log::warn!("camp guards not loaded: {e}"),
         }
         actors.rescue_view = Some(crate::rescue_view::RescueView::new(&gpu.device, pack));
+        actors.gunsmith_world = crate::gunsmith_play::GunsmithWorld::new(
+            &gpu.device,
+            pack,
+            &world_gen,
+            &mut world.physics,
+        );
     }
     // A saved game: the player where they were, the clock, the backpack and the emptied crates
     if let Some(file) = &save_file {
@@ -268,6 +278,7 @@ pub fn start_world(
         for (id, n) in &session.give {
             play_state.inventory.add(id, *n);
         }
+        play_state.hotbar.on_inventory_changed(&play_state.inventory);
     }
     if let (Some(yaw), Some(p), Some(rig)) = (
         session.start_yaw,

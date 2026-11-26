@@ -1,0 +1,137 @@
+{
+  "_why": "R37 weapon shop (gunsmith): scrap prices, camp upgrade tiers 0-3, and 4 town gun shops.",
+  "scrapItem": "scrap_metal",
+  "sellRate": 0.4,
+  "repairRate": 0.5,
+  "fitLabour": 5,
+  "restockHour": 6,
+  "interactRange": 4.0,
+  "scrapDollarValue": 4,
+  "maxCampTier": 3,
+  "prices": {
+    "pistol":        { "price": 25 },
+    "revolver":      { "price": 35 },
+    "shotgun":       { "price": 45 },
+    "smg":           { "price": 60 },
+    "rifle":         { "price": 60 },
+    "hunting_rifle": { "price": 90 },
+    "ak47":          { "price": 110 },
+    "crossbow":      { "price": 70 },
+    "grenade":       { "price": 12 },
+
+    "pistol_ammo":   { "price": 3, "packSize": 12 },
+    "shells_12g":    { "price": 4, "packSize": 6 },
+    "revolver_ammo": { "price": 4, "packSize": 6 },
+    "rifle_rounds":  { "price": 5, "packSize": 5 },
+    "ammo_762":      { "price": 8, "packSize": 10 },
+    "crossbow_bolt": { "price": 4, "packSize": 5 },
+    "arrow":         { "price": 3, "packSize": 10 },
+
+    "pipe":          { "price": 4 },
+    "dagger":        { "price": 5 },
+    "knife":         { "price": 6 },
+    "bat":           { "price": 7 },
+    "crowbar":       { "price": 10 },
+    "spear":         { "price": 10 },
+    "machete":       { "price": 12 },
+    "hammer":        { "price": 12 },
+    "axe":           { "price": 14 },
+    "bow":           { "price": 18 },
+    "fire_axe":      { "price": 22 },
+    "katana":        { "price": 95 },
+
+    "red_dot":       { "price": 20 },
+    "foregrip":      { "price": 22 },
+    "stock_pad":     { "price": 18 },
+    "bolt_quiver":   { "price": 20 },
+    "ext_mag":       { "price": 25 },
+    "scope_2x":      { "price": 25 },
+    "suppressor":    { "price": 35 },
+    "drum_mag":      { "price": 55 },
+    "scope_4x":      { "price": 50 }
+  },
+  "campStock": [
+    { "id": "pistol",        "qty": 1, "tier": 0 },
+    { "id": "pistol_ammo",   "qty": 4, "tier": 0 },
+
+    { "id": "revolver",      "qty": 1, "tier": 1 },
+    { "id": "shotgun",       "qty": 1, "tier": 1 },
+    { "id": "revolver_ammo", "qty": 3, "tier": 1 },
+    { "id": "shells_12g",    "qty": 4, "tier": 1 },
+    { "id": "red_dot",       "qty": 1, "tier": 1 },
+    { "id": "foregrip",      "qty": 1, "tier": 1 },
+
+    { "id": "smg",           "qty": 1, "tier": 2 },
+    { "id": "crossbow",      "qty": 1, "tier": 2 },
+    { "id": "rifle",         "qty": 1, "tier": 2 },
+    { "id": "crossbow_bolt", "qty": 4, "tier": 2 },
+    { "id": "rifle_rounds",  "qty": 4, "tier": 2 },
+    { "id": "scope_2x",      "qty": 1, "tier": 2 },
+    { "id": "stock_pad",     "qty": 1, "tier": 2 },
+
+    { "id": "ak47",          "qty": 1, "tier": 3 },
+    { "id": "ammo_762",      "qty": 3, "tier": 3 },
+    { "id": "grenade",       "qty": 3, "tier": 3 },
+    { "id": "ext_mag",       "qty": 1, "tier": 3 },
+    { "id": "suppressor",    "qty": 1, "tier": 3 }
+  ],
+  "towns": {
+    "dusthollow": {
+      "name": "Dusthollow Gun Shop",
+      "flavour": "Desert frontier guns, scatterguns, and a prized katana.",
+      "stock": [
+        { "id": "revolver",      "qty": 2 },
+        { "id": "shotgun",       "qty": 1 },
+        { "id": "pistol",        "qty": 1 },
+        { "id": "katana",        "qty": 1 },
+        { "id": "grenade",       "qty": 3 },
+        { "id": "revolver_ammo", "qty": 5 },
+        { "id": "shells_12g",    "qty": 5 },
+        { "id": "pistol_ammo",   "qty": 5 },
+        { "id": "red_dot",       "qty": 2 },
+        { "id": "stock_pad",     "qty": 1 }
+      ]
+    },
+    "frostmere": {
+      "name": "Frostmere Gun Shop",
+      "flavour": "Automatic arms, heavy magazines, and surplus 7.62.",
+      "stock": [
+        { "id": "ak47",          "qty": 1 },
+        { "id": "smg",           "qty": 2 },
+        { "id": "drum_mag",      "qty": 1 },
+        { "id": "ext_mag",       "qty": 2 },
+        { "id": "foregrip",      "qty": 2 },
+        { "id": "ammo_762",      "qty": 5 },
+        { "id": "pistol_ammo",   "qty": 6 },
+        { "id": "grenade",       "qty": 2 }
+      ]
+    },
+    "blackwater": {
+      "name": "Blackwater Gun Shop",
+      "flavour": "Quiet swamp hunting gear, bolts, and suppressors.",
+      "stock": [
+        { "id": "crossbow",      "qty": 2 },
+        { "id": "bolt_quiver",   "qty": 1 },
+        { "id": "shotgun",       "qty": 1 },
+        { "id": "suppressor",    "qty": 2 },
+        { "id": "red_dot",       "qty": 1 },
+        { "id": "crossbow_bolt", "qty": 6 },
+        { "id": "arrow",         "qty": 4 },
+        { "id": "shells_12g",    "qty": 4 }
+      ]
+    },
+    "ridgeback_station": {
+      "name": "Ridgeback Gun Shop",
+      "flavour": "Long-range mountain rifles and high-power optics.",
+      "stock": [
+        { "id": "hunting_rifle", "qty": 1 },
+        { "id": "rifle",         "qty": 1 },
+        { "id": "scope_4x",      "qty": 1 },
+        { "id": "scope_2x",      "qty": 2 },
+        { "id": "stock_pad",     "qty": 2 },
+        { "id": "suppressor",    "qty": 1 },
+        { "id": "rifle_rounds",  "qty": 6 }
+      ]
+    }
+  }
+}

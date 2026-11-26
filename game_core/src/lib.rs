@@ -24,5 +24,8 @@ pub use loot::*;
 pub use profile_stats::*;
 pub use skills::*;
 pub use weapons::{
-    WeaponAnim, WeaponDef, WeaponHold, WeaponKind, WeaponLoadError, WeaponRegistry, WeaponScope,
+    apply_hit_wear, apply_shot_wear, can_fit, effective_stats, is_broken, jam_chance, jam_roll,
+    kick_mult, melee_damage_mult, spread_mult, AttachEffects, AttachSlot, AttachmentDef,
+    AttachmentLoadError, AttachmentRegistry, WeaponAnim, WeaponDef, WeaponHold, WeaponKind,
+    WeaponLoadError, WeaponRegistry, WeaponScope, WeaponWearEntry, WearConfig, WearLoadError,
 };

@@ -8,11 +8,12 @@ use engine::{EngineArgs, Gpu};
 use game::guild::{GuildConfig, GuildRecruit, RecruitDef, RecruitRole};
 use game::rescue_place::RescueSpot;
 use glam::{Vec2, Vec3};
+use rotland_ui::gunsmith_ui::GunsmithTab;
 use world::biome::layout::BiomeSample;
 use world::weather::WeatherKind;
 use world::BiomeId;
 
-use super::state::{ActorsState, AudioState, PlaySide, RenderState, SessionState, WorldState};
+use super::state::{ActorsState, AudioState, PlaySide, RenderState, SessionState, UiState, WorldState};
 
 /// Distance in metres to place the player from the nearest unrescued survivor for `--tp-rescue`.
 const RESCUE_TP_DISTANCE_M: f32 = 6.0; // new: DECISIONS 2026-11-25
@@ -56,11 +57,18 @@ pub struct TestFlags {
     pub bridge: Option<usize>,
     /// `--river=<n>`: teleport 25 m from river `n` on a bank, facing the water (R33-05).
     pub river: Option<usize>,
+    /// `--gunsmith=<tab>`: open the camp gunsmith UI on `buy|sell|repair|upgrade` (R37-08).
+    pub gunsmith: Option<GunsmithTab>,
+    /// `--gunsmith-town=<key>`: teleport to that town and open its gun shop UI (R37-08).
+    pub gunsmith_town: Option<String>,
+    /// `--wear=<weapon>:<0..1>`: set condition on `<weapon>` in the bag (adding if absent) (R37-08).
+    pub wear: Option<(String, f32)>,
+    /// `--mods=<weapon>:<id,id>`: fit attachments on `<weapon>` in the bag (adding if absent) (R37-08).
+    pub mods: Option<(String, Vec<String>)>,
 }
 
 impl TestFlags {
-    /// Parses `--down-at`, `--team`, `--tp-rescue`, `--hold-e`, `--biome`, `--weather`,
-    /// `--spawn-zombie`, `--town`, `--trailhead`, `--bridge`, and `--river` from CLI args.
+    /// Parses dev-only test flags from CLI args.
     pub fn from_args(args: &EngineArgs) -> Self {
         let biome = args.value("--biome").and_then(|raw| {
             let key = raw.trim().to_ascii_lowercase();
@@ -75,6 +83,13 @@ impl TestFlags {
             let parsed = WeatherKind::from_key(&key);
             if parsed.is_none() {
                 log::warn!("--weather: unknown weather kind '{raw}'");
+            }
+            parsed
+        });
+        let gunsmith = args.value("--gunsmith").and_then(|raw| {
+            let parsed = GunsmithTab::parse_name(raw);
+            if parsed.is_none() {
+                log::warn!("--gunsmith: unknown tab '{raw}' (expected buy|sell|repair|upgrade)");
             }
             parsed
         });
@@ -105,8 +120,41 @@ impl TestFlags {
             river: args
                 .value("--river")
                 .and_then(|s| s.trim().parse::<usize>().ok()),
+            gunsmith,
+            gunsmith_town: args
+                .value("--gunsmith-town")
+                .map(|s| s.trim().to_ascii_lowercase())
+                .filter(|s| !s.is_empty()),
+            wear: args.value("--wear").and_then(parse_wear_flag),
+            mods: args.value("--mods").and_then(parse_mods_flag),
         }
     }
+}
+
+fn parse_wear_flag(raw: &str) -> Option<(String, f32)> {
+    let (weapon, val) = raw.split_once(':')?;
+    let weapon = weapon.trim().to_ascii_lowercase();
+    let cond: f32 = val.trim().parse().ok()?;
+    if weapon.is_empty() || !cond.is_finite() {
+        log::warn!("--wear: invalid value '{raw}'");
+        return None;
+    }
+    Some((weapon, cond.clamp(0.0, 1.0)))
+}
+
+fn parse_mods_flag(raw: &str) -> Option<(String, Vec<String>)> {
+    let (weapon, list) = raw.split_once(':')?;
+    let weapon = weapon.trim().to_ascii_lowercase();
+    let mods: Vec<String> = list
+        .split(',')
+        .map(|s| s.trim().to_ascii_lowercase())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if weapon.is_empty() || mods.is_empty() {
+        log::warn!("--mods: invalid value '{raw}'");
+        return None;
+    }
+    Some((weapon, mods))
 }
 
 fn parse_non_negative_f32(raw: &str) -> Option<f32> {
@@ -281,13 +329,14 @@ pub fn build_rescued_recruits(count: usize, templates: &[RecruitDef]) -> Vec<Gui
         .collect()
 }
 
-/// Applies startup dev flags (`--biome`, `--weather`, `--tp-rescue`, `--team`) after the world is initialized.
+/// Applies startup dev flags (`--biome`, `--weather`, `--tp-rescue`, `--team`, `--gunsmith*`, `--wear`, `--mods`) after the world is initialized.
 pub fn apply_startup(
     gpu: &Gpu,
     render: &mut RenderState,
     world: &mut WorldState,
     actors: &mut ActorsState,
     play: &mut PlaySide,
+    ui: &mut UiState,
     session: &SessionState,
 ) {
     if let Some(biome) = session.test_flags.biome {
@@ -318,6 +367,21 @@ pub fn apply_startup(
     }
     if session.test_flags.team > 0 {
         apply_team(actors, play, session.test_flags.team);
+    }
+    apply_wear_and_mods(render, world, actors, play, session);
+    if let Some(key) = session.test_flags.gunsmith_town.as_deref() {
+        apply_gunsmith_town(gpu, render, world, actors, play, ui, session, key);
+    } else if let Some(tab) = session.test_flags.gunsmith {
+        let tier = play
+            .play
+            .as_ref()
+            .map_or(0, |p| p.camp.upgrades.level(game::UpgradeLine::Gunsmith));
+        ui.gunsmith = Some(crate::gunsmith_play::GunsmithSession::new(
+            tab,
+            game::ShopKind::Camp { tier },
+            None,
+        ));
+        ui.cursor_captured = false;
     }
 }
 
@@ -573,6 +637,134 @@ fn apply_team(actors: &ActorsState, play: &mut PlaySide, count: usize) {
     }
 }
 
+fn ensure_weapon_slot(play_state: &mut crate::play::PlayState, weapon_id: &str) -> Option<usize> {
+    let find_slot = |ps: &crate::play::PlayState| {
+        ps.inventory.slots().iter().position(|slot| {
+            slot.as_ref().is_some_and(|st| {
+                st.item_id == weapon_id
+                    || ps
+                        .items
+                        .get(&st.item_id)
+                        .is_some_and(|d| d.weapon_id == weapon_id)
+            })
+        })
+    };
+    if let Some(idx) = find_slot(play_state) {
+        return Some(idx);
+    }
+    if play_state.items.get(weapon_id).is_some() {
+        play_state.inventory.add(weapon_id, 1);
+        play_state.hotbar.on_inventory_changed(&play_state.inventory);
+        return find_slot(play_state);
+    }
+    None
+}
+
+fn apply_wear_and_mods(
+    render: &mut RenderState,
+    world: &WorldState,
+    actors: &mut ActorsState,
+    play: &mut PlaySide,
+    session: &SessionState,
+) {
+    let Some(play_state) = play.play.as_mut() else {
+        return;
+    };
+    let mut touched_weapon: Option<String> = None;
+    if let Some((weapon_id, cond)) = session.test_flags.wear.as_ref() {
+        if let Some(slot_idx) = ensure_weapon_slot(play_state, weapon_id)
+            && let Some(Some(stack)) = play_state.inventory.slots_mut().get_mut(slot_idx)
+        {
+            stack.wear = Some(*cond);
+            play_state.inventory.set_changed();
+            touched_weapon = Some(weapon_id.clone());
+        } else {
+            log::warn!("--wear: unknown weapon '{weapon_id}'");
+        }
+    }
+    if let Some((weapon_id, mod_ids)) = session.test_flags.mods.as_ref() {
+        if let Some(slot_idx) = ensure_weapon_slot(play_state, weapon_id) {
+            let attachments = play_state.attachments.clone();
+            if let Some(Some(stack)) = play_state.inventory.slots_mut().get_mut(slot_idx) {
+                for mod_id in mod_ids {
+                    let Some(def) = attachments.get(mod_id) else {
+                        log::warn!("--mods: unknown attachment '{mod_id}'");
+                        continue;
+                    };
+                    if !def.fits_weapon(weapon_id) {
+                        log::warn!("--mods: '{mod_id}' does not fit '{weapon_id}'");
+                        continue;
+                    }
+                    stack.mods.retain(|m| attachments.get(m).is_none_or(|d| d.slot != def.slot));
+                    stack.mods.push(mod_id.clone());
+                }
+                play_state.inventory.set_changed();
+                touched_weapon = Some(weapon_id.clone());
+            }
+        } else {
+            log::warn!("--mods: unknown weapon '{weapon_id}'");
+        }
+    }
+    if let Some(weapon_id) = touched_weapon
+        && let Some(mut slot_idx) = ensure_weapon_slot(play_state, &weapon_id)
+    {
+        let hb_cap = play_state.hotbar.slot_count();
+        if slot_idx >= hb_cap && hb_cap > 0 {
+            let dst = hb_cap - 1;
+            play_state.inventory.swap_slots(slot_idx, dst);
+            play_state.hotbar.on_inventory_changed(&play_state.inventory);
+            slot_idx = dst;
+        }
+        let target_item = play_state
+            .inventory
+            .slot(slot_idx)
+            .map(|s| s.item_id.clone());
+        let should_equip = session.anim_shot.weapon.as_deref() == Some(weapon_id.as_str())
+            || session.anim_shot.weapon.is_none();
+        if should_equip
+            && slot_idx < hb_cap
+            && play_state.hotbar.equipped_item_id() != target_item.as_deref()
+            && let Some(change) = play_state.press(slot_idx + 1)
+        {
+            super::frame_input::apply_hand(change, render, play, actors, world);
+        }
+        if let Some(ps) = play.play.as_mut() {
+            ps.refresh_equipped_stats(actors.combat.as_mut());
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn apply_gunsmith_town(
+    gpu: &Gpu,
+    render: &mut RenderState,
+    world: &mut WorldState,
+    actors: &mut ActorsState,
+    play: &PlaySide,
+    ui: &mut UiState,
+    session: &SessionState,
+    key: &str,
+) {
+    let valid = play
+        .play
+        .as_ref()
+        .is_some_and(|p| p.camp.gunsmith_config.towns.contains_key(key));
+    if !valid {
+        log::warn!("--gunsmith-town={key}: unknown town gun shop");
+        return;
+    }
+    apply_town_tp(gpu, render, world, actors, session, key);
+    let tab = session.test_flags.gunsmith.unwrap_or(GunsmithTab::Buy);
+    ui.gunsmith = Some(crate::gunsmith_play::GunsmithSession::new(
+        tab,
+        game::ShopKind::Town {
+            key: key.to_string(),
+        },
+        None,
+    ));
+    ui.cursor_captured = false;
+}
+
 /// Runs per-frame dev test flags (`--down-at` and `--hold-e`).
 pub fn tick_timers(
     session: &mut SessionState,
@@ -699,6 +891,10 @@ mod tests {
             "--trailhead=2",
             "--bridge=1",
             "--river=0",
+            "--gunsmith=upgrade",
+            "--gunsmith-town=Frostmere",
+            "--wear=pistol:0.35",
+            "--mods=rifle:scope_4x,suppressor",
         ]));
         assert_eq!(parsed.down_at, Some(1.5));
         assert_eq!(parsed.team, 3);
@@ -710,6 +906,16 @@ mod tests {
         assert_eq!(parsed.trailhead, Some(2));
         assert_eq!(parsed.bridge, Some(1));
         assert_eq!(parsed.river, Some(0));
+        assert_eq!(parsed.gunsmith, Some(GunsmithTab::Upgrade));
+        assert_eq!(parsed.gunsmith_town.as_deref(), Some("frostmere"));
+        assert_eq!(parsed.wear, Some(("pistol".to_string(), 0.35)));
+        assert_eq!(
+            parsed.mods,
+            Some((
+                "rifle".to_string(),
+                vec!["scope_4x".to_string(), "suppressor".to_string()]
+            ))
+        );
 
         let invalid = TestFlags::from_args(&make_args(&[
             "rotland",
@@ -717,11 +923,17 @@ mod tests {
             "--team=abc",
             "--biome=mars",
             "--weather=acid",
+            "--gunsmith=smithing",
+            "--wear=pistol:nope",
+            "--mods=rifle:",
         ]));
         assert_eq!(invalid.down_at, None);
         assert_eq!(invalid.team, 0);
         assert_eq!(invalid.biome, None);
         assert_eq!(invalid.weather, None);
+        assert_eq!(invalid.gunsmith, None);
+        assert_eq!(invalid.wear, None);
+        assert_eq!(invalid.mods, None);
     }
 
     #[test]

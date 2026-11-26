@@ -124,6 +124,11 @@ impl Combat {
 
     /// One frame: start a swing if asked, resolve hits on zombies, take bites, count down a death.
     pub fn update(&mut self, dt: f32, attack_pressed: bool, player: &mut Player, zombies: &mut impl MeleeWorld, physics: &PhysicsWorld) -> CombatEvents {
+        self.update_with_wear(dt, attack_pressed, player, zombies, physics, 1.0)
+    }
+
+    /// One frame with melee damage scaled by weapon condition (`melee_dmg_mult`).
+    pub fn update_with_wear(&mut self, dt: f32, attack_pressed: bool, player: &mut Player, zombies: &mut impl MeleeWorld, physics: &PhysicsWorld, melee_dmg_mult: f32) -> CombatEvents {
         let mut ev = CombatEvents::default();
         self.noises.clear();
         self.hits = 0;
@@ -145,7 +150,8 @@ impl Combat {
             && !weapon.is_bow()
             && self.combo.wants_swing(attack_pressed, self.swing.state() == SwingState::Idle, moves)
         {
-            let mv = self.combo.next_move(weapon, moves);
+            let mut mv = self.combo.next_move(weapon, moves);
+            mv.weapon.damage *= melee_dmg_mult.clamp(0.0, 1.0);
             if self.swing.try_start(&mv.weapon, &mut player.stamina) {
                 self.combo.on_started(&mv, moves);
                 ev.swing_started = Some(mv.clip);
@@ -314,5 +320,28 @@ mod tests {
         let ev2 = combat.update(0.01, true, &mut player, &mut world, &physics);
         assert!(ev2.swing_started.is_some());
         assert_eq!(combat.swing_state(), SwingState::WindingUp);
+    }
+
+    #[test]
+    fn melee_damage_scales_with_wear_multiplier() {
+        let registry = load_weapons();
+        let bat = registry.get("bat").expect("bat def");
+        let physics = flat_world();
+        let mut player = Player::new(Vec3::ZERO);
+        let mut world = MockMeleeWorld {
+            zombies: vec![test_helpers::MockZombie {
+                id: 1,
+                position: Vec3::new(0.0, 0.0, -1.0),
+                health: Health::new(100.0),
+                knockback: Vec3::ZERO,
+            }],
+        };
+
+        let mut combat = Combat::new("bat");
+        combat.set_weapon(Some(bat.clone()));
+        let _ = combat.update_with_wear(0.01, true, &mut player, &mut world, &physics, 0.5);
+        let _ = combat.update_with_wear(0.25, false, &mut player, &mut world, &physics, 0.5);
+        assert_eq!(combat.hits, 1);
+        assert!((world.zombies[0].health.current() - 87.5).abs() < 1e-4);
     }
 }

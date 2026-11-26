@@ -20,5 +20,7 @@
   "doctorOffset": [-14.0, -13.5],
   "doctorYaw": 0.0,
   "mechanicOffset": [14.5, -12.0],
-  "mechanicYaw": 0.0
+  "mechanicYaw": 0.0,
+  "gunsmithOffset": [-14.0, -7.5],
+  "gunsmithYaw": 3.1415927
 }

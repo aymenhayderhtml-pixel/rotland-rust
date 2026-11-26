@@ -228,5 +228,5 @@ pub fn init(
     {
         rig.is_first_person = false;
     }
-    super::test_flags::apply_startup(gpu, render, world, actors, play, session);
+    super::test_flags::apply_startup(gpu, render, world, actors, play, ui, session);
 }

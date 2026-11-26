@@ -7,6 +7,7 @@ pub(crate) mod buildings;
 #[cfg(test)]
 mod tests;
 
+pub use buildings::{camp_gunsmith_prop, camp_gunsmith_prop_with_config};
 pub use types::{CampLayoutConfigData, CampLevels, TowerCorner};
 pub use walls::wall_section_count;
 

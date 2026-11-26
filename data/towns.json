@@ -13,6 +13,7 @@
     "motel": [9.0, 5.0],
     "water_tower": [3.5, 3.5],
     "desert_store": [7.0, 5.5],
+    "gun_shop": [6.0, 5.0],
     "gas_station": [8.0, 6.0],
     "log_cabin_snow": [5.5, 4.5],
     "research_station": [8.5, 6.0],
@@ -56,6 +57,7 @@
         { "model": "water_tower", "weight": 1.0, "unique": true },
         { "model": "desert_store", "weight": 1.0, "unique": true },
         { "model": "gas_station", "weight": 1.0, "unique": true },
+        { "model": "gun_shop", "weight": 1.0, "unique": true },
         { "model": "adobe_house", "weight": 5.0, "unique": false }
       ],
       "loot_tables": {
@@ -63,7 +65,8 @@
         "motel": "town_home",
         "water_tower": "town_station",
         "desert_store": "town_store",
-        "gas_station": "town_store"
+        "gas_station": "town_store",
+        "gun_shop": "town_station"
       },
       "_why": "Desert roadside town at 3600 m along the 0 deg sector beyond Ashford with motel, store, gas station, water tower, and adobe houses."
     },
@@ -78,13 +81,15 @@
       "boardwalk": false,
       "buildings": [
         { "model": "research_station", "weight": 1.0, "unique": true },
+        { "model": "gun_shop", "weight": 1.0, "unique": true },
         { "model": "log_cabin_snow", "weight": 4.0, "unique": false },
         { "model": "shed", "weight": 1.0, "unique": false, "max_count": 3 }
       ],
       "loot_tables": {
         "log_cabin_snow": "town_home",
         "research_station": "town_station",
-        "shed": "town_home"
+        "shed": "town_home",
+        "gun_shop": "town_station"
       },
       "_why": "Snow outpost at 3800 m along the 180 deg sector beyond the lake anchored by a research station and snow log cabins."
     },
@@ -99,6 +104,7 @@
       "boardwalk": true,
       "buildings": [
         { "model": "bait_shop", "weight": 1.0, "unique": true },
+        { "model": "gun_shop", "weight": 1.0, "unique": true },
         { "model": "stilt_shack", "weight": 4.0, "unique": false },
         { "model": "shed", "weight": 1.0, "unique": false, "max_count": 2 }
       ],
@@ -106,7 +112,8 @@
         "stilt_shack": "town_home",
         "bait_shop": "town_store",
         "shed": "town_home",
-        "boardwalk_section": ""
+        "boardwalk_section": "",
+        "gun_shop": "town_station"
       },
       "_why": "Swamp stilt settlement at 3400 m along the 90 deg sector with a bait shop, stilt shacks, and elevated boardwalks along both sides of the street."
     },
@@ -123,17 +130,26 @@
         { "model": "ranger_station", "weight": 1.0, "unique": true },
         { "model": "radio_tower", "weight": 1.0, "unique": true },
         { "model": "watchtower", "weight": 1.0, "unique": true },
+        { "model": "gun_shop", "weight": 1.0, "unique": true },
         { "model": "cabin", "weight": 1.0, "unique": false, "max_count": 4 }
       ],
       "loot_tables": {
         "ranger_station": "town_station",
         "radio_tower": "town_station",
         "watchtower": "town_station",
-        "cabin": "town_home"
+        "cabin": "town_home",
+        "gun_shop": "town_station"
       },
       "_why": "Mountain ranger outpost at 4200 m along the 270 deg sector with ranger station, radio tower, watchtower, and 3-4 cabins."
     }
   ],
+  "shopkeeper": {
+    "building": "gun_shop",
+    "x": -0.9,
+    "y": -2.45,
+    "floor_y": 0.1,
+    "yaw": 0.0
+  },
   "interiors": {
     "door_clear_m": 1.2,
     "footprint_margin_m": 0.3,

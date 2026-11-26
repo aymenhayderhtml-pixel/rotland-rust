@@ -34,12 +34,16 @@ pub(super) fn step_melee_and_respawn(
             animals: actors.wildlife.as_mut().map(|w| &mut w.sim),
             animal_bonus,
         };
-        let ev = c.update(
+        let melee_mult = play.play.as_ref().map_or(1.0, |pl| {
+            game::melee_damage_mult(pl.equipped_condition(), &pl.wear_config)
+        });
+        let ev = c.update_with_wear(
             dt,
             attack && !downed && !actors.guard.is_blocking(),
             p,
             &mut prey,
             &world.physics,
+            melee_mult,
         );
         swung = ev.swung.clone();
         if ev.swing_started.is_some() {
@@ -89,6 +93,12 @@ pub(super) fn step_melee_and_respawn(
             if c.hits > 0 {
                 a.event("meleeHit", Some(p.position));
             }
+        }
+        if c.hits > 0
+            && let Some(play_state) = play.play.as_mut()
+            && play_state.gun.is_none()
+        {
+            play_state.apply_equipped_hit_wear();
         }
         let swing_speed = if ev.swing_speed > 0.0 {
             ev.swing_speed
@@ -249,6 +259,24 @@ pub(super) fn step_ranged_and_projectiles(
     {
         if weapon.id == "crossbow" {
             let fire_pressed = captured && input.mouse_pressed(MouseButton::Left);
+            if captured
+                && input.mouse_held(MouseButton::Right)
+                && let Some(scope) = weapon.scope.as_ref()
+            {
+                render.camera.fov_y_deg = scope.fov;
+            }
+            let broken = play
+                .play
+                .as_ref()
+                .is_some_and(|pl| game::is_broken(pl.equipped_condition()));
+            if fire_pressed && broken {
+                if let Some(play_state) = play.play.as_mut() {
+                    play_state.show_toast("Broken - repair at a gunsmith".into());
+                }
+                if let Some(a) = audio.as_mut() {
+                    a.event("dryFire", Some(p.position));
+                }
+            }
             let spare_bolts = play
                 .play
                 .as_ref()
@@ -261,18 +289,25 @@ pub(super) fn step_ranged_and_projectiles(
             };
             let step = c.bow.update_crossbow(
                 dt,
-                fire_pressed,
+                fire_pressed && !broken,
                 reload_pressed,
                 spare_bolts > 0,
                 reload_time,
             );
             if step.fired {
+                let kick_mult = if let Some(play_state) = play.play.as_mut() {
+                    play_state.apply_equipped_shot_wear(1);
+                    game::kick_mult(play_state.equipped_mods(), &weapon.id, &play_state.attachments)
+                } else {
+                    1.0
+                };
                 let aim_origin = render.camera.position;
                 let aim_dir = render.camera.forward();
                 let shot = game::projectiles::bow_shot(1.0, aim_origin, aim_dir, &weapon);
                 c.projectiles.spawn(shot);
                 c.shots += 1;
                 actors.fp_sway.trigger_shot();
+                render.gun_feel.set_kick_mult(kick_mult);
                 render.gun_feel.set_context(Some(&weapon.id), false);
                 render.gun_feel.on_shot(&weapon.id);
                 c.noises.push(game::zombie::Noise {
@@ -305,7 +340,19 @@ pub(super) fn step_ranged_and_projectiles(
             }
         } else {
             let attack_held = captured && input.mouse_held(MouseButton::Left);
-            let released = c.bow.update(dt, attack_held, weapon.draw_time);
+            let broken = play
+                .play
+                .as_ref()
+                .is_some_and(|pl| game::is_broken(pl.equipped_condition()));
+            if captured && input.mouse_pressed(MouseButton::Left) && broken {
+                if let Some(play_state) = play.play.as_mut() {
+                    play_state.show_toast("Broken - repair at a gunsmith".into());
+                }
+                if let Some(a) = audio.as_mut() {
+                    a.event("dryFire", Some(p.position));
+                }
+            }
+            let released = c.bow.update(dt, attack_held && !broken, weapon.draw_time);
             if c.bow.draw > 0.0 {
                 let target_fov = if rig.is_first_person {
                     shooting::FIRST_PERSON_AIM_FOV
@@ -324,11 +371,18 @@ pub(super) fn step_ranged_and_projectiles(
             {
                 play_state.inventory.remove(&weapon.ammo_item, 1);
                 play_state.hotbar.on_inventory_changed(&play_state.inventory);
+                play_state.apply_equipped_shot_wear(1);
+                let kick_mult = game::kick_mult(
+                    play_state.equipped_mods(),
+                    &weapon.id,
+                    &play_state.attachments,
+                );
                 let aim_origin = render.camera.position;
                 let aim_dir = render.camera.forward();
                 let shot = game::projectiles::bow_shot(draw, aim_origin, aim_dir, &weapon);
                 c.projectiles.spawn(shot);
                 actors.fp_sway.trigger_shot();
+                render.gun_feel.set_kick_mult(kick_mult);
                 render.gun_feel.set_context(Some(&weapon.id), c.bow.draw > 0.0);
                 render.gun_feel.on_shot(&weapon.id);
                 c.noises.push(game::zombie::Noise {

@@ -1,7 +1,7 @@
 use glam::Vec2;
 
 use crate::random::DotnetRandom;
-use crate::towns::{BOARDWALK_MODEL, BuildingEntry, TownDef, TownLot, TownsData};
+use crate::towns::{BOARDWALK_MODEL, BuildingEntry, GUN_SHOP_MODEL, TownDef, TownLot, TownsData};
 
 /// Minimum positive weight required for a building entry to be eligible in weighted draws.
 // new: DECISIONS 2026-11-25
@@ -41,6 +41,10 @@ pub fn generate_lots(
         .map(|b| b.model.as_str())
         .collect();
     shuffle_deterministic(&mut unique_models, &mut rng);
+    if let Some(pos) = unique_models.iter().position(|&m| m == GUN_SHOP_MODEL) {
+        unique_models.remove(pos);
+    }
+    unique_models.insert(0, GUN_SHOP_MODEL);
 
     let repeatable: Vec<&BuildingEntry> = def.buildings.iter().filter(|b| !b.unique).collect();
     let mut repeatable_counts = vec![0usize; repeatable.len()];
@@ -285,6 +289,60 @@ mod tests {
         for i in 0..lots.len() {
             for j in (i + 1)..lots.len() {
                 assert!(!lots[i].overlaps(&lots[j]), "overlapping lots {i} and {j}");
+            }
+        }
+    }
+
+    #[test]
+    fn every_town_has_one_gun_shop_near_center_and_shopkeeper_spot() {
+        let data = TownsData::load_embedded();
+        assert_eq!(data.shopkeeper.building, GUN_SHOP_MODEL);
+
+        for def in &data.towns {
+            let center = Vec2::new(100.0, -50.0);
+            let street_dir = Vec2::new(0.6, -0.8).normalize();
+            for seed in [0, 42, 99, 1337] {
+                let lots = generate_lots(def, &data, center, street_dir, seed);
+                let shops: Vec<&TownLot> = lots
+                    .iter()
+                    .filter(|l| l.building == GUN_SHOP_MODEL)
+                    .collect();
+                assert_eq!(
+                    shops.len(),
+                    1,
+                    "town '{}' seed {seed} should have exactly one gun_shop, got {}",
+                    def.key,
+                    shops.len()
+                );
+
+                let shop = shops[0].clone();
+                let along = (shop.pos - center).dot(street_dir).abs();
+                assert!(
+                    along <= def.lot_spacing * 0.5 + 1e-3,
+                    "gun_shop in '{}' should sit near town center (along={along:.1}, spacing={:.1})",
+                    def.key,
+                    def.lot_spacing
+                );
+
+                let site = crate::towns::TownSite {
+                    key: def.key.clone(),
+                    name: def.name.clone(),
+                    biome: def.biome_id().unwrap(),
+                    center,
+                    radius: def.radius,
+                    street_dir,
+                    lots,
+                };
+                let keeper = site
+                    .shopkeeper_spawn(&data, 12.0)
+                    .expect("shopkeeper spawn");
+                assert_eq!(keeper.id, format!("shopkeeper_{}", def.key));
+                assert!((keeper.position.y - (12.0 + data.shopkeeper.floor_y)).abs() < 1e-4);
+                assert!(
+                    shop.contains_point(Vec2::new(keeper.position.x, keeper.position.z)),
+                    "shopkeeper in '{}' must stand inside gun_shop footprint",
+                    def.key
+                );
             }
         }
     }

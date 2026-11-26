@@ -20,7 +20,10 @@ pub fn update_camp_and_stats(
     let _phase = engine::timing::PhaseScope::new("camp");
     let alive = !actors.combat.as_ref().is_some_and(|c| c.is_dead());
     let night = !(6.0..20.0).contains(&play.hour);
-    let menu_open = ui.camp_ui.is_some() || ui.hub.is_some() || ui.menus.as_ref().is_some_and(|m| m.is_open());
+    let menu_open = ui.camp_ui.is_some()
+        || ui.hub.is_some()
+        || ui.gunsmith.is_some()
+        || ui.menus.as_ref().is_some_and(|m| m.is_open());
 
     if let (Some(play_state), Some(z)) = (play.play.as_mut(), actors.zombies.as_mut()) {
         // Tips for new players: what is near and what the player has (Godot HintTriggers)
@@ -221,6 +224,12 @@ pub fn update_camp_and_stats(
                 ui.hub = None;
             }
         }
+    }
+    if let (Some(gs), Some(play_state)) = (ui.gunsmith.as_ref(), play.play.as_ref())
+        && let Some(anchor) = gs.anchor
+        && anchor.distance(actors.player) > play_state.camp.gunsmith_config.interact_range
+    {
+        ui.gunsmith = None;
     }
 
     // Felled trees tip over away from the player, then vanish

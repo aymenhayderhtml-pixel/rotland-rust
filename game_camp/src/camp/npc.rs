@@ -13,6 +13,7 @@ pub fn prompt_for_role(role: &str) -> String {
         "bounty_board" => "[E] Read bounty board".to_string(),
         "breeder" => "[E] Talk to dog breeder".to_string(),
         "bounty_keeper" | "bounty_board_keeper" => "[E] Talk to bounty board keeper".to_string(),
+        "gunsmith" => "[E] Talk to gunsmith".to_string(),
         other => format!("[E] Talk to {other}"),
     }
 }
@@ -50,7 +51,16 @@ impl SettlementNpc {
         let role = role.into();
         let model_id = model_id.into();
         let seed = seed.into();
-        let talkable = matches!(role.as_str(), "trader" | "banker" | "bounty_board" | "bounty_keeper" | "bounty_board_keeper" | "breeder");
+        let talkable = matches!(
+            role.as_str(),
+            "trader"
+                | "banker"
+                | "gunsmith"
+                | "bounty_board"
+                | "bounty_keeper"
+                | "bounty_board_keeper"
+                | "breeder"
+        );
         let prompt = prompt_for_role(&role);
 
         let mut npc = Self {
@@ -198,6 +208,25 @@ impl SettlementNpc {
             "bounty_board",
             bb_pos,
             site.yaw,
+            false,
+        ));
+
+        // npc_gunsmith: beside the gunsmith bench near the trader area
+        // new: DECISIONS 2026-11-26
+        let gunsmith_local = Vec3::new(-12.3, 0.0, -7.2);
+        let gunsmith_pos = site.center + site.local(gunsmith_local.x, gunsmith_local.y, gunsmith_local.z);
+        let gunsmith_yaw = site.yaw + CampMath::yaw_toward(gunsmith_local, Vec3::new(-8.0, 0.0, -4.0));
+        let gunsmith_model = cfg
+            .npc_models
+            .get("npc_gunsmith")
+            .cloned()
+            .unwrap_or_else(|| "npc_mechanic".to_string());
+        npcs.push(Self::new(
+            "gunsmith",
+            gunsmith_model,
+            "npc_gunsmith",
+            gunsmith_pos,
+            gunsmith_yaw,
             false,
         ));
 

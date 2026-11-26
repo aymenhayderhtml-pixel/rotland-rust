@@ -69,7 +69,7 @@ pub struct UpgradeInProgressView {
 /// Plain snapshot filled by the caller for `CampScreen::Upgrades` (Camp Board).
 #[derive(Clone, Debug, PartialEq)]
 pub struct CampUpgradesView {
-    pub lines: [UpgradeLineView; 4],
+    pub lines: [UpgradeLineView; 5],
     pub in_progress: Option<UpgradeInProgressView>,
     pub wall_hp: f32,
     pub wall_hp_max: f32,
@@ -108,6 +108,13 @@ impl Default for CampUpgradesView {
                     line: UpgradeLine::Traders,
                     current_level: 0,
                     max_level: 4, // data: camp_upgrades.json traders
+                    current_summary: String::new(),
+                    next: None,
+                },
+                UpgradeLineView {
+                    line: UpgradeLine::Gunsmith,
+                    current_level: 0,
+                    max_level: 3, // data: camp_upgrades.json gunsmith
                     current_summary: String::new(),
                     next: None,
                 },

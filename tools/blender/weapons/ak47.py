@@ -51,6 +51,11 @@ def build(model):
                    (0.05, -0.18), (0.04, -0.10), (0.03, -0.02)]
     model.add_part("mag", prism_yz(mag_outline, 0.032, "metal"))
     model.add_empty("grip_L", (0.0, 0.30, -0.01))
+    model.add_empty("mount_optic", (0.0, 0.09, 0.113))
+    model.add_empty("mount_muzzle", (0.0, 0.605, 0.070))
+    model.add_empty("mount_magazine", (0.0, 0.070, -0.115))
+    model.add_empty("mount_grip", (0.0, 0.29, 0.025))
+    model.add_empty("mount_stock", (0.0, -0.414, 0.040))
 
 
 def main():

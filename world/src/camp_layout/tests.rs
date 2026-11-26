@@ -1,5 +1,6 @@
 use std::f32::consts::{FRAC_PI_2, PI};
 use glam::Vec3;
+use crate::camp_layout::buildings::camp_gunsmith_prop_with_config;
 use crate::camp_layout::{
     camp_upgrade_props, camp_upgrade_props_with_config, wall_section_count,
     CampLayoutConfigData, CampLevels, TowerCorner,
@@ -21,6 +22,7 @@ fn camp_layout_wall_ring_closed_except_gate_gap() {
         guards: 0,
         workshop: 0,
         traders: 0,
+        gunsmith: 0,
     };
     let props = camp_upgrade_props(&site, levels);
 
@@ -92,6 +94,7 @@ fn camp_layout_section_count_matches_perimeter() {
             guards: 0,
             workshop: 0,
             traders: 0,
+            gunsmith: 0,
         };
         let props = camp_upgrade_props(&site, levels);
         let walls: Vec<_> = props.iter().filter(|p| p.model.starts_with("camp_wall_")).collect();
@@ -144,8 +147,11 @@ fn camp_layout_nothing_overlaps() {
         guards: 3,
         workshop: 3,
         traders: 3,
+        gunsmith: 3,
     };
-    let props = camp_upgrade_props(&site, levels);
+    let cfg = CampLayoutConfigData::load_default();
+    let mut props = camp_upgrade_props_with_config(&site, levels, &cfg);
+    props.push(camp_gunsmith_prop_with_config(&site, &cfg));
 
     struct Box2D {
         name: &'static str,
@@ -186,6 +192,7 @@ fn camp_layout_nothing_overlaps() {
             "camp_workshop_1" => (1.3, 1.0),
             "camp_doctor" => (2.5, 2.0),
             "camp_mechanic" => (3.5, 2.5),
+            "gunsmith_bench" => (1.25, 0.75),
             "camp_tower_wood" | "camp_tower_metal" => (1.5, 1.5),
             _ => continue,
         };
@@ -233,6 +240,7 @@ fn camp_layout_yaw_rotates_everything() {
         guards: 3,
         workshop: 2,
         traders: 3,
+        gunsmith: 0,
     };
 
     let p0 = camp_upgrade_props(&site0, levels);
@@ -303,4 +311,23 @@ fn camp_layout_config_loading() {
     let site = SettlementSite::new("camp_test", Vec3::ZERO, 0.0);
     let custom_props = camp_upgrade_props_with_config(&site, CampLevels::default(), &loaded);
     assert!(custom_props.is_empty());
+}
+
+#[test]
+fn camp_layout_gunsmith_bench_placed_and_rotates() {
+    let cfg = CampLayoutConfigData::load_from_file(paths::repo_path("data/camp_layout.json"))
+        .expect("data/camp_layout.json must load");
+    let site0 = SettlementSite::new("camp_0", Vec3::new(100.0, 50.0, 200.0), 0.0);
+    let bench0 = camp_gunsmith_prop_with_config(&site0, &cfg);
+    assert_eq!(bench0.model, "gunsmith_bench");
+    assert!((bench0.position.x - (100.0 + cfg.gunsmith_offset[0])).abs() < 1e-4);
+    assert!((bench0.position.z - (200.0 + cfg.gunsmith_offset[1])).abs() < 1e-4);
+
+    let site_rot = SettlementSite::new("camp_r", Vec3::new(100.0, 50.0, 200.0), FRAC_PI_2);
+    let bench_r = camp_gunsmith_prop_with_config(&site_rot, &cfg);
+    let local0 = bench0.position - site0.center;
+    let local_r = bench_r.position - site_rot.center;
+    assert!((local_r.x - local0.z).abs() < 1e-3);
+    assert!((local_r.z - (-local0.x)).abs() < 1e-3);
+    assert!((bench_r.yaw - (bench0.yaw + FRAC_PI_2)).abs() < 1e-4);
 }

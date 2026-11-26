@@ -1,5 +1,6 @@
 pub mod camp_ui;
 pub mod display;
+pub mod gunsmith_ui;
 pub mod hub_ui;
 pub mod hud;
 pub mod keys_ui;

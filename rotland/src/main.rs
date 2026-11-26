@@ -3,6 +3,7 @@
 //! --free (fly with mouse + WASD instead of the scripted walk), plus the engine's --shot / --stats / --seconds.
 
 mod app;
+mod attachment_view;
 mod backpack_view;
 mod bench;
 mod bubbles;
@@ -27,6 +28,7 @@ mod fp_weapon;
 mod grenade_play;
 mod ground_detail;
 mod gun_feel_view;
+mod gunsmith_play;
 mod light;
 mod play;
 mod player_visual;
@@ -52,7 +54,7 @@ mod wildlife;
 mod water_view;
 mod zombies;
 
-pub use rotland_ui::{camp_ui, display, hub_ui, hud, keys_ui, map_ui, menus, settings};
+pub use rotland_ui::{camp_ui, display, gunsmith_ui, hub_ui, hud, keys_ui, map_ui, menus, settings};
 
 use engine::{EngineArgs, FrameTarget, Game, GameStats, Gpu, Input};
 

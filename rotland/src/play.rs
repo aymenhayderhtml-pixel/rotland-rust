@@ -51,6 +51,8 @@ fn load_tier_zombie_mults() -> Vec<f32> {
 pub struct PlayState {
     pub items: Arc<ItemRegistry>,
     pub weapons: WeaponRegistry,
+    pub wear_config: game::WearConfig,
+    pub attachments: game::AttachmentRegistry,
     pub inventory: Inventory,
     pub hotbar: Hotbar,
     spawner: Spawner,
@@ -119,6 +121,8 @@ impl PlayState {
     pub fn new(seed: u64) -> Result<Self, String> {
         let items = ItemRegistry::from_repo().map_err(|e| format!("data/items.json: {e:?}"))?;
         let weapons = WeaponRegistry::load(&paths::repo_path("data/weapons.json")).map_err(|e| format!("data/weapons.json: {e:?}"))?;
+        let wear_config = game::WearConfig::from_repo().map_err(|e| format!("data/weapon_wear.json: {e}"))?;
+        let attachments = game::AttachmentRegistry::from_repo().map_err(|e| format!("data/attachments.json: {e}"))?;
         let config = SpawnConfig::load_default().map_err(|e| format!("data/spawning.json: {e}"))?;
         let tier_zombie_mults = load_tier_zombie_mults();
         let loot_tables = LootTableRegistry::from_repo().map_err(|e| format!("data/loot_tables.json: {e:?}"))?;
@@ -140,6 +144,8 @@ impl PlayState {
         Ok(Self {
             items,
             weapons,
+            wear_config,
+            attachments,
             inventory,
             hotbar,
             spawner: Spawner::new(config, seed),
@@ -334,7 +340,7 @@ impl PlayState {
                 match free {
                     Some(free) if stack.count > 1 => {
                         self.inventory.remove_from_slot(*slot, n);
-                        self.inventory.slots_mut()[free] = Some(game::items::ItemStack { item_id: stack.item_id, count: n });
+                        self.inventory.slots_mut()[free] = Some(game::items::ItemStack::new(stack.item_id, n));
                         self.inventory.set_changed();
                         (None, Some(format!("Split off {n}")))
                     }
@@ -370,12 +376,88 @@ impl PlayState {
         self.press(1)
     }
 
-    /// Returns the currently equipped weapon definition, or None.
+    /// Inventory slot index of the currently equipped hotbar/bag item, if any.
+    fn equipped_slot_index(&self) -> Option<usize> {
+        let id = self.hotbar.equipped_item_id()?;
+        let hb = self.hotbar.slot_count().min(self.inventory.slot_count());
+        (0..hb)
+            .find(|&i| self.inventory.slot(i).is_some_and(|s| s.item_id == id))
+            .or_else(|| {
+                (hb..self.inventory.slot_count())
+                    .find(|&i| self.inventory.slot(i).is_some_and(|s| s.item_id == id))
+            })
+    }
+
+    /// Currently equipped inventory stack, if any.
+    fn equipped_stack(&self) -> Option<&game::items::ItemStack> {
+        self.equipped_slot_index()
+            .and_then(|i| self.inventory.slot(i))
+    }
+
+    /// Mutable reference to the currently equipped inventory stack, if any.
+    fn equipped_stack_mut(&mut self) -> Option<&mut game::items::ItemStack> {
+        let idx = self.equipped_slot_index()?;
+        self.inventory.slots_mut().get_mut(idx)?.as_mut()
+    }
+
+    /// Attachments fitted to the currently equipped item stack.
+    pub fn equipped_mods(&self) -> &[String] {
+        self.equipped_stack().map_or(&[], |s| s.mods.as_slice())
+    }
+
+    /// Condition (`0.0..=1.0`) of the currently equipped item stack (`1.0` when new or none).
+    pub fn equipped_condition(&self) -> f32 {
+        self.equipped_stack().map_or(1.0, |s| s.condition())
+    }
+
+    /// Computes effective weapon stats using the currently equipped stack's attachments.
+    fn effective_weapon(&self, base: &WeaponDef) -> WeaponDef {
+        game::effective_stats(base, self.equipped_mods(), &self.attachments)
+    }
+
+    /// Applies one melee hit's wear to the currently equipped weapon stack.
+    pub fn apply_equipped_hit_wear(&mut self) {
+        let wear_cfg = self.wear_config.clone();
+        if let Some(stack) = self.equipped_stack_mut() {
+            game::apply_hit_wear(stack, &wear_cfg);
+            self.inventory.set_changed();
+        }
+    }
+
+    /// Applies `shots` fired shots of wear to the currently equipped weapon stack.
+    pub fn apply_equipped_shot_wear(&mut self, shots: u32) {
+        if shots == 0 {
+            return;
+        }
+        let wear_cfg = self.wear_config.clone();
+        if let Some(stack) = self.equipped_stack_mut() {
+            for _ in 0..shots {
+                game::apply_shot_wear(stack, &wear_cfg);
+            }
+            self.inventory.set_changed();
+        }
+    }
+
+    /// Refreshes `self.gun`, `shooting` mag capacity, and `combat` weapon after fitting/removing mods.
+    pub fn refresh_equipped_stats(&mut self, combat: Option<&mut crate::combat::Combat>) {
+        let eff = self.equipped_weapon();
+        let is_gun = eff.as_ref().is_some_and(|d| d.is_gun());
+        self.gun = if is_gun { eff.clone() } else { None };
+        if let Some(g) = &self.gun {
+            self.shooting.sync_mag_cap(&g.id, g.magazine_size);
+        }
+        if let Some(c) = combat {
+            c.set_weapon(if is_gun { None } else { eff });
+        }
+    }
+
+    /// Returns the currently equipped weapon definition with fitted attachments applied, or None.
     pub fn equipped_weapon(&self) -> Option<game::weapons::WeaponDef> {
-        self.hotbar
+        let base = self
+            .hotbar
             .equipped_item_id()
-            .and_then(|id| self.weapons.get(id))
-            .cloned()
+            .and_then(|id| self.items.get(id).and_then(|d| d.weapon(&self.weapons)).or_else(|| self.weapons.get(id)))?;
+        Some(self.effective_weapon(base))
     }
 
     /// Hand change representing the current hotbar equipped item (a holdable tool or a weapon).
@@ -395,7 +477,10 @@ impl PlayState {
     pub fn press(&mut self, key: usize) -> Option<HandChange> {
         match self.hotbar.press(key, &self.inventory, &self.items) {
             HotbarAction::EquipWeapon { weapon_id, item_id } if weapon_id.is_empty() => Some(HandChange::Tool(item_id)),
-            HotbarAction::EquipWeapon { weapon_id, .. } => Some(HandChange::Weapon(self.weapons.get(&weapon_id).cloned())),
+            HotbarAction::EquipWeapon { weapon_id, .. } => {
+                let def = self.weapons.get(&weapon_id).map(|w| self.effective_weapon(w));
+                Some(HandChange::Weapon(def))
+            }
             HotbarAction::UnequipWeapon { .. } => Some(HandChange::Weapon(None)),
             // Godot's ItemUse: using the flashlight item switches it on and off
             HotbarAction::UseItem { item_id } if item_id == "flashlight" => Some(HandChange::ToggleFlashlight),
@@ -658,7 +743,14 @@ impl PlayState {
     #[allow(clippy::too_many_arguments)]
     pub fn shoot_tick(&mut self, dt: f32, input: ShootInput, eye: Vec3, aim: Vec3, targets: &mut impl crate::shooting::TargetWorld, physics: &PhysicsWorld) -> Option<ShootEvents> {
         let gun = self.gun.clone()?;
-        let ev = self.shooting.update_targets(dt, input, &gun, eye, aim, &mut self.inventory, targets, physics);
+        let cond = self.equipped_condition();
+        let ev = self.shooting.update_targets_with_wear(dt, input, &gun, eye, aim, &mut self.inventory, targets, physics, cond, &self.wear_config);
+        if ev.broken && input.fire_pressed {
+            self.show_toast("Broken - repair at a gunsmith".into());
+        } else if ev.jammed {
+            self.show_toast("Weapon jammed!".into());
+        }
+        self.apply_equipped_shot_wear(ev.shots_fired);
         self.last_shot = ev.clone();
         Some(ev)
     }
@@ -680,6 +772,16 @@ impl PlayState {
         let hotbar_item_ids = (1..=self.hotbar.slot_count())
             .map(|key| self.hotbar.slot_entry(key, &self.inventory).map(|st| st.item_id.clone()))
             .collect();
+        let hotbar_conditions = (1..=self.hotbar.slot_count())
+            .map(|key| {
+                self.hotbar.slot_entry(key, &self.inventory).and_then(|st| {
+                    self.items
+                        .get(&st.item_id)
+                        .filter(|d| d.is_weapon() && self.wear_config.weapons.contains_key(&d.weapon_id))
+                        .map(|_| st.condition())
+                })
+            })
+            .collect();
         HudState {
             health,
             max_health,
@@ -696,6 +798,7 @@ impl PlayState {
             message: self.toast.as_ref().map(|(t, _)| t.clone()).or_else(|| self.prompt.clone()),
             dead,
             hotbar_item_ids: Some(hotbar_item_ids),
+            hotbar_conditions: Some(hotbar_conditions),
             ..Default::default()
         }
     }

@@ -71,6 +71,8 @@ pub struct HudState {
     pub key_labels: KeyLabels,
     /// Optional explicit item IDs for hotbar slots, matching `assets/icons/<id>.png`.
     pub hotbar_item_ids: Option<Vec<Option<String>>>,
+    /// Optional weapon condition fractions (`0.0..=1.0`) for hotbar slots.
+    pub hotbar_conditions: Option<Vec<Option<f32>>>,
     /// Driving dashboard data; hidden the moment the player leaves the car.
     pub vehicle: Option<VehicleHudInfo>,
 
@@ -118,6 +120,7 @@ impl Default for HudState {
             scoped: false,
             key_labels: KeyLabels::default(),
             hotbar_item_ids: None,
+            hotbar_conditions: None,
             vehicle: None,
             damage_indicators: None,
             pickup_popups: None,

@@ -20,6 +20,7 @@
     "npc_trader": "npc_trader",
     "npc_banker": "npc_trader",
     "npc_guard": "npc_guard",
-    "npc_survivor": "npc_survivor"
+    "npc_survivor": "npc_survivor",
+    "npc_gunsmith": "npc_mechanic"
   }
 }

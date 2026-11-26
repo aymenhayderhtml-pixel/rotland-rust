@@ -94,7 +94,7 @@ impl CampResident {
     }
 
     pub fn can_interact(&self) -> bool {
-        self.role == "trader" || self.role == "banker"
+        matches!(self.role.as_str(), "trader" | "banker" | "gunsmith")
     }
 
     pub fn is_greeting(&self) -> bool {

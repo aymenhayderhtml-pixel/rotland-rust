@@ -39,9 +39,16 @@ pub fn card_layout(avail: Vec2) -> CardLayout {
     let w = if avail.x.is_finite() { avail.x.max(0.0) } else { 0.0 };
     let h = if avail.y.is_finite() { avail.y.max(0.0) } else { 0.0 };
 
-    // 4 columns when width is at least 1400 px; 2x2 grid (2 columns) when under 1400 px
-    let columns = if w >= 1400.0 { 4 } else { 2 }; // new: DECISIONS 2026-11-22
-    let rows = 4_usize.div_ceil(columns); // new: DECISIONS 2026-11-22
+    // 5 columns when width >= 1400 px; 3x2 grid for 900..1400 px; 2x3 grid below 900 px
+    let count = game::camp_upgrades::UpgradeLine::ALL.len();
+    let columns = if w >= 1400.0 {
+        5
+    } else if w >= 900.0 {
+        3
+    } else {
+        2
+    }; // new: DECISIONS 2026-11-26
+    let rows = count.div_ceil(columns); // new: DECISIONS 2026-11-26
 
     let gap = 10.0f32.min(w * 0.02).max(4.0); // new: DECISIONS 2026-11-22
     let col_f = columns as f32;
@@ -88,9 +95,9 @@ mod tests {
 
     #[test]
     fn card_layout_fits_in_1920x986_1280x720_and_1024x600() {
-        // 1920x986 (wide): 4 columns, 1 row
+        // 1920x986 (wide): 5 columns, 1 row
         let layout_1920 = card_layout(vec2(1920.0, 986.0));
-        assert_eq!(layout_1920.columns, 4);
+        assert_eq!(layout_1920.columns, 5);
         assert_eq!(layout_1920.rows, 1);
         assert!(layout_1920.card_width > 0.0);
         assert!(layout_1920.card_height > 0.0);
@@ -98,9 +105,9 @@ mod tests {
         assert!(layout_1920.total_height() <= 986.0);
         assert!(layout_1920.fits_in(vec2(1920.0, 986.0)));
 
-        // 1280x720 (medium): 2 columns, 2 rows (2x2 grid)
+        // 1280x720 (medium): 3 columns, 2 rows
         let layout_1280 = card_layout(vec2(1280.0, 720.0));
-        assert_eq!(layout_1280.columns, 2);
+        assert_eq!(layout_1280.columns, 3);
         assert_eq!(layout_1280.rows, 2);
         assert!(layout_1280.card_width > 0.0);
         assert!(layout_1280.card_height > 0.0);
@@ -108,9 +115,9 @@ mod tests {
         assert!(layout_1280.total_height() <= 720.0);
         assert!(layout_1280.fits_in(vec2(1280.0, 720.0)));
 
-        // 1024x600 (compact): 2 columns, 2 rows (2x2 grid)
+        // 1024x600 (compact): 3 columns, 2 rows
         let layout_1024 = card_layout(vec2(1024.0, 600.0));
-        assert_eq!(layout_1024.columns, 2);
+        assert_eq!(layout_1024.columns, 3);
         assert_eq!(layout_1024.rows, 2);
         assert!(layout_1024.card_width > 0.0);
         assert!(layout_1024.card_height > 0.0);

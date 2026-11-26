@@ -84,13 +84,14 @@ pub fn draw_hud(ctx: &egui::Context, s: &HudState, icons: &mut IconCache) {
             // 9. Pet Dog HUD strip above needs
             vitals::draw_dog_hud(painter, &screen, time, s.dog.as_ref(), scale);
 
-            // 10. Hotbar bottom centre with item icon pictures and counts
+            // 10. Hotbar bottom centre with item icon pictures, counts, and weapon condition bars
             hotbar::draw_hotbar(
                 painter,
                 ctx,
                 &screen,
                 &s.hotbar,
                 s.hotbar_item_ids.as_deref(),
+                s.hotbar_conditions.as_deref(),
                 icons,
                 scale,
             );

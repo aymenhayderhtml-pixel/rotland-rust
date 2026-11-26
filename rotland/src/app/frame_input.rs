@@ -155,6 +155,7 @@ pub fn process_input(
     if !dev_typing {
         if input.pressed(build_key)
             && ui.camp_ui.is_none()
+            && ui.gunsmith.is_none()
             && !ui.menus.as_ref().is_some_and(|m| m.is_open())
         {
             play.build_mode.toggle();
@@ -171,6 +172,7 @@ pub fn process_input(
         ] {
             if input.pressed(key)
                 && ui.camp_ui.is_none()
+                && ui.gunsmith.is_none()
                 && !ui.menus.as_ref().is_some_and(|m| m.is_open())
                 && !(in_car && key == keys.skills)
             {
@@ -239,7 +241,7 @@ pub fn process_input(
     }
     // Arrow keys look around: works without mouse capture and with the dev panel open,
     // but never in the camp/hub screens or while typing in a dev panel field
-    if !dev_typing && ui.camp_ui.is_none() && ui.hub.is_none() {
+    if !dev_typing && ui.camp_ui.is_none() && ui.hub.is_none() && ui.gunsmith.is_none() {
         let key_look = game::input::keyboard_look_delta(
             input.held(keys.movement.look_left),
             input.held(keys.movement.look_right),
@@ -355,6 +357,7 @@ pub fn process_input(
     if !dev_typing
         && !play.build_mode.active
         && !actors.downed.is_down()
+        && !ui.screen_open()
         && let Some(change) = play.play.as_mut().and_then(|p| p.hotbar_keys(input, &keys.slots))
     {
         apply_hand(change, render, play, actors, world);
