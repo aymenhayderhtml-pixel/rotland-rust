@@ -34,3 +34,28 @@ Read: tasks/R39-common.md ("How towers are built", "Drawing", "Colliders"), task
 - Shared-file lines for the lead (`rotland/src/main.rs` mod lines, `LoadedChunk` use, any render-frame draw call) are in Worker notes.
 
 ## Worker notes
+Files changed:
+- `rotland/src/metro_render/parts.rs` (new): pure part assembly (`tallest_landmark_index`, `base_model_id`, `tower_load_ring_range`, `chunk_tower_parts`) plus unit tests.
+- `rotland/src/metro_render/near.rs`: removed `near_tower_vertices` and `near_tower_mesh`; added `place_chunk_towers` using `PropLibrary::get_tower` + `place`. Kept `tower_chunk`, `towers_in_chunk`, `base_point` for `hulls.rs` and `skyline.rs`.
+- `rotland/src/metro_render/hulls.rs`: updated `tower_hulls` / `box_points` to start at `style.base_height` (`7.6` fallback) up to `t.height.max(base_height)` so the walk-in lobby stays open; added `tower_bases` returning `("tw_<style>_<size>_base", pos, yaw)`.
+- `rotland/src/metro_render/mod.rs`: added `pub mod parts;` and updated module docs.
+- `rotland/src/props.rs`: added `shadow_lod0_only: bool` on `PropModel`, `PropLibrary::get_tower` (with `lod0_distance` and `range`), `load_tower_model`, and `shadow_lod_for_rule` (tower models cast shadows only from LOD0). Existing building/tree/prop rules are untouched.
+- `rotland/src/streaming.rs`: removed `LoadedChunk.towers: Option<GpuMesh>`; updated the New Halden block in `upload()` to push instanced tower parts into `placed` via `place_chunk_towers` and combine `tower_bases` pack shapes (`shapes_of`) + `tower_hulls` upper boxes into `physics.add_static_compound_deferred`.
+- `rotland/src/metro_render/tests.rs`: added `style`/`size` to `spot()`, replaced near-mesh tests with `chunk_tower_parts`, `tower_lod_switch_uses_lod0_distance_and_fade_band`, `tower_shadows_only_cast_from_lod0`, `lobby_interior_parts_stay_inside_the_base_footprint`, and updated `hulls_are_one_box_per_tower_starting_at_base_height`.
+
+Shared-file lines for the lead:
+- `rotland/src/app/render_frame.rs` (around lines 175-183): `LoadedChunk.towers` was removed (tower parts now live in `LoadedChunk.placed`, which line 217 already iterates). Replace lines 175-183 with:
+  ```rust
+    let mut items: Vec<DrawItem> = streamer
+        .chunks
+        .values()
+        .map(|c| DrawItem { mesh: &c.ground, offset: c.origin, fog_scale: 1.0 })
+        .collect();
+  ```
+
+How to see it:
+- Once R39-02..05 models are baked into `assets/models.pack` and `render_frame.rs` is updated, run with `--metro=core` or `--metro=lobby` to see instanced LOD0/LOD1 tower kits, LOD0-only shadows, and walkable ground-floor lobbies.
+
+Notes / unsure:
+- Did not run `cargo` or `gate.sh` per subagent rules.
+- `tower_load_ring_range()` computes `(UNLOAD_RADIUS + 1.0) * WorldGenerator::CHUNK_SIZE * SQRT_2` (~452.5 m) so every loaded chunk's towers stay visible until the chunk unloads and `SkylineBatch` takes over.

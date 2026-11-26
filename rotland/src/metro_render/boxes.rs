@@ -6,11 +6,12 @@
 
 use engine::render::ColorVertex;
 use glam::{Mat4, Vec2, Vec3};
-use world::metro::{MetroLook, TowerSpot};
+use world::metro::{MetroLook, TowerSpot, TowerStyle, default_styles, style_for};
 
 /// Near (street close-up: windows, base band, roof details) or far (skyline: walls and roof only).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Detail {
+    #[allow(dead_code)] // kept for R38 unit tests in metro_render/tests.rs
     Near,
     Far,
 }
@@ -23,16 +24,7 @@ pub fn tower_mesh(spot: &TowerSpot, look: &MetroLook, detail: Detail) -> Vec<Col
     let faces = faces(spot.half);
     let mut out = Vec::new();
     match detail {
-        Detail::Far => {
-            let c = look.far_color;
-            for f in &faces {
-                f.band(&mut out, 0.0, spot.height, 0.0, c);
-            }
-            roof(&mut out, spot.half, spot.height, c);
-            if spot.landmark {
-                step_box(&mut out, spot, look, c);
-            }
-        }
+        Detail::Far => far_tower(&mut out, spot, look, &faces),
         Detail::Near => {
             for f in &faces {
                 f.band(&mut out, look.base_height, spot.height, 0.0, body);
@@ -203,4 +195,55 @@ fn closed_box(out: &mut Vec<ColorVertex>, half: Vec2, y0: f32, y1: f32, c: [u8; 
         f.band(out, y0, y1, 0.0, c);
     }
     roof(out, half, y1, c);
+}
+
+/// Far skyline triangle budget per tower (`data/metro.json` `skyline.trisPerTower`).
+const FAR_TRIS_CAP: usize = 60; // data: metro.json skyline.trisPerTower
+/// Wall + roof triangles of a far tower (4 faces * 2 + 2 roof) and its landmark step (10).
+const FAR_BASE_TRIS: usize = 10; // new: DECISIONS 2026-11-26 (4 walls + roof = 5 quads)
+const FAR_STEP_TRIS: usize = 10; // new: DECISIONS 2026-11-26 (4 step walls + roof = 5 quads)
+/// Horizontal inset share for far window bands so building corners keep the style colour.
+const FAR_BAND_WIDTH_SHARE: f32 = 0.92; // new: DECISIONS 2026-11-26 (far window band inset)
+
+/// Far skyline tower: style colour (Deco for landmarks), dark window bands within the triangle cap.
+fn far_tower(out: &mut Vec<ColorVertex>, spot: &TowerSpot, look: &MetroLook, faces: &[Face; 4]) {
+    let style_key = if spot.landmark { TowerStyle::Deco } else { spot.style };
+    let c = style_for(default_styles(), style_key)
+        .map(|s| s.color)
+        .unwrap_or(look.far_color);
+    for f in faces {
+        f.band(out, 0.0, spot.height, 0.0, c);
+    }
+    roof(out, spot.half, spot.height, c);
+    if spot.landmark {
+        step_box(out, spot, look, c);
+    }
+    far_window_bands(out, spot, look, faces);
+}
+
+/// Dark horizontal window strips per floor on all 4 faces, stepping floors if needed to stay
+/// inside `FAR_TRIS_CAP`.
+fn far_window_bands(out: &mut Vec<ColorVertex>, spot: &TowerSpot, look: &MetroLook, faces: &[Face; 4]) {
+    let floors = spot.floors;
+    if floors == 0 || spot.height <= 0.0 {
+        return;
+    }
+    let base_tris = FAR_BASE_TRIS + if spot.landmark { FAR_STEP_TRIS } else { 0 };
+    let max_bands = FAR_TRIS_CAP.saturating_sub(base_tris) / 8;
+    if max_bands == 0 {
+        return;
+    }
+    let step = floors.div_ceil(max_bands as u32).max(1);
+    let floor_h = spot.height / floors as f32;
+    for floor in (0..floors).step_by(step as usize) {
+        let y0 = floor as f32 * floor_h + floor_h * look.pane_bottom_share;
+        let y1 = y0 + floor_h * look.pane_height_share;
+        if y1 > spot.height {
+            continue;
+        }
+        for face in faces {
+            let u_half = face.half * FAR_BAND_WIDTH_SHARE;
+            face.rect(out, (-u_half, u_half), (y0, y1), look.pane_offset, look.glass_dark);
+        }
+    }
 }

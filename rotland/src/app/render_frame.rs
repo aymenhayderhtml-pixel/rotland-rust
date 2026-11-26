@@ -177,8 +177,8 @@ pub fn render_frame(
         .values()
         .flat_map(|c| {
             let ground = DrawItem { mesh: &c.ground, offset: c.origin, fog_scale: 1.0 };
-            let towers = c.towers.as_ref().map(|mesh| DrawItem { mesh, offset: glam::Vec3::ZERO, fog_scale: 1.0 });
-            std::iter::once(ground).chain(towers)
+            let curbs = c.curbs.as_ref().map(|mesh| DrawItem { mesh, offset: glam::Vec3::ZERO, fog_scale: 1.0 });
+            std::iter::once(ground).chain(curbs)
         })
         .collect();
     // Joint 0 is the identity: static instanced props use it

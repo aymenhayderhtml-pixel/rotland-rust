@@ -46,8 +46,10 @@ pub use daynight::{DayNightLook, SkyColors};
 pub use generator::{ChunkGround, GroundTriangle, WorldGenerator};
 pub use metro::{
     Highway, HighwayHeightField, JamProp, MetroConfig, MetroLayout, MetroLook, MetroSite,
-    MetroWorld, TowerKind, TowerSpot, highway_height_at, jam_props_in_chunk, metro_ground_color,
-    place_metro, plan_highway, plan_jam, plan_towers,
+    MetroWorld, PartKind, StyleDef, TowerKind, TowerPart, TowerSpot, TowerStyle, default_styles,
+    highway_height_at, jam_props_in_chunk, load_styles, metro_ground_color, place_metro,
+    plan_highway, plan_jam, plan_towers, plan_towers_with_styles, style_for, tower_parts,
+    tower_parts_with_extras, validate_styles,
 };
 pub use ground_paint::GroundPaint;
 pub use lake::{

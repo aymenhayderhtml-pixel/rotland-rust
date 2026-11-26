@@ -41,3 +41,11 @@ Read: tasks/R39-common.md ("Test flags", "Perf"), rotland/src/app/metro_flags.rs
 - Shared-file lines for the lead (`rotland/src/main.rs` or `app/mod.rs` if `metro_flags` needs a new `mod` line, and the `apply_startup` call for `--map`) are in Worker notes.
 
 ## Worker notes
+- **Files changed:**
+  - `rotland/src/app/metro_flags.rs`: added `MetroSpot::Lobby` and `MetroSpot::Landmark` (parsed any-case), `tower_front_dir`, `lobby_pose`, `landmark_pose` (reusing `TopView` with `+35 deg` upward pitch and `4.0 m` spring), `nearest_tower_of_style`, `style_pose`, updated `metro_pose`, and added unit tests (`lobby_pose_is_inside_footprint_and_faces_the_door`, `landmark_pose_is_40m_from_base_and_looks_up_at_landmark`, `style_pose_picks_requested_style_and_faces_tower`, plus `lobby`/`LANDMARK` parse checks).
+  - `rotland/src/app/test_flags.rs`: added `TestFlags.tower_style: Option<TowerStyle>` and `TestFlags.map: bool`, parsed `--tower-style` (via `TowerStyle::parse`, warning on unknown) and `--map`, updated `apply_metro_tp` warning and `--tower-style` override when `--metro=core` (falling back to `--metro=core` with a warning if missing), opened `HubTab::Map` in `apply_startup` for `--map` when `ui.gunsmith.is_none() && ui.hub.is_none()`, and updated `parses_all_test_flags_and_defaults` tests.
+  - `tools/README_TOOLS.md`: added flag lines for `--metro=lobby`, `--metro=landmark`, `--tower-style`, and `--map`.
+  - `tools/blender/metro/jam_bus.py`: updated `bus_city_side` (`lying=True`) to cut out the lower skirt panels around the axles/mid-chassis, include the ground-side wheels (`side_only=False`), and omit the ground-side mirror/rear marker so the lowest wheels sit on `z=0`; `bus_city` (`lying=False`) is unchanged.
+- **Shared-file lines for the lead:** none needed (`rotland/src/app/mod.rs` already has `pub mod metro_flags;` and `rotland/src/app/startup.rs` already calls `super::test_flags::apply_startup(...)` at line 231).
+- **Blender build command for lead:** run `blender -b --python tools/blender/metro/jam_bus.py` (or the metro jam batch builder) and re-bake `assets/models.pack`, then verify `bus_city_side` underside/axles and wheels on `z=0`.
+- **Checks:** did not run `cargo`, `tools/gate.sh`, `blender`, or the game per subagent rules.

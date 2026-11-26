@@ -53,3 +53,19 @@ Goal: the lobby every tower has (walk in from the street), the six lobby props, 
 - All ten stack previews (one per style and size: brick 16 and 24, stone, glass, slab and deco 24 and 32) show no gap and no floating part (checked by eye).
 
 ## Worker notes
+- **Files created:**
+  - `tools/blender/towers/shell.py`: `WALL_T`, `FLOOR_T`, `HALL_TOP`, `BASE_H`, `DOOR_W`, `DOOR_H`, `STAIR_W`, `STAIR_H` (with `# new: DECISIONS 2026-11-26`), `front_face_y(size)`, `door_opening(size)`, `lobby_shell(k, size, facade_color)`. Creates floor slab (`0..0.1`), 4 exterior walls (`0.3 m` thick, `0.1..7.3`) with front door gap (`x -1.4..1.4, z 0.1..3.1`) on `+Y`, `rock_light` interior plaster lining, `roof=True` ceiling slab (`7.3..7.6`), and `stair_door` separate part + collider on `-Y`. Verified with a Blender smoke test on `size=16`.
+  - `tools/blender/towers/lobby_props.py` & `tools/blender/towers/lobby_props_b.py`: all 6 lobby props (`buildings` category, 6000 tri budget, >= 10 beveled parts each using `jam_util.pbox`).
+  - `tools/blender/towers/stack_preview.py`: imports `base`, `floor`, `floor_b`, `crown` GLBs per style+size (10 combinations), stacks by reading GLB Z bounds, joins visuals, and renders `assets/models/_previews/stack_<style>_<size>.png`.
+  - `tools/blender/build_r39_models.py`: `GROUPS` for `brick`, `stone`, `glass`, `slab`, `deco`, `landmarks`, `lobby_props`, followed by `stack_preview`.
+  - `assets/models/buildings/lobby_*.glb` and `assets/models/_previews/lobby_*.png` (all 6 built and visually inspected).
+- **Triangle counts (all OK, budget 6000):**
+  - `lobby_desk`: 1944 tris
+  - `lobby_elevators`: 2160 tris
+  - `lobby_mailboxes`: 3564 tris
+  - `lobby_bench`: 2268 tris
+  - `lobby_rubble`: 1620 tris
+  - `lobby_plant_dead`: 1504 tris
+- **Preview observations:**
+  - All 6 previews inspected: `lobby_desk`, `lobby_elevators` (front view, jammed left door with dark shaft, call buttons, indicators, warning stripe, zero z-fighting), `lobby_mailboxes` (4x3 grid, 3 open doors, brass locks, labels), `lobby_bench` (3 metal legs, broken drooping front slat), `lobby_rubble` (stepped mound, concrete, plaster, red bricks, fallen ceiling tile + T-bar), `lobby_plant_dead` (planter, soil, connected dead twigs, dry leaves).
+  - `stack_preview.py` and `build_r39_models.py` cannot be run in full until R39-02, R39-03, and R39-04 land.

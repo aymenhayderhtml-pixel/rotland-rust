@@ -60,3 +60,8 @@ Setback sections use `tw_deco_24_floor` / `_floor_b` on top of a 32 m Deco tower
 - The Deco stack preview shows piers and chevrons on the whole height, no gap.
 
 ## Worker notes
+- Implemented `tools/blender/towers/roof_parts.py`: `water_tank`, `ac_unit`, `vent_stack`, `antenna`, `roof_deck` (all visual-only).
+- Implemented `tools/blender/towers/deco.py`: `tw_deco_24_{base,floor,floor_b,crown}` and `tw_deco_32_{base,floor,floor_b,crown}` (+ `_lod1` each, 16 `.glb`s total). Features 4 m vertical piers, chevron spandrels, stone sills/lintels, deterministic broken/boarded/cracked windows, stepped Art Deco front portal arch on `lobby_shell`, and 5.5 m crown with `roof_parts`.
+- Implemented `tools/blender/towers/landmarks.py`: `tw_landmark_{spire,mast,stepped,glass_top}` (+ `_lod1` each, 8 `.glb`s total, 24 m footprint). `tw_landmark_mast` exports `radio_hut` as a separate node via `add_part("radio_hut", bm)`, has 4 lattice legs, 6x6 m platform with railings, dish, and 4 cable runs.
+- Ran `deco.py` and `landmarks.py` under `flock /tmp/rotland-blender.lock`: 16/16 Deco OK, 8/8 Landmarks OK (0 Tracebacks, all well within triangle budgets). Inspected previews for Deco base/base_top/floor/crown (24 & 32 m) and all 4 landmarks.
+- Shared-file lines: none. Note: `stack_preview.py` was not run here (owned by R39-05 / `build_r39_models.py`).

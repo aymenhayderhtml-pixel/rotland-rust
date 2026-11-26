@@ -38,6 +38,28 @@ pub struct DistrictTowers {
     pub footprint: [f32; 2],
 }
 
+fn default_lod0_distance() -> f32 {
+    90.0 // new: DECISIONS 2026-11-26 (fallback for metro.json towers.lod0Distance)
+}
+
+/// One setback step on a landmark tower (`towers.setbacks`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetbackSpec {
+    pub at_floor: f32,
+    pub footprint_share: f32,
+}
+
+/// One prop inside a tower's ground-floor lobby (`towers.lobbyProps`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LobbyProp {
+    pub model: String,
+    pub x: f32,
+    pub z: f32,
+    pub yaw: f32,
+}
+
 /// Tower heights, footprints and landmark counts (`towers` in `data/metro.json`).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -50,6 +72,15 @@ pub struct TowersConfig {
     pub landmark_floors: [u32; 2],
     pub lot_gap: f32,
     pub max_lots_per_block: usize,
+    /// Distance in metres out to which LOD0 tower parts are drawn (`towers.lod0Distance`).
+    #[serde(default = "default_lod0_distance")]
+    pub lod0_distance: f32,
+    /// Setback steps for landmark towers (`towers.setbacks`).
+    #[serde(default)]
+    pub setbacks: Vec<SetbackSpec>,
+    /// Ground-floor lobby interior props (`towers.lobbyProps`).
+    #[serde(default)]
+    pub lobby_props: Vec<LobbyProp>,
 }
 
 /// The wide highway from the nearest town into the city (`highway` in `data/metro.json`).

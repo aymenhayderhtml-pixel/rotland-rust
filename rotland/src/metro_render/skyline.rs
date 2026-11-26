@@ -14,12 +14,14 @@ use world::metro::{MetroConfig, MetroLook, TowerSpot};
 use super::boxes::{Detail, to_world, tower_mesh};
 use super::near::{base_point, tower_chunk};
 
-/// What the skyline is built from: the city's towers, its ground height and the settings.
+/// What the skyline is built from: the city's towers, its ground height, haze colour and settings.
 pub struct SkylineInputs<'a> {
     pub towers: &'a [TowerSpot],
     pub ground_y: f32,
     pub cfg: &'a MetroConfig,
     pub look: &'a MetroLook,
+    /// Metro haze colour (sRGB 0..1) that far tower colours are tinted toward.
+    pub haze: Vec3,
 }
 
 /// The far batch. `loaded_key` is the key of the set the mesh was built for (None before the first build).
@@ -44,7 +46,8 @@ impl SkylineBatch {
             return false;
         }
         let indices = skyline_indices(inputs.towers, loaded, player, inputs.cfg);
-        let verts = skyline_vertices(inputs.towers, &indices, inputs.ground_y, inputs.look);
+        let mut verts = skyline_vertices(inputs.towers, &indices, inputs.ground_y, inputs.look);
+        tint_skyline_vertices(&mut verts, inputs.haze, inputs.look.skyline_haze_share);
         self.mesh = (!verts.is_empty()).then(|| GpuMesh::new(device, "metro skyline", &verts));
         self.loaded_key = Some(key);
         self.tower_count = indices.len();
@@ -100,4 +103,77 @@ pub fn skyline_key(loaded: &HashSet<IVec2>, player: Vec2, cell_m: f32) -> u64 {
     cell.x.hash(&mut hasher);
     cell.y.hash(&mut hasher);
     hasher.finish()
+}
+
+/// Blends an sRGB `[u8; 3]` colour toward `haze` (sRGB 0..1) by `share` (0..1).
+pub fn tint_toward_haze(color: [u8; 3], haze: Vec3, share: f32) -> [u8; 3] {
+    let w = share.clamp(0.0, 1.0);
+    let scale = 1.0 / 255.0; // new: DECISIONS 2026-11-26 (sRGB byte to 0..1)
+    let blend = |byte: u8, target: f32| -> u8 {
+        let c = f32::from(byte) * scale;
+        let h = target.clamp(0.0, 1.0);
+        ((c + (h - c) * w) * 255.0).round().clamp(0.0, 255.0) as u8
+    };
+    [blend(color[0], haze.x), blend(color[1], haze.y), blend(color[2], haze.z)]
+}
+
+/// Applies `tint_toward_haze` to every vertex in the skyline batch.
+pub fn tint_skyline_vertices(verts: &mut [ColorVertex], haze: Vec3, share: f32) {
+    for v in verts {
+        let tinted = tint_toward_haze([v.color[0], v.color[1], v.color[2]], haze, share);
+        v.color[0] = tinted[0];
+        v.color[1] = tinted[1];
+        v.color[2] = tinted[2];
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use world::metro::{TowerKind, TowerStyle, default_styles, style_for};
+
+    fn test_spot(floors: u32, style: TowerStyle, landmark: bool) -> TowerSpot {
+        TowerSpot {
+            pos: Vec2::new(6000.0, 0.0),
+            half: Vec2::splat(12.0),
+            yaw: 0.0,
+            height: 7.6 + floors as f32 * 3.8 + 5.0,
+            floors,
+            kind: if landmark { TowerKind::Landmark } else { TowerKind::Highrise },
+            landmark,
+            block: (0, 0),
+            style,
+            size: 24,
+        }
+    }
+
+    #[test]
+    fn window_bands_stay_inside_tris_per_tower_and_landmarks_use_deco() {
+        let cfg = MetroConfig::load_from_file(paths::repo_path("data/metro.json")).unwrap();
+        let look = MetroLook::load_from_file(paths::repo_path("data/metro.json")).unwrap();
+        let deco_color = style_for(default_styles(), TowerStyle::Deco).unwrap().color;
+
+        for style in TowerStyle::ALL {
+            let verts = tower_mesh(&test_spot(24, style, false), &look, Detail::Far);
+            assert!(verts.len() / 3 <= cfg.skyline.tris_per_tower);
+            assert!(verts.iter().any(|v| v.color[..3] == look.glass_dark), "has dark window bands");
+        }
+
+        let landmark = tower_mesh(&test_spot(42, TowerStyle::Brick, true), &look, Detail::Far);
+        assert!(landmark.len() / 3 <= cfg.skyline.tris_per_tower);
+        assert!(landmark.iter().any(|v| v.color[..3] == deco_color), "landmark uses Deco color");
+    }
+
+    #[test]
+    fn tint_moves_color_toward_haze_and_preserves_haze_color() {
+        let haze_u8 = [150u8, 168, 150];
+        let haze = Vec3::new(150.0 / 255.0, 168.0 / 255.0, 150.0 / 255.0);
+        assert_eq!(tint_toward_haze(haze_u8, haze, 0.5), haze_u8);
+
+        let dark = [48u8, 54, 58];
+        let tinted = tint_toward_haze(dark, haze, 0.5);
+        assert!(tinted[0] > dark[0] && tinted[0] < haze_u8[0]);
+        assert!(tinted[1] > dark[1] && tinted[1] < haze_u8[1]);
+        assert!(tinted[2] > dark[2] && tinted[2] < haze_u8[2]);
+    }
 }

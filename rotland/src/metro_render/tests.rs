@@ -4,11 +4,17 @@ use std::collections::HashSet;
 
 use engine::render::ColorVertex;
 use glam::{IVec2, Vec2, Vec3};
-use world::metro::{MetroConfig, MetroLayout, MetroLook, MetroSite, TowerKind, TowerSpot, plan_towers};
+use world::metro::{
+    MetroConfig, MetroLayout, MetroLook, MetroSite, PartKind, TowerKind, TowerSpot, TowerStyle,
+    default_styles, plan_towers, style_for,
+};
+
+use crate::props::{FADE, lod_fade, shadow_lod_for_rule};
 
 use super::boxes::{Detail, spot_seed, tower_mesh};
-use super::hulls::tower_hulls;
-use super::near::{near_tower_vertices, tower_chunk, towers_in_chunk};
+use super::hulls::{tower_bases, tower_hulls};
+use super::near::{tower_chunk, towers_in_chunk};
+use super::parts::{chunk_tower_parts, tower_load_ring_range};
 use super::skyline::{skyline_indices, skyline_key, skyline_vertices};
 
 /// Triangles in a flat vertex list.
@@ -50,6 +56,8 @@ fn spot(floors: u32, half: f32, landmark: bool) -> TowerSpot {
         kind: if landmark { TowerKind::Landmark } else { TowerKind::Highrise },
         landmark,
         block: (0, 0),
+        style: if landmark { TowerStyle::Deco } else { TowerStyle::Stone },
+        size: (half * 2.0) as u32,
     }
 }
 
@@ -139,35 +147,81 @@ fn spot_seed_is_stable_and_distinct_for_different_spots() {
 }
 
 #[test]
-fn near_batch_holds_only_the_towers_of_its_chunk_and_is_deterministic() {
-    let look = look();
-    let towers = city(&cfg());
-    let first = towers[0].pos;
-    let coord = tower_chunk(first);
-    let expected: usize = towers_in_chunk(&towers, coord)
-        .map(|t| tri_count(&tower_mesh(t, &look, Detail::Near)) * 3)
-        .sum();
-    let a = near_tower_vertices(&towers, coord, GROUND_Y, &look).expect("chunk has towers");
-    assert_eq!(a.len(), expected);
-    let b = near_tower_vertices(&towers, coord, GROUND_Y, &look).expect("chunk has towers");
-    assert!(a == b, "same input, same mesh");
+fn chunk_parts_hold_only_the_towers_of_their_chunk_and_are_deterministic() {
+    let cfg = cfg();
+    let styles = default_styles();
+    let towers = city(&cfg);
+    let coord = tower_chunk(towers[0].pos);
+    let a = chunk_tower_parts(&towers, coord, GROUND_Y, styles, &cfg);
+    assert!(!a.is_empty(), "chunk with towers produces parts");
+    let b = chunk_tower_parts(&towers, coord, GROUND_Y, styles, &cfg);
+    assert_eq!(a, b, "same input, same parts");
+    assert!(chunk_tower_parts(&towers, IVec2::new(-500, -500), GROUND_Y, styles, &cfg).is_empty());
+
+    // Single-tower slice: every non-interior part shares the tower's yaw.
+    let single = vec![towers[0].clone()];
+    let one_parts = chunk_tower_parts(&single, coord, GROUND_Y, styles, &cfg);
+    assert!(one_parts.iter().filter(|p| p.kind != PartKind::Interior).all(|p| (p.yaw - single[0].yaw).abs() < 1e-6));
 }
 
 #[test]
-fn near_batch_is_none_for_an_empty_chunk() {
-    let look = look();
-    let towers = city(&cfg());
-    assert!(near_tower_vertices(&towers, IVec2::new(-500, -500), GROUND_Y, &look).is_none());
+fn tower_lod_switch_uses_lod0_distance_and_fade_band() {
+    let cfg = cfg();
+    let ends = [cfg.towers.lod0_distance, tower_load_ring_range()];
+    assert_eq!(&lod_fade(84.0, &ends, FADE)[..], &[(0, 1.0, false)]);
+    assert_eq!(&lod_fade(96.0, &ends, FADE)[..], &[(1, 1.0, false)]);
+
+    // Inside the FADE band around 90 m: 89 m favours LOD0, 91 m favours LOD1.
+    let at_89 = lod_fade(89.0, &ends, FADE);
+    assert_eq!(at_89.len(), 2);
+    assert_eq!(at_89[0].0, 0);
+    assert!(at_89[0].1 > 0.5);
+
+    let at_91 = lod_fade(91.0, &ends, FADE);
+    assert_eq!(at_91.len(), 2);
+    assert_eq!(at_91[1].0, 1);
+    assert!(at_91[1].1 > 0.5);
 }
 
 #[test]
-fn hulls_are_one_box_per_tower_with_matching_extents() {
+fn tower_shadows_only_cast_from_lod0() {
+    assert_eq!(shadow_lod_for_rule(0, 2, 50.0, true), Some(0));
+    assert_eq!(shadow_lod_for_rule(1, 2, 100.0, true), None);
+}
+
+#[test]
+fn lobby_interior_parts_stay_inside_the_base_footprint() {
+    let cfg = cfg();
+    let styles = default_styles();
+    let mut t = spot(12, 12.0, false);
+    t.yaw = 0.7;
+    let coord = tower_chunk(t.pos);
+    let parts = chunk_tower_parts(&[t.clone()], coord, GROUND_Y, styles, &cfg);
+    let interior: Vec<_> = parts.iter().filter(|p| p.kind == PartKind::Interior).collect();
+    assert!(!interior.is_empty(), "tower has lobby interior props");
+    let (s, c) = t.yaw.sin_cos();
+    for p in interior {
+        let d = Vec2::new(p.pos.x - t.pos.x, p.pos.z - t.pos.y);
+        let local_x = d.x * c - d.y * s;
+        let local_z = d.x * s + d.y * c;
+        assert!(local_x.abs() <= t.half.x + 1e-3, "interior x out of bounds: {local_x}");
+        assert!(local_z.abs() <= t.half.y + 1e-3, "interior z out of bounds: {local_z}");
+    }
+}
+
+#[test]
+fn hulls_are_one_box_per_tower_starting_at_base_height() {
+    let styles = default_styles();
     let towers = city(&cfg());
     let coord = tower_chunk(towers[0].pos);
-    let hulls = tower_hulls(&towers, coord, GROUND_Y);
+    let hulls = tower_hulls(&towers, coord, GROUND_Y, styles);
+    let bases = tower_bases(&towers, coord, GROUND_Y);
     assert_eq!(hulls.len(), towers_in_chunk(&towers, coord).count());
+    assert_eq!(bases.len(), hulls.len());
     for (i, (pos, yaw, pts)) in hulls.iter().enumerate() {
         let t = towers_in_chunk(&towers, coord).nth(i).expect("same order");
+        let base_h = style_for(styles, t.style).expect("style exists").base_height;
+        assert_eq!(bases[i].0, format!("tw_{}_{}_base", t.style.key(), t.size));
         assert_eq!(pts.len(), 8);
         assert_eq!(*pos, Vec3::new(t.pos.x, GROUND_Y, t.pos.y));
         assert_eq!(*yaw, t.yaw);
@@ -179,7 +233,8 @@ fn hulls_are_one_box_per_tower_with_matching_extents() {
         });
         assert!((max[0] - min[0] - 2.0 * t.half.x).abs() < 1e-3);
         assert!((max[2] - min[2] - 2.0 * t.half.y).abs() < 1e-3);
-        assert!((max[1] - min[1] - t.height).abs() < 1e-3);
+        assert!((min[1] - base_h).abs() < 1e-3);
+        assert!((max[1] - t.height.max(base_h)).abs() < 1e-3);
     }
 }
 

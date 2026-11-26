@@ -3,7 +3,7 @@
 //! Facing rule (AGENTS.md): yaw forward = (-sin yaw, -cos yaw), so yaw = atan2(-dx, -dz).
 
 use glam::Vec2;
-use world::metro::{MetroStreet, MetroWorld};
+use world::metro::{MetroStreet, MetroWorld, TowerSpot, TowerStyle};
 
 /// Edge spot: metres inside the first avenue entrance. // new: DECISIONS 2026-11-26
 const EDGE_INSET_M: f32 = 10.0;
@@ -15,8 +15,16 @@ const SHOULDER_IN_M: f32 = 1.0;
 const TOP_HEIGHT_M: f32 = 260.0;
 /// Top spot: how far the camera looks down, in degrees. // new: DECISIONS 2026-11-26
 const TOP_PITCH_DEG: f32 = 60.0;
+/// Landmark spot: metres from the landmark base along the nearest avenue. // new: DECISIONS 2026-11-26
+const LANDMARK_VIEW_DIST_M: f32 = 40.0;
+/// Landmark spot: upward camera pitch in degrees to frame the crown. // new: DECISIONS 2026-11-26
+const LANDMARK_PITCH_DEG: f32 = 35.0;
+/// Landmark spot: default third-person camera spring length in metres. // new: DECISIONS 2026-11-26
+const LANDMARK_SPRING_M: f32 = 4.0;
+/// Style spot: metres in front of the tower's facade on its front street. // new: DECISIONS 2026-11-26
+const STYLE_STREET_DIST_M: f32 = 12.0;
 
-/// The five places `--metro=<spot>` can teleport to.
+/// The seven places `--metro=<spot>` can teleport to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MetroSpot {
     /// Just inside the city's first avenue entrance, looking in.
@@ -29,6 +37,10 @@ pub enum MetroSpot {
     TownView,
     /// High above the Core, looking down.
     Top,
+    /// Inside the ground-floor lobby of the tower nearest the Core centre, facing its door.
+    Lobby,
+    /// On the nearest avenue ~40 m from the nearest landmark, looking up at its crown.
+    Landmark,
 }
 
 impl MetroSpot {
@@ -40,6 +52,8 @@ impl MetroSpot {
             "highway" => Some(Self::Highway),
             "town_view" => Some(Self::TownView),
             "top" => Some(Self::Top),
+            "lobby" => Some(Self::Lobby),
+            "landmark" => Some(Self::Landmark),
             _ => None,
         }
     }
@@ -129,6 +143,67 @@ pub fn top_pose(center: Vec2, from: Vec2, eye_height: f32) -> MetroPose {
     MetroPose { pos: center, yaw: yaw_facing(center - from), top: Some(TopView { pitch, spring }) }
 }
 
+/// World XZ unit direction that a tower's front (its lobby door, Blender +Y / glTF -Z) faces.
+pub fn tower_front_dir(yaw: f32) -> Vec2 {
+    Vec2::new(-yaw.sin(), -yaw.cos())
+}
+
+/// Inside the ground-floor lobby at `tower.pos`, facing its street door.
+pub fn lobby_pose(tower: &TowerSpot) -> MetroPose {
+    let front_dir = tower_front_dir(tower.yaw);
+    MetroPose { pos: tower.pos, yaw: yaw_facing(front_dir), top: None }
+}
+
+/// On the avenue `(ave_a, ave_b)` `LANDMARK_VIEW_DIST_M` from `tower_pos`, facing the landmark and looking up.
+pub fn landmark_pose(tower_pos: Vec2, ave_a: Vec2, ave_b: Vec2) -> MetroPose {
+    let ab = ave_b - ave_a;
+    let len_sq = ab.length_squared();
+    let closest = if len_sq < 1e-6 {
+        ave_a
+    } else {
+        let t = ((tower_pos - ave_a).dot(ab) / len_sq).clamp(0.0, 1.0);
+        ave_a + ab * t
+    };
+    let d_perp = closest.distance(tower_pos);
+    let pos = if d_perp < LANDMARK_VIEW_DIST_M && len_sq >= 1e-6 {
+        let along = (LANDMARK_VIEW_DIST_M * LANDMARK_VIEW_DIST_M - d_perp * d_perp).sqrt();
+        let dir = ab / len_sq.sqrt();
+        let mid = (ave_a + ave_b) * 0.5;
+        let p1 = closest + dir * along;
+        let p2 = closest - dir * along;
+        if p1.distance_squared(mid) <= p2.distance_squared(mid) { p1 } else { p2 }
+    } else {
+        closest
+    };
+    MetroPose {
+        pos,
+        yaw: yaw_facing(tower_pos - pos),
+        top: Some(TopView {
+            pitch: LANDMARK_PITCH_DEG.to_radians(),
+            spring: LANDMARK_SPRING_M,
+        }),
+    }
+}
+
+/// Nearest tower of `style` to `center`. None when the city has no tower of that style.
+pub fn nearest_tower_of_style(
+    towers: &[TowerSpot],
+    center: Vec2,
+    style: TowerStyle,
+) -> Option<&TowerSpot> {
+    towers
+        .iter()
+        .filter(|t| t.style == style)
+        .min_by(|a, b| a.pos.distance_squared(center).total_cmp(&b.pos.distance_squared(center)))
+}
+
+/// On the street in front of `tower`, facing its facade.
+pub fn style_pose(tower: &TowerSpot) -> MetroPose {
+    let front_dir = tower_front_dir(tower.yaw);
+    let pos = tower.pos + front_dir * (tower.half.y + STYLE_STREET_DIST_M);
+    MetroPose { pos, yaw: yaw_facing(-front_dir), top: None }
+}
+
 /// The pose for `spot` in the metro city. None when the city lacks what the spot needs
 /// (no avenue, no highway, no jam prop, or no town for `town_view`).
 pub fn metro_pose(
@@ -170,6 +245,23 @@ pub fn metro_pose(
             let back = center - (site.to_world(avenue.b) - site.to_world(avenue.a)).normalize_or(Vec2::X);
             Some(top_pose(center, back, eye_height))
         }
+        MetroSpot::Lobby => {
+            let tower = metro
+                .towers
+                .iter()
+                .min_by(|a, b| a.pos.distance_squared(center).total_cmp(&b.pos.distance_squared(center)))?;
+            Some(lobby_pose(tower))
+        }
+        MetroSpot::Landmark => {
+            let tower = metro
+                .towers
+                .iter()
+                .filter(|t| t.landmark)
+                .min_by(|a, b| a.pos.distance_squared(center).total_cmp(&b.pos.distance_squared(center)))
+                .or_else(|| metro.towers.iter().max_by(|a, b| a.height.total_cmp(&b.height)))?;
+            let avenue = nearest_avenue(streets, site.to_local(tower.pos))?;
+            Some(landmark_pose(tower.pos, site.to_world(avenue.a), site.to_world(avenue.b)))
+        }
     }
 }
 
@@ -196,6 +288,8 @@ mod tests {
         assert_eq!(MetroSpot::parse("HIGHWAY"), Some(MetroSpot::Highway));
         assert_eq!(MetroSpot::parse("town_view"), Some(MetroSpot::TownView));
         assert_eq!(MetroSpot::parse("top"), Some(MetroSpot::Top));
+        assert_eq!(MetroSpot::parse("lobby"), Some(MetroSpot::Lobby));
+        assert_eq!(MetroSpot::parse("LANDMARK"), Some(MetroSpot::Landmark));
         assert_eq!(MetroSpot::parse("roof"), None);
         assert_eq!(MetroSpot::parse(""), None);
     }
@@ -278,5 +372,63 @@ mod tests {
         let best = nearest_avenue(&streets, Vec2::new(10.0, 0.0)).unwrap();
         assert_eq!(best.a, Vec2::new(-30.0, 0.0));
         assert!(nearest_avenue(&streets[..1], Vec2::ZERO).is_none());
+    }
+
+    fn fake_tower(pos: Vec2, yaw: f32, style: TowerStyle, landmark: bool) -> TowerSpot {
+        TowerSpot {
+            pos,
+            half: Vec2::splat(12.0),
+            yaw,
+            height: 80.0,
+            floors: 18,
+            kind: world::metro::TowerKind::Highrise,
+            landmark,
+            block: (0, 0),
+            style,
+            size: 24,
+        }
+    }
+
+    #[test]
+    fn lobby_pose_is_inside_footprint_and_faces_the_door() {
+        let tower = fake_tower(Vec2::new(100.0, -50.0), FRAC_PI_2, TowerStyle::Stone, false);
+        let pose = lobby_pose(&tower);
+        assert!(
+            (pose.pos.x - tower.pos.x).abs() <= tower.half.x
+                && (pose.pos.y - tower.pos.y).abs() <= tower.half.y
+        );
+        let door = tower.pos + tower_front_dir(tower.yaw) * tower.half.y;
+        let to_door = (door - pose.pos).normalize();
+        let dot = forward_of(pose.yaw).dot(to_door);
+        assert!(dot > 5f32.to_radians().cos(), "yaw must face door, dot={dot}");
+        assert!(pose.top.is_none());
+    }
+
+    #[test]
+    fn landmark_pose_is_40m_from_base_and_looks_up_at_landmark() {
+        let tower_pos = Vec2::new(20.0, 100.0);
+        let pose = landmark_pose(tower_pos, Vec2::new(0.0, 0.0), Vec2::new(0.0, 200.0));
+        assert!(close(pose.pos.distance(tower_pos), LANDMARK_VIEW_DIST_M));
+        let to_landmark = (tower_pos - pose.pos).normalize();
+        assert!(forward_of(pose.yaw).dot(to_landmark) > 0.99);
+        let top = pose.top.expect("landmark sets upward pitch");
+        assert!(top.pitch > 0.0);
+    }
+
+    #[test]
+    fn style_pose_picks_requested_style_and_faces_tower() {
+        let center = Vec2::ZERO;
+        let towers = [
+            fake_tower(Vec2::new(10.0, 0.0), 0.0, TowerStyle::Brick, false),
+            fake_tower(Vec2::new(50.0, 0.0), FRAC_PI_2, TowerStyle::Deco, false),
+            fake_tower(Vec2::new(200.0, 0.0), 0.0, TowerStyle::Deco, false),
+        ];
+        let picked = nearest_tower_of_style(&towers, center, TowerStyle::Deco).expect("deco");
+        assert_eq!(picked.style, TowerStyle::Deco);
+        assert_eq!(picked.pos, Vec2::new(50.0, 0.0));
+
+        let pose = style_pose(picked);
+        let to_tower = (picked.pos - pose.pos).normalize();
+        assert!(forward_of(pose.yaw).dot(to_tower) > 0.99);
     }
 }

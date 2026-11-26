@@ -55,3 +55,16 @@ Goal: the New York office curtain wall (Core) and the 70s concrete slab block (M
 - Stack previews for glass 24 and 32 and slab 24 and 32 show no gap.
 
 ## Worker notes
+- **Files changed:**
+  - `tools/blender/towers/glass.py` (302 lines): `tw_glass_24_*` and `tw_glass_32_*` (`base`, `floor`, `floor_b`, `crown` + `_lod1` each). Curtain-wall mullions/transoms/chrome caps, ~20% `glass_dark` panes, ~10% `soot` missing slots, diagonal cracks, `concrete_grey` spandrel bands with `rust` drips, revolving door frame (visual only, no collider in door gap) + `chrome` sign band, glass penthouse crown with bent mullions, two missing panes, metal plant box, and `roof_parts` (`ac_unit`, `vent_stack`, `antenna`).
+  - `tools/blender/towers/slab.py` (293 lines): `tw_slab_24_*` and `tw_slab_32_*` (`base`, `floor`, `floor_b`, `crown` + `_lod1` each). Concrete facade with `concrete_stain` streaks, framed strip windows (`glass_tint`, `soot`, `kit.boards`), +Y balconies (1.2 m overhang) with `metal` rails and junk (box, bag, dead potted plant, bicycle, `tarp_blue` tarp, satellite dish), rough portico outside door gap, and crown with `metal` perimeter rail, lift motor room, two `vent_stack`s, `ac_unit`, and two satellite dishes.
+  - Exported 32 GLBs (`assets/models/buildings/tw_glass_{24,32}_*.glb`, `tw_slab_{24,32}_*.glb`) and their previews (`assets/models/_previews/tw_glass_*.png`, `tw_slab_*.png`, `stack_glass_{24,32}.png`, `stack_slab_{24,32}.png`).
+- **Build & verification:**
+  - Ran `flock /tmp/rotland-blender.lock blender -b --python tools/blender/towers/glass.py` and `slab.py`, plus `stack_preview.render_stack` for `glass` and `slab` (24 & 32 m): exit code 0, 0 `Traceback`, 0 `FAILED`, 0 `OVER BUDGET`.
+  - Triangle counts (LOD0 / LOD1):
+    - `tw_glass_24_*`: base 4992/48, floor 2232/60, floor_b 2352/60, crown 1176/36 (all within budgets).
+    - `tw_glass_32_*`: base 6168/48, floor 2844/60, floor_b 3000/60, crown 1392/36 (all within budgets).
+    - `tw_slab_24_*`: base 4380/36, floor 2616/48, floor_b 2240/36, crown 1092/24 (all within budgets).
+    - `tw_slab_32_*`: base 5652/36, floor 3520/60, floor_b 3228/48, crown 1188/24 (all within budgets).
+  - Inspected previews via `read_file`: fixed initial z-fighting on `slab` floor/base slabs and marked upper base spandrel/slab bands `roof=True`; re-verified clean renders and gap-free `stack_glass_{24,32}.png` and `stack_slab_{24,32}.png`.
+- **Shared-file lines / known issues:** None.

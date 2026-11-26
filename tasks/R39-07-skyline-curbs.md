@@ -39,3 +39,34 @@ Read: tasks/R39-common.md ("Skyline", "Sidewalks"), tasks/archive/R38-06-metro-r
 - Shared-file lines for the lead (`world/src/metro/mod.rs`: `pub mod curbs;`; `rotland/src/streaming.rs` and the draw call that draws `curb_mesh` with the ground; `rotland/src/metro_render/mod.rs`: `pub mod curb_mesh;`) are in Worker notes.
 
 ## Worker notes
+### What changed
+- `data/metro.json`: added `look.curbHeight` (`0.15`), `look.curbWidth` (`1.0`), `look.kerbStoneLength` (`1.0`), and `look.skylineHazeShare` (`0.5`).
+- `rotland/src/metro_render/boxes.rs` (far path only): added `far_tower` and `far_window_bands` using `StyleDef.color` (Deco for landmarks) and dark `look.glass_dark` window bands per floor, stepping floors when needed to stay within `skyline.trisPerTower` (60).
+- `rotland/src/metro_render/skyline.rs`: added `haze: Vec3` to `SkylineInputs`, `tint_toward_haze` / `tint_skyline_vertices` applied in `SkylineBatch::rebuild_if_needed`, and unit tests for window bands, Deco landmarks, and haze tinting.
+- `world/src/metro/curbs.rs` (new): pure `build_curbs` and `build_curbs_in_chunk` builders emitting raised sidewalk tops (`curbHeight`), vertical asphalt-side curb faces with `kerbStoneLength` seam lines and thin kerb top stones, `curbWidth` ramps at open intersection/block ends, and skipping `Reserved::Park` edges; includes unit tests.
+- `rotland/src/metro_render/curb_mesh.rs` (new): `curb_chunk_vertices` and `curb_chunk_mesh` uploading one `GpuMesh` per chunk.
+- `world/src/metro/paint.rs`: added the 4 new `MetroLook` fields + validation, removed `look.sidewalk` painting in `city_surface` (leaving asphalt unchanged and letting the sidewalk band take the lot/base colour), and updated `the_sidewalk_band_is_sidewalk`.
+
+### Shared-file lines for the lead
+1. `world/src/metro/mod.rs`:
+   - `pub mod curbs;`
+   - `pub use curbs::{CurbTri, build_curbs, build_curbs_in_chunk};`
+2. `rotland/src/metro_render/mod.rs`:
+   - `pub mod curb_mesh;`
+3. `rotland/src/metro_play.rs` (in `MetroPlay::update_skyline`, inside `SkylineInputs { ... }`):
+   - `haze: self.haze.color,`
+4. `rotland/src/streaming.rs`:
+   - Import: `use crate::metro_render::{curb_mesh::curb_chunk_mesh, hulls::tower_hulls, near::near_tower_mesh};`
+   - `LoadedChunk` field: `pub curbs: Option<GpuMesh>,`
+   - In `Streamer::finish_chunk` (next to `towers`/`hulls`):
+     `let curbs = self.world_gen.metro_world().and_then(|m| curb_chunk_mesh(device, &m.layout, &m.look, b.coord));`
+     and `curbs,` inside `LoadedChunk { ... }`.
+5. `rotland/src/app/render_frame.rs` (in the chunk `flat_map` around line 178):
+   - `let curbs = c.curbs.as_ref().map(|mesh| DrawItem { mesh, offset: glam::Vec3::ZERO, fog_scale: 1.0 });`
+   - `std::iter::once(ground).chain(curbs).chain(towers)`
+
+### Why curbs have no colliders
+`CharacterMover::default().max_step_height` is `0.35` m (`physics/src/mover.rs:25`), and `look.curbHeight` is `0.15` m (`0.15 < 0.35`), so the player steps onto the raised sidewalk automatically without needing curb colliders.
+
+### Notes
+- Did not run `cargo` or `tools/gate.sh` (per subagent rules).

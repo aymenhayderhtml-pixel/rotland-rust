@@ -53,3 +53,16 @@ Goal: two dead New York facades. Brick is the brownstone and tenement (Edge and 
 - Stack previews for brick 16 and 24 and stone 24 and 32 show no gap.
 
 ## Worker notes
+- Files changed:
+  - `tools/blender/towers/brick_parts.py` (146 lines): brick windows (brownstone surround, limestone lintel + mortar line, sill, AC units, boards, cracked/empty panes, rust streaks) and iron fire escapes with zig-zag stairs.
+  - `tools/blender/towers/brick.py` (238 lines): `tw_brick_16_*` and `tw_brick_24_*` (base, floor, floor_b, crown, and `_lod1` of each) + `build_all()`.
+  - `tools/blender/towers/stone_parts.py` (135 lines): stone pilasters, `limestone_dark` window frames with grey mullions and balconies, dentil cornice, balustrade, corner flagpoles with torn flags.
+  - `tools/blender/towers/stone.py` (208 lines): `tw_stone_24_*` and `tw_stone_32_*` (base, floor, floor_b, crown, and `_lod1` of each) + `build_all()`.
+  - Generated 32 `.glb` models in `assets/models/buildings/` and previews in `assets/models/_previews/` (`tw_brick_*.png`, `tw_stone_*.png`, plus `stack_brick_16.png`, `stack_brick_24.png`, `stack_stone_24.png`, `stack_stone_32.png`).
+- Shared-file lines: none.
+- How to test / see it:
+  - `flock /tmp/rotland-blender.lock blender -b --python tools/blender/towers/brick.py`
+  - `flock /tmp/rotland-blender.lock blender -b --python tools/blender/towers/stone.py`
+  - All 32 models built with 0 errors and all within triangle budgets (brick floor 16m: 1908/3000, floor_b: 1824/3000, 24m: 2688/4500, crown: 1070-1166/8000; stone floor 24m: 2388/4500, 32m: 3120/6000, crown: 3366-4182/8000; all LOD1s <= 408 tris).
+  - Checked previews and stack previews (`stack_brick_16`, `stack_brick_24`, `stack_stone_24`, `stack_stone_32`): no gaps, no z-fighting, open lobby visible in `base_top` previews.
+- Known issues / unsure: none.
