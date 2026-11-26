@@ -42,3 +42,27 @@ Read: tasks/R39-common.md ("How towers are built", "R39 shared names", "Budgets 
 - Shared-file lines (lib.rs `pub use` names for `TowerStyle`, `StyleDef`, `TowerPart`, `PartKind`, `tower_parts`) are in Worker notes.
 
 ## Worker notes
+
+Implemented R39-01 (pure world logic; did not run `cargo` or `tools/gate.sh` per subagent rules).
+
+**Files changed / added:**
+- `world/src/metro/styles.rs` (new, 146 lines): `TowerStyle` (`Brick`, `Stone`, `Glass`, `Slab`, `Deco`, `ALL`, `key()`, `parse()`), `StyleDef`, `VALID_SIZES` (`[16, 24, 32]`), `load_styles`, `validate_styles`, `default_styles`, `style_for`.
+- `world/src/metro/tower_parts.rs` (new, 173 lines): `PartKind`, `TowerPart`, `tower_parts(spot, style, ground_y, rng_seed)` and `tower_parts_with_extras(...)` for base, floors (`_floor`/`_floor_b` alternating by seed), landmark setbacks, crowns (`tw_landmark_spire`/`stepped`/`glass_top`/`mast`), and lobby interior props.
+- `world/src/metro/config.rs`: added `SetbackSpec`, `LobbyProp`, and `lod0_distance`, `setbacks`, `lobby_props` (all `#[serde(default)]`) to `TowersConfig`.
+- `world/src/metro/towers.rs`: added `style: TowerStyle` and `size: u32` to `TowerSpot`; updated `plan_towers` / `plan_towers_with_styles` to pick style per lot from district candidates (or `Deco` for landmarks), snap footprint down to `style.sizes`, clamp floors to `style.floors` (except landmarks using `landmarkFloors`), compute `height = base_height + floors * floor_height + crown_height`, and set `yaw = site.yaw + k * PI/2` pointing Blender `+Y` (glTF `-Z`) at the nearest street.
+- `world/src/metro/towers_tests.rs`: updated existing tests for style/size/height formula and added tests for street-facing yaw, gapless part stacking, seed determinism/variation, landmark setbacks/crowns, and style validation.
+- `world/src/metro/mod.rs`: added `mod styles;`, `mod tower_parts;`, and `pub use` re-exports.
+- `data/metro.json`: set `towers.edge.footprint` to `[16, 24]`; added `towers.lod0Distance` (`90`), `towers.setbacks`, `towers.lobbyProps`, and `styles` (`brick`, `stone`, `glass`, `slab`, `deco`).
+
+**Shared-file lines for the lead:**
+- `world/src/lib.rs` (around lines 47-51): extend `pub use metro::{...}` with:
+  `LobbyProp, PartKind, SetbackSpec, StyleDef, TowerPart, TowerStyle, default_styles, load_styles, plan_towers_with_styles, style_for, tower_parts, tower_parts_with_extras, validate_styles`
+  (also `SetbackSpec` and `LobbyProp` are in `world::metro::config`, or can be re-exported from `metro/mod.rs` if needed by R39-06/08).
+- `rotland/src/metro_render/tests.rs` (line 44): `spot(...)` constructs `TowerSpot { ... }` directly and will need `style: TowerStyle::Brick, size: (half * 2.0) as u32` (or similar) added once R39-06/07 updates `metro_render`.
+
+**How to see / verify:**
+- Run `cargo test` (or `tools/gate.sh`) after updating `rotland/src/metro_render/tests.rs` for the two new `TowerSpot` fields.
+
+**Unsure / notes:**
+- `world/src/metro/config.rs` was only edited in `TowersConfig`, so `styles` is loaded/validated via `styles::load_styles` / `styles::default_styles()` (cached with `OnceLock` from `paths::repo_path("data/metro.json")`) rather than adding a `styles` field to `MetroConfig`.
+- `towers.lobbyProps` entries were placed within `x in [-0.32, 0.30]`, `z in [-0.18, 0.25]` so they stay inside the footprint and away from the front door (`z < 0.3`).

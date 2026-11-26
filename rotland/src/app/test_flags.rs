@@ -11,7 +11,7 @@ use glam::{Vec2, Vec3};
 use rotland_ui::gunsmith_ui::GunsmithTab;
 use world::biome::layout::BiomeSample;
 use world::weather::WeatherKind;
-use world::BiomeId;
+use world::{BiomeId, TowerStyle};
 
 use super::metro_flags::{self, MetroSpot};
 use super::state::{ActorsState, AudioState, PlaySide, RenderState, SessionState, UiState, WorldState};
@@ -52,8 +52,12 @@ pub struct TestFlags {
     pub spawn_zombie: Option<String>,
     /// `--town=<key>`: teleport 25 m from that town's centre, facing it (R33-05).
     pub town: Option<String>,
-    /// `--metro=<spot>`: teleport into New Halden (`edge|core|highway|town_view|top`).
+    /// `--metro=<spot>`: teleport into New Halden (`edge|core|highway|town_view|top|lobby|landmark`).
     pub metro: Option<String>,
+    /// `--tower-style=<key>`: with `--metro=core`, view the nearest tower of that style (R39-08).
+    pub tower_style: Option<TowerStyle>,
+    /// `--map`: open the big map hub screen on startup (R39-08).
+    pub map: bool,
     /// `--trailhead=<n>`: teleport 25 m before trailhead `n`, facing outward along the road (R33-05).
     pub trailhead: Option<usize>,
     /// `--bridge=<n>`: teleport onto the `n`-th road-river bridge deck (R33-05).
@@ -96,6 +100,15 @@ impl TestFlags {
             }
             parsed
         });
+        let tower_style = args.value("--tower-style").and_then(|raw| {
+            let parsed = TowerStyle::parse(raw);
+            if parsed.is_none() {
+                log::warn!(
+                    "--tower-style: unknown style '{raw}' (expected brick|stone|glass|slab|deco)"
+                );
+            }
+            parsed
+        });
         Self {
             down_at: args.value("--down-at").and_then(parse_non_negative_f32),
             team: args
@@ -118,6 +131,8 @@ impl TestFlags {
                 .value("--metro")
                 .map(|s| s.trim().to_ascii_lowercase())
                 .filter(|s| !s.is_empty()),
+            tower_style,
+            map: args.flag("--map"),
             trailhead: args
                 .value("--trailhead")
                 .and_then(|s| s.trim().parse::<usize>().ok()),
@@ -393,6 +408,12 @@ pub fn apply_startup(
         ));
         ui.cursor_captured = false;
     }
+    if session.test_flags.map && ui.gunsmith.is_none() && ui.hub.is_none() {
+        ui.hub = Some(crate::hub_ui::HubUiState::new(
+            crate::hub_ui::HubScreen::Tab(crate::hub_ui::HubTab::Map),
+        ));
+        ui.cursor_captured = false;
+    }
 }
 
 fn teleport_player_and_stream(
@@ -547,7 +568,9 @@ fn apply_metro_tp(
     key: &str,
 ) {
     let Some(spot) = MetroSpot::parse(key) else {
-        log::warn!("--metro={key}: unknown spot (expected edge|core|highway|town_view|top)");
+        log::warn!(
+            "--metro={key}: unknown spot (expected edge|core|highway|town_view|top|lobby|landmark)"
+        );
         return;
     };
     let Some(world_gen) = world.world_gen.clone() else {
@@ -564,12 +587,42 @@ fn apply_metro_tp(
         .find(|t| t.key.eq_ignore_ascii_case(&metro.highway.from_town))
         .map(|t| t.center);
     let eye_height = actors.camera_rig.as_ref().map_or(0.0, |r| r.eye_height);
-    let Some(pose) = metro_flags::metro_pose(spot, metro, town_center, WORLD_TP_DISTANCE_M, eye_height)
-    else {
+    let pose = if spot == MetroSpot::Core
+        && let Some(style) = session.test_flags.tower_style
+    {
+        if let Some(tower) =
+            metro_flags::nearest_tower_of_style(&metro.towers, metro.layout.site.center, style)
+        {
+            Some(metro_flags::style_pose(tower))
+        } else {
+            log::warn!(
+                "--tower-style={}: no tower of that style in the city; falling back to --metro=core",
+                style.key()
+            );
+            metro_flags::metro_pose(spot, metro, town_center, WORLD_TP_DISTANCE_M, eye_height)
+        }
+    } else {
+        metro_flags::metro_pose(spot, metro, town_center, WORLD_TP_DISTANCE_M, eye_height)
+    };
+    let Some(pose) = pose else {
         log::warn!("--metro={key}: the city has nothing for this spot");
         return;
     };
     teleport_player_and_stream(gpu, render, world, actors, session, pose.pos, pose.yaw);
+    if spot == MetroSpot::Lobby {
+        // Place inside the ground-floor lobby (above the 0.1 m slab), not on the roof collider.
+        let lobby_y = metro.layout.site.ground_y + 0.15; // new: DECISIONS 2026-11-26
+        actors.player.y = lobby_y;
+        if let Some(p) = actors.player_ctrl.as_mut() {
+            p.position.y = lobby_y;
+        }
+        if let Some(rig) = actors.camera_rig.as_mut()
+            && session.scene == "play"
+            && !session.free_cam
+        {
+            render.camera = rig.camera(&actors.player, &world.physics);
+        }
+    }
     if let (Some(top), Some(rig)) = (pose.top, actors.camera_rig.as_mut()) {
         rig.pitch = top.pitch;
         rig.stored_zoom = top.spring;
@@ -943,6 +996,8 @@ mod tests {
             "--weather=sandstorm",
             "--town=Dusthollow",
             "--metro=Top",
+            "--tower-style=deco",
+            "--map",
             "--trailhead=2",
             "--bridge=1",
             "--river=0",
@@ -959,6 +1014,8 @@ mod tests {
         assert_eq!(parsed.weather, Some(WeatherKind::Sandstorm));
         assert_eq!(parsed.town.as_deref(), Some("dusthollow"));
         assert_eq!(parsed.metro.as_deref(), Some("top"));
+        assert_eq!(parsed.tower_style, Some(TowerStyle::Deco));
+        assert!(parsed.map);
         assert_eq!(parsed.trailhead, Some(2));
         assert_eq!(parsed.bridge, Some(1));
         assert_eq!(parsed.river, Some(0));
@@ -979,6 +1036,7 @@ mod tests {
             "--team=abc",
             "--biome=mars",
             "--weather=acid",
+            "--tower-style=tall",
             "--gunsmith=smithing",
             "--wear=pistol:nope",
             "--mods=rifle:",
@@ -987,9 +1045,17 @@ mod tests {
         assert_eq!(invalid.team, 0);
         assert_eq!(invalid.biome, None);
         assert_eq!(invalid.weather, None);
+        assert_eq!(invalid.tower_style, None);
+        assert!(!invalid.map);
         assert_eq!(invalid.gunsmith, None);
         assert_eq!(invalid.wear, None);
         assert_eq!(invalid.mods, None);
+
+        let map_only = TestFlags::from_args(&make_args(&["rotland", "--map"]));
+        assert!(map_only.map);
+        assert!(map_only.gunsmith.is_none());
+        assert!(map_only.gunsmith_town.is_none());
+        assert!(map_only.metro.is_none());
     }
 
     #[test]

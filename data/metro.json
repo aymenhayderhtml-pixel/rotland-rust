@@ -22,15 +22,80 @@
     { "kind": "subway", "ix": 16, "iz": 16, "w": 1, "h": 1 }
   ],
   "towers": {
-    "edge": { "floors": [4, 8], "footprint": [14, 22] },
+    "edge": { "floors": [4, 8], "footprint": [16, 24] },
     "midtown": { "floors": [10, 20], "footprint": [18, 30] },
     "core": { "floors": [20, 30], "footprint": [24, 40] },
     "floorHeight": 3.8,
     "landmarkCount": [3, 5],
     "landmarkFloors": [38, 42],
     "lotGap": 3.0,
-    "maxLotsPerBlock": 4
+    "maxLotsPerBlock": 4,
+    "lod0Distance": 90,
+    "setbacks": [
+      { "atFloor": 0.45, "footprintShare": 0.7 },
+      { "atFloor": 0.75, "footprintShare": 0.5 }
+    ],
+    "lobbyProps": [
+      { "model": "lobby_desk", "x": 0.0, "z": 0.0, "yaw": 0.0 },
+      { "model": "lobby_elevators", "x": 0.0, "z": 0.25, "yaw": 0.0 },
+      { "model": "lobby_mailboxes", "x": -0.32, "z": 0.05, "yaw": 1.5708 },
+      { "model": "lobby_bench", "x": 0.30, "z": -0.05, "yaw": -1.5708 },
+      { "model": "lobby_rubble", "x": -0.22, "z": -0.18, "yaw": 0.4 },
+      { "model": "lobby_plant_dead", "x": 0.26, "z": 0.20, "yaw": 0.0 }
+    ]
   },
+  "styles": [
+    {
+      "key": "brick",
+      "sizes": [16, 24],
+      "districts": ["edge", "midtown"],
+      "floors": [4, 12],
+      "floorHeight": 3.8,
+      "baseHeight": 7.6,
+      "crownHeight": 3.5,
+      "color": [118, 96, 80]
+    },
+    {
+      "key": "stone",
+      "sizes": [24, 32],
+      "districts": ["midtown", "core"],
+      "floors": [10, 24],
+      "floorHeight": 3.8,
+      "baseHeight": 7.6,
+      "crownHeight": 5.0,
+      "color": [128, 128, 124]
+    },
+    {
+      "key": "glass",
+      "sizes": [24, 32],
+      "districts": ["core"],
+      "floors": [18, 30],
+      "floorHeight": 3.8,
+      "baseHeight": 7.6,
+      "crownHeight": 4.5,
+      "color": [88, 100, 108]
+    },
+    {
+      "key": "slab",
+      "sizes": [24, 32],
+      "districts": ["midtown"],
+      "floors": [10, 20],
+      "floorHeight": 3.8,
+      "baseHeight": 7.6,
+      "crownHeight": 3.0,
+      "color": [144, 144, 140]
+    },
+    {
+      "key": "deco",
+      "sizes": [24, 32],
+      "districts": ["core"],
+      "floors": [20, 30],
+      "floorHeight": 3.8,
+      "baseHeight": 7.6,
+      "crownHeight": 5.5,
+      "color": [112, 110, 104]
+    }
+  ],
   "highway": {
     "highwayWidth": 22,
     "medianWidth": 2,
@@ -103,6 +168,10 @@
     "parapet_height": 1.0,
     "step_height": 8.0,
     "step_share": 0.6,
-    "rebuild_cell_m": 512
+    "rebuild_cell_m": 512,
+    "curbHeight": 0.15,
+    "curbWidth": 1.0,
+    "kerbStoneLength": 1.0,
+    "skylineHazeShare": 0.5
   }
 }

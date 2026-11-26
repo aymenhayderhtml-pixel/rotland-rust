@@ -63,7 +63,7 @@ def _body(rng):
     return out
 
 
-def _front_and_rear():
+def _front_and_rear(lying=False):
     out = []
     out.append((pbox((-HALF_W - 0.03, HALF_L - 0.2, SILL - 0.2), (HALF_W + 0.03, HALF_L + 0.06, SILL + 0.1),
                      "gun_black", bevel=0.04), False))
@@ -78,10 +78,12 @@ def _front_and_rear():
                                                                        SILL + 0.35), "white", bevel=0.02), False))
         out.append((box((sx * 0.9 - 0.05, HALF_L + 0.03, SILL + 0.05), (sx * 0.9 + 0.05, HALF_L + 0.06,
                                                                         SILL + 0.12), "carrot_orange"), False))
-        out.append((box((sx * (HALF_W + 0.2) - 0.1, -HALF_L - 0.02, SILL + 0.1),
-                        (sx * (HALF_W + 0.2) + 0.1, -HALF_L, SILL + 0.22), "red_paint"), False))
         out.append((box((sx * 0.55 - 0.2, HALF_L - 0.05, SILL + 0.1), (sx * 0.55 + 0.2, HALF_L + 0.05,
                                                                        SILL + 0.14), "chrome"), False))
+        if lying and sx < 0:
+            continue  # omit ground-side mirror/marker so the lowest wheel sits on z=0
+        out.append((box((sx * (HALF_W + 0.2) - 0.1, -HALF_L - 0.02, SILL + 0.1),
+                        (sx * (HALF_W + 0.2) + 0.1, -HALF_L, SILL + 0.22), "red_paint"), False))
         out.append((car_parts._beam((sx * (HALF_W + 0.02), HALF_L - 1.2, ROOF - 0.7),
                                     (sx * (HALF_W + 0.25), HALF_L - 1.0, ROOF - 0.7), 0.03, color="metal"), False))
         out.append((pbox((sx * (HALF_W + 0.2) - 0.07, HALF_L - 1.25, ROOF - 0.95),
@@ -89,15 +91,25 @@ def _front_and_rear():
     return out
 
 
-def _roof_and_skirt(rng):
+def _roof_and_skirt(rng, lying=False):
     out = []
     out.append((pbox((-0.9, -1.5, ROOF), (0.9, 1.5, ROOF + 0.4), "metal", bevel=0.04), True))  # AC unit
     for y in (-3.0, 2.0):
         out.append((pbox((-0.5, y, ROOF), (0.5, y + 1.0, ROOF + 0.04), "gun_black", bevel=0.02), True))  # hatches
-    out.append((pbox((-HALF_W - 0.02, -HALF_L + 0.2, SILL - 0.22), (-HALF_W + 0.005, HALF_L - 0.2, SILL + 0.02),
-                     BODY, bevel=0.02), False))  # skirt panels, bus colour
-    out.append((pbox((HALF_W - 0.005, -HALF_L + 0.2, SILL - 0.22), (HALF_W + 0.02, HALF_L - 0.2, SILL + 0.02),
-                     BODY, bevel=0.02), False))
+    if lying:
+        # Cut-outs around the axles and mid-chassis so axle and rail stubs show from the road side.
+        skirt_spans = [(-HALF_L + 0.2, -HALF_L + 1.2), (-HALF_L + 2.8, -1.2), (1.0, HALF_L - 2.8),
+                       (HALF_L - 1.2, HALF_L - 0.2)]
+        for y0, y1 in skirt_spans:
+            out.append((pbox((-HALF_W - 0.02, y0, SILL - 0.22), (-HALF_W + 0.005, y1, SILL + 0.02),
+                             BODY, bevel=0.02), False))
+            out.append((pbox((HALF_W - 0.005, y0, SILL - 0.22), (HALF_W + 0.02, y1, SILL + 0.02),
+                             BODY, bevel=0.02), False))
+    else:
+        out.append((pbox((-HALF_W - 0.02, -HALF_L + 0.2, SILL - 0.22), (-HALF_W + 0.005, HALF_L - 0.2, SILL + 0.02),
+                         BODY, bevel=0.02), False))  # skirt panels, bus colour
+        out.append((pbox((HALF_W - 0.005, -HALF_L + 0.2, SILL - 0.22), (HALF_W + 0.02, HALF_L - 0.2, SILL + 0.02),
+                         BODY, bevel=0.02), False))
     for k in range(8):  # rear engine grille slats
         z = SILL + 0.3 + k * 0.2
         out.append((pbox((-0.8, -HALF_L - 0.02, z), (0.8, -HALF_L + 0.02, z + 0.1), "rock_dark", bevel=0.01), False))
@@ -190,8 +202,8 @@ def _interior():
 
 def _parts(lying):
     rng = random.Random(21)
-    parts = _body(rng) + _front_and_rear() + _roof_and_skirt(rng) + _arches() + _underside() + _interior()
-    parts += _door() + _wheels(side_only=lying)
+    parts = _body(rng) + _front_and_rear(lying) + _roof_and_skirt(rng, lying) + _arches() + _underside() + _interior()
+    parts += _door() + _wheels(side_only=False)
     return parts
 
 

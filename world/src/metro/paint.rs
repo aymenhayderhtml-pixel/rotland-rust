@@ -60,6 +60,18 @@ pub struct MetroLook {
     pub step_share: f32,
     /// Far skyline is rebuilt when the player crosses a cell this big (metres).
     pub rebuild_cell_m: f32,
+    /// Raised curb height, metres.
+    #[serde(rename = "curbHeight")]
+    pub curb_height: f32,
+    /// Ramp length at open ends of a sidewalk, metres.
+    #[serde(rename = "curbWidth")]
+    pub curb_width: f32,
+    /// Spacing between kerb stone lines on the curb face, metres.
+    #[serde(rename = "kerbStoneLength")]
+    pub kerb_stone_length: f32,
+    /// Share of the haze colour blended into far skyline towers (0..1).
+    #[serde(rename = "skylineHazeShare")]
+    pub skyline_haze_share: f32,
 }
 
 impl MetroLook {
@@ -81,8 +93,23 @@ impl MetroLook {
     }
 
     fn validate(&self) -> Result<(), String> {
-        let shares = [self.pane_width_share, self.pane_bottom_share, self.pane_height_share, self.roof_box_share, self.step_share];
-        let positive = [self.sidewalk_width, self.bay_width, self.rebuild_cell_m, self.pane_offset];
+        let shares = [
+            self.pane_width_share,
+            self.pane_bottom_share,
+            self.pane_height_share,
+            self.roof_box_share,
+            self.step_share,
+            self.skyline_haze_share,
+        ];
+        let positive = [
+            self.sidewalk_width,
+            self.bay_width,
+            self.rebuild_cell_m,
+            self.pane_offset,
+            self.curb_height,
+            self.curb_width,
+            self.kerb_stone_length,
+        ];
         if self.wall_palette.is_empty()
             || self.max_bays_per_face == 0
             || self.broken_one_in == 0
@@ -128,10 +155,11 @@ pub fn metro_ground_color(base: Color, wx: f32, wz: f32, layout: &MetroLayout, l
     }
 }
 
-/// The city's own surface at `p` (street, sidewalk or lot), or None for grass and gaps.
+/// The city's own surface at `p` (asphalt or lot), or None for grass and gaps.
+/// Raised sidewalks are built as a separate curb mesh (`curbs.rs`), so the sidewalk band
+/// paints the lot or base colour under it.
 fn city_surface(p: Vec2, layout: &MetroLayout, look: &MetroLook) -> Option<Color> {
     let local = layout.site.to_local(p);
-    let mut sidewalk = false;
     for s in &layout.streets {
         if !s.contains_point(local) {
             continue;
@@ -140,10 +168,6 @@ fn city_surface(p: Vec2, layout: &MetroLayout, look: &MetroLook) -> Option<Color
         if dist <= s.width * 0.5 - look.sidewalk_width {
             return Some(rgb(look.asphalt));
         }
-        sidewalk = true;
-    }
-    if sidewalk {
-        return Some(rgb(look.sidewalk));
     }
     let block = layout.block_at_point(p)?;
     if block.reserved == Some(Reserved::Park) {
@@ -214,7 +238,9 @@ mod tests {
         let dir = (s.b - s.a).normalize();
         let side = Vec2::new(-dir.y, dir.x);
         let mid = (s.a + s.b) * 0.5 + side * (s.width * 0.5 - look.sidewalk_width * 0.5);
-        assert_eq!(metro_ground_color(base(), mid.x, mid.y, &l, &look), rgb(look.sidewalk));
+        assert_ne!(metro_ground_color(base(), mid.x, mid.y, &l, &look), rgb(look.sidewalk));
+        let center = (s.a + s.b) * 0.5;
+        assert_eq!(metro_ground_color(base(), center.x, center.y, &l, &look), rgb(look.asphalt));
     }
 
     #[test]

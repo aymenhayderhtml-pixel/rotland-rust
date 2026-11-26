@@ -46,6 +46,7 @@ impl MetroPlay {
             ground_y: metro.layout.site.ground_y,
             cfg: &metro.config,
             look: &metro.look,
+            haze: self.haze.color,
         };
         let player_xz = glam::Vec2::new(player.x, player.z);
         self.skyline

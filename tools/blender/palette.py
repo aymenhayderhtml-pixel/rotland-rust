@@ -123,6 +123,20 @@ COLORS_C = [
     ("swamp_mud", (75, 62, 42)),
     ("reed_tan", (170, 150, 95)),
     ("swamp_bark", (70, 58, 45)),
+    # New Halden towers (R39)
+    ("brick_red", (136, 72, 54)),
+    ("brick_dark", (96, 52, 42)),
+    ("brownstone", (116, 84, 62)),
+    ("mortar", (176, 170, 158)),
+    ("limestone", (206, 198, 178)),
+    ("limestone_dark", (168, 160, 144)),
+    ("glass_dark", (44, 60, 68)),
+    ("concrete_grey", (150, 150, 146)),
+    ("concrete_stain", (120, 114, 100)),
+    ("rust_dark", (96, 56, 34)),
+    ("soot", (58, 46, 40)),
+    ("grime_green", (60, 84, 48)),
+    ("tarp_blue", (58, 86, 112)),
 ]
 GREY_FILL = (128, 128, 128)  # unused cells of sheet B and sheet C
 

@@ -120,6 +120,7 @@ pub struct PropModel {
     fade_band: f32,
     casts_shadow: bool,
     is_small_prop: bool, // new: PERF R34
+    shadow_lod0_only: bool,
     radius: f32,
     /// Height of the model's middle above its origin (origins sit on the ground).
     center_y: f32,
@@ -254,7 +255,29 @@ impl PropLibrary {
         if let Some(slot) = self.index.get(id) {
             return *slot;
         }
-        let slot = load_model(device, pack, id, building).map(|m| {
+        let model = load_model(device, pack, id, building);
+        self.insert_model(id, model)
+    }
+
+    /// Loads a tower part model with a custom LOD0 switch distance and visibility range.
+    /// Only LOD0 casts a sun shadow.
+    pub fn get_tower(
+        &mut self,
+        device: &wgpu::Device,
+        pack: &pack::ModelPack,
+        id: &str,
+        lod0_distance: f32,
+        range: f32,
+    ) -> Option<usize> {
+        if let Some(slot) = self.index.get(id) {
+            return *slot;
+        }
+        let model = load_tower_model(device, pack, id, lod0_distance, range);
+        self.insert_model(id, model)
+    }
+
+    fn insert_model(&mut self, id: &str, model: Option<PropModel>) -> Option<usize> {
+        let slot = model.map(|m| {
             let model_idx = self.models.len();
             let start = self.lod_map.len();
             self.first_slot.push(start);
@@ -338,7 +361,7 @@ impl PropLibrary {
                     if m.casts_shadow
                         && dist < max_shadow + m.radius
                         && sun.intersects_aabb(p.centre - r, p.centre + r)
-                        && let Some(shadow_lod) = shadow_lod_for(fades[0].0, m.lods.len(), dist)
+                        && let Some(shadow_lod) = shadow_lod_for_rule(fades[0].0, m.lods.len(), dist, m.shadow_lod0_only)
                     {
                         let slot = base_slot + shadow_lod;
                         if scratch.shadow[slot].is_empty() && scratch.shadow[slot].capacity() == 0 {
@@ -396,6 +419,19 @@ fn shadow_lod_for(nearer_lod: usize, lod_count: usize, dist: f32) -> Option<usiz
     (shadow_lod < 2).then_some(shadow_lod)
 }
 
+/// Shadow LOD selection: tower models (`lod0_only == true`) only cast shadows from LOD0.
+pub(crate) fn shadow_lod_for_rule(
+    nearer_lod: usize,
+    lod_count: usize,
+    dist: f32,
+    lod0_only: bool,
+) -> Option<usize> {
+    if lod0_only {
+        return (nearer_lod == 0).then_some(0);
+    }
+    shadow_lod_for(nearer_lod, lod_count, dist)
+}
+
 fn load_model(device: &wgpu::Device, pack: &pack::ModelPack, id: &str, building: bool) -> Option<PropModel> {
     let full = pack.find(id)?;
     let mut lods = vec![GpuMesh::new(device, id, &full.vertices)];
@@ -423,6 +459,38 @@ fn load_model(device: &wgpu::Device, pack: &pack::ModelPack, id: &str, building:
         fade_band,
         casts_shadow: building || casts_shadow(id),
         is_small_prop,
+        shadow_lod0_only: false,
+        radius,
+        center_y,
+    })
+}
+
+fn load_tower_model(
+    device: &wgpu::Device,
+    pack: &pack::ModelPack,
+    id: &str,
+    lod0_distance: f32,
+    range: f32,
+) -> Option<PropModel> {
+    let full = pack.find(id)?;
+    let mut lods = vec![GpuMesh::new(device, id, &full.vertices)];
+    if let Some(m) = pack.find(&format!("{id}_lod1")) {
+        lods.push(GpuMesh::new(device, id, &m.vertices));
+    }
+    let ends = match lods.len() {
+        2 => vec![lod0_distance, range],
+        _ => vec![range],
+    };
+    let radius = (Vec3::from(full.bounds_max) - Vec3::from(full.bounds_min)).length() * 0.5 * 1.4;
+    let center_y = (full.bounds_min[1] + full.bounds_max[1]) * 0.5;
+    Some(PropModel {
+        lods,
+        ends,
+        max_range_sq: range * range,
+        fade_band: FADE,
+        casts_shadow: true,
+        is_small_prop: false,
+        shadow_lod0_only: true,
         radius,
         center_y,
     })
