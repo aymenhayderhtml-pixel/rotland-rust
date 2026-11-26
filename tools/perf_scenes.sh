@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run benchmark scenes in release mode and print/append a markdown FPS summary table.
 #
-# Usage: tools/perf_scenes.sh [--bin <path>] [--seconds <n>] [--out <file>] [--scale <f>] [--set <default|biomes|all>]
+# Usage: tools/perf_scenes.sh [--bin <path>] [--seconds <n>] [--out <file>] [--scale <f>] [--set <default|biomes|metro|all>]
 set -euo pipefail
 
 BIN="${CARGO_TARGET_DIR:-/home/aymen/Documents/rotland-rust/target}/release/rotland"
@@ -11,7 +11,7 @@ SCALE=""
 SET="default"
 
 usage() {
-  echo "usage: tools/perf_scenes.sh [--bin <path>] [--seconds <n>] [--out <file>] [--scale <f>] [--set <default|biomes|all>]"
+  echo "usage: tools/perf_scenes.sh [--bin <path>] [--seconds <n>] [--out <file>] [--scale <f>] [--set <default|biomes|metro|all>]"
 }
 
 while [ $# -gt 0 ]; do
@@ -50,7 +50,7 @@ while [ $# -gt 0 ]; do
       ;;
     --set)
       if [ -z "${2:-}" ]; then
-        echo "perf_scenes: --set requires default, biomes, or all" >&2
+        echo "perf_scenes: --set requires default, biomes, metro, or all" >&2
         exit 2
       fi
       SET="$2"
@@ -71,9 +71,10 @@ done
 case "$SET" in
   default) SCENES=(camp forest city night zombies) ;;
   biomes)  SCENES=(desert snow swamp mountains) ;;
+  metro)   SCENES=(metro) ;;  # v1.1 rounds: only the new city (owner 2026-11-26)
   all)     SCENES=(camp forest city night zombies desert snow swamp mountains town_desert town_snow metro) ;;
   *)
-    echo "perf_scenes: unknown --set value: $SET (expected default, biomes, or all)" >&2
+    echo "perf_scenes: unknown --set value: $SET (expected default, biomes, metro, or all)" >&2
     exit 2
     ;;
 esac

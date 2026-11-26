@@ -40,10 +40,12 @@ impl WorldGenerator {
             .rivers
             .crossings_for_polylines(&[highway.points.as_slice()]);
         self.crossings.extend(highway_crossings);
+        let towers_by_block = crate::metro::state::index_towers_by_block(&towers);
         self.metro = Some(MetroWorld {
             config: cfg,
             layout,
             towers,
+            towers_by_block,
             highway,
             highway_field,
             jam,

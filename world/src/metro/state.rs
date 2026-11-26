@@ -1,5 +1,7 @@
 //! The New Halden data the world keeps once it is built: layout, towers, highway, jam, look.
 
+use std::collections::HashMap;
+
 use glam::Vec2;
 
 use crate::color::Color;
@@ -18,12 +20,29 @@ pub struct MetroWorld {
     pub highway_field: HighwayHeightField,
     pub jam: Vec<JamProp>,
     pub look: MetroLook,
+    /// Tower indices per block `(ix, iz)`, so point checks only look at one block's towers.
+    pub towers_by_block: HashMap<(i32, i32), Vec<usize>>,
+}
+
+/// Groups tower indices by their block, for `MetroWorld::towers_by_block`.
+pub fn index_towers_by_block(towers: &[TowerSpot]) -> HashMap<(i32, i32), Vec<usize>> {
+    let mut map: HashMap<(i32, i32), Vec<usize>> = HashMap::new();
+    for (i, t) in towers.iter().enumerate() {
+        map.entry(t.block).or_default().push(i);
+    }
+    map
 }
 
 impl MetroWorld {
     /// True when `p` is inside one of the tower footprints (squares rotated by each tower's yaw).
     pub fn in_tower_footprint(&self, p: Vec2) -> bool {
-        self.towers.iter().any(|t| {
+        let Some(block) = self.layout.block_at_point(p) else {
+            return false;
+        };
+        let Some(list) = self.towers_by_block.get(&(block.ix, block.iz)) else {
+            return false;
+        };
+        list.iter().map(|&i| &self.towers[i]).any(|t| {
             let d = p - t.pos;
             let (s, c) = t.yaw.sin_cos();
             // Rotate the offset into the tower's own frame (the footprint is a square).

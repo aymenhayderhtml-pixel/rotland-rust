@@ -1,9 +1,9 @@
 # STATUS (read this first; keep it under ~80 lines)
 
-Updated: 2026-11-26 by Claude (R38 merged).
+Updated: 2026-11-26 by Claude (R39 merged).
 
 ## Where we are
-- **v1.0 tagged. Now: v1.1 = New Halden**, a big dying city (2 km, towers to ~150 m, overgrown, about 6 km out). Plan: `docs/PLAN_1.1.md` (R38-R47). R38 MERGED (see below). Next: R39 Towers.
+- **v1.0 tagged. Now: v1.1 = New Halden**, a big dying city (2 km, towers to ~150 m, overgrown, about 6 km out). Plan: `docs/PLAN_1.1.md` (R38-R47). R38 + R39 MERGED (see below). Next: R40 Nature + survivor traces.
 - **New speed rule (2026-11-26): detail first, minimum 20 FPS** (slowest moments, whole game), not 30. No speed passes unless the owner asks.
 - Version 0.1 = Godot parity in Rust, done (R0-R10). History: `docs/archive/RUST_QUEUE.md`.
 - Working on **0.2**. This week: `docs/PLAN_0.2_PUSH.md` (6-day push). Earlier plan: `docs/PLAN_0.2.md`. Locked choices: `docs/DECISIONS.md`.
@@ -48,8 +48,10 @@ Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zomb
 
 - 2026-11-26: R38 MERGED (Claude lead + Haiku coders; DeepSeek free quota ran out): New Halden placed ~6 km out at the swamp/snow seam (`world/src/metro/`, `data/metro.json`), 32x32 block grid, ~1000+ placeholder towers with colliders, far skyline batch (engine `DrawItem.fog_scale`), grey-green haze, fog lifts with camera height, 4-lane highway from Frostmere with the evacuation jam (20 new detailed models: cars 8-10k tris, buses, army truck, luggage, bodies, gantry), map + minimap + "Entering New Halden" banner, `--metro=edge|core|highway|town_view|top`, perf scene `metro`. Budgets raised (1.4M tris). 1366 tests. FPS: metro 150 avg / 64 low; all scenes 1% low >= 20. Leftovers: jagged sidewalk paint (terrain grid), skyline flat grey, big map not screenshotted, streaming.rs ~445 lines.
 
+- 2026-11-26: R39 MERGED (Hydrogen lead in Antigravity): 5 tower styles (brick with fire escapes, stone, glass, slab, deco), each base/floor/floor_b/crown + lod1, stacked per tower (`world/src/metro/styles.rs`, `tower_parts.rs`), 4 landmark crowns (spire, mast + radio hut, stepped, glass top), walk-in lobbies with desk/elevators/mailboxes/bench/rubble/plant, raised 15 cm curbs (straight edges), skyline window bands + haze tint, flags `--metro=lobby|landmark`, `--tower-style=`, `--map`. 379 models, 1385 tests. Claude after merge: no grass inside lobbies (towers indexed per block), `tools/perf_scenes.sh --set metro` (new-city-only FPS; LEAD.md says measure only the changed area). FPS metro: 57-69 avg, 1% low 25-32 (one 12.5 run right after a build). For R40: lobbies are bare grey halls (add columns, lights, debris, posters), towers look too clean (grime, broken glass), roofs plain (water tanks small), `--metro=landmark` doesn't look up at the landmark, metro 1% low is close to 20.
+
 ## Next
-1. R39 Towers (`docs/PLAN_1.1.md`): detailed Blender tower kit, 8-10 tower types, 3-5 landmarks, lobbies; also fix R38 leftovers (sidewalk edges, skyline windows).
+1. R40 Nature + survivor traces (`docs/PLAN_1.1.md`), plus the R39 leftovers listed above. FPS check = metro scene only.
 
 ## Workers (who does what: PLAN_0.2.md "AI roles")
 - DeepSeek: `opencode` / `opencode/deepseek-v4.1-flash-free`: free usage ran out on 2026-11-20.

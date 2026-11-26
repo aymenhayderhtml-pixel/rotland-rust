@@ -190,6 +190,12 @@ fn is_blocked(world_gen: &WorldGenerator, p: Vec2) -> bool {
     {
         return true;
     }
+    // ...and none on tower floors (the walk-in lobbies)
+    if let Some(metro) = world_gen.metro_world()
+        && metro.in_tower_footprint(p)
+    {
+        return true;
+    }
     if let Some(highway) = world_gen.metro_highway_field()
         && highway.height_at(p).is_some()
     {
