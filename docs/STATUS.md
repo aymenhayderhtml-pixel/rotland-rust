@@ -1,6 +1,6 @@
 # STATUS (read this first; keep it under ~80 lines)
 
-Updated: 2026-11-25 by Claude (after R36).
+Updated: 2026-11-26 by Claude (after R37).
 
 ## Where we are
 - Version 0.1 = Godot parity in Rust, done (R0-R10). History: `docs/archive/RUST_QUEUE.md`.
@@ -40,6 +40,8 @@ Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zomb
 - 2026-11-25: R35 MERGED (all-out detail, 6 Hydrogen subagents): dense ground detail ring (data/ground_detail.json), 28 new props (build_detail_props.py), town clutter, furniture in town buildings, clouds + biome fog (data/sky.json), terrain colour/shore foam/river ripples. 1211 tests. FPS 69-128 avg (docs/PERF_R35.md); worst 1% under 30 in zombies/swamp/mountains/town_snow (streaming spikes): look at in a speed pass. Claude thinned desert shrubs, swamp reeds, scree. Next: R36 weapons.
 - 2026-11-26: R36 MERGED (weapons, quality Hydrogen round): gun feel (data/gun_feel.json: view kick, climb, FP kick, muzzle flash + light), revolver, hunting rifle, crossbow (+ bolts picked up again), grenade (arc preview, bounce, fuse, blast blocked by walls), explosion effect (data/effects.json), visible backpack (`--backpack=large`), grenade throw + crossbow reload clips. 1236 tests. Zombies scene 68.9 FPS. Claude fixed: rifles centred in first person (now right side), black scorch disc, dark smoke, big white flash. Not yet: backpack_small/large items in data/items.json; live grenade bounce and bolt pickup only unit-tested. Next: weapon shop round (owner questions: where, currency, repair/upgrade).
 - Animation plan done. Downed/revive not started (owner decision).
+
+- 2026-11-26: R37 MERGED (weapon shop; Hydrogen lead ran out of quota after the gate, a Haiku subagent finished the checks): camp gunsmith (npc_gunsmith, bench, tiers 0-3 via camp upgrades) + a gun shop in each town (shopkeeper_<town>, town-only stock), paid in scrap metal (data/gunsmith.json), screen tabs Buy/Sell/Repair/Upgrade (rotland_ui/src/gunsmith_ui), gun wear + jams (data/weapon_wear.json), 9 attachments on gun mount points (data/attachments.json, data/weapon_mounts.json). Flags --gunsmith=<tab> --gunsmith-town=<key> --give= --wear= --mods=. 1268 tests. FPS camp 108, forest 75, zombies 86. Small leftovers: compass/"Safe zone" show faintly through the shop top edge; worn-gun bar in the hotbar is tiny; old-save check used the Godot fixture only.
 
 ## Next (from PLAN_0.2.md)
 1. Stutter: re-measure on a quiet laptop (nothing else running), then find the between-frames stall (present mode / vsync, compositor, physics collider rebuild in `physics/src/world.rs`). Re-run `--bench` quietly too.
