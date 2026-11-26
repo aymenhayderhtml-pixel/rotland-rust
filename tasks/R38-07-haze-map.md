@@ -1,0 +1,41 @@
+# R38-07: New Halden haze, big map, minimap streets, entry banner
+
+Owns: rotland_ui/src/metro_ui/ (new folder: mod.rs, haze.rs, outline.rs, draw_map.rs, minimap.rs, tests.rs; each file under ~300 lines), rotland/src/metro_haze.rs (new, applies the haze to the frame's lighting), rotland/src/region_banner.rs (adds the New Halden state), data/sky.json (adds the `metro_haze` key only), data/map.json (adds the `metro_*` keys only).
+Read: tasks/R38-common.md ("Haze", "Map", "Test flags"), rotland/src/light.rs (`at_hour_weather`, `WeatherLight`, `darken_tint_to_base`, `BASE_FOG_BEGIN`/`END`, `MIN_FOG_*`), rotland/src/sky_play.rs (`apply_biome_fog`, how `biome_fog_tint` is read from sky.json with `parse_biome_tints`), rotland/src/app/render_frame.rs around line 228-240 (the order: weather lighting, then sky biome fog), rotland/src/weather_play.rs (`light_overrides`), data/sky.json, engine/src/render/lit.rs (`Lighting`), rotland/src/region_banner.rs (the `RegionState` enum, `update`, its in-file tests), rotland/src/app/frame_ui.rs around line 144 (the one call site), rotland_ui/src/hud/region_banner.rs, rotland_ui/src/map_ui/draw_city.rs (`MapStreetsConfig`, `is_city_center_revealed`, the "Ashford" label drawing), rotland_ui/src/map_ui/draw.rs (order of drawing), rotland_ui/src/map_ui/view.rs (`MapView`), rotland_ui/src/map_ui/state.rs (`MapUiState::scale`, `centre`), rotland/src/app/minimap_draw.rs (`draw_streets_and_road`, the culling loop), game_camp/src/map/explore.rs (`MapExplore::cell_of`, `is_revealed`), game_camp/src/map/minimap.rs (`world_to_minimap_offset`), game_camp/src/map/city.rs (`is_city_center_revealed`, how explored cells are checked), data/map.json, data/minimap.json, world/src/metro/ (R38-01 types: `MetroSite`, `MetroLayout`, `MetroStreet`; read them once R38-01 is merged; do not edit).
+
+## 1. Haze (sky and fog)
+- `data/sky.json` gets `"metro_haze": { "color": [r, g, b], "fog_start": m, "fog_end": m, "blend_m": m, "skyline_fog_start": m, "skyline_fog_end": m }`. `color` is 0-255 like `biome_fog_tint`. Starting values (owner tunes): color `[150, 168, 150]`, fog_start 70, fog_end 190, blend_m 250 (light haze: same end as the normal fog 190 m, it only starts sooner and turns grey-green; do NOT make it thicker, the owner chose "light"), skyline_fog_start 3000, skyline_fog_end 6000 (= `skylineDistance` in data/metro.json).
+- `rotland_ui/src/metro_ui/haze.rs` (pure, no GPU): `MetroHazeConfig` with `load(json)` / `load_default()` (paths::repo_path("data/sky.json"), reads only `metro_haze`); `fn city_signed_distance(p: Vec2, site: &MetroSite) -> f32` (negative inside the city square of `half_size` rotated by `yaw`, same rotation as `MetroLayout::contains`); `fn haze_weight(signed_dist: f32, blend_m: f32) -> f32` (1.0 inside or on the edge, smooth falloff to 0.0 at `blend_m` outside, smoothstep); `fn blend_fog(base_color: Vec3, base_begin: f32, base_end: f32, cfg, weight) -> (Vec3, f32, f32)`: fog colour lerps toward the haze colour by `weight`, fog begin and end lerp toward `fog_start`/`fog_end` by `weight`. The haze colour is capped to the base colour's luminance exactly like `darken_tint_to_base` in light.rs, so night stays dark (copy the cap, do not edit light.rs). `fn skyline_fog(cfg, base_color) -> (Vec3, f32, f32)`: the colour for the far skyline (capped haze colour) and its begin/end, so the skyline fades into haze but stays visible from the highway.
+- `rotland/src/metro_haze.rs`: `pub fn apply(lighting: &mut engine::render::lit::Lighting (or the rotland light type used by render_frame), player_pos, site: Option<&MetroSite>, cfg)`: computes the weight from `city_signed_distance` and `haze_weight`, then calls `blend_fog`. Returns early when the player is far (weight 0). No new lights at night.
+- Do NOT change `light.rs` or `sky_play.rs`; the lead inserts the call after `sky.apply_biome_fog` in `render_frame.rs` (report the line).
+- Tests (in rotland_ui tests): inside weight 1.0; at the edge 1.0; `blend_m` outside 0.0; midway monotonic; rotated square signed distance correct; night base colour (luminance low) stays not brighter after the blend; config parses from a JSON string; missing key gives defaults and no panic.
+
+## 2. Big map: New Halden
+- `rotland_ui/src/metro_ui/outline.rs` (pure): `fn site_corners(site: &MetroSite) -> [Vec2; 4]` (rotated square); `fn discovered(site: &MetroSite, explore: &game::MapExplore) -> bool` (true if any of a 5 x 5 grid of points over the square is revealed, using `MapExplore::cell_of` and `is_revealed`); `fn streets_on_map(layout: &MetroLayout, explore: &game::MapExplore) -> Vec<MapStreet>` (only streets with a revealed midpoint cell).
+- `rotland_ui/src/metro_ui/draw_map.rs`: `pub fn draw_metro_map(painter, state: &MapUiState, explore, site, layout, rect, view_size)`: when discovered, draws the city outline (`data/map.json` `metro_outline_color`, 2 px line), the street lines (`game::CITY_STREET_COLOR`-like colour from `metro_street_color`, width scaled like `draw_city.rs`), and the label "New Halden" at the centre (`metro_label_size` 16.0, same shadow style as "Ashford" in draw_city.rs). Streets use the same zoom rule as the Ashford city streets in `draw_city.rs` (read it); the outline and label show at any zoom once discovered. Nothing is drawn before discovery (no hint).
+- R38-08 calls `draw_metro_map` from `rotland_ui/src/map_ui/draw.rs`. Do NOT edit map_ui files.
+
+## 3. Minimap streets inside the city
+- `rotland_ui/src/metro_ui/minimap.rs` (pure): `pub struct MinimapStreet { pub a: Vec2, pub b: Vec2, pub width_px: f32, pub avenue: bool }` and `pub fn minimap_streets(layout, player_xz: Vec2, radius_m: f32, radius_px: f32) -> Vec<MinimapStreet>` using `game::world_to_minimap_offset` (same call as minimap_draw.rs), dropping streets whose both ends are outside the disc. Width: `street_min_px` floor from `data/minimap.json`, avenues wider (same rule as minimap_draw.rs lines 78-81).
+- Drawing is done by R38-08 in `rotland/src/app/minimap_draw.rs` with the existing `street_color`. Do not edit minimap_draw.rs.
+- Tests: a street 100 m away is dropped, a street under the player is kept, avenue wider than street.
+
+## 4. Entry banner "Entering New Halden"
+- `rotland/src/region_banner.rs`: add `RegionState::Metro { name, biome, tier }` (highest priority: Metro > Town > Outer > Core) and a new last argument to `update`: `mut metro_name: impl FnMut() -> Option<String>`. Title `Entering: {name}`, subtitle `Danger {tier}` for tier 2+ (same rule as Town). Leaving the city into another state shows no banner, same as leaving a town (`leaving_town` rule extended to metro).
+- Update the existing in-file tests to the new argument (`|| None`) and add: entering the city shows "Entering: New Halden"; leaving shows nothing; hysteresis still applies.
+- Tests stay in `rotland/src/region_banner.rs` (the tracker lives there, not in rotland_ui); the haze and map tests are in rotland_ui.
+- Report to the lead: `rotland/src/app/frame_ui.rs` line ~144 needs the fifth argument (`|| wg.metro_name_at(...)` or the New Halden name when inside `MetroSite`; R38-08 supplies it).
+
+## 5. Data keys
+- `data/map.json`: `metro_outline_color`, `metro_street_color`, `metro_label_size`, `metro_label_color` (hex strings like the existing keys). Nothing else in that file.
+- `data/sky.json`: only `metro_haze`.
+- No numbers in Rust except `// new: DECISIONS 2026-11-26` on structural constants (the 5 x 5 discovery grid) and `// data: sky.json metro_haze` / `// data: map.json metro_*` on values read from data.
+
+## Done when
+- The code and tests are written; the lead runs `cargo test` once and they pass (workers never run cargo).
+- Haze math, outline, discovery, minimap and banner tests exist; `world/tests/golden.rs` untouched.
+- No file outside Owns is changed. Shared-file lines for the lead are written under Worker notes.
+- Night: the haze never brightens dark fog; grass outside the city stays green (haze weight is 0 outside `blend_m`).
+
+## Worker notes
+(fill in: the shared-file lines for lead (`rotland/src/main.rs` mod lines if needed, `rotland_ui/src/lib.rs` `pub mod metro_ui;`, the `render_frame.rs` call, the `frame_ui.rs` banner argument), the MetroSite/MetroStreet field names used, questions)
