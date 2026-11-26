@@ -1,9 +1,9 @@
 # STATUS (read this first; keep it under ~80 lines)
 
-Updated: 2026-11-26 by Claude (R39 merged).
+Updated: 2026-11-26 by Claude (R40 merged).
 
 ## Where we are
-- **v1.0 tagged. Now: v1.1 = New Halden**, a big dying city (2 km, towers to ~150 m, overgrown, about 6 km out). Plan: `docs/PLAN_1.1.md` (R38-R47). R38 + R39 MERGED (see below). Next: R40 Nature + survivor traces.
+- **v1.0 tagged. Now: v1.1 = New Halden**, a big dying city (2 km, towers to ~150 m, overgrown, about 6 km out). Plan: `docs/PLAN_1.1.md` (R38-R47). R38-R40 MERGED (see below). Next: R41 (see docs/PLAN_1.1.md).
 - **New speed rule (2026-11-26): detail first, minimum 20 FPS** (slowest moments, whole game), not 30. No speed passes unless the owner asks.
 - Version 0.1 = Godot parity in Rust, done (R0-R10). History: `docs/archive/RUST_QUEUE.md`.
 - Working on **0.2**. This week: `docs/PLAN_0.2_PUSH.md` (6-day push). Earlier plan: `docs/PLAN_0.2.md`. Locked choices: `docs/DECISIONS.md`.
@@ -50,8 +50,10 @@ Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zomb
 
 - 2026-11-26: R39 MERGED (Hydrogen lead in Antigravity): 5 tower styles (brick with fire escapes, stone, glass, slab, deco), each base/floor/floor_b/crown + lod1, stacked per tower (`world/src/metro/styles.rs`, `tower_parts.rs`), 4 landmark crowns (spire, mast + radio hut, stepped, glass top), walk-in lobbies with desk/elevators/mailboxes/bench/rubble/plant, raised 15 cm curbs (straight edges), skyline window bands + haze tint, flags `--metro=lobby|landmark`, `--tower-style=`, `--map`. 379 models, 1385 tests. Claude after merge: no grass inside lobbies (towers indexed per block), `tools/perf_scenes.sh --set metro` (new-city-only FPS; LEAD.md says measure only the changed area). FPS metro: 57-69 avg, 1% low 25-32 (one 12.5 run right after a build). For R40: lobbies are bare grey halls (add columns, lights, debris, posters), towers look too clean (grime, broken glass), roofs plain (water tanks small), `--metro=landmark` doesn't look up at the landmark, metro 1% low is close to 20.
 
+- 2026-11-26: R40 MERGED (Hydrogen lead + Claude fixes): overgrowth (vines incl. tower fronts, crack weeds, asphalt trees, wild lots, roof plants; `overgrowth` in data/metro.json), fallen tower (broken 3-piece model across a street), leaning tower, burnt block (soot on every floor), car walls, graffiti, posters, rooftop camps, bodies, dressed lobbies, `_floor_c` damaged floors, NY water tanks/roof machinery, flags `--metro=fallen|leaning|burnt|carwall|camp`, landmark view looks up. Roofs: `roofDeckHeight` per style, tower colliders stop at the roof deck. 443 models, 1416 tests. Metro 58.7 avg FPS (1% low 21.8). Leftovers: traces.rs 434 / damage.rs ~380 / streaming.rs ~490 lines (split), fallen tower top not climbable.
+
 ## Next
-1. R40 Nature + survivor traces (`docs/PLAN_1.1.md`), plus the R39 leftovers listed above. FPS check = metro scene only.
+1. R41 from `docs/PLAN_1.1.md`, plus the R40 leftovers above. FPS check = metro scene only, average >= 20.
 
 ## Workers (who does what: PLAN_0.2.md "AI roles")
 - DeepSeek: `opencode` / `opencode/deepseek-v4.1-flash-free`: free usage ran out on 2026-11-20.
