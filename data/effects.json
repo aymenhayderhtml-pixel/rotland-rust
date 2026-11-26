@@ -9,7 +9,7 @@
     "smokeDurationSec": 2.0,
     "smokeRiseSpeed": 2.5,
     "scorchDurationSec": 20.0,
-    "scorchRadiusMul": 0.75,
+    "scorchRadiusMul": 0.35,
     "shakeRadiusMul": 3.0,
     "shakeMaxTrauma": 0.8,
     "shakeDecayPerSec": 2.0,

@@ -8,9 +8,9 @@ use pack::PackVertex;
 use crate::light;
 
 /// Self-lit yellow-white color (alpha = 0 makes `lit.wgsl` render unlit/emissive).
-const FLASH_COLOR: [u8; 4] = [255, 240, 140, 0]; // new: DECISIONS 2026-11-25
-const FLASH_HALF_W: f32 = 0.11; // new: DECISIONS 2026-11-25
-const FLASH_LEN: f32 = 0.24; // new: DECISIONS 2026-11-25
+const FLASH_COLOR: [u8; 4] = [255, 196, 90, 0]; // new: DECISIONS 2026-11-25
+const FLASH_HALF_W: f32 = 0.06; // new: DECISIONS 2026-11-25
+const FLASH_LEN: f32 = 0.2; // new: DECISIONS 2026-11-25
 
 /// Manages per-frame gun recoil view offsets, FP weapon kick, and the muzzle flash quad + light.
 pub struct GunFeelView {

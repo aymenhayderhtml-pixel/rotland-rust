@@ -26,8 +26,8 @@ const SHAKE_PHASE_SPEED: f32 = 42.0;
 
 // Self-lit orange fireball (`alpha = 0` triggers glow in `lit.wgsl`), dark smoke, charcoal scorch.
 const FIREBALL_COLOR: [u8; 4] = [255, 165, 40, 0];
-const SMOKE_COLOR: [u8; 4] = [56, 54, 58, 255];
-const SCORCH_COLOR: [u8; 4] = [26, 24, 24, 255];
+const SMOKE_COLOR: [u8; 4] = [128, 124, 120, 255];
+const SCORCH_COLOR: [u8; 4] = [62, 50, 40, 255];
 
 /// Data-driven explosion visual and camera-shake parameters (`data/effects.json`).
 #[derive(Clone, Debug, Deserialize)]
