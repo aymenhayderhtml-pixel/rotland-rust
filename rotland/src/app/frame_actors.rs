@@ -107,6 +107,14 @@ pub fn update_actors(
         actors.player_visual.as_mut(),
         session.anim_shot.is_pose_frozen(),
     );
+    if session.test_explosion && session.time > 0.05 {
+        session.test_explosion = false;
+        let forward = game::yaw_forward(
+            actors.player_ctrl.as_ref().map_or(0.0, |p| p.yaw),
+        );
+        let pos = actors.player + forward * 5.0 + Vec3::Y * 0.5;
+        crate::explosion_view::ExplosionView::spawn(&mut render.explosion_view, pos, 6.0);
+    }
     // Death or knockdown while driving must park the car and restore the on-foot camera.
     if dead || downed {
         if let Some(cars) = actors.cars.as_mut()
@@ -149,7 +157,20 @@ pub fn update_actors(
         let climbing = step_locomotion(
             dt, actions, grab, dead, downed, in_car, world, actors, play, ui,
         );
-        let swung = step_melee_and_respawn(dt, attack, downed, world, actors, play, audio);
+        let is_grenade = actors
+            .combat
+            .as_ref()
+            .and_then(|c| c.weapon_def())
+            .is_some_and(|w| w.id == "grenade");
+        let swung = step_melee_and_respawn(
+            dt,
+            attack && !is_grenade,
+            downed,
+            world,
+            actors,
+            play,
+            audio,
+        );
         let player_pos = actors
             .player_ctrl
             .as_ref()
@@ -159,6 +180,7 @@ pub fn update_actors(
 
         let captured = ui.cursor_captured && !ui.screen_open();
         let right_pressed = captured && input.mouse_pressed(MouseButton::Right);
+        let reload_pressed = !in_car && captured && input.pressed(ui.keys.reload);
         step_guard(
             input, dt, dead, downed, in_car, climbing, captured, actors, play, session,
         );
@@ -170,12 +192,18 @@ pub fn update_actors(
             in_car,
             captured,
             right_pressed,
+            reload_pressed,
             render,
             world,
             actors,
             play,
             audio,
         );
+        let mut grenades = std::mem::take(&mut actors.grenades);
+        grenades.update(
+            input, dt, dead, downed, in_car, captured, render, world, actors, play, audio,
+        );
+        actors.grenades = grenades;
         update_camera_and_aim(input, dt, downed, render, world, actors, play, ui, session);
     }
 }

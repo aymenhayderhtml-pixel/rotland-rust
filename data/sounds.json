@@ -130,7 +130,11 @@
     "hammer": { "swing": "swing_heavy" },
     "pipe": { "swing": "swing_heavy" },
     "fire_axe": { "swing": "swing_heavy" },
-    "bow": { "shot": "swing_light" }
+    "bow": { "shot": "swing_light" },
+    "revolver": { "shot": "pistol_shot" },
+    "hunting_rifle": { "shot": "rifle_shot" },
+    "crossbow": { "shot": "swing_light" },
+    "grenade": { "swing": "swing_light" }
   },
   "events": {
     "dryFire": { "sound": "dry_fire" },

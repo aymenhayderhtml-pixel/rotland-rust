@@ -1,0 +1,19 @@
+{
+  "explosion": {
+    "flashDurationSec": 0.25,
+    "flashRadiusMul": 3.0,
+    "flashEnergy": 8.0,
+    "flashColor": [1.0, 0.58, 0.2],
+    "fireballGrowSec": 0.15,
+    "fireballRadiusMul": 0.6,
+    "smokeDurationSec": 2.0,
+    "smokeRiseSpeed": 2.5,
+    "scorchDurationSec": 20.0,
+    "scorchRadiusMul": 0.35,
+    "shakeRadiusMul": 3.0,
+    "shakeMaxTrauma": 0.8,
+    "shakeDecayPerSec": 2.0,
+    "shakeMaxOffsetM": 0.25,
+    "maxActive": 4
+  }
+}

@@ -86,6 +86,7 @@ pub struct PlayerVisual {
     weapon_mesh: Option<GpuMesh>,
     weapon_name: Option<String>,
     hand_joint: usize,
+    chest_joint: Option<usize>,
 }
 
 impl PlayerVisual {
@@ -127,6 +128,7 @@ impl PlayerVisual {
         };
 
         let hand_joint = rig.joint_index("hand_R").unwrap_or(0);
+        let chest_joint = rig.joint_index("chest");
 
         let (weapon_mesh, weapon_name) = match weapon_model {
             Some(wname) => match pack.find(wname) {
@@ -151,6 +153,7 @@ impl PlayerVisual {
             weapon_mesh,
             weapon_name,
             hand_joint,
+            chest_joint,
         }
     }
 
@@ -166,6 +169,71 @@ impl PlayerVisual {
     ) -> (SkinnedBatch<'_>, Option<SkinnedBatch<'_>>) {
         let char_world = Mat4::from_translation(pos) * Mat4::from_rotation_y(yaw);
         self.pose_world(dt, char_world, locomotion, bones, true)
+    }
+
+    /// Updates the animator and writes skin matrices without borrowing meshes.
+    #[allow(dead_code)] // unused by humanoid_view/pose_check examples
+    pub fn update_pose(
+        &mut self,
+        dt: f32,
+        pos: Vec3,
+        yaw: f32,
+        locomotion: Locomotion,
+        bones: &mut Vec<Mat4>,
+    ) -> (usize, Option<Mat4>) {
+        self.animator.update(dt, locomotion);
+        let world = Mat4::from_translation(pos) * Mat4::from_rotation_y(yaw);
+        let base = bones.len();
+        let joints = self.rig.joint_count();
+        bones.resize(base + joints, Mat4::IDENTITY);
+        self.animator.write_skin(&self.rig, &mut bones[base..]);
+        let weapon_world = self.weapon_mesh.as_ref().map(|_| {
+            let name = self.weapon_name.as_deref().unwrap_or("");
+            if let Some(hold) = self.animator.weapon_hold() {
+                weapon_world_matrix(
+                    world,
+                    &self.rig,
+                    &bones[base..],
+                    self.hand_joint,
+                    hold.pos,
+                    hold.rot_deg,
+                )
+            } else {
+                weapon_world_matrix_named(
+                    world,
+                    &self.rig,
+                    &bones[base..],
+                    self.hand_joint,
+                    name,
+                )
+            }
+        });
+        (base, weapon_world)
+    }
+
+    /// Builds body + weapon batches using an immutable `&self` borrow.
+    #[allow(dead_code)] // unused by humanoid_view/pose_check examples
+    pub fn build_pose(
+        &self,
+        pos: Vec3,
+        yaw: f32,
+        base: usize,
+        weapon_world: Option<Mat4>,
+    ) -> (SkinnedBatch<'_>, Option<SkinnedBatch<'_>>) {
+        let world = Mat4::from_translation(pos) * Mat4::from_rotation_y(yaw);
+        let body_batch = SkinnedBatch {
+            mesh: &self.body_mesh,
+            instances: vec![SkinInstance::new(world, base as u32)],
+        };
+
+        let weapon_batch = self.weapon_mesh.as_ref().zip(weapon_world).map(|(wmesh, mat)| {
+            SkinnedBatch {
+                mesh: wmesh,
+                instances: vec![SkinInstance::new(mat, 0)],
+            }
+        });
+
+        (body_batch, weapon_batch)
     }
 
     /// Poses the character with an explicit world matrix; skips the weapon batch when `draw_weapon` is false.
@@ -280,6 +348,11 @@ impl PlayerVisual {
     #[allow(dead_code)]
     pub fn hand_joint(&self) -> usize {
         self.hand_joint
+    }
+
+    #[allow(dead_code)]
+    pub fn chest_joint(&self) -> Option<usize> {
+        self.chest_joint
     }
 }
 

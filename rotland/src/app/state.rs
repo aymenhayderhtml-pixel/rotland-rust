@@ -109,6 +109,10 @@ pub struct RenderState {
     pub toxic_puff_scratch: Vec<crate::toxic_cloud_view::PuffInstance>,
     /// Short-range ground detail layer around the player (R35-01).
     pub ground_detail: crate::ground_detail::GroundDetailLayer,
+    /// Pooled explosion VFX and camera shake (R36-05).
+    pub explosion_view: crate::explosion_view::ExplosionView,
+    /// Gun feel view kick, FP kick, and muzzle flash (R36-01).
+    pub gun_feel: crate::gun_feel_view::GunFeelView,
 }
 
 /// Terrain, streaming chunks, static physics, trees, and POI markers.
@@ -142,6 +146,7 @@ pub struct ActorsState {
     pub player: Vec3,
     pub player_ctrl: Option<Player>,
     pub player_visual: Option<player_visual::PlayerVisual>,
+    pub backpack_view: Option<crate::backpack_view::BackpackView>,
     pub camera_rig: Option<CameraRig>,
     pub mover: physics::CharacterMover,
     pub combat: Option<combat::Combat>,
@@ -169,6 +174,7 @@ pub struct ActorsState {
     pub zombie_voices: Option<game::ZombieVoices>,
     pub climb: game::LadderClimb,
     pub downed: crate::downed_play::DownedPlay,
+    pub grenades: crate::grenade_play::GrenadePlay,
     pub was_dead: bool,
     pub bites_scratch: Vec<f32>,
     pub zombie_pos_scratch: Vec<(u64, Vec3)>,
@@ -342,6 +348,8 @@ pub struct SessionState {
     pub test_chop: bool,
     pub test_first_person: bool,
     pub test_poi: bool,
+    pub test_backpack: Option<crate::backpack_view::BackpackKind>,
+    pub test_explosion: bool,
     /// `--car-yaw=<deg>`: holds the car camera at this angle around the car (screenshots).
     pub test_car_yaw: Option<f32>,
     pub anim_shot: super::anim_shot::AnimShotState,
@@ -383,6 +391,8 @@ impl Default for SessionState {
             test_chop: false,
             test_first_person: false,
             test_poi: false,
+            test_backpack: None,
+            test_explosion: false,
             test_car_yaw: None,
             anim_shot: super::anim_shot::AnimShotState::default(),
             test_flags: super::test_flags::TestFlags::default(),

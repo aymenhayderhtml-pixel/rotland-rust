@@ -14,6 +14,9 @@ const LUMA_R: f32 = 0.2126; // new: DECISIONS 2026-11-25
 const LUMA_G: f32 = 0.7152; // new: DECISIONS 2026-11-25
 const LUMA_B: f32 = 0.0722; // new: DECISIONS 2026-11-25
 const MIN_TINT_LUMA: f32 = 1e-4; // new: DECISIONS 2026-11-25
+const FLASH_ANGLE_DEG: f32 = 120.0; // new: DECISIONS 2026-11-25
+const FLASH_COLOR: Vec3 = Vec3::new(1.0, 0.85, 0.45); // new: DECISIONS 2026-11-25
+const FLASH_ENERGY: f32 = 4.0; // new: DECISIONS 2026-11-25
 
 /// Weather and biome atmosphere inputs for [`at_hour_weather`].
 #[allow(dead_code)] // unused by the humanoid_view example, which includes this file
@@ -63,6 +66,29 @@ pub fn flashlight(position: Vec3, direction: Vec3) -> SpotLight {
         angle_deg: 30.0,
         color: Vec3::new(1.0, 0.93, 0.78),
         energy: 3.0,
+    }
+}
+
+#[allow(dead_code)] // unused by the humanoid_view example, which includes this file
+/// Short-lived warm muzzle flash light with radius `range` in metres.
+pub fn muzzle_flash(position: Vec3, direction: Vec3, range: f32) -> SpotLight {
+    SpotLight {
+        position,
+        direction: direction.normalize_or_zero(),
+        range,
+        angle_deg: FLASH_ANGLE_DEG,
+        color: FLASH_COLOR,
+        energy: FLASH_ENERGY,
+    }
+}
+
+#[allow(dead_code)] // unused by the humanoid_view example, which includes this file
+/// Inserts a transient flash light into the first empty slot of `lighting.spots`, or slot 2 if full.
+pub fn add_flash_light(lighting: &mut Lighting, flash: SpotLight) {
+    if let Some(slot) = lighting.spots.iter_mut().find(|s| s.is_none()) {
+        *slot = Some(flash);
+    } else {
+        lighting.spots[2] = Some(flash);
     }
 }
 
@@ -227,5 +253,21 @@ mod tests {
         let base_rb = base.fog_color.x - base.fog_color.z;
         let tinted_rb = desert_sandstorm.fog_color.x - desert_sandstorm.fog_color.z;
         assert!(tinted_rb > base_rb + 0.1);
+    }
+
+    #[test]
+    fn add_flash_light_uses_first_empty_slot_then_replaces_last() {
+        let mut lighting = at_hour(22.0, Some(flashlight(Vec3::ZERO, Vec3::NEG_Z)));
+        let flash = muzzle_flash(Vec3::Y, Vec3::NEG_Z, 4.0);
+        add_flash_light(&mut lighting, flash);
+        assert!(lighting.spots[0].is_some());
+        assert_eq!(lighting.spots[1], Some(flash));
+        assert!(lighting.spots[2].is_none());
+
+        let head = flashlight(Vec3::X, Vec3::NEG_Z);
+        lighting.spots[2] = Some(head);
+        let flash2 = muzzle_flash(Vec3::Z, Vec3::NEG_Z, 5.0);
+        add_flash_light(&mut lighting, flash2);
+        assert_eq!(lighting.spots[2], Some(flash2));
     }
 }

@@ -2,6 +2,7 @@ pub mod death_anim;
 pub mod downed;
 pub mod fishing;
 pub mod fp_motion;
+pub mod gun_feel;
 pub mod guns;
 pub mod hit_react;
 pub mod ladders;
@@ -21,6 +22,7 @@ pub use fishing::{
     FishingSession,
 };
 pub use fp_motion::{FpMotion, FpMotionConfig, FpMotionInput};
+pub use gun_feel::{GunFeelConfig, GunFeelDef, GunFeelDefaults, GunFeelLoadError, GunFeelState};
 pub use guns::*;
 pub use hit_react::{HitInput, HitReactConfig, HitReactState, HitReaction, HitSide, hit_side};
 pub use ladders::*;

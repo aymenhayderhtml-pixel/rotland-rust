@@ -249,6 +249,7 @@ pub fn update_sim(
         let draw_states = cars.draw_states();
         render.car_smoke.update(dt, &draw_states, &render.car_markers);
     }
+    render.explosion_view.update(dt, actors.player);
 
     step_water(dt, alive, world, actors, play, session, audio);
 }

@@ -47,6 +47,7 @@ pub fn start_world(
     super::frame_team::reset(play);
     super::frame_guild::reset(play);
     actors.player_visual = None;
+    actors.backpack_view = None;
     actors.player_ctrl = None;
     actors.camera_rig = None;
     actors.camp_npcs = None;
@@ -160,6 +161,8 @@ pub fn start_world(
                 "human_player",
                 weapon_model.as_deref(),
             ));
+            actors.backpack_view =
+                Some(crate::backpack_view::BackpackView::load(&gpu.device, pack));
         }
     }
     // The camp's people (play scene)

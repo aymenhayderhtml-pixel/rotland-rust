@@ -3,7 +3,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-/// Melee weapons swing; guns fire; bows shoot arrows. Unknown kinds fail the load so a typo in data is caught early.
+/// Melee weapons swing; guns fire; bows shoot arrows; throwables are thrown. Unknown kinds fail the load so a typo in data is caught early.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum WeaponKind {
@@ -11,6 +11,7 @@ pub enum WeaponKind {
     Melee,
     Gun,
     Bow,
+    Throwable,
 }
 
 /// Clip names the player plays with a weapon (the "anim" block of weapons.json).
@@ -100,11 +101,19 @@ pub struct WeaponDef {
     pub gravity: f32,
     pub draw_time: f32,
     pub arrow_speed: f32,
+    pub projectile_model: String,
     pub throwable: bool,
     pub throw_speed: f32,
     pub throw_damage: f32,
     pub pickup_chance: f32,
     pub max_flight_seconds: f32,
+
+    // Throwable / grenade fields
+    pub bounce_restitution: f32,
+    pub fuse: f32,
+    pub blast_radius: f32,
+    pub blast_damage: f32,
+    pub min_edge_frac: f32,
 
     pub anim: WeaponAnim,
     /// Path of the weapon's .glb model.
@@ -156,6 +165,7 @@ impl Default for WeaponDef {
             gravity: 9.8,
             draw_time: 0.0,
             arrow_speed: 0.0,
+            projectile_model: String::new(),
             throwable: false,
             throw_speed: 0.0,
             throw_damage: 0.0,
@@ -163,6 +173,11 @@ impl Default for WeaponDef {
             pickup_chance: 0.6,
             // data: weapons.json maxFlightSeconds
             max_flight_seconds: 10.0,
+            bounce_restitution: 0.0,
+            fuse: 0.0,
+            blast_radius: 0.0,
+            blast_damage: 0.0,
+            min_edge_frac: 0.0,
             anim: WeaponAnim::default(),
             model: String::new(),
             hold: WeaponHold::default(),
@@ -182,6 +197,10 @@ impl WeaponDef {
 
     pub fn is_bow(&self) -> bool {
         self.kind == WeaponKind::Bow
+    }
+
+    pub fn is_throwable(&self) -> bool {
+        self.kind == WeaponKind::Throwable
     }
 
     /// First-person hold offset. If none was specified in data, returns default zero.

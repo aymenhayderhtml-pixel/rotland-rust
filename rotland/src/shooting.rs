@@ -45,6 +45,7 @@ pub struct ShootEvents {
     pub ammo: (u32, u32),
     pub empty_click: bool,
     pub bash: bool,
+    pub fired_weapon: Option<String>,
 }
 
 /// Abstraction over zombie target querying and damage application.
@@ -142,6 +143,14 @@ impl Shooting {
             };
         }
 
+        if weapon.is_throwable() {
+            let count = inventory.count(&weapon.id);
+            return ShootEvents {
+                ammo: (count, u32::MAX),
+                ..Default::default()
+            };
+        }
+
         if !weapon.is_gun() {
             return ShootEvents::default();
         }
@@ -198,6 +207,7 @@ impl Shooting {
                 }
             } else if gun.try_fire(weapon, input.fire_pressed, input.fire_held) {
                 events.shots_fired += 1;
+                events.fired_weapon = Some(weapon.id.clone());
                 events.noise = Some(shot_noise(weapon, eye));
 
                 let rays = fire_rays(weapon, eye, aim_dir, input.aiming, &mut self.rng);
@@ -332,6 +342,8 @@ mod tests {
 
         let mut asserts = 0;
         assert_eq!(ev.shots_fired, 1);
+        asserts += 1;
+        assert_eq!(ev.fired_weapon.as_deref(), Some("pistol"));
         asserts += 1;
         assert_eq!(ev.hits, 1);
         asserts += 1;

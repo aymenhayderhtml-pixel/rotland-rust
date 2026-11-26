@@ -1,0 +1,23 @@
+{
+  "defaults": {
+    "recoverDegPerSec": 12.0,
+    "fpBack": 0.06,
+    "fpTiltDeg": 4.0,
+    "flashLight": 4.0,
+    "aimMul": 0.6,
+    "kickYawDeg": 0.4,
+    "fpRecoverSec": 0.12,
+    "flashDurationSec": 0.05
+  },
+  "weapons": {
+    "pistol": { "kickDeg": 2.5 },
+    "revolver": { "kickDeg": 5.0 },
+    "rifle": { "kickDeg": 6.0 },
+    "hunting_rifle": { "kickDeg": 7.0 },
+    "shotgun": { "kickDeg": 8.0 },
+    "ak47": { "kickDeg": 1.4, "climb": true, "maxClimbDeg": 9.0 },
+    "smg": { "kickDeg": 0.9, "climb": true, "maxClimbDeg": 7.0 },
+    "bow": { "kickDeg": 0.6, "noFlash": true },
+    "crossbow": { "kickDeg": 1.5, "noFlash": true }
+  }
+}

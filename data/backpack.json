@@ -1,0 +1,12 @@
+{
+  "backpack_small": {
+    "bone": "chest",
+    "offset": [0.0, 0.14, 0.10],
+    "rotation_deg": [0.0, 0.0, 0.0]
+  },
+  "backpack_large": {
+    "bone": "chest",
+    "offset": [0.0, 0.14, 0.10],
+    "rotation_deg": [0.0, 0.0, 0.0]
+  }
+}

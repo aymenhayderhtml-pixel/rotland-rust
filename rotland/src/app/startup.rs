@@ -152,6 +152,12 @@ pub fn init(
     session.test_chop = args.flag("--chop");
     session.test_first_person = args.flag("--first-person");
     session.test_poi = args.flag("--poi");
+    session.test_backpack = match args.value("--backpack") {
+        Some("small") => Some(crate::backpack_view::BackpackKind::Small),
+        Some("large") => Some(crate::backpack_view::BackpackKind::Large),
+        _ => None,
+    };
+    session.test_explosion = args.flag("--test-explosion");
     session.test_car_yaw = args
         .value("--car-yaw")
         .and_then(|s| s.parse::<f32>().ok())
