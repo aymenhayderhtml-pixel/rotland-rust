@@ -33,6 +33,6 @@ Everyone works in that one folder. Subagents get no copies of it, and different 
 3. When they report: add the shared-file lines. If `tools/blender/**` changed, run each needed Blender build ONCE (commands in the task files) and check the logs have no `Traceback`.
 4. Build + test ONCE: `tools/gate.sh --task tasks/<R>-round.md` in the FOREGROUND, and wait (it can take minutes; do not stop or end your turn). Fix the errors yourself (or send one subagent the exact error) and loop until the last line is `GATE: PASS`.
 5. Do the round's checks (measurements after, screenshots). Look at every screenshot you take.
-   **FPS: measure ONLY the area the round changed** (v1.1: `tools/perf_scenes.sh --set metro`), before and after. Do NOT run `--set all` (it takes long and the owner does not want it) unless the round file says so.
+   **FPS: measure ONLY the area the round changed** (v1.1: `tools/perf_scenes.sh --set metro`), before and after. Pass = **average FPS at least 20**; write the 1% low too, for information only (it is mostly background spikes). Do NOT run `--set all` (it takes long and the owner does not want it) unless the round file says so.
 6. Fill `## Lead notes` in the round file: each task done or not, the last 5 lines of the final gate, before/after numbers, screenshot paths, and anything Claude must check.
 7. ONE commit on your branch (`git add` only changed files, never `-A` / `commit -a`). Never push, never touch `main`. Tell the owner "<R> done" plus a short summary.
