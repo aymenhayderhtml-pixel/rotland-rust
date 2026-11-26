@@ -20,7 +20,7 @@ const LANDMARK_VIEW_DIST_M: f32 = 60.0;
 /// Leaning spot: metres from the leaning tower base along the nearest avenue. // new: DECISIONS 2026-11-26
 const LEANING_VIEW_DIST_M: f32 = 40.0;
 /// Fallen spot: metres from the fallen section centre along its street. // new: DECISIONS 2026-11-26
-const FALLEN_VIEW_DIST_M: f32 = 30.0;
+const FALLEN_VIEW_DIST_M: f32 = 55.0;
 /// Burnt spot: metres from the burnt block centre on the nearest street. // new: DECISIONS 2026-11-26
 const BURNT_VIEW_DIST_M: f32 = 35.0;
 /// Carwall spot: metres before the first car wall on its street. // new: DECISIONS 2026-11-26
@@ -320,7 +320,9 @@ pub fn metro_pose(
                 site.to_world(street.b),
                 FALLEN_VIEW_DIST_M,
             );
-            Some(MetroPose { pos, yaw: yaw_facing(target - pos), top: None, y: None })
+            // Raised camera so the whole broken section and its rubble read at once.
+            let top = TopView { pitch: -18f32.to_radians(), spring: 14.0 }; // new: DECISIONS 2026-11-26
+            Some(MetroPose { pos, yaw: yaw_facing(target - pos), top: Some(top), y: None })
         }
         MetroSpot::Leaning => {
             let target = metro.damage.leaning.pos;
@@ -376,7 +378,7 @@ pub fn metro_pose(
                 pos,
                 yaw: yaw_facing(camp_xz - pos),
                 top: Some(TopView { pitch: -30f32.to_radians(), spring: 10.0 }),
-                y: Some(camp.pos.y + 3.65), // new: DECISIONS 2026-11-26 (above crown hull, camera high)
+                y: Some(camp.pos.y + 0.2), // new: DECISIONS 2026-11-26 (on the roof deck, the hull top)
             })
         }
     }

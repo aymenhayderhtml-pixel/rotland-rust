@@ -180,7 +180,7 @@ fn camps_sit_on_brick_lowrise_roof_tops_and_fit_footprint() {
         let style = style_for(styles, t.style).expect("brick style");
         let parts = tower_parts(t, style, metro.layout.site.ground_y, 0);
         let last_floor = parts.iter().rfind(|p| p.kind == PartKind::Floor).expect("floor part");
-        let roof_top = last_floor.pos.y + style.floor_height;
+        let roof_top = last_floor.pos.y + style.floor_height + style.roof_deck_height;
         assert!((site.pos.y - roof_top).abs() <= 0.05, "camp y {} vs roof {roof_top}", site.pos.y);
     }
 }

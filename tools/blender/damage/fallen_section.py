@@ -1,8 +1,11 @@
-"""Fallen tower section (`tw_fallen_section` and `_lod1`) lying on its side across a street.
+"""Fallen tower (`tw_fallen_section` and `_lod1`): a 24 m tower that toppled across a street and broke
+into three segments on impact.
 
-24 m wide (Y) x 24 m high (Z) x 72 m long (X), origin at bottom centre (Z=0 at ground).
-+X cut end is open ~6 floors deep showing vertical floor slabs, soot-stained interior walls,
-ripped window frames, hanging pipes and cable runs.
+X is the long axis (about 72 m, ends near -36 and +36), Y the width (24 m), Z up with the ground at Z=0.
+Origin at bottom centre. The tower lies on its side, so its floors are vertical slabs (YZ planes) along X.
+Each segment is rolled and yawed a little and sunk into the ground. The +X segment carries the crown
+(parapet, roof machinery, and a toppled water tank on the street). Rubble ramps fill the gaps and climb
+the outer ends.
 """
 import math
 import os
@@ -15,6 +18,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "buildings"))
 sys.path.insert(0, os.path.join(HERE, "..", "towers"))
 
 import bmesh  # noqa: E402
+from bmesh.types import BMVert  # noqa: E402
 from mathutils import Matrix, Vector  # noqa: E402
 
 import common  # noqa: E402
@@ -22,15 +26,60 @@ import kit  # noqa: E402
 
 BUDGET_LOD0 = 30000  # data: budgets.json buildings
 BUDGET_LOD1 = 3000  # new: DECISIONS 2026-11-26 (10% LOD1 budget for fallen section)
-SECTION_LEN = 72.0  # new: DECISIONS 2026-11-26 (60-80 m broken tower section length)
-TOWER_SIZE = 24.0  # new: DECISIONS 2026-11-26 (24 m tower footprint width and height)
+TOWER_SIZE = 24.0  # new: DECISIONS 2026-11-26 (24 m tower width)
+HW = TOWER_SIZE / 2.0
 FLOOR_H = 3.8  # new: DECISIONS 2026-11-26 (standard tower floor height)
 BAY_W = 4.0  # new: DECISIONS 2026-11-26 (standard 4 m facade bay)
-WALL_T = 0.45  # new: DECISIONS 2026-11-26 (perimeter wall thickness on cut section)
-SLAB_T = 0.26  # new: DECISIONS 2026-11-26 (floor slab thickness)
-NUM_FLOORS = 18  # new: DECISIONS 2026-11-26 (18 x 3.8 m = 68.4 m + jagged ends = 72 m)
-OPEN_X_START = 11.4  # new: DECISIONS 2026-11-26 (+X cut end open 6 floors deep: 34.2 - 22.8)
-CLOSED_X_START = -34.2  # new: DECISIONS 2026-11-26 (-X end of regular floor grid)
+END_TRIM = 3.5  # new: DECISIONS 2026-11-26 (broken end bands reach up to 3.5 m past the main block)
+RAMP_BASE_Z = -0.3  # new: DECISIONS 2026-11-26 (ramp base sunk below the ground)
+MAX_SLOPE_DEG = 33.0  # new: DECISIONS 2026-11-26 (rubble ramps stay under 35 deg so players can walk up)
+SEED = 4040  # new: DECISIONS 2026-11-26
+
+# (x start, x end, roll deg, yaw deg, sink m, local height m). Gaps between segments are 4 m.
+SEGMENTS = [
+    (-32.0, -12.0, 7.0, 3.0, 1.5, 19.5),  # new: DECISIONS 2026-11-26
+    (-8.0, 12.0, -8.0, -4.0, 2.5, 19.5),  # new: DECISIONS 2026-11-26
+    (16.0, 32.0, 6.0, 2.0, 1.0, 19.5),  # new: DECISIONS 2026-11-26 (+X crown segment)
+]
+# (base x, top x, rise m, half width m, colour): rubble wedges in the gaps and at both outer ends
+RAMPS = [
+    (-12.6, -8.1, 2.6, 10.5, "rock_mid"),  # new: DECISIONS 2026-11-26
+    (15.8, 12.2, 2.4, 10.5, "concrete_grey"),  # new: DECISIONS 2026-11-26
+    (-36.0, -31.8, 2.6, 9.0, "rock_mid"),  # new: DECISIONS 2026-11-26
+    (36.0, 31.8, 2.6, 9.0, "concrete_grey"),  # new: DECISIONS 2026-11-26
+]
+
+
+class _Bag:
+    """Collects parts in local coordinates. `_place` moves them into the Model."""
+
+    def __init__(self):
+        self.parts = []
+        self.cols = []
+
+    def add(self, bm, roof=False):
+        self.parts.append(bm)
+
+    def add_collider(self, label, bm):
+        self.cols.append((label, bm))
+
+
+def _place(model, bag, prefix, loc, rot, colliders=True):
+    for bm in bag.parts:
+        common.transform(bm, loc=loc, rot=rot)
+        model.add(bm)
+    if colliders:
+        for label, bm in bag.cols:
+            common.transform(bm, loc=loc, rot=rot)
+            model.add_collider(f"{prefix}_{label}", bm)
+
+
+def _seg_loc(x0, x1, hloc, sink):
+    return ((x0 + x1) / 2.0, 0.0, hloc / 2.0 - sink)
+
+
+def _seg_rot(roll_deg, yaw_deg):
+    return (math.radians(roll_deg), 0.0, math.radians(yaw_deg))
 
 
 def _angled_bar(model, a, b, w, t, color):
@@ -65,234 +114,270 @@ def _pipe(model, a, b, radius, color="metal"):
     model.add(bm)
 
 
-def _window_cell(k, x0, x1, face_axis, face_coord, sign, u_c, state, is_open_zone=False):
-    """One 3.8 m x 4.0 m facade window bay on the fallen tower (+Y, -Y, or +Z face)."""
-    wx0, wx1 = x0 + 0.82, x0 + 2.68  # new: DECISIONS 2026-11-26 (deco window span along floor height)
-    hw = 1.15  # new: DECISIONS 2026-11-26 (half bay window width)
-    g0, g1 = sorted((face_coord, face_coord + sign * 0.03))  # new: DECISIONS 2026-11-26
-    s0, s1 = sorted((face_coord, face_coord + sign * 0.11))  # new: DECISIONS 2026-11-26
-
-    # Intact dark glass on a few bays; most are shattered soot or empty dark cavities
-    glass_col = "glass_dark" if state == 0 else "soot"  # new: DECISIONS 2026-11-26
-    if face_axis == 2:  # +Z top face (y is u_c)
-        if not (is_open_zone and state == 4):
-            k.box((wx0, u_c - hw, g0), (wx1, u_c + hw, g1), glass_col)
-        k.box((wx0 - 0.12, u_c - hw - 0.10, s0), (wx0, u_c + hw + 0.10, s1), "limestone_dark")
-        k.box((wx1, u_c - hw - 0.10, s0), (wx1 + 0.12, u_c + hw + 0.10, s1), "limestone_dark")
-        if state in (0, 3):  # center mullion
-            k.box((wx0, u_c - 0.04, s0), (wx1, u_c + 0.04, g1), "metal")  # new: DECISIONS 2026-11-26
-        elif state == 2:  # wooden boards
-            k.box((wx0 + 0.45, u_c - hw - 0.05, face_coord + 0.04),
-                  (wx0 + 0.62, u_c + hw + 0.05, face_coord + 0.09), "bark_light")  # new: DECISIONS 2026-11-26
-            k.box((wx1 - 0.62, u_c - hw - 0.05, face_coord + 0.04),
-                  (wx1 - 0.45, u_c + hw + 0.05, face_coord + 0.09), "bark_light")  # new: DECISIONS 2026-11-26
-        elif state == 3:
-            _angled_bar(k.model, (wx0 + 0.2, u_c - 0.7, face_coord + 0.05),
-                        (wx1 - 0.2, u_c + 0.6, face_coord + 0.05), 0.04, 0.04, "soot")  # new: DECISIONS 2026-11-26
-        if is_open_zone and state in (1, 4):  # ripped frame bar sticking up
-            _angled_bar(k.model, (wx0 + 0.2, u_c - hw, face_coord + 0.05),
-                        (wx0 + 0.9, u_c - hw + 0.35, face_coord + 0.65), 0.05, 0.05, "metal")  # new: DECISIONS 2026-11-26
-    else:  # +Y or -Y side face (z is u_c)
-        if not (is_open_zone and state == 4):
-            k.box((wx0, g0, u_c - hw), (wx1, g1, u_c + hw), glass_col)
-        k.box((wx0 - 0.12, s0, u_c - hw - 0.10), (wx0, s1, u_c + hw + 0.10), "limestone_dark")
-        k.box((wx1, s0, u_c - hw - 0.10), (wx1 + 0.12, s1, u_c + hw + 0.10), "limestone_dark")
-        if state in (0, 3):
-            k.box((wx0, s0, u_c - 0.04), (wx1, g1, u_c + 0.04), "metal")  # new: DECISIONS 2026-11-26
-        elif state == 2:
-            k.box((wx0 + 0.45, face_coord + sign * 0.04, u_c - hw - 0.05),
-                  (wx0 + 0.62, face_coord + sign * 0.09, u_c + hw + 0.05), "bark_light")  # new: DECISIONS 2026-11-26
-        if is_open_zone and state in (1, 4):
-            _angled_bar(k.model, (wx1 - 0.2, face_coord + sign * 0.04, u_c + hw),
-                        (wx1 + 0.4, face_coord + sign * 0.55, u_c + hw - 0.3), 0.05, 0.05, "metal")  # new: DECISIONS 2026-11-26
+def _rbox(bag, center, size, rot, color):
+    """Box of `size` centred on `center`, turned by `rot` (roll, pitch, yaw in radians)."""
+    bm = common.make_box(size, color=color)
+    common.transform(bm, loc=center, rot=rot)
+    bag.add(bm)
 
 
-def _add_exterior_shell(k, rng):
-    """12 closed floors (-34.2..+11.4) + 6 hollow cut floors (+11.4..+34.2) + long piers and window bays."""
-    hs = TOWER_SIZE / 2.0
-    inset = 0.25  # new: DECISIONS 2026-11-26 (matches deco.py recessed wall inset)
-    wf = hs - inset
-    top_z = TOWER_SIZE - inset
-
-    # Solid core for the closed rear section (-34.2..+11.4)
-    k.box((CLOSED_X_START, -wf, 0.0), (OPEN_X_START, wf, top_z), "limestone")
-    # Bulkhead wall closing the back of the 6-floor open cavity at X = OPEN_X_START
-    k.box((OPEN_X_START - 0.3, -wf, 0.0), (OPEN_X_START, wf, top_z), "soot")  # new: DECISIONS 2026-11-26
-
-    # Hollow shell for the 6 open floors (+11.4..+34.2), leaving top-end bays partly caved in
-    end_x = OPEN_X_START + 6 * FLOOR_H  # 34.2 m
-    k.box((OPEN_X_START, -wf, 0.0), (end_x, wf, WALL_T), "concrete_grey")  # bottom wall lying on ground
-    k.box((OPEN_X_START, -wf, WALL_T), (end_x, -wf + WALL_T, top_z), "limestone")  # -Y wall
-    k.box((OPEN_X_START, wf - WALL_T, WALL_T), (end_x, wf, top_z), "limestone")  # +Y wall
-    # Top (+Z) wall caved back on the last 2 floors so _top preview also sees inside
-    k.box((OPEN_X_START, -wf, top_z - WALL_T), (end_x - 7.6, wf, top_z), "limestone", roof=True)  # new: DECISIONS 2026-11-26
-    k.box((end_x - 7.6, -wf, top_z - WALL_T), (end_x - 2.2, -2.0, top_z), "limestone", roof=True)  # new: DECISIONS 2026-11-26
-    k.box((end_x - 7.6, 3.5, top_z - WALL_T), (end_x, wf, top_z), "limestone", roof=True)  # new: DECISIONS 2026-11-26
-
-    # Interior pale plaster lining inside the open cavity with soot patches
-    k.box((OPEN_X_START + 0.02, -wf + WALL_T, WALL_T), (end_x - 1.5, -wf + WALL_T + 0.03, top_z - WALL_T), "rock_light")
-    k.box((OPEN_X_START + 0.02, wf - WALL_T - 0.03, WALL_T), (end_x - 0.8, wf - WALL_T, top_z - WALL_T), "rock_light")
-
-    # Longitudinal Art Deco piers along X on +Z, +Y, -Y faces
-    n_bays = int(round(TOWER_SIZE / BAY_W))
-    for i in range(n_bays + 1):
-        u = -hs + i * BAY_W
-        hw = 0.34 if i in (0, n_bays) else 0.25  # new: DECISIONS 2026-11-26
-        pier_end = end_x if i != 3 else end_x - 5.5  # broken middle pier on top  # new: DECISIONS 2026-11-26
-        k.box((CLOSED_X_START, u - hw, top_z), (pier_end, u + hw, TOWER_SIZE), "limestone_dark", roof=(i in (2, 3, 4)))
-        if i > 0:
-            z_u = i * BAY_W
-            k.box((CLOSED_X_START, wf, z_u - hw), (end_x - (2.0 if i == 5 else 0.0), hs, z_u + hw), "limestone_dark")
-            k.box((CLOSED_X_START, -hs, z_u - hw), (end_x - (1.8 if i == 4 else 0.0), -wf, z_u + hw), "limestone_dark")
-
-    # Floor slab bands + window bays per floor
-    for f_idx in range(NUM_FLOORS):
-        x0 = CLOSED_X_START + f_idx * FLOOR_H
-        x1 = x0 + FLOOR_H
-        is_open = x0 >= OPEN_X_START - 0.01
-        is_top_hole = f_idx >= NUM_FLOORS - 2  # new: DECISIONS 2026-11-26
-
-        # Floor band around perimeter
-        k.box((x0, -hs, 0.0), (x0 + 0.22, hs, 0.4), "limestone_dark")
-        k.box((x0, -hs, 0.0), (x0 + 0.22, -wf, TOWER_SIZE), "limestone_dark")
-        k.box((x0, wf, 0.0), (x0 + 0.22, hs, TOWER_SIZE), "limestone_dark")
-        if not is_top_hole:
-            k.box((x0, -hs, top_z), (x0 + 0.22, hs, TOWER_SIZE), "limestone_dark", roof=is_open)
-
-        # Window bays: +Z top face, +Y front side, -Y back side
-        for b in range(n_bays):
-            if is_top_hole and b in (2, 3):  # caved-in top opening  # new: DECISIONS 2026-11-26
-                continue
-            u_c = -hs + (b + 0.5) * BAY_W
-            r = rng.random()
-            st_top = 0 if r < 0.22 else (2 if r < 0.36 else (3 if r < 0.62 else (4 if is_open else 1)))  # new: DECISIONS 2026-11-26
-            _window_cell(k, x0, x1, 2, top_z, 1, u_c, st_top, is_open_zone=is_open)
-
-        for side_sign in (1, -1):
-            for b in range(1, n_bays):  # skip bottom row (z=0..4) partially buried in rubble
-                if f_idx == NUM_FLOORS - 1 and b >= 4:  # jagged cut corner  # new: DECISIONS 2026-11-26
-                    continue
-                z_c = (b + 0.5) * BAY_W
-                r = rng.random()
-                st = 0 if r < 0.18 else (2 if r < 0.32 else (3 if r < 0.60 else 1))  # new: DECISIONS 2026-11-26
-                _window_cell(k, x0, x1, 1, side_sign * wf, side_sign, z_c, st, is_open_zone=is_open)
+def _hull(bag, points, color, collide=False):
+    """Convex rubble piece: the hull of `points`. Wedges get a convex collider so the player can walk up."""
+    bm = common.new_bm()
+    verts = [bm.verts.new(p) for p in points]
+    bm.verts.ensure_lookup_table()
+    res = bmesh.ops.convex_hull(bm, input=verts)
+    inner = [g for key in ("geom_interior", "geom_unused") for g in res.get(key, []) if isinstance(g, BMVert)]
+    bmesh.ops.delete(bm, geom=inner, context="VERTS")
+    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+    if collide:
+        bag.add_collider(f"ramp{len(bag.cols)}", bm.copy())
+    common.paint(bm, color)
+    bag.add(bm)
 
 
-def _add_exposed_interior(k, rng):
-    """Vertical floor slabs (6 floors deep), pale interior walls with soot, pipes and cable runs."""
-    hs = TOWER_SIZE / 2.0
-    in_w = hs - WALL_T - 0.25
-    top_in = TOWER_SIZE - WALL_T - 0.25
-
-    for idx in range(6):
-        fx = OPEN_X_START + (idx + 1) * FLOOR_H
-        # Floor slab split into 2-3 jagged concrete panels so edges look broken
-        y_split = -2.0 + (idx % 3) * 1.5  # new: DECISIONS 2026-11-26
-        z_top_a = top_in - (2.8 if idx >= 4 else 0.4)  # new: DECISIONS 2026-11-26
-        z_top_b = top_in - (5.2 if idx == 5 else (1.5 if idx == 4 else 0.2))  # new: DECISIONS 2026-11-26
-        k.box((fx - SLAB_T, -in_w, WALL_T), (fx, y_split, z_top_a), "concrete_grey")
-        k.box((fx - SLAB_T, y_split + 1.6, WALL_T), (fx, in_w, z_top_b), "concrete_stain")  # doorway gap
-        # Header lintel above doorway gap
-        k.box((fx - SLAB_T, y_split, 11.0), (fx, y_split + 1.6, min(z_top_a, z_top_b)), "limestone_dark")
-        # Soot blotch on the pale slab face
-        k.box((fx, -in_w + 1.5, 4.0 + idx * 1.1), (fx + 0.04, y_split - 0.5, 11.5 + idx * 0.8), "soot")
-
-        # Pale interior partition walls (running along X between floor slabs)
-        px0 = fx - FLOOR_H + 0.02
-        py = -5.5 + (idx % 2) * 10.5  # new: DECISIONS 2026-11-26
-        k.box((px0, py, WALL_T), (fx - SLAB_T, py + 0.24, 15.0 - idx * 0.7), "rock_light")
-        k.box((px0 + 0.5, py - 0.03, 5.0), (fx - 0.8, py + 0.27, 9.5), "soot")  # char stain on interior wall
-
-        # Interior collapsed rubble pile resting on the bottom wall inside the open end
-        if idx >= 2:
-            rz = WALL_T + 1.6 + (idx - 2) * 0.25  # new: DECISIONS 2026-11-26
-            k.box((px0 + 0.2, -in_w + 0.4, WALL_T), (fx - 0.3, in_w - 0.4, rz), "concrete_stain")
-
-    # Jagged broken slab teeth jutting out past +34.2 m to +36.0 m (stepped low so interior shows cleanly)
-    end_x = OPEN_X_START + 6 * FLOOR_H
-    jagged = [
-        ((end_x - 0.2, -11.6, 0.0), (35.9, -6.5, 6.5), "limestone"),
-        ((end_x - 0.2, -6.5, 0.0), (35.3, 1.5, 2.4), "concrete_grey"),
-        ((end_x - 0.2, 6.2, 0.0), (35.8, 11.6, 9.2), "limestone_dark"),
-        ((end_x - 0.2, -11.6, 13.5), (35.5, -8.5, 21.5), "limestone_dark"),
-        ((end_x - 0.2, 8.2, 14.0), (35.6, 11.6, 20.5), "limestone"),
-    ]  # new: DECISIONS 2026-11-26
-    for lo, hi, col in jagged:
-        k.box(lo, hi, col)
-
-    # -X broken stump extensions (-36.0 to -34.2) with exposed rebar and shattered concrete
-    stump_x = CLOSED_X_START
-    for lo, hi, col in (
-        ((-36.0, -11.8, 0.0), (stump_x + 0.2, -3.5, 18.0), "limestone_dark"),
-        ((-35.8, -3.5, 0.0), (stump_x + 0.2, 5.2, 11.5), "concrete_stain"),
-        ((-35.5, 5.2, 0.0), (stump_x + 0.2, 11.8, 21.0), "limestone"),
-    ):  # new: DECISIONS 2026-11-26
-        k.box(lo, hi, col)
-    for k_r in range(8):
-        ry = -9.5 + k_r * 2.6  # new: DECISIONS 2026-11-26
-        rz = 2.5 + (k_r % 4) * 4.2  # new: DECISIONS 2026-11-26
-        _angled_bar(k.model, (stump_x + 0.2, ry, rz), (-36.0, ry + 0.3, rz - 0.6), 0.06, 0.06, "rust_dark")
-
-    # Hanging pipes & cable runs poking out of the +X cut end
-    pipes = [
-        ((24.0, -8.2, 14.5), (35.8, -8.2, 14.2), 0.14, "metal"),
-        ((26.5, -7.6, 13.8), (35.4, -7.2, 12.8), 0.10, "rust_dark"),
-        ((23.0, 7.5, 16.0), (35.6, 7.8, 15.2), 0.15, "metal"),
-        ((27.0, 2.5, 10.5), (35.9, 2.2, 8.8), 0.12, "metal"),
-    ]  # new: DECISIONS 2026-11-26
-    for a, b, rad, col in pipes:
-        _pipe(k.model, a, b, rad, col)
-        # Bent hanging tip
-        _pipe(k.model, b, (b[0] + 0.35, b[1] + rng.uniform(-0.4, 0.4), b[2] - 2.6), rad * 0.9, "rust_dark")
-
-    # Drooping cable runs hanging from exposed ceiling/slabs
-    cables = [
-        ((31.2, -5.2, 16.5), (34.8, -5.0, 11.2), (35.2, -4.8, 5.5)),
-        ((32.5, 1.8, 13.8), (34.9, 2.1, 8.5), (34.6, 2.4, 2.5)),
-        ((30.4, 6.2, 17.5), (34.6, 5.9, 12.4), (35.1, 5.5, 6.2)),
-        ((33.0, -1.5, 11.0), (35.3, -1.2, 5.8), (35.5, -0.9, 1.2)),
-    ]  # new: DECISIONS 2026-11-26
-    for p0, p1, p2 in cables:
-        _angled_bar(k.model, p0, p1, 0.07, 0.07, "gun_black")
-        _angled_bar(k.model, p1, p2, 0.06, 0.06, "gun_black")
+def _ramp(bag, x_base, x_top, rise, half_w, color):
+    """Rubble wedge from the ground at x_base up to height `rise` at x_top, never steeper than MAX_SLOPE_DEG."""
+    run = abs(x_top - x_base)
+    h = min(rise, run * math.tan(math.radians(MAX_SLOPE_DEG)) + RAMP_BASE_Z)
+    pts = [(x_base, -half_w, RAMP_BASE_Z), (x_base, half_w, RAMP_BASE_Z),
+           (x_top, -half_w, RAMP_BASE_Z), (x_top, half_w, RAMP_BASE_Z),
+           (x_top, -half_w + 0.8, h), (x_top, half_w - 0.8, h)]  # new: DECISIONS 2026-11-26
+    _hull(bag, pts, color, collide=True)
 
 
-def _add_colliders(k):
-    """Solid core collider + hollow walls/floor around the +X exposed interior."""
-    hs = TOWER_SIZE / 2.0
-    end_x = OPEN_X_START + 6 * FLOOR_H
-    k.collider((-35.8, -hs + 0.2, 0.0), (OPEN_X_START + 0.2, hs - 0.2, TOWER_SIZE - 0.2), "core")  # new: DECISIONS 2026-11-26
-    k.collider((OPEN_X_START, -hs + 0.2, 0.0), (end_x + 1.0, hs - 0.2, 1.6), "cut_floor")  # new: DECISIONS 2026-11-26
-    k.collider((OPEN_X_START, -hs + 0.2, 1.6), (end_x + 0.6, -hs + 1.0, TOWER_SIZE - 0.5), "cut_wall_l")
-    k.collider((OPEN_X_START, hs - 1.0, 1.6), (end_x + 0.6, hs - 0.2, TOWER_SIZE - 0.5), "cut_wall_r")
-    k.collider((OPEN_X_START, -hs + 1.0, TOWER_SIZE - 1.4), (end_x - 3.0, hs - 1.0, TOWER_SIZE - 0.2), "cut_top")
+def _lump(bag, c, r, h, rng, color):
+    """Irregular rubble heap at c: a jittered ring on the ground and a smaller cap."""
+    pts = []
+    for i in range(6):  # new: DECISIONS 2026-11-26
+        a = 2 * math.pi * i / 6
+        rr = r * rng.uniform(0.8, 1.0)  # new: DECISIONS 2026-11-26
+        pts.append((c[0] + math.cos(a) * rr, c[1] + math.sin(a) * rr, RAMP_BASE_Z))
+    for i in range(4):  # new: DECISIONS 2026-11-26
+        a = 2 * math.pi * i / 4 + 0.4  # new: DECISIONS 2026-11-26
+        rr = r * 0.45 * rng.uniform(0.7, 1.0)  # new: DECISIONS 2026-11-26
+        pts.append((c[0] + math.cos(a) * rr, c[1] + math.sin(a) * rr, h * rng.uniform(0.7, 1.0)))  # new: DECISIONS 2026-11-26
+    _hull(bag, pts, color)
+
+
+def _face(k, sgn, x0, x1, z0, z1, depth, color):
+    """Box stuck on the +Y (sgn=1) or -Y face of a segment, `depth` metres proud of it."""
+    y0, y1 = sorted((sgn * HW, sgn * (HW + depth)))
+    k.box((x0, y0, z0), (x1, y1, z1), color)
+
+
+def _broken_end(bag, k, s, hl, hz, rng):
+    """One broken end (s = -1 or +1): wall bands reaching different distances out, a notch with soot,
+    vertical floor slabs sticking out at different lengths, hanging rebar, cables and a pipe."""
+    face = s * (hl - END_TRIM)
+    z_edges = (-hz, -hz + 5.0, -hz + 10.5, -hz + 14.0, hz)  # new: DECISIONS 2026-11-26
+    reach = (END_TRIM, 1.2, 0.0, 2.2)  # new: DECISIONS 2026-11-26 (0 = missing chunk, shows the notch)
+    colors = ("limestone", "limestone_dark", "concrete_stain", "limestone")
+    for j, r_out in enumerate(reach):
+        z0, z1 = z_edges[j], z_edges[j + 1]
+        if r_out > 0:
+            xa, xb = sorted((face, s * (hl - END_TRIM + r_out)))
+            k.box((xa, -HW, z0), (xb, HW, z1), colors[j])
+        else:
+            xa, xb = sorted((face, face + s * 0.06))  # new: DECISIONS 2026-11-26 (soot skin on the notch wall)
+            k.box((xa, -HW + 0.8, z0 + 0.6), (xb, HW - 0.8, z1 - 0.6), "soot")  # new: DECISIONS 2026-11-26
+    # Floor slabs (YZ planes, 0.26 m thick) at different lengths, with jagged tops
+    for e, drop, col in ((1.0, 0.0, "concrete_grey"), (3.0, 4.5, "concrete_stain"),  # new: DECISIONS 2026-11-26
+                         (4.2, 2.0, "concrete_grey"), (5.2, 9.5, "concrete_stain")):  # new: DECISIONS 2026-11-26
+        xc = s * (hl - END_TRIM + e)
+        xa, xb = sorted((xc - 0.13, xc + 0.13))  # new: DECISIONS 2026-11-26 (floor slab thickness)
+        k.box((xa, -HW + 0.7, -hz), (xb, HW - 0.7, hz - drop), col)  # new: DECISIONS 2026-11-26
+    # Hanging rebar, drooping cables and a pipe at the broken end
+    for _ in range(3):  # new: DECISIONS 2026-11-26
+        y = rng.uniform(-HW + 2.0, HW - 2.0)  # new: DECISIONS 2026-11-26
+        z = rng.uniform(-hz + 6.0, hz - 2.0)  # new: DECISIONS 2026-11-26
+        _angled_bar(bag, (s * (hl - 0.3), y, z), (s * (hl + 1.0), y + 0.3, z - 1.8), 0.06, 0.06, "rust_dark")  # new: DECISIONS 2026-11-26
+    for y in (-5.0, 4.0):  # new: DECISIONS 2026-11-26
+        _angled_bar(bag, (s * (hl - 0.4), y, hz - 1.0), (s * (hl + 0.5), y + 0.4, hz - 5.0), 0.07, 0.07, "gun_black")  # new: DECISIONS 2026-11-26
+        _angled_bar(bag, (s * (hl + 0.5), y + 0.4, hz - 5.0), (s * (hl + 0.2), y + 0.5, hz - 8.5), 0.06, 0.06, "gun_black")  # new: DECISIONS 2026-11-26
+    _pipe(bag, (s * (hl - 1.0), 6.0, -hz + 4.0), (s * (hl + 1.4), 6.2, -hz + 4.6), 0.14, "metal")  # new: DECISIONS 2026-11-26
+
+
+def _floor_bands(k, hl, hz):
+    """Floor lines: vertical slabs across the segment at each floor boundary (floors stand on their edge)."""
+    n = int(2 * hl // FLOOR_H)
+    for i in range(n + 1):
+        xf = -hl + i * FLOOR_H
+        if abs(xf) < hl - END_TRIM:
+            k.box((xf - 0.15, -HW - 0.1, -hz), (xf + 0.15, HW + 0.1, hz), "limestone_dark")  # new: DECISIONS 2026-11-26
+
+
+def _top_teeth(k, hl, hz, rng):
+    """Broken top edges on both sides: uneven teeth of wall, so the silhouette is jagged."""
+    x = -hl + 0.4  # new: DECISIONS 2026-11-26
+    while x < hl - 1.0:  # new: DECISIONS 2026-11-26
+        w = rng.uniform(1.0, 2.2)  # new: DECISIONS 2026-11-26
+        h = rng.uniform(0.6, 3.2)  # new: DECISIONS 2026-11-26
+        if rng.random() > 0.3:  # new: DECISIONS 2026-11-26 (about 70% of gaps have a tooth)
+            for sgn in (1.0, -1.0):
+                _face(k, sgn, x, min(x + w, hl - 0.4), hz - 0.5, hz + h, 0.2, "limestone_dark")  # new: DECISIONS 2026-11-26
+        x += w + rng.uniform(0.6, 2.0)  # new: DECISIONS 2026-11-26
+
+
+def _pane_colour(rng):
+    """Glass for one bay: None for a missing pane (dark cavity), else dark glass or soot-black glass."""
+    roll = rng.random()
+    if roll < 0.15:  # new: DECISIONS 2026-11-26 (15% missing panes)
+        return None
+    return "glass_dark" if roll < 0.7 else "soot"  # new: DECISIONS 2026-11-26
+
+
+def _side_bay(k, sgn, xc, zc, rng):
+    """One 3 m x 3.2 m pane in a 3.8 m x 4 m bay on a long side, with piers and head/sill bars."""
+    col = _pane_colour(rng)
+    if col is None:
+        _face(k, sgn, xc - 1.5, xc + 1.5, zc - 1.6, zc + 1.6, 0.02, "soot")  # new: DECISIONS 2026-11-26
+        return
+    _face(k, sgn, xc - 1.5, xc + 1.5, zc - 1.6, zc + 1.6, 0.06, col)  # new: DECISIONS 2026-11-26
+    _face(k, sgn, xc - 1.7, xc - 1.5, zc - 1.9, zc + 1.9, 0.12, "limestone_dark")  # new: DECISIONS 2026-11-26 (pier)
+    _face(k, sgn, xc + 1.5, xc + 1.7, zc - 1.9, zc + 1.9, 0.12, "limestone_dark")  # new: DECISIONS 2026-11-26 (pier)
+    _face(k, sgn, xc - 1.7, xc + 1.7, zc + 1.6, zc + 1.8, 0.12, "limestone_dark")  # new: DECISIONS 2026-11-26 (head)
+    _face(k, sgn, xc - 1.7, xc + 1.7, zc - 1.8, zc - 1.6, 0.12, "limestone_dark")  # new: DECISIONS 2026-11-26 (sill)
+
+
+def _top_bay(k, xc, yc, hz, rng):
+    """One pane on the top face: the upward-facing side of the fallen floor."""
+    col = _pane_colour(rng)
+    if col is None:
+        k.box((xc - 1.5, yc - 1.6, hz), (xc + 1.5, yc + 1.6, hz + 0.02), "soot")  # new: DECISIONS 2026-11-26
+        return
+    k.box((xc - 1.5, yc - 1.6, hz), (xc + 1.5, yc + 1.6, hz + 0.06), col)  # new: DECISIONS 2026-11-26
+    k.box((xc - 1.7, yc - 1.7, hz), (xc - 1.5, yc + 1.7, hz + 0.12), "limestone_dark")  # new: DECISIONS 2026-11-26
+    k.box((xc + 1.5, yc - 1.7, hz), (xc + 1.7, yc + 1.7, hz + 0.12), "limestone_dark")  # new: DECISIONS 2026-11-26
+    k.box((xc - 1.7, yc - 1.7, hz), (xc + 1.7, yc - 1.6, hz + 0.12), "limestone_dark")  # new: DECISIONS 2026-11-26
+    k.box((xc - 1.7, yc + 1.6, hz), (xc + 1.7, yc + 1.7, hz + 0.12), "limestone_dark")  # new: DECISIONS 2026-11-26
+
+
+def _windows(k, hl, hz, rng):
+    """Facade bays on both long sides and the top. Floors are vertical, so columns run along X every
+    FLOOR_H; side rows go up Z every BAY_W, top rows go across Y every BAY_W."""
+    n_cols = int(2 * hl // FLOOR_H)
+    n_rows = int(2 * hz // BAY_W)
+    n_across = int(TOWER_SIZE // BAY_W)  # new: DECISIONS 2026-11-26 (6 top bays across the 24 m width)
+    for i in range(n_cols):
+        xc = -hl + (i + 0.5) * FLOOR_H
+        for sgn in (1.0, -1.0):
+            for r in range(n_rows):
+                _side_bay(k, sgn, xc, -hz + (r + 0.5) * BAY_W, rng)
+        for j in range(n_across):
+            _top_bay(k, xc, -HW + (j + 0.5) * BAY_W, hz, rng)
+
+
+def _crushed_bottom(bag, hl, hz, rng):
+    """The side that hit the ground is crushed: tilted broken slabs along its bottom edge."""
+    step = 2 * hl / 4.0  # new: DECISIONS 2026-11-26 (four pieces per segment)
+    for j in range(4):  # new: DECISIONS 2026-11-26
+        xc = -hl + (j + 0.5) * step
+        yc = rng.uniform(-8.0, 8.0)  # new: DECISIONS 2026-11-26
+        roll = rng.uniform(-0.45, 0.45)  # new: DECISIONS 2026-11-26 (about 26 deg tilt)
+        yaw = rng.uniform(-0.2, 0.2)  # new: DECISIONS 2026-11-26
+        _rbox(bag, (xc, yc, -hz + 0.4), (step * 1.4, 4.5, 0.5), (roll, 0.0, yaw), "concrete_stain")  # new: DECISIONS 2026-11-26
+
+
+def _crown(k, hl, hz):
+    """Crown on the +X segment: broken parapet on both top edges, an AC unit and an elevator bulkhead on the roof."""
+    for sgn in (-1.0, 1.0):
+        for a, b in ((-7.5, -5.0), (-3.5, -1.0), (0.5, 2.2), (4.0, 7.5)):  # new: DECISIONS 2026-11-26
+            k.box((a, sgn * HW - 0.25, hz), (b, sgn * HW + 0.25, hz + 1.2), "limestone_dark")  # new: DECISIONS 2026-11-26
+    k.box((1.0, -4.0, hz), (3.0, -1.5, hz + 1.5), "metal")  # new: DECISIONS 2026-11-26
+    k.box((-5.0, 3.0, hz), (-2.0, 7.0, hz + 2.5), "limestone")  # new: DECISIONS 2026-11-26
+
+
+def _segment(x0, x1, hloc, crown, rng):
+    """One broken segment in local coordinates (centred on its middle, bottom at -hloc/2)."""
+    bag = _Bag()
+    k = kit.Kit(bag)
+    hl, hz = (x1 - x0) / 2.0, hloc / 2.0
+    core = hl - END_TRIM
+    k.box((-core, -HW, -hz), (core, HW, hz), "limestone")
+    k.collider((-core, -HW, -hz), (core, HW, hz), "core")
+    for s in (-1.0, 1.0):
+        _broken_end(bag, k, s, hl, hz, rng)
+    _floor_bands(k, hl, hz)
+    _windows(k, hl, hz, rng)
+    _crushed_bottom(bag, hl, hz, rng)
+    if crown:
+        _crown(k, hl, hz)
+    else:
+        _top_teeth(k, hl, hz, rng)
+    return bag
+
+
+def _gap_litter(bag, xg, rng):
+    """Rubble in a gap between segments: heaps, rebar, slabs and a pipe lying on the ground."""
+    for y in (-9.0, -4.5, 0.0, 4.5, 9.0):  # new: DECISIONS 2026-11-26
+        colour = rng.choice(("rock_mid", "concrete_grey", "limestone_dark"))
+        _lump(bag, (xg + rng.uniform(-1.2, 1.2), y, 0.0), 2.0, 1.6, rng, colour)  # new: DECISIONS 2026-11-26
+    for _ in range(3):  # new: DECISIONS 2026-11-26
+        y = rng.uniform(-9.0, 9.0)  # new: DECISIONS 2026-11-26
+        _angled_bar(bag, (xg - 1.6, y, 0.9), (xg + 1.6, y + 0.4, 2.2), 0.06, 0.06, "rust_dark")  # new: DECISIONS 2026-11-26
+    for _ in range(2):  # new: DECISIONS 2026-11-26
+        y = rng.uniform(-9.0, 9.0)  # new: DECISIONS 2026-11-26
+        _rbox(bag, (xg + rng.uniform(-1.0, 1.0), y, 0.5), (1.8, 2.8, 0.25),  # new: DECISIONS 2026-11-26
+              (rng.uniform(-0.3, 0.3), 0.0, rng.uniform(0.0, math.pi)), "concrete_grey")
+    _pipe(bag, (xg - 1.0, -5.0, 0.8), (xg + 1.2, -4.2, 1.2), 0.12, "metal")  # new: DECISIONS 2026-11-26
+
+
+def _crown_ground(bag):
+    """Toppled water tank and roof machinery lying on the street beside the crown."""
+    tank = common.make_frustum(1.8, 1.8, -2.0, 2.0, segments=10, color="bark_dark")  # new: DECISIONS 2026-11-26
+    common.transform(tank, loc=(24.0, -15.5, 1.8), rot=(0.0, math.pi / 2, 0.0))  # new: DECISIONS 2026-11-26
+    bag.add(tank)
+    for dx in (-1.2, 1.2):  # new: DECISIONS 2026-11-26
+        band = common.make_frustum(1.86, 1.86, -0.2, 0.2, segments=10, color="metal")  # new: DECISIONS 2026-11-26
+        common.transform(band, loc=(24.0 + dx, -15.5, 1.8), rot=(0.0, math.pi / 2, 0.0))
+        bag.add(band)
+    _rbox(bag, (30.0, 14.0, 0.9), (2.4, 1.8, 1.6), (0.15, 0.1, 0.4), "metal")  # new: DECISIONS 2026-11-26
+    _rbox(bag, (22.0, 17.5, 1.2), (3.0, 3.0, 3.0), (0.2, -0.1, 0.3), "limestone_dark")  # new: DECISIONS 2026-11-26
+
+
+def _ground_debris(bag, rng):
+    """Panels, glass and window frames scattered on the street beside the fallen section."""
+    kinds = (("concrete_grey", (2.4, 1.6, 0.12)), ("glass_tint", (0.9, 0.7, 0.03)),  # new: DECISIONS 2026-11-26
+             ("metal", (1.2, 1.0, 0.08)))  # new: DECISIONS 2026-11-26
+    for _ in range(16):  # new: DECISIONS 2026-11-26
+        x = rng.uniform(-30.0, 30.0)  # new: DECISIONS 2026-11-26
+        y = rng.choice((-1.0, 1.0)) * rng.uniform(13.5, 19.0)  # new: DECISIONS 2026-11-26
+        colour, size = rng.choice(kinds)
+        tilt = (rng.uniform(-0.2, 0.2), rng.uniform(-0.2, 0.2), rng.uniform(0.0, math.pi))  # new: DECISIONS 2026-11-26
+        _rbox(bag, (x, y, 0.15), size, tilt, colour)  # new: DECISIONS 2026-11-26
+
+
+def _world(bag, rng):
+    """Gap ramps, outer-end ramps, gap litter, the crown's street debris and scattered debris."""
+    for x_base, x_top, rise, half_w, colour in RAMPS:
+        _ramp(bag, x_base, x_top, rise, half_w, colour)
+    _gap_litter(bag, -10.0, rng)
+    _gap_litter(bag, 14.0, rng)
+    _crown_ground(bag)
+    _ground_debris(bag, rng)
 
 
 def build_lod0(model):
-    k = kit.Kit(model)
-    rng = random.Random(4004)  # new: DECISIONS 2026-11-26
-    _add_exterior_shell(k, rng)
-    _add_exposed_interior(k, rng)
-    _add_colliders(k)
+    rng = random.Random(SEED)
+    for idx, (x0, x1, roll_d, yaw_d, sink, hloc) in enumerate(SEGMENTS):
+        bag = _segment(x0, x1, hloc, crown=idx == len(SEGMENTS) - 1, rng=rng)
+        _place(model, bag, f"seg{idx}", _seg_loc(x0, x1, hloc, sink), _seg_rot(roll_d, yaw_d))
+    world = _Bag()
+    _world(world, rng)
+    _place(model, world, "world", (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
 
 
 def build_lod1(model):
-    k = kit.Kit(model)
-    hs = TOWER_SIZE / 2.0
-    # Main silhouette box + open end recess + floor bands + window stripes (no colliders)
-    k.box((-35.8, -hs, 0.0), (OPEN_X_START, hs, TOWER_SIZE), "limestone")  # new: DECISIONS 2026-11-26
-    end_x = OPEN_X_START + 6 * FLOOR_H
-    k.box((OPEN_X_START, -hs, 0.0), (end_x, hs, 1.2), "concrete_grey")
-    k.box((OPEN_X_START, -hs, 1.2), (end_x, -hs + 1.2, TOWER_SIZE), "limestone")
-    k.box((OPEN_X_START, hs - 1.2, 1.2), (end_x, hs, TOWER_SIZE), "limestone")
-    k.box((OPEN_X_START, -hs + 1.2, TOWER_SIZE - 1.2), (end_x - 4.0, hs - 1.2, TOWER_SIZE), "limestone")
-    k.box((OPEN_X_START - 0.2, -hs + 1.2, 1.2), (OPEN_X_START + 0.2, hs - 1.2, TOWER_SIZE - 1.2), "soot")
-    for f_idx in range(NUM_FLOORS):
-        fx = CLOSED_X_START + f_idx * FLOOR_H
-        k.box((fx - 0.15, -hs - 0.04, 0.0), (fx + 0.15, hs + 0.04, TOWER_SIZE + 0.04), "limestone_dark")
-        k.box((fx + 0.8, -hs + 1.5, TOWER_SIZE - 0.02), (fx + 2.7, hs - 1.5, TOWER_SIZE + 0.04), "glass_dark")
-        k.box((fx + 0.8, hs - 0.02, 4.0), (fx + 2.7, hs + 0.04, TOWER_SIZE - 1.5), "glass_dark")
-        k.box((fx + 0.8, -hs - 0.04, 4.0), (fx + 2.7, -hs + 0.02, TOWER_SIZE - 1.5), "glass_dark")
+    """Silhouette only: three tilted boxes in the same places as lod0, plus the rubble wedges."""
+    for idx, (x0, x1, roll_d, yaw_d, sink, hloc) in enumerate(SEGMENTS):
+        bag = _Bag()
+        bag.add(common.make_box((x1 - x0, TOWER_SIZE, hloc), color="limestone"))
+        _place(model, bag, f"seg{idx}", _seg_loc(x0, x1, hloc, sink), _seg_rot(roll_d, yaw_d), colliders=False)
+    world = _Bag()
+    for x_base, x_top, rise, half_w, colour in RAMPS:
+        _ramp(world, x_base, x_top, rise, half_w, colour)
+    _place(model, world, "world", (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), colliders=False)
 
 
 def build_all():

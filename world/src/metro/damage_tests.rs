@@ -203,10 +203,13 @@ fn burnt_block_towers_overlays_ash_and_cars() {
 
     let props = all_props(&world, &dcfg, &|_, _| 10.0);
     let overlays: Vec<_> = props.iter().filter(|p| p.model == "burnt_floor_overlay").collect();
-    assert_eq!(overlays.len(), burnt_towers.len());
-    for (ov, &ti) in overlays.iter().zip(burnt_towers.iter()) {
-        let expected_scale = world.towers[ti].size as f32 / BURNT_OVERLAY_BASE_WIDTH_M;
-        assert!((ov.scale - expected_scale).abs() < 1e-4);
+    let expected: usize = burnt_towers.iter().map(|&ti| soot_sheets(&world.towers[ti]).len()).sum();
+    assert_eq!(overlays.len(), expected);
+    for &ti in burnt_towers {
+        let t = &world.towers[ti];
+        // Every tower gets sheets on all four faces, reaching its upper floors.
+        assert!(overlays.iter().filter(|p| p.position.distance(Vec3::new(t.pos.x, 10.0, t.pos.y)) < t.height).count() >= 4);
+        assert!(overlays.iter().any(|p| (Vec2::new(p.position.x, p.position.z) - t.pos).length() < t.size as f32 && p.position.y > 10.0 + t.height * 0.5));
     }
 
     let ashes: Vec<_> = props.iter().filter(|p| p.model == "ash_patch").collect();
@@ -255,13 +258,18 @@ fn damage_props_in_chunk_union_has_no_duplicates_and_uses_height() {
     for exp in &expected {
         let hits = props
             .iter()
-            .filter(|p| p.model == exp.model && (p.position.x - exp.pos.x).abs() < 1e-4 && (p.position.z - exp.pos.y).abs() < 1e-4)
+            .filter(|p| {
+                p.model == exp.model
+                    && (p.position.x - exp.pos.x).abs() < 1e-4
+                    && (p.position.z - exp.pos.y).abs() < 1e-4
+                    && (p.position.y - slope(exp.pos.x, exp.pos.y) - exp.y).abs() < 1e-3
+            })
             .count();
         assert_eq!(hits, 1, "{} must appear once across all chunks", exp.model);
     }
     for p in &props {
-        assert!((p.position.y - slope(p.position.x, p.position.z)).abs() < 1e-4);
         if p.model != "burnt_floor_overlay" {
+            assert!((p.position.y - slope(p.position.x, p.position.z)).abs() < 1e-4);
             assert_eq!(p.scale, 1.0);
         }
     }

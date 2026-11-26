@@ -25,8 +25,9 @@ pub fn tower_hulls(
             if damage.tower_is_replaced(idx) {
                 return None;
             }
-            let base_y = style_for(styles, t.style).map_or(DEFAULT_BASE_HEIGHT, |s| s.base_height);
-            Some((base_point(t, ground_y), t.yaw, box_points(t, base_y)))
+            let style = style_for(styles, t.style);
+            let base_y = style.map_or(DEFAULT_BASE_HEIGHT, |s| s.base_height);
+            Some((base_point(t, ground_y), t.yaw, box_points(t, base_y, roof_top(t, style))))
         })
         .collect()
 }
@@ -50,10 +51,19 @@ pub fn tower_bases(
         .collect()
 }
 
-/// The eight corners of a tower's upper footprint box, from `base_height` to `height`.
+/// Collider top: the walkable roof deck for plain crowns (so the player stands on the deck
+/// among the roof props and camps), the full height for landmark crowns.
+fn roof_top(t: &TowerSpot, style: Option<&StyleDef>) -> f32 {
+    match style {
+        Some(s) if !t.landmark && s.roof_deck_height > 0.0 => t.height - s.crown_height + s.roof_deck_height,
+        _ => t.height,
+    }
+}
+
+/// The eight corners of a tower's upper footprint box, from `base_height` to `top`.
 /// Leaving `0..base_height` open keeps the lobby doorway and interior walkable.
-pub fn box_points(t: &TowerSpot, base_height: f32) -> Vec<[f32; 3]> {
-    let top = t.height.max(base_height);
+pub fn box_points(t: &TowerSpot, base_height: f32, top: f32) -> Vec<[f32; 3]> {
+    let top = top.max(base_height);
     let mut pts = Vec::with_capacity(8);
     for y in [base_height, top] {
         for x in [-t.half.x, t.half.x] {

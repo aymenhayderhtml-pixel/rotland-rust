@@ -95,7 +95,7 @@ fn roof_top_y(spot: &TowerSpot, style: &StyleDef, ground_y: f32, seed: u64) -> O
     let parts = tower_parts(spot, style, ground_y, seed);
     let last_floor = parts.iter().rfind(|p| p.kind == PartKind::Floor)?;
     let fh = if style.floor_height > 0.0 { style.floor_height } else { DEFAULT_FLOOR_HEIGHT };
-    Some(last_floor.pos.y + fh)
+    Some(last_floor.pos.y + fh + style.roof_deck_height) // data: metro.json styles.roofDeckHeight
 }
 
 /// Rolls `lobbyDressing` entries for one tower's ground-floor lobby (not used by `tower_parts`;

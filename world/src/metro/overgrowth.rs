@@ -73,6 +73,8 @@ pub struct OvergrowthConfig {
     pub vine_half_depth_m: f32,
     pub vine_wall_standoff_m: [f32; 2],
     pub vine_corner_margin_m: f32,
+    /// Half-width kept free of vines around the lobby door on the front face.
+    pub vine_door_gap_m: f32,
     pub roof_edge_inset_m: f32,
     pub roof_tree_chance: f32,
 }
@@ -110,6 +112,7 @@ impl Default for OvergrowthConfig {
             vine_half_depth_m: 0.15, // data: metro.json overgrowth
             vine_wall_standoff_m: [0.02, 0.05], // data: metro.json overgrowth
             vine_corner_margin_m: 1.5, // data: metro.json overgrowth
+            vine_door_gap_m: 4.0, // data: metro.json overgrowth
             roof_edge_inset_m: 1.5, // data: metro.json overgrowth
             roof_tree_chance: 0.35, // data: metro.json overgrowth
         }
@@ -163,6 +166,7 @@ fn validate_overgrowth(cfg: &OvergrowthConfig) -> Result<(), String> {
         cfg.lot_tower_clearance_m,
         cfg.vine_half_depth_m,
         cfg.vine_corner_margin_m,
+        cfg.vine_door_gap_m,
         cfg.roof_edge_inset_m,
         cfg.street_tree_curb_offset_m[0],
         cfg.vine_wall_standoff_m[0],

@@ -220,7 +220,10 @@ fn hulls_are_one_box_per_tower_starting_at_base_height() {
     assert_eq!(bases.len(), hulls.len());
     for (i, (pos, yaw, pts)) in hulls.iter().enumerate() {
         let t = towers_in_chunk(&towers, coord).nth(i).expect("same order");
-        let base_h = style_for(styles, t.style).expect("style exists").base_height;
+        let style = style_for(styles, t.style).expect("style exists");
+        let base_h = style.base_height;
+        // Plain crowns stop at the walkable roof deck; landmarks keep their full height.
+        let top = if t.landmark { t.height } else { t.height - style.crown_height + style.roof_deck_height };
         assert_eq!(bases[i].0, format!("tw_{}_{}_base", t.style.key(), t.size));
         assert_eq!(pts.len(), 8);
         assert_eq!(*pos, Vec3::new(t.pos.x, GROUND_Y, t.pos.y));
@@ -234,7 +237,7 @@ fn hulls_are_one_box_per_tower_starting_at_base_height() {
         assert!((max[0] - min[0] - 2.0 * t.half.x).abs() < 1e-3);
         assert!((max[2] - min[2] - 2.0 * t.half.y).abs() < 1e-3);
         assert!((min[1] - base_h).abs() < 1e-3);
-        assert!((max[1] - t.height.max(base_h)).abs() < 1e-3);
+        assert!((max[1] - top.max(base_h)).abs() < 1e-3);
     }
 }
 

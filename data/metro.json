@@ -54,6 +54,7 @@
       "floorHeight": 3.8,
       "baseHeight": 7.6,
       "crownHeight": 3.5,
+      "roofDeckHeight": 2.4,
       "color": [118, 96, 80]
     },
     {
@@ -64,6 +65,7 @@
       "floorHeight": 3.8,
       "baseHeight": 7.6,
       "crownHeight": 5.0,
+      "roofDeckHeight": 2.95,
       "color": [128, 128, 124]
     },
     {
@@ -74,6 +76,7 @@
       "floorHeight": 3.8,
       "baseHeight": 7.6,
       "crownHeight": 4.5,
+      "roofDeckHeight": 3.33,
       "color": [88, 100, 108]
     },
     {
@@ -84,6 +87,7 @@
       "floorHeight": 3.8,
       "baseHeight": 7.6,
       "crownHeight": 3.0,
+      "roofDeckHeight": 0.3,
       "color": [144, 144, 140]
     },
     {
@@ -94,6 +98,7 @@
       "floorHeight": 3.8,
       "baseHeight": 7.6,
       "crownHeight": 5.5,
+      "roofDeckHeight": 1.0,
       "color": [112, 110, 104]
     }
   ],
@@ -178,34 +183,34 @@
 
   "overgrowth": {
     "edge": {
-      "crackWeedsPerBlock": 8,
-      "streetTreeChance": 0.7,
+      "crackWeedsPerBlock": 14,
+      "streetTreeChance": 0.85,
+      "mossPerBlock": 10,
+      "lotShrubsPerBlock": 14,
+      "lotTreesPerBlock": 6,
+      "lotGrassPerBlock": 16,
+      "vineTowerChance": 0.9,
+      "roofBushChance": 0.7
+    },
+    "midtown": {
+      "crackWeedsPerBlock": 10,
+      "streetTreeChance": 0.65,
       "mossPerBlock": 6,
-      "lotShrubsPerBlock": 8,
+      "lotShrubsPerBlock": 9,
       "lotTreesPerBlock": 4,
       "lotGrassPerBlock": 10,
       "vineTowerChance": 0.75,
-      "roofBushChance": 0.55
-    },
-    "midtown": {
-      "crackWeedsPerBlock": 5,
-      "streetTreeChance": 0.45,
-      "mossPerBlock": 3,
-      "lotShrubsPerBlock": 5,
-      "lotTreesPerBlock": 2,
-      "lotGrassPerBlock": 6,
-      "vineTowerChance": 0.5,
-      "roofBushChance": 0.3
+      "roofBushChance": 0.5
     },
     "core": {
-      "crackWeedsPerBlock": 2,
-      "streetTreeChance": 0.2,
-      "mossPerBlock": 1,
-      "lotShrubsPerBlock": 2,
-      "lotTreesPerBlock": 1,
-      "lotGrassPerBlock": 2,
-      "vineTowerChance": 0.25,
-      "roofBushChance": 0.12
+      "crackWeedsPerBlock": 6,
+      "streetTreeChance": 0.4,
+      "mossPerBlock": 3,
+      "lotShrubsPerBlock": 4,
+      "lotTreesPerBlock": 2,
+      "lotGrassPerBlock": 5,
+      "vineTowerChance": 0.5,
+      "roofBushChance": 0.3
     },
     "vineSpacingM": 6.0,
     "crackWeedLengthM": 3.0,
@@ -222,6 +227,7 @@
       0.05
     ],
     "vineCornerMarginM": 1.5,
+    "vineDoorGapM": 4.0,
     "roofEdgeInsetM": 1.5,
     "roofTreeChance": 0.35
   },
@@ -285,7 +291,7 @@
     "lobbyDressing": [
       {
         "model": "lobby_column",
-        "chance": 0.65,
+        "chance": 0.9,
         "y": 0.1,
         "x": -0.22,
         "z": 0.18,
@@ -293,7 +299,7 @@
       },
       {
         "model": "lobby_column",
-        "chance": 0.65,
+        "chance": 0.9,
         "y": 0.1,
         "x": 0.22,
         "z": -0.18,
@@ -301,7 +307,7 @@
       },
       {
         "model": "lobby_ceiling_hang",
-        "chance": 0.45,
+        "chance": 0.75,
         "y": 5.8,
         "x": 0.0,
         "z": -0.1,
@@ -309,7 +315,7 @@
       },
       {
         "model": "lobby_light_broken",
-        "chance": 0.5,
+        "chance": 0.75,
         "y": 5.6,
         "x": 0.12,
         "z": 0.08,
@@ -325,7 +331,7 @@
       },
       {
         "model": "lobby_chair_tipped",
-        "chance": 0.4,
+        "chance": 0.6,
         "y": 0.1,
         "x": 0.16,
         "z": -0.15,
@@ -333,15 +339,55 @@
       },
       {
         "model": "lobby_debris",
-        "chance": 0.5,
+        "chance": 0.9,
         "y": 0.1,
         "x": -0.14,
         "z": -0.08,
         "yaw": 0.7
       },
       {
+        "model": "lobby_column",
+        "chance": 0.9,
+        "y": 0.1,
+        "x": -0.22,
+        "z": -0.18,
+        "yaw": 0.0
+      },
+      {
+        "model": "lobby_column",
+        "chance": 0.9,
+        "y": 0.1,
+        "x": 0.22,
+        "z": 0.18,
+        "yaw": 0.0
+      },
+      {
+        "model": "lobby_ceiling_hang",
+        "chance": 0.6,
+        "y": 5.8,
+        "x": -0.15,
+        "z": 0.12,
+        "yaw": 1.4
+      },
+      {
+        "model": "lobby_debris",
+        "chance": 0.8,
+        "y": 0.1,
+        "x": 0.12,
+        "z": 0.16,
+        "yaw": 2.3
+      },
+      {
+        "model": "lobby_debris",
+        "chance": 0.6,
+        "y": 0.1,
+        "x": -0.06,
+        "z": 0.24,
+        "yaw": 4.0
+      },
+      {
         "model": "body_sheet_b",
-        "chance": 0.18,
+        "chance": 0.25,
         "y": 0.1,
         "x": 0.2,
         "z": -0.24,

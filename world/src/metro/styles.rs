@@ -67,6 +67,9 @@ pub struct StyleDef {
     pub floor_height: f32,
     pub base_height: f32,
     pub crown_height: f32,
+    /// Height of the walkable roof deck above the crown base (from the Blender crown scripts).
+    #[serde(default)]
+    pub roof_deck_height: f32,
     /// Wall sRGB colour `[r, g, b]` used by the far skyline.
     pub color: [u8; 3],
 }

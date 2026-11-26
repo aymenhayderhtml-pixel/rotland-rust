@@ -3,6 +3,7 @@
 pub mod config;
 pub mod curbs;
 pub mod damage;
+pub mod damage_burnt;
 pub mod layout;
 pub mod overgrowth;
 pub mod place;

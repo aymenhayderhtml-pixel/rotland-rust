@@ -164,7 +164,7 @@ fn nothing_on_entrance_avenue_or_reserved_blocks() {
 }
 
 #[test]
-fn vines_are_flat_off_facade_at_ground_and_never_on_front() {
+fn vines_are_flat_off_facade_at_ground_and_clear_of_the_door() {
     let metro = build_metro(Vec2::new(1000.0, -2000.0), 0.6);
     let props = collect_all(&metro);
     let vines: Vec<_> = props.iter().filter(|p| p.model.starts_with("vine_wall_")).collect();
@@ -180,8 +180,8 @@ fn vines_are_flat_off_facade_at_ground_and_never_on_front() {
             .expect("nearest tower");
         let local = to_tower_local(t, wp);
         assert!(
-            !(local.y < -t.half.y && local.x.abs() <= t.half.x),
-            "vine placed on front lobby face: local={local:?}"
+            !(local.y < -t.half.y && local.x.abs() < 4.0 - EPS),
+            "vine placed over the lobby door: local={local:?}"
         );
         let off = local.x.abs().max(local.y.abs()) - t.half.x - 0.15;
         assert!((0.02 - EPS..=0.05 + EPS).contains(&off), "vine back standoff {off} out of 2..5 cm");
@@ -220,7 +220,7 @@ fn roof_props_sit_at_last_floor_top_inside_roof_rect() {
         let last_top = parts
             .iter()
             .rfind(|p| p.kind == PartKind::Floor)
-            .map(|p| p.pos.y + fh)
+            .map(|p| p.pos.y + fh + style.roof_deck_height)
             .expect("tower has floors");
         assert!(
             (r.position.y - last_top).abs() <= 0.05,

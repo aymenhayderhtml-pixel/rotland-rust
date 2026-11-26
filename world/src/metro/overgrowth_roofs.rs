@@ -26,7 +26,8 @@ const VINE_VARIANTS: [(&str, f32); 3] = [ // new: DECISIONS 2026-11-26
     ("vine_wall_l", 14.0), // new: DECISIONS 2026-11-26
 ];
 /// Non-front face offsets relative to `TowerSpot.yaw` (back, right, left; front at 0 is lobby).
-const NON_FRONT_FACES: [f32; 3] = [PI, -FRAC_PI_2, FRAC_PI_2]; // new: DECISIONS 2026-11-26
+/// Face yaw offsets: front (lobby door, vines kept off the door) first, then back and sides.
+const ALL_FACES: [f32; 4] = [0.0, PI, -FRAC_PI_2, FRAC_PI_2]; // new: DECISIONS 2026-11-26
 
 struct BlockEdge<'a> {
     street: &'a MetroStreet,
@@ -234,7 +235,7 @@ pub(super) fn place_tower_overgrowth(
             continue;
         };
         place_wall_vines(spot, last_floor_top - ground_y, district, cfg, height, rng, out);
-        place_roof_prop(spot, last_floor_top, district, cfg, rng, out);
+        place_roof_prop(spot, last_floor_top + style.roof_deck_height, district, cfg, rng, out);
     }
 }
 
@@ -254,20 +255,24 @@ fn place_wall_vines(
     if fitting.is_empty() {
         return;
     }
-    let face_count = 1 + rng.next(2) as usize;
-    let mut pool = NON_FRONT_FACES.to_vec();
+    let face_count = 1 + rng.next(3) as usize; // new: DECISIONS 2026-11-26 (1-3 faces)
+    let mut pool = ALL_FACES.to_vec();
     let half_span = (spot.half.x - cfg.vine_corner_margin_m).max(0.0);
     for _ in 0..face_count {
         if pool.is_empty() {
             break;
         }
-        let face_yaw = spot.yaw + pool.swap_remove(rng.next(pool.len() as i32) as usize);
+        let face_off = pool.swap_remove(rng.next(pool.len() as i32) as usize);
+        let face_yaw = spot.yaw + face_off;
         let normal = Vec2::new(-face_yaw.sin(), -face_yaw.cos());
         let tangent = Vec2::new(-normal.y, normal.x);
         let slots = if half_span > 0.0 { ((2.0 * half_span) / cfg.vine_spacing_m).floor().max(1.0) as usize } else { 1 };
         let step = (2.0 * half_span) / slots as f32;
         for s in 0..slots {
             let u = lerp_f32(-half_span + s as f32 * step, -half_span + (s + 1) as f32 * step, rng.next_double() as f32);
+            if face_off == 0.0 && u.abs() < cfg.vine_door_gap_m {
+                continue;
+            }
             let (model, _) = fitting[rng.next(fitting.len() as i32) as usize];
             let standoff = lerp_f32(cfg.vine_wall_standoff_m[0], cfg.vine_wall_standoff_m[1], rng.next_double() as f32);
             let xz = spot.pos + tangent * u + normal * (spot.half.x + cfg.vine_half_depth_m + standoff);

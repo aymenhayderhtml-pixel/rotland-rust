@@ -291,7 +291,14 @@ impl Streamer {
                 ladders.extend(game::ladders_from_markers(&m.markers, matrix));
             }
             let mut placed_at = None;
-            if let Some(slot) = library.get(device, pack, id, building) {
+            // Big damage set pieces (fallen section, leaning tower) use the tower LOD distances,
+            // not the small-prop ones, so their full model shows from the street.
+            let set_piece_lod0 = id.starts_with("tw_").then(|| self.world_gen.metro_world().map(|m| m.config.towers.lod0_distance)).flatten();
+            let slot = match set_piece_lod0 {
+                Some(lod0) => library.get_tower(device, pack, id, lod0, crate::metro_render::parts::tower_load_ring_range()),
+                None => library.get(device, pack, id, building),
+            };
+            if let Some(slot) = slot {
                 placed_at = Some(placed.len());
                 placed.push(library.place(slot, position, yaw, scale));
             }
