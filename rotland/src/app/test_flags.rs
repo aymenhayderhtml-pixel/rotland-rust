@@ -52,7 +52,7 @@ pub struct TestFlags {
     pub spawn_zombie: Option<String>,
     /// `--town=<key>`: teleport 25 m from that town's centre, facing it (R33-05).
     pub town: Option<String>,
-    /// `--metro=<spot>`: teleport into New Halden (`edge|core|highway|town_view|top|lobby|landmark`).
+    /// `--metro=<spot>`: teleport into New Halden (`edge|core|highway|town_view|top|lobby|landmark|fallen|leaning|burnt|carwall|camp`).
     pub metro: Option<String>,
     /// `--tower-style=<key>`: with `--metro=core`, view the nearest tower of that style (R39-08).
     pub tower_style: Option<TowerStyle>,
@@ -569,7 +569,7 @@ fn apply_metro_tp(
 ) {
     let Some(spot) = MetroSpot::parse(key) else {
         log::warn!(
-            "--metro={key}: unknown spot (expected edge|core|highway|town_view|top|lobby|landmark)"
+            "--metro={key}: unknown spot (expected edge|core|highway|town_view|top|lobby|landmark|fallen|leaning|burnt|carwall|camp)"
         );
         return;
     };
@@ -609,12 +609,16 @@ fn apply_metro_tp(
         return;
     };
     teleport_player_and_stream(gpu, render, world, actors, session, pose.pos, pose.yaw);
-    if spot == MetroSpot::Lobby {
+    let custom_y = if spot == MetroSpot::Lobby {
         // Place inside the ground-floor lobby (above the 0.1 m slab), not on the roof collider.
-        let lobby_y = metro.layout.site.ground_y + 0.15; // new: DECISIONS 2026-11-26
-        actors.player.y = lobby_y;
+        Some(metro.layout.site.ground_y + 0.15) // new: DECISIONS 2026-11-26
+    } else {
+        pose.y
+    };
+    if let Some(y) = custom_y {
+        actors.player.y = y;
         if let Some(p) = actors.player_ctrl.as_mut() {
-            p.position.y = lobby_y;
+            p.position.y = y;
         }
         if let Some(rig) = actors.camera_rig.as_mut()
             && session.scene == "play"

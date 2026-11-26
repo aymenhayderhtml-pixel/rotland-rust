@@ -233,6 +233,9 @@ impl Streamer {
 
     fn shapes_of(&mut self, pack: &pack::ModelPack, id: &str) -> &Vec<Vec<[f32; 3]>> {
         self.shapes.entry(id.to_string()).or_insert_with(|| {
+            if is_no_collider_prop(id) {
+                return Vec::new();
+            }
             let Some(m) = pack.find(id) else {
                 return Vec::new();
             };
@@ -339,8 +342,8 @@ impl Streamer {
                 b.coord,
                 styles,
             );
-            let bases = tower_bases(&m.towers, b.coord, ground_y);
-            let hulls = tower_hulls(&m.towers, b.coord, ground_y, styles);
+            let bases = tower_bases(&m.towers, b.coord, ground_y, &m.damage);
+            let hulls = tower_hulls(&m.towers, b.coord, ground_y, styles, &m.damage);
             (curbs, tower_placed, bases, hulls)
         });
         let mut curbs = None;
@@ -392,6 +395,22 @@ impl Streamer {
         }
         Some(slot)
     }
+}
+
+fn is_no_collider_prop(id: &str) -> bool {
+    [
+        "weeds_",
+        "moss_",
+        "leaves_",
+        "graffiti_",
+        "poster_",
+        "vine_",
+        "grass_tall_patch",
+        "roof_bush",
+        "roof_tree",
+    ]
+    .iter()
+    .any(|p| id.starts_with(p))
 }
 
 fn is_walkable_deck_model(id: &str) -> bool {

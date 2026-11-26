@@ -42,6 +42,10 @@ fn default_lod0_distance() -> f32 {
     90.0 // new: DECISIONS 2026-11-26 (fallback for metro.json towers.lod0Distance)
 }
 
+fn default_damaged_share() -> f32 {
+    0.25 // data: metro.json towers.damagedShare
+}
+
 /// One setback step on a landmark tower (`towers.setbacks`).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -81,6 +85,9 @@ pub struct TowersConfig {
     /// Ground-floor lobby interior props (`towers.lobbyProps`).
     #[serde(default)]
     pub lobby_props: Vec<LobbyProp>,
+    /// Share of floors rendered as damaged `_floor_c` (`towers.damagedShare`).
+    #[serde(default = "default_damaged_share")]
+    pub damaged_share: f32,
 }
 
 /// The wide highway from the nearest town into the city (`highway` in `data/metro.json`).

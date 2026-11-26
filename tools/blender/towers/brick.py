@@ -8,9 +8,11 @@ sys.path.insert(0, os.path.join(HERE, "..", "buildings"))
 sys.path.insert(0, HERE)
 
 import common  # noqa: E402
+import damaged_parts  # noqa: E402
 import kit  # noqa: E402
 import brick_parts  # noqa: E402
 import roof_parts  # noqa: E402
+import roof_props  # noqa: E402
 import shell  # noqa: E402
 
 FLOOR_H = 3.8
@@ -163,10 +165,24 @@ def build_crown(model, size):
     k.box((-h - 0.05, -h + par_t, 3.36), (-h + par_t + 0.04, h - par_t, CROWN_H), "limestone")
     k.box((h - par_t - 0.04, -h + par_t, 3.36), (h + 0.05, h - par_t, CROWN_H), "limestone")
 
-    # Roof equipment from shared roof_parts
-    roof_parts.water_tank(k, -h * 0.42, -h * 0.25, 2.40)
-    roof_parts.ac_unit(k, h * 0.35, -h * 0.30, 2.40)
-    roof_parts.vent_stack(k, h * 0.25, h * 0.35, 2.40, 1.5)
+    # Roof equipment from shared roof_props / roof_parts
+    if size == 16:
+        roof_props.roof_water_tank_ny(k, -3.6, -3.4, 2.40, r=1.25, leg_h=1.20, tank_h=1.95)
+        roof_props.roof_stair_hut(k, 3.6, -3.2, 2.40, wall_color="brick_red")
+        roof_props.roof_machinery(k, -3.4, 3.6, 2.40)
+        roof_props.roof_antenna(k, 4.2, 3.8, 2.40, h=3.4)
+        roof_parts.ac_unit(k, 0.2, 4.6, 2.40)
+        roof_parts.vent_stack(k, 0.2, 0.2, 2.40, 1.5)
+    else:
+        roof_props.roof_water_tank_ny(k, -6.4, -5.8, 2.40, r=1.35, leg_h=1.35, tank_h=2.15)
+        roof_props.roof_water_tank_ny(k, -6.4, 5.4, 2.40, r=1.30, leg_h=1.25, tank_h=2.05)
+        roof_props.roof_stair_hut(k, 6.2, -5.4, 2.40, wall_color="brick_red")
+        roof_props.roof_machinery(k, 0.0, -5.8, 2.40)
+        roof_props.roof_antenna(k, 6.8, 6.2, 2.40, h=3.8)
+        roof_props.roof_antenna(k, -0.8, 6.4, 2.40, h=3.2)
+        roof_parts.ac_unit(k, 6.2, 0.6, 2.40)
+        roof_parts.ac_unit(k, 2.6, 6.4, 2.40)
+        roof_parts.vent_stack(k, -1.8, 0.2, 2.40, 1.5)
 
 
 def build_floor_lod1(model, size):
@@ -198,8 +214,99 @@ def build_crown_lod1(model, size):
     k.box((-h, -h, 0.0), (h, h, 2.0), "brick_red")
     k.box((-h - 0.55, -h - 0.55, 2.0), (h + 0.55, h + 0.55, 2.6), "limestone")
     k.box((-h, -h, 2.6), (h, h, CROWN_H), "brick_red")
-    model.add(common.make_frustum(1.1, 1.1, 2.6, 5.2, segments=6,
-                                  center=(-h * 0.42, -h * 0.25), color="bark_light"))
+    if size == 16:
+        model.add(common.make_frustum(1.3, 1.3, 2.6, 6.2, segments=6, center=(-3.6, -3.4), color="bark_light"))
+        k.box((2.1, -4.9, 2.4), (5.1, -1.5, 4.7), "brick_red")
+        k.box((-5.0, 2.5, 2.4), (-1.8, 4.7, 4.0), "concrete_grey")
+        k.box((4.0, 3.6, 2.4), (4.4, 4.0, 5.8), "metal")
+    else:
+        model.add(common.make_frustum(1.35, 1.35, 2.6, 6.4, segments=6, center=(-6.4, -5.8), color="bark_light"))
+        model.add(common.make_frustum(1.30, 1.30, 2.6, 6.2, segments=6, center=(-6.4, 5.4), color="bark_light"))
+        k.box((4.7, -7.1, 2.4), (7.7, -3.7, 4.7), "brick_red")
+        k.box((-1.6, -6.9, 2.4), (1.6, -4.7, 4.0), "concrete_grey")
+        k.box((6.6, 6.0, 2.4), (7.0, 6.4, 6.2), "metal")
+        k.box((-1.0, 6.2, 2.4), (-0.6, 6.6, 5.6), "metal")
+
+
+def build_floor_c(model, size):
+    """Damaged brick floor variant: 25-40% dead/missing panes, shattered crosses, soot/rust streaks, torn corner."""
+    k = kit.Kit(model)
+    h = size / 2
+    damaged_parts.damaged_wall_core(k, size, 0.14, FLOOR_H - 0.14, "brick_red", trim_color="brick_dark")
+    # Bottom and top slab bands
+    k.box((-h, -h, 0.0), (h, h, 0.14), "brick_dark")
+    k.box((-h, -h, FLOOR_H - 0.14), (h, h, FLOOR_H), "brick_dark")
+    # Corner piers (shortened at +X/+Y torn corner) + mid-bay piers
+    for cx in (-h, h):
+        for cy in (-h, h):
+            z_top = FLOOR_H - 0.38 if (cx > 0 and cy > 0) else FLOOR_H
+            k.box((cx - 0.22, cy - 0.22, 0.0), (cx + 0.22, cy + 0.22, z_top), "brick_dark")
+    for p in _pier_positions(size):
+        k.box((p - 0.16, h - 0.05, 0.0), (p + 0.16, h + 0.10, FLOOR_H), "brick_dark")
+        k.box((p - 0.16, -h - 0.10, 0.0), (p + 0.16, -h + 0.05, FLOOR_H), "brick_dark")
+        k.box((h - 0.05, p - 0.16, 0.0), (h + 0.10, p + 0.16, FLOOR_H), "brick_dark")
+        k.box((-h - 0.10, p - 0.16, 0.0), (-h + 0.05, p + 0.16, FLOOR_H), "brick_dark")
+
+    bays = _bay_centers(size)
+    faces = ((h, 1, 1, True), (h, 0, 1, True), (-h, 0, -1, True), (-h, 1, -1, False))
+    for fi, (coord, axis, sign, detailed) in enumerate(faces):
+        for bi, uc in enumerate(bays):
+            idx = fi * len(bays) + bi
+            if (fi == 0 and bi == 1) or (fi == 1 and bi == len(bays) - 2):
+                damaged_parts.missing_frame(k, coord, axis, sign, uc, 0.95, 2.85, 0.65)
+                damaged_parts.soot_streak(k, coord, axis, sign, uc, 2.85)
+                continue
+            shattered = (fi == 0 and bi == len(bays) - 1) or (fi == 1 and bi == 0) or (fi == 2 and bi == 1)
+            if shattered:
+                brick_parts.add_window(k, coord, axis, sign, uc, 0.95, 2.85, variant="empty", detailed=detailed)
+                damaged_parts.shattered_pane(k, coord, axis, sign, uc, 0.95, 2.85, 0.65, d_base=0.028)
+            else:
+                var = ("empty", "normal", "boarded", "rust", "empty", "ac")[idx % 6]
+                brick_parts.add_window(k, coord, axis, sign, uc, 0.95, 2.85, variant=var, detailed=detailed)
+            if (fi == 0 and bi == 2) or (fi == 2 and bi == 2):
+                damaged_parts.soot_streak(k, coord, axis, sign, uc, 2.85)
+            if detailed and (idx % 2 == 0):
+                damaged_parts.rust_streak(k, coord, axis, sign, uc, 0.95)
+
+    fe_u = -2.0 if size == 16 else -4.0
+    brick_parts.add_fire_escape_floor(k, h, 1, 1, fe_u, 0.05, FLOOR_H, zig_dir=1, has_landing=True)
+    brick_parts.add_fire_escape_floor(k, h, 0, 1, 0.0, 0.05, FLOOR_H, zig_dir=-1, has_landing=False)
+
+
+def build_floor_c_lod1(model, size):
+    k = kit.Kit(model)
+    h = size / 2
+    damaged_parts.damaged_wall_core(k, size, 0.14, FLOOR_H - 0.14, "brick_red", patch=1.2, short_h=0.40)
+    k.box((-h - 0.04, -h - 0.04, 0.0), (h + 0.04, h + 0.04, 0.16), "brick_dark")
+    k.box((-h - 0.04, -h - 0.04, FLOOR_H - 0.14), (h + 0.04, h + 0.04, FLOOR_H), "brick_dark")
+    for bi, uc in enumerate(_bay_centers(size)):
+        col_f = "soot" if bi % 2 == 1 else "glass_dark"
+        k.box((uc - 0.6, h - 0.01, 0.95), (uc + 0.6, h + 0.03, 2.85), col_f)
+        if size > 16 or bi % 2 == 0:
+            k.box((uc - 0.6, -h - 0.03, 0.95), (uc + 0.6, -h + 0.01, 2.85), "glass_dark")
+        k.box((h - 0.01, uc - 0.6, 0.95), (h + 0.03, uc + 0.6, 2.85), "soot" if bi == 1 else "glass_dark")
+        if size > 16 or bi % 2 == 0:
+            k.box((-h - 0.03, uc - 0.6, 0.95), (-h + 0.01, uc + 0.6, 2.85), "glass_dark")
+
+
+def build_r40_all():
+    results = []
+    for size in (16, 24):
+        specs = [
+            (f"tw_brick_{size}_floor_c", BUDGETS[(size, "floor")][0],
+             lambda m, s=size: build_floor_c(m, s)),
+            (f"tw_brick_{size}_floor_c_lod1", BUDGETS[(size, "floor")][1],
+             lambda m, s=size: build_floor_c_lod1(m, s)),
+            (f"tw_brick_{size}_crown", BUDGETS[(size, "crown")][0],
+             lambda m, s=size: build_crown(m, s)),
+            (f"tw_brick_{size}_crown_lod1", BUDGETS[(size, "crown")][1],
+             lambda m, s=size: build_crown_lod1(m, s)),
+        ]
+        for name, budget, fn in specs:
+            ok = common.run_model(name, "buildings", budget, fn,
+                                  grip=(0.0, 0.0, 0.0), top_preview=False, view=kit.FRONT_VIEW)
+            results.append((name, ok))
+    return results
 
 
 def build_all():

@@ -60,7 +60,8 @@ The remaining `.py` files in these folders are helpers that the scripts above im
 - `--town=<key>` (`dusthollow`, `frostmere`, `blackwater`, `ridgeback`) — teleports the player 25 m from that town's centre along its street, facing the town.
 - `--metro=<spot>` (`edge`, `core`, `highway`, `town_view`, `top`) — teleports into New Halden: `edge` 10 m inside the first avenue entrance looking in, `core` the city centre along the nearest avenue, `highway` beside the jam looking at the skyline, `town_view` 25 m from the highway's town looking at the city, `top` 120 m above the Core looking down 60 degrees (the camera is set on the rig's spring, so it hangs about 70 m off the Core toward the highway).
 - `--metro=lobby` — teleports inside the ground-floor lobby of the tower nearest the Core centre, facing its street door.
-- `--metro=landmark` — teleports onto the nearest avenue ~40 m from the nearest landmark tower, looking up at its crown.
+- `--metro=landmark` — teleports onto the nearest avenue ~60 m from the tallest landmark tower, looking up at its crown.
+- `--metro=<fallen|leaning|burnt|carwall|camp>` — teleports to the fallen tower section, leaning tower, burnt-out block, first street-end car wall, or first rooftop camp.
 - `--tower-style=<brick|stone|glass|slab|deco>` (with `--metro=core`) — teleports to the street in front of the nearest tower of that style, facing its facade.
 - `--map` — opens the big map hub screen on startup (unless `--gunsmith` or `--metro` UI already took the screen).
 - `--trailhead=<n>` — teleports the player 25 m before trailhead `n`, facing outward along the road.

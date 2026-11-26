@@ -176,8 +176,24 @@ fn range_for(id: &str) -> f32 {
     }
 }
 
+fn is_no_shadow_metro_prop(id: &str) -> bool {
+    [
+        "weeds_",
+        "moss_",
+        "leaves_",
+        "graffiti_",
+        "poster_",
+        "vine_",
+        "roof_bush",
+        "roof_tree",
+    ]
+    .iter()
+    .any(|p| id.starts_with(p))
+}
+
 fn casts_shadow(id: &str) -> bool {
     !is_ground(id)
+        && !is_no_shadow_metro_prop(id)
         && !is_big_rock(id)
         && !id.starts_with("rock_")
         && !id.starts_with("bush_")
@@ -673,6 +689,22 @@ mod tests {
         assert!(casts_shadow("pine_snow"));
         assert!(casts_shadow("tree_swamp"));
         assert!(casts_shadow("tree_desert_dead"));
+
+        // R40 tiny props & decals cast no shadow; car_wall_stack still casts.
+        for id in [
+            "weeds_crack",
+            "moss_patch",
+            "leaves_litter",
+            "graffiti_dead_inside",
+            "poster_wall",
+            "vine_wall_s",
+            "grass_tall_patch",
+            "roof_bush",
+            "roof_tree",
+        ] {
+            assert!(!casts_shadow(id), "{id} must not cast shadow");
+        }
+        assert!(casts_shadow("car_wall_stack"));
     }
 
     #[test]

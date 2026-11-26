@@ -10,8 +10,10 @@ for p in (HERE, BLENDER_DIR, os.path.join(BLENDER_DIR, "buildings"), os.path.joi
         sys.path.insert(0, p)
 
 import common  # noqa: E402
+import damaged_parts  # noqa: E402
 import kit  # noqa: E402
 import roof_parts  # noqa: E402
+import roof_props  # noqa: E402
 import shell  # noqa: E402
 
 CATEGORY = "buildings"
@@ -255,12 +257,25 @@ def _build_crown(size):
             k.box((-ph - 0.04, u - 0.04, pz0), (-ph + 0.06, u + 0.04, pz1), "metal")
             k.box((ph - 0.06, u - 0.04, pz0), (ph + 0.04, u + 0.04, pz1), "metal")
 
-        # Roof plant box (metal) + shared roof_parts
+        # Roof plant box (metal) + shared roof_props / roof_parts
         k.box((-ph + 0.6, -ph + 0.6, pz1 + 0.08), (-ph + 3.2, -ph + 2.4, pz1 + 0.95), "metal")
         k.box((-ph + 0.7, -ph + 0.7, pz1 + 0.95), (-ph + 3.1, -ph + 2.3, pz1 + 1.05), "rust")
-        roof_parts.ac_unit(k, ph - 2.0, 0.0, pz1 + 0.08)
         roof_parts.vent_stack(k, -half + 1.6, half - 1.6, 0.65, 1.8)
-        roof_parts.antenna(k, 0.0, 0.0, pz1 + 0.08, CROWN_H - (pz1 + 0.08))
+        if size == 24:
+            roof_props.roof_water_tank_ny(k, -4.8, 4.6, pz1 + 0.08, r=1.25, leg_h=1.20, tank_h=1.95)
+            roof_props.roof_stair_hut(k, 4.8, -4.4, pz1 + 0.08)
+            roof_props.roof_machinery(k, 0.2, 4.8, pz1 + 0.08)
+            roof_props.roof_antenna(k, 5.2, 5.2, pz1 + 0.08, h=3.6)
+            roof_parts.ac_unit(k, ph - 2.0, 0.2, pz1 + 0.08)
+        else:
+            roof_props.roof_water_tank_ny(k, -8.2, 7.6, pz1 + 0.08, r=1.35, leg_h=1.35, tank_h=2.15)
+            roof_props.roof_water_tank_ny(k, 7.8, -7.8, pz1 + 0.08, r=1.25, leg_h=1.20, tank_h=1.95)
+            roof_props.roof_stair_hut(k, 0.2, -7.8, pz1 + 0.08)
+            roof_props.roof_machinery(k, -0.4, 7.8, pz1 + 0.08)
+            roof_props.roof_antenna(k, 8.2, 8.0, pz1 + 0.08, h=4.2)
+            roof_props.roof_antenna(k, -8.0, -3.5, pz1 + 0.08, h=3.4)
+            roof_parts.ac_unit(k, ph - 2.2, 0.4, pz1 + 0.08)
+            roof_parts.ac_unit(k, -ph + 2.4, 1.5, pz1 + 0.08)
 
     return common.run_model(name, CATEGORY, BUDGET_CROWN, fn, grip=(0.0, 0.0, 0.0), view=kit.FRONT_VIEW)
 
@@ -274,9 +289,126 @@ def _build_crown_lod1(size):
         ph = half - 3.0
         k.box((-half, -half, 0.0), (half, half, 0.8), "concrete_grey")
         k.box((-ph, -ph, 0.8), (ph, ph, 3.3), "glass_tint")
-        k.box((-0.12, -0.12, 3.3), (0.12, 0.12, CROWN_H), "metal")
+        if size == 24:
+            model.add(common.make_frustum(1.25, 1.25, 3.3, 6.8, segments=6, center=(-4.8, 4.6), color="bark_light"))
+            k.box((3.3, -6.1, 3.3), (6.3, -2.7, 5.8), "concrete_grey")
+            k.box((-1.4, 3.7, 3.3), (1.8, 5.9, 5.0), "concrete_grey")
+            k.box((5.0, 5.0, 3.3), (5.4, 5.4, 7.0), "metal")
+        else:
+            model.add(common.make_frustum(1.35, 1.35, 3.3, 7.2, segments=6, center=(-8.2, 7.6), color="bark_light"))
+            model.add(common.make_frustum(1.25, 1.25, 3.3, 6.8, segments=6, center=(7.8, -7.8), color="bark_light"))
+            k.box((-1.3, -9.5, 3.3), (1.7, -6.1, 5.8), "concrete_grey")
+            k.box((-2.0, 6.7, 3.3), (1.2, 8.9, 5.0), "concrete_grey")
+            k.box((8.0, 7.8, 3.3), (8.4, 8.2, 7.6), "metal")
+            k.box((-8.2, -3.7, 3.3), (-7.8, -3.3, 6.8), "metal")
 
     return common.run_model(name, CATEGORY, BUDGET_CROWN // 10, fn, grip=(0.0, 0.0, 0.0), view=kit.FRONT_VIEW)
+
+
+def _curtain_face_c(k, size, face, z0, z1, simple=False):
+    """Damaged curtain-wall band for `_floor_c` with shattered crosses, missing frames, soot & rust."""
+    half = size / 2.0
+    bays = size // 4
+    panes = bays * SUB_PANES if not simple else bays
+    pw = size / panes
+    along_x = face in ("+Y", "-Y")
+    sign = 1.0 if face in ("+Y", "+X") else -1.0
+    fi = {"+Y": 0, "+X": 1, "-X": 2, "-Y": 3}[face]
+    face_coord = sign * half
+
+    def place_box(u0, u1, d0, d1, zb, zt, color):
+        damaged_parts.box_on_face(k, face_coord, 1 if along_x else 0, sign, u0, u1, zb, zt, d0, d1, color)
+
+    mid_z = (z0 + z1) / 2.0
+    # Transoms stop short at the (+X, +Y) torn corner bay
+    top_u_hi = half - 1.2 if face in ("+Y", "+X") else half
+    place_box(-half, half, -0.08, 0.04, z0, z0 + 0.06, "metal")
+    place_box(-half, top_u_hi, -0.08, 0.04, z1 - 0.06, z1, "metal")
+    if not simple:
+        place_box(-half, top_u_hi, -0.06, 0.03, mid_z - 0.04, mid_z + 0.04, "metal")
+    place_box(-half, half, 0.02, 0.07, z0 + 0.02, z0 + 0.08, "chrome")
+    place_box(-half, top_u_hi, 0.02, 0.07, z1 - 0.08, z1 - 0.02, "chrome")
+
+    miss_panes = {(0, 3), (0, 4), (1, 10), (1, 11)} if not simple else set()
+    for i in range(panes + 1):
+        u = -half + i * pw
+        if (fi, i) in miss_panes or (fi, i - 1) in miss_panes:
+            continue
+        if face in ("+Y", "+X") and u > half - 1.15:
+            continue
+        is_bay = (i % (1 if simple else SUB_PANES)) == 0
+        place_box(u - 0.06, u + 0.06, -0.10, 0.04, z0, z1, "metal")
+        if is_bay and not simple:
+            place_box(u - 0.035, u + 0.035, 0.03, 0.07, z0, z1, "chrome")
+
+    for i in range(panes):
+        u0 = -half + i * pw + 0.06
+        u1 = -half + (i + 1) * pw - 0.06
+        uc = (u0 + u1) / 2.0
+        axis = 1 if along_x else 0
+        if face in ("+Y", "+X") and uc > half - 1.15:
+            continue
+        if (fi, i) in ((0, 3), (1, 10)):
+            damaged_parts.missing_frame(k, face_coord, axis, sign, uc, z0, z1, pw * 0.5, d_base=-0.09)
+            damaged_parts.soot_streak(k, face_coord, axis, sign, uc, z1, width=pw * 0.9, d_base=0.01)
+            continue
+        if (fi, i) in ((0, 9), (1, 2), (2, 4), (0, 14)):
+            damaged_parts.shattered_pane(k, face_coord, axis, sign, uc, z0, z1, pw * 0.46, d_base=-0.08)
+            continue
+        code = (fi * 17 + i * 11) % 10
+        color = "soot" if code in (1, 5) else ("glass_dark" if code in (0, 3, 7) else "glass_tint")
+        place_box(u0, u1, -0.12, -0.08, z0 + 0.06, z1 - 0.06, color)
+        if not simple and code in (1, 7):
+            damaged_parts.soot_streak(k, face_coord, axis, sign, uc, z1, width=pw * 0.85, d_base=0.01)
+        if not simple and i % 3 == 0:
+            damaged_parts.rust_streak(k, face_coord, axis, sign, uc, z0 + 0.06, width=0.38, d_base=0.01)
+
+
+def _build_floor_c(size):
+    name = f"tw_glass_{size}_floor_c"
+
+    def fn(model):
+        k = kit.Kit(model)
+        half = size / 2.0
+        k.box((-half + 0.14, -half + 0.14, 0.05), (half - 0.14, half - 0.14, FLOOR_H - 0.05), "soot")
+        _spandrel_band(k, size, 0.0, SPANDREL_H, rust_seed=3)
+        # Top spandrel with (+X, +Y) torn corner 0.35 m shorter revealing soot core
+        k.box((-half, -half, FLOOR_H - SPANDREL_H), (half - 1.15, half, FLOOR_H), "concrete_grey")
+        k.box((half - 1.15, -half, FLOOR_H - SPANDREL_H), (half, half - 1.15, FLOOR_H), "concrete_grey")
+        k.box((half - 1.15, half - 1.15, FLOOR_H - 0.12), (half, half, FLOOR_H), "concrete_grey")
+        k.box((half - 0.42, half - 0.20, FLOOR_H - 0.48), (half - 0.36, half - 0.14, FLOOR_H - 0.08), "rust_dark")
+        for face in ("+Y", "+X", "-X"):
+            _curtain_face_c(k, size, face, SPANDREL_H, FLOOR_H - SPANDREL_H)
+        _curtain_face_c(k, size, "-Y", SPANDREL_H, FLOOR_H - SPANDREL_H, simple=True)
+
+    return common.run_model(name, CATEGORY, BUDGET_FLOOR[size], fn, grip=(0.0, 0.0, 0.0), view=kit.FRONT_VIEW)
+
+
+def _build_floor_c_lod1(size):
+    name = f"tw_glass_{size}_floor_c_lod1"
+
+    def fn(model):
+        k = kit.Kit(model)
+        half = size / 2.0
+        k.box((-half, -half, 0.0), (half, half, SPANDREL_H), "concrete_grey")
+        k.box((-half, -half, FLOOR_H - SPANDREL_H), (half, half, FLOOR_H), "concrete_grey")
+        damaged_parts.damaged_wall_core(k, size, SPANDREL_H, FLOOR_H - SPANDREL_H, "glass_tint",
+                                        patch=1.2, short_h=0.40, inset=0.04)
+        for ox in (-half * 0.6, -half * 0.1, half * 0.4):
+            k.box((ox - 1.1, half - 0.02, SPANDREL_H + 0.15), (ox + 1.1, half + 0.04, FLOOR_H - SPANDREL_H - 0.15), "soot")
+        k.box((half - 0.02, -half * 0.3, SPANDREL_H + 0.15), (half + 0.04, half * 0.2, FLOOR_H - SPANDREL_H - 0.15), "glass_dark")
+
+    return common.run_model(name, CATEGORY, BUDGET_FLOOR[size] // 10, fn, grip=(0.0, 0.0, 0.0), view=kit.FRONT_VIEW)
+
+
+def build_r40_all():
+    results = []
+    for size in (24, 32):
+        results.append((f"tw_glass_{size}_floor_c", _build_floor_c(size)))
+        results.append((f"tw_glass_{size}_floor_c_lod1", _build_floor_c_lod1(size)))
+        results.append((f"tw_glass_{size}_crown", _build_crown(size)))
+        results.append((f"tw_glass_{size}_crown_lod1", _build_crown_lod1(size)))
+    return results
 
 
 def build_all():

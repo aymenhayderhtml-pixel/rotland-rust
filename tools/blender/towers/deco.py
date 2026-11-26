@@ -12,8 +12,10 @@ import bmesh  # noqa: E402
 from mathutils import Matrix, Vector  # noqa: E402
 
 import common  # noqa: E402
+import damaged_parts  # noqa: E402
 import kit  # noqa: E402
 import roof_parts  # noqa: E402
+import roof_props  # noqa: E402
 import shell  # noqa: E402
 
 FLOOR_H = 3.8
@@ -222,29 +224,123 @@ def _build_crown(model, size):
         k.box((rx - 0.15, -pw - 0.16, 1.00), (rx + 0.15, -pw, 3.00), "limestone_dark")
     k.box((-pw * 0.6, pw + 0.02, 1.4), (pw * 0.6, pw + 0.08, 2.4), "rock_dark")
 
-    # Roof parts: 1 water tank, 2 AC units, 2 antenna stubs (max z = 5.50 m)
-    roof_parts.water_tank(k, -hs * 0.52, -hs * 0.45, 1.00, r=1.1, h=2.2)
-    roof_parts.ac_unit(k, hs * 0.52, 0.0, 1.00)
-    roof_parts.ac_unit(k, hs * 0.52, -hs * 0.42, 1.00)
-    roof_parts.antenna(k, -hs * 0.52, hs * 0.45, 1.00, CROWN_H - 1.00)
-    roof_parts.antenna(k, hs * 0.52, hs * 0.45, 1.00, CROWN_H - 1.65)
+    # Roof parts & roof_props (staying within CROWN_H=5.5 m and footprint)
+    if size == 24:
+        roof_props.roof_water_tank_ny(k, -6.4, -6.0, 1.00, r=1.25, leg_h=1.15, tank_h=1.90)
+        roof_props.roof_stair_hut(k, 6.4, -5.6, 1.00, wall_color="limestone")
+        roof_props.roof_machinery(k, -6.2, 5.8, 1.00)
+        roof_props.roof_antenna(k, 6.6, 6.2, 1.00, h=4.2)
+        roof_parts.ac_unit(k, 0.0, 6.8, 1.00)
+        roof_parts.vent_stack(k, 0.0, -6.8, 1.00, 1.6)
+    else:
+        roof_props.roof_water_tank_ny(k, -9.4, -8.8, 1.00, r=1.35, leg_h=1.25, tank_h=2.05)
+        roof_props.roof_water_tank_ny(k, -9.4, 8.2, 1.00, r=1.25, leg_h=1.15, tank_h=1.90)
+        roof_props.roof_stair_hut(k, 9.2, -8.4, 1.00, wall_color="limestone")
+        roof_props.roof_machinery(k, 0.0, -9.0, 1.00)
+        roof_props.roof_antenna(k, 9.6, 9.0, 1.00, h=4.3)
+        roof_props.roof_antenna(k, -0.8, 9.2, 1.00, h=3.6)
+        roof_parts.ac_unit(k, 9.2, 0.2, 1.00)
+        roof_parts.ac_unit(k, -9.2, 0.2, 1.00)
+        roof_parts.vent_stack(k, 3.8, 8.8, 1.00, 1.6)
+
+
+def _build_floor_c(model, size):
+    k = kit.Kit(model)
+    hs = size / 2.0
+    inset = 0.25
+    wall_face = hs - inset
+    n_bays = int(round(size / BAY))
+
+    k.box((-hs, -hs, 0.0), (hs, hs, 0.22), "limestone_dark")
+    k.box((-hs, -hs, FLOOR_H - 0.22), (hs, hs, FLOOR_H), "limestone_dark")
+    damaged_parts.damaged_wall_core(k, size, 0.22, FLOOR_H - 0.22, "limestone",
+                                    trim_color="limestone_dark", inset=inset)
+
+    face_in = hs - inset
+    face_out = hs
+    for i in range(n_bays + 1):
+        u = -hs + i * BAY
+        hw = 0.34 if i in (0, n_bays) else 0.26
+        top_f = FLOOR_H - 0.38 if i == n_bays else FLOOR_H
+        k.box((u - hw, face_in, 0.0), (u + hw, face_out, top_f), "limestone_dark")
+        k.box((u - hw, -face_out, 0.0), (u + hw, -face_in, FLOOR_H), "limestone_dark")
+        if 0 < i < n_bays:
+            k.box((-face_out, u - hw, 0.0), (-face_in, u + hw, FLOOR_H), "limestone_dark")
+            k.box((face_in, u - hw, 0.0), (face_out, u + hw, FLOOR_H), "limestone_dark")
+
+    sides = ((1, 1, True), (0, -1, True), (0, 1, True), (1, -1, False))
+    for s_idx, (axis, sign, detailed) in enumerate(sides):
+        face = sign * wall_face
+        for b in range(n_bays):
+            uc = -hs + (b + 0.5) * BAY
+            idx = s_idx * n_bays + b
+            if (s_idx == 0 and b == 1) or (s_idx == 2 and b == 2):
+                damaged_parts.missing_frame(k, face, axis, sign, uc, 0.82, 2.68, 1.15)
+                damaged_parts.soot_streak(k, face, axis, sign, uc, 2.68, width=1.10)
+            elif (s_idx == 0 and b == 4) or (s_idx == 2 and b == 0) or (s_idx == 1 and b == 2):
+                _window_bay(k, axis, sign, uc, face, 0.82, 2.68, 1, detailed=detailed)
+                damaged_parts.shattered_pane(k, face, axis, sign, uc, 0.82, 2.68, 1.10, d_base=0.025)
+            else:
+                st = (1, 0, 2, 1, 0, 1)[idx % 6]
+                _window_bay(k, axis, sign, uc, face, 0.82, 2.68, st, detailed=detailed)
+            if (s_idx == 0 and b == 3) or (s_idx == 1 and b == 1):
+                damaged_parts.soot_streak(k, face, axis, sign, uc, 2.68, width=1.10)
+            if detailed and idx % 2 == 0:
+                damaged_parts.rust_streak(k, face, axis, sign, uc, 0.82, width=0.65)
+            if detailed and not (b == n_bays - 1 and ((axis == 1 and sign > 0) or (axis == 0 and sign > 0))):
+                _chevron_spandrel(k, axis, sign, uc, face, 2.86)
 
 
 def _build_lod1(model, size, height, kind):
     k = kit.Kit(model)
     hs = size / 2.0
-    k.box((-hs, -hs, 0.0), (hs, hs, height), "limestone")
-    if kind == "crown":
+    if kind == "floor_c":
+        damaged_parts.damaged_wall_core(k, size, 0.0, height, "limestone", patch=1.2, short_h=0.40)
+        k.box((-hs, -hs, height - 0.25), (hs, hs, height), "limestone_dark")
+        k.box((-hs - 0.02, -hs + 0.5, 0.8), (hs + 0.02, hs - 0.5, height - 0.8), "glass_dark")
+        k.box((-hs * 0.65, hs - 0.02, 0.8), (-hs * 0.20, hs + 0.05, height - 0.8), "soot")
+        k.box((hs * 0.10, hs - 0.02, 0.8), (hs * 0.55, hs + 0.05, height - 0.8), "soot")
+        k.box((hs - 0.02, -hs * 0.35, 0.8), (hs + 0.05, hs * 0.15, height - 0.8), "soot")
+    elif kind == "crown":
+        k.box((-hs, -hs, 0.0), (hs, hs, height), "limestone")
         k.box((-hs - 0.1, -hs - 0.1, 0.25), (hs + 0.1, hs + 0.1, 0.75), "limestone_dark")
         pw = size * 0.22
         k.box((-pw, -pw, 0.75), (pw, pw, 3.2), "limestone_dark")
-        k.box((-hs * 0.52 - 1.0, -hs * 0.45 - 1.0, 0.75), (-hs * 0.52 + 1.0, -hs * 0.45 + 1.0, 4.8), "bark_light")
-        k.box((-hs * 0.52 - 0.08, hs * 0.45 - 0.08, 0.75), (-hs * 0.52 + 0.08, hs * 0.45 + 0.08, CROWN_H), "metal")
+        if size == 24:
+            model.add(common.make_frustum(1.25, 1.25, 1.0, 4.9, segments=6, center=(-6.4, -6.0), color="bark_light"))
+            k.box((4.9, -7.3, 1.0), (7.9, -3.9, 3.4), "limestone")
+            k.box((-7.8, 4.7, 1.0), (-4.6, 6.9, 2.7), "concrete_grey")
+            k.box((6.4, 6.0, 1.0), (6.8, 6.4, 5.2), "metal")
+        else:
+            model.add(common.make_frustum(1.35, 1.35, 1.0, 5.1, segments=6, center=(-9.4, -8.8), color="bark_light"))
+            model.add(common.make_frustum(1.25, 1.25, 1.0, 4.9, segments=6, center=(-9.4, 8.2), color="bark_light"))
+            k.box((7.7, -10.1, 1.0), (10.7, -6.7, 3.4), "limestone")
+            k.box((-1.6, -10.1, 1.0), (1.6, -7.9, 2.7), "concrete_grey")
+            k.box((9.4, 8.8, 1.0), (9.8, 9.2, 5.3), "metal")
+            k.box((-1.0, 9.0, 1.0), (-0.6, 9.4, 4.6), "metal")
     else:
+        k.box((-hs, -hs, 0.0), (hs, hs, height), "limestone")
         # Simplified dark window bands and corner piers
         k.box((-hs - 0.02, -hs + 0.5, 0.8), (hs + 0.02, hs - 0.5, height - 0.8), "glass_dark")
         k.box((-hs + 0.5, -hs - 0.02, 0.8), (hs - 0.5, hs + 0.02, height - 0.8), "glass_dark")
         k.box((-hs, -hs, height - 0.25), (hs, hs, height), "limestone_dark")
+
+
+def build_r40_all():
+    results = []
+    for size in (24, 32):
+        floor_b = 4500 if size == 24 else 6000
+        specs = [
+            (f"tw_deco_{size}_floor_c", floor_b, lambda m, s=size: _build_floor_c(m, s)),
+            (f"tw_deco_{size}_floor_c_lod1", floor_b // 10, lambda m, s=size: _build_lod1(m, s, FLOOR_H, "floor_c")),
+            (f"tw_deco_{size}_crown", 8000, lambda m, s=size: _build_crown(m, s)),
+            (f"tw_deco_{size}_crown_lod1", 800, lambda m, s=size: _build_lod1(m, s, CROWN_H, "crown")),
+        ]
+        for name, budget, fn in specs:
+            ok = common.run_model(name, "buildings", budget, fn,
+                                  grip=(0.0, 0.0, 0.0), top_preview=False, view=kit.FRONT_VIEW)
+            results.append((name, ok))
+    return results
 
 
 def build_all():

@@ -4,7 +4,8 @@
 use glam::IVec2;
 use world::WorldGenerator;
 use world::metro::{
-    MetroConfig, StyleDef, TowerPart, TowerSpot, style_for, tower_parts_with_extras,
+    DamageMode, DamageSites, MetroConfig, StyleDef, TowerPart, TowerSpot, style_for,
+    tower_parts_with_damage, tower_parts_with_extras,
 };
 
 use super::boxes::spot_seed;
@@ -34,6 +35,7 @@ pub fn base_model_id(spot: &TowerSpot) -> String {
 }
 
 /// Collects every `TowerPart` for all towers whose centre stands in chunk `coord`.
+/// Replaced towers (fallen / leaning set pieces) are skipped.
 /// Pure and deterministic for the same inputs.
 pub fn chunk_tower_parts(
     towers: &[TowerSpot],
@@ -41,6 +43,7 @@ pub fn chunk_tower_parts(
     ground_y: f32,
     styles: &[StyleDef],
     cfg: &MetroConfig,
+    damage: &DamageSites,
 ) -> Vec<TowerPart> {
     let tallest_idx = tallest_landmark_index(towers);
     let mut out = Vec::new();
@@ -50,18 +53,25 @@ pub fn chunk_tower_parts(
             Some((pos_idx, t))
         })
     {
+        if damage.tower_is_replaced(idx) {
+            continue; // R40-08: replaced by fallen/leaning set piece
+        }
         let Some(style) = style_for(styles, t.style).or_else(|| styles.first()) else {
             continue;
         };
-        let parts = tower_parts_with_extras(
-            t,
-            style,
-            ground_y,
-            u64::from(spot_seed(t)),
-            &cfg.towers.setbacks,
-            &cfg.towers.lobby_props,
-            tallest_idx == Some(idx),
-        );
+        let parts = if damage.tower_is_burnt(t.block) {
+            tower_parts_with_damage(t, style, ground_y, u64::from(spot_seed(t)), DamageMode::All)
+        } else {
+            tower_parts_with_extras(
+                t,
+                style,
+                ground_y,
+                u64::from(spot_seed(t)),
+                &cfg.towers.setbacks,
+                &cfg.towers.lobby_props,
+                tallest_idx == Some(idx),
+            )
+        };
         out.extend(parts);
     }
     out
@@ -115,9 +125,18 @@ mod tests {
             test_spot(Vec2::new(20.0, 20.0), 42, true),
             test_spot(Vec2::new(200.0, 10.0), 20, false),
         ];
-        let parts = chunk_tower_parts(&towers, IVec2::ZERO, 20.0, styles, &cfg);
+        let no_damage = DamageSites {
+            burnt_block: (999, 999),
+            ..DamageSites::default()
+        };
+        let parts = chunk_tower_parts(&towers, IVec2::ZERO, 20.0, styles, &cfg, &no_damage);
         assert!(parts.iter().any(|p| p.model == "tw_landmark_mast"));
         assert!(parts.iter().all(|p| !p.model.starts_with("tw_stone_")));
-        assert!(chunk_tower_parts(&towers, IVec2::new(99, 99), 20.0, styles, &cfg).is_empty());
+        assert!(chunk_tower_parts(&towers, IVec2::new(99, 99), 20.0, styles, &cfg, &no_damage).is_empty());
+
+        let mut damage = no_damage;
+        damage.replaced_towers.push(0);
+        damage.replaced_towers.push(1);
+        assert!(chunk_tower_parts(&towers, IVec2::ZERO, 20.0, styles, &cfg, &damage).is_empty());
     }
 }

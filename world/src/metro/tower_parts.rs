@@ -33,6 +33,15 @@ pub enum PartKind {
     Interior,
 }
 
+/// How damaged `_floor_c` modules are selected for a tower. `All` is for the burnt block.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum DamageMode {
+    /// Random share in `0.0..=1.0` of floors become `_floor_c`.
+    Share(f32),
+    /// Every floor becomes `_floor_c` (used for the burnt-out block).
+    All,
+}
+
 /// One placed modular kit piece of a tower in world space.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TowerPart {
@@ -45,6 +54,7 @@ pub struct TowerPart {
 struct DefaultTowerExtras {
     setbacks: Vec<SetbackSpec>,
     lobby_props: Vec<LobbyProp>,
+    damaged_share: f32,
 }
 
 fn default_extras() -> &'static DefaultTowerExtras {
@@ -55,6 +65,7 @@ fn default_extras() -> &'static DefaultTowerExtras {
         DefaultTowerExtras {
             setbacks: cfg.towers.setbacks,
             lobby_props: cfg.towers.lobby_props,
+            damaged_share: cfg.towers.damaged_share,
         }
     })
 }
@@ -68,7 +79,7 @@ pub fn tower_parts(
     rng_seed: u64,
 ) -> Vec<TowerPart> {
     let extras = default_extras();
-    tower_parts_with_extras(
+    tower_parts_inner(
         spot,
         style,
         ground_y,
@@ -76,6 +87,28 @@ pub fn tower_parts(
         &extras.setbacks,
         &extras.lobby_props,
         false,
+        DamageMode::Share(extras.damaged_share),
+    )
+}
+
+/// Same as `tower_parts`, with explicit `DamageMode` (`All` is for the burnt block).
+pub fn tower_parts_with_damage(
+    spot: &TowerSpot,
+    style: &StyleDef,
+    ground_y: f32,
+    rng_seed: u64,
+    damage: DamageMode,
+) -> Vec<TowerPart> {
+    let extras = default_extras();
+    tower_parts_inner(
+        spot,
+        style,
+        ground_y,
+        rng_seed,
+        &extras.setbacks,
+        &extras.lobby_props,
+        false,
+        damage,
     )
 }
 
@@ -88,6 +121,29 @@ pub fn tower_parts_with_extras(
     setbacks: &[SetbackSpec],
     lobby_props: &[LobbyProp],
     is_tallest_landmark: bool,
+) -> Vec<TowerPart> {
+    tower_parts_inner(
+        spot,
+        style,
+        ground_y,
+        rng_seed,
+        setbacks,
+        lobby_props,
+        is_tallest_landmark,
+        DamageMode::Share(default_extras().damaged_share),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn tower_parts_inner(
+    spot: &TowerSpot,
+    style: &StyleDef,
+    ground_y: f32,
+    rng_seed: u64,
+    setbacks: &[SetbackSpec],
+    lobby_props: &[LobbyProp],
+    is_tallest_landmark: bool,
+    damage: DamageMode,
 ) -> Vec<TowerPart> {
     let mut parts = Vec::with_capacity(spot.floors as usize + lobby_props.len() + 2);
     let style_key = style.key.key();
@@ -141,7 +197,17 @@ pub fn tower_parts_with_extras(
             Some(&(_, sz)) => (sz, PartKind::Setback),
             None => (base_size, PartKind::Floor),
         };
-        let suffix = if rng.next(2) == 0 { "_floor" } else { "_floor_b" };
+        let is_damaged = match damage {
+            DamageMode::All => true,
+            DamageMode::Share(share) => share > 0.0 && rng.next_double() < f64::from(share),
+        };
+        let suffix = if is_damaged {
+            "_floor_c"
+        } else if rng.next(2) == 0 {
+            "_floor"
+        } else {
+            "_floor_b"
+        };
         let y = ground_y + style.base_height + i as f32 * fh;
         parts.push(TowerPart {
             model: format!("tw_{style_key}_{cur_size}{suffix}"),

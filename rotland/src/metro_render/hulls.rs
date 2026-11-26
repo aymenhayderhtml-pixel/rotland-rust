@@ -2,7 +2,7 @@
 //! the base model id/pose so its own wall colliders keep the lobby walkable.
 
 use glam::{IVec2, Vec3};
-use world::metro::{StyleDef, TowerSpot, style_for};
+use world::metro::{DamageSites, StyleDef, TowerSpot, style_for};
 
 use super::near::{base_point, towers_in_chunk};
 use super::parts::base_model_id;
@@ -11,24 +11,42 @@ use super::parts::base_model_id;
 const DEFAULT_BASE_HEIGHT: f32 = 7.6; // data: metro.json styles[].baseHeight
 
 /// One upper box hull per tower in chunk `coord`: (base centre, yaw, 8 corner points in tower-local space).
+/// Skips towers replaced by major damage set pieces.
 pub fn tower_hulls(
     towers: &[TowerSpot],
     coord: IVec2,
     ground_y: f32,
     styles: &[StyleDef],
+    damage: &DamageSites,
 ) -> Vec<(Vec3, f32, Vec<[f32; 3]>)> {
     towers_in_chunk(towers, coord)
-        .map(|t| {
+        .filter_map(|t| {
+            let idx = towers.iter().position(|x| std::ptr::eq(x, t))?;
+            if damage.tower_is_replaced(idx) {
+                return None;
+            }
             let base_y = style_for(styles, t.style).map_or(DEFAULT_BASE_HEIGHT, |s| s.base_height);
-            (base_point(t, ground_y), t.yaw, box_points(t, base_y))
+            Some((base_point(t, ground_y), t.yaw, box_points(t, base_y)))
         })
         .collect()
 }
 
 /// Base model id (`tw_<style>_<size>_base`), world position and yaw for each tower in chunk `coord`.
-pub fn tower_bases(towers: &[TowerSpot], coord: IVec2, ground_y: f32) -> Vec<(String, Vec3, f32)> {
+/// Skips towers replaced by major damage set pieces.
+pub fn tower_bases(
+    towers: &[TowerSpot],
+    coord: IVec2,
+    ground_y: f32,
+    damage: &DamageSites,
+) -> Vec<(String, Vec3, f32)> {
     towers_in_chunk(towers, coord)
-        .map(|t| (base_model_id(t), base_point(t, ground_y), t.yaw))
+        .filter_map(|t| {
+            let idx = towers.iter().position(|x| std::ptr::eq(x, t))?;
+            if damage.tower_is_replaced(idx) {
+                return None;
+            }
+            Some((base_model_id(t), base_point(t, ground_y), t.yaw))
+        })
         .collect()
 }
 
