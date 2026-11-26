@@ -1,6 +1,6 @@
 # STATUS (read this first; keep it under ~80 lines)
 
-Updated: 2026-11-25 by Claude (after R35).
+Updated: 2026-11-25 by Claude (after R36).
 
 ## Where we are
 - Version 0.1 = Godot parity in Rust, done (R0-R10). History: `docs/archive/RUST_QUEUE.md`.
@@ -38,6 +38,7 @@ Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zomb
 - 2026-11-25: R33 MERGED (Neon wrote 01-03, one Antigravity lead did 04-10): 4 towns (Dusthollow, Frostmere, Blackwater, Ridgeback Station; `--town=<key>`), roads with trailhead signposts (`--trailhead=N`), rivers + bridges (`--river=N`, `--bridge=N`), 10 new buildings, town loot/zombies/survivors/guild explore, warmth saved, cold slows stamina, indoors warms, shorter rain streaks. 1191 tests. FPS camp 144, forest 105, desert town 133, snow town 122. Claude fix: rocks/trees cleared off town main streets. Leftovers for R34: rivers are short blobby loops on the world map (not long rivers), radial roads stop short of the core edge, Blackwater boardwalks line the street like benches.
 - 2026-11-25: R34 MERGED (lean Hydrogen round, 3 subagents): long rivers flowing to their targets, roads start at the home land edge, Blackwater walkways in lines, forest speed work (docs/PERF_R34.md; forest 106 FPS, camp 138). 1195 tests. Next: R35 all-out detail, R36 weapons.
 - 2026-11-25: R35 MERGED (all-out detail, 6 Hydrogen subagents): dense ground detail ring (data/ground_detail.json), 28 new props (build_detail_props.py), town clutter, furniture in town buildings, clouds + biome fog (data/sky.json), terrain colour/shore foam/river ripples. 1211 tests. FPS 69-128 avg (docs/PERF_R35.md); worst 1% under 30 in zombies/swamp/mountains/town_snow (streaming spikes): look at in a speed pass. Claude thinned desert shrubs, swamp reeds, scree. Next: R36 weapons.
+- 2026-11-26: R36 MERGED (weapons, quality Hydrogen round): gun feel (data/gun_feel.json: view kick, climb, FP kick, muzzle flash + light), revolver, hunting rifle, crossbow (+ bolts picked up again), grenade (arc preview, bounce, fuse, blast blocked by walls), explosion effect (data/effects.json), visible backpack (`--backpack=large`), grenade throw + crossbow reload clips. 1236 tests. Zombies scene 68.9 FPS. Claude fixed: rifles centred in first person (now right side), black scorch disc, dark smoke, big white flash. Not yet: backpack_small/large items in data/items.json; live grenade bounce and bolt pickup only unit-tested. Next: weapon shop round (owner questions: where, currency, repair/upgrade).
 - Animation plan done. Downed/revive not started (owner decision).
 
 ## Next (from PLAN_0.2.md)
