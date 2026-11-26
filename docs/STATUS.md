@@ -1,9 +1,9 @@
 # STATUS (read this first; keep it under ~80 lines)
 
-Updated: 2026-11-26 by Claude (v1.1 planned with the owner).
+Updated: 2026-11-26 by Claude (R38 merged).
 
 ## Where we are
-- **v1.0 tagged. Now: v1.1 = New Halden**, a big dying city (2 km, towers to ~150 m, overgrown, about 6 km out). Plan: `docs/PLAN_1.1.md` (R38-R47). Next: R38 Groundwork; write its task files only when the owner says so.
+- **v1.0 tagged. Now: v1.1 = New Halden**, a big dying city (2 km, towers to ~150 m, overgrown, about 6 km out). Plan: `docs/PLAN_1.1.md` (R38-R47). R38 MERGED (see below). Next: R39 Towers.
 - **New speed rule (2026-11-26): detail first, minimum 20 FPS** (slowest moments, whole game), not 30. No speed passes unless the owner asks.
 - Version 0.1 = Godot parity in Rust, done (R0-R10). History: `docs/archive/RUST_QUEUE.md`.
 - Working on **0.2**. This week: `docs/PLAN_0.2_PUSH.md` (6-day push). Earlier plan: `docs/PLAN_0.2.md`. Locked choices: `docs/DECISIONS.md`.
@@ -46,8 +46,10 @@ Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zomb
 - 2026-11-26: R37 MERGED (weapon shop; Hydrogen lead ran out of quota after the gate, a Haiku subagent finished the checks): camp gunsmith (npc_gunsmith, bench, tiers 0-3 via camp upgrades) + a gun shop in each town (shopkeeper_<town>, town-only stock), paid in scrap metal (data/gunsmith.json), screen tabs Buy/Sell/Repair/Upgrade (rotland_ui/src/gunsmith_ui), gun wear + jams (data/weapon_wear.json), 9 attachments on gun mount points (data/attachments.json, data/weapon_mounts.json). Flags --gunsmith=<tab> --gunsmith-town=<key> --give= --wear= --mods=. 1268 tests. FPS camp 108, forest 75, zombies 86. Small leftovers: compass/"Safe zone" show faintly through the shop top edge; worn-gun bar in the hotbar is tiny; old-save check used the Godot fixture only.
 - 2026-11-26: v1.0 TAGGED. Clean-up: finished task files in tasks/archive/, old docs in docs/archive/, speed reports merged into docs/PERFORMANCE.md, CODEMAP rewritten (90 lines), docs/README.md index, ~120 unused Rust functions removed, scripts/check.sh removed (use tools/gate.sh), new README with 22 pictures. Next: v1.1 = big dying city (tall towers, overgrown); plan it with the owner first.
 
+- 2026-11-26: R38 MERGED (Claude lead + Haiku coders; DeepSeek free quota ran out): New Halden placed ~6 km out at the swamp/snow seam (`world/src/metro/`, `data/metro.json`), 32x32 block grid, ~1000+ placeholder towers with colliders, far skyline batch (engine `DrawItem.fog_scale`), grey-green haze, fog lifts with camera height, 4-lane highway from Frostmere with the evacuation jam (20 new detailed models: cars 8-10k tris, buses, army truck, luggage, bodies, gantry), map + minimap + "Entering New Halden" banner, `--metro=edge|core|highway|town_view|top`, perf scene `metro`. Budgets raised (1.4M tris). 1366 tests. FPS: metro 150 avg / 64 low; all scenes 1% low >= 20. Leftovers: jagged sidewalk paint (terrain grid), skyline flat grey, big map not screenshotted, streaming.rs ~445 lines.
+
 ## Next
-1. R38 Groundwork (`docs/PLAN_1.1.md`): budgets up, New Halden placed, skyline layer + haze, highway evacuation jam.
+1. R39 Towers (`docs/PLAN_1.1.md`): detailed Blender tower kit, 8-10 tower types, 3-5 landmarks, lobbies; also fix R38 leftovers (sidewalk edges, skyline windows).
 
 ## Workers (who does what: PLAN_0.2.md "AI roles")
 - DeepSeek: `opencode` / `opencode/deepseek-v4.1-flash-free`: free usage ran out on 2026-11-20.
