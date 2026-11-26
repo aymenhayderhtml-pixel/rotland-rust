@@ -24,8 +24,8 @@ The owner is not a programmer and does not want to learn to code. All code is wr
 
 ## Target hardware (always design for this)
 The owner's laptop: Intel i5-10310U, **integrated Intel UHD graphics**, 14 GB RAM.
-- **Minimum 30 FPS at 1080p** (hard requirement); 60 FPS is the goal.
-- Low-poly stylized look: cheap shaders, no heavy post-processing, keep effects light.
+- **Detail first. Minimum 20 FPS at 1080p in the slowest moments** (owner, 2026-11-26; was 30). Don't trim detail to chase high FPS; speed work happens only when the owner asks.
+- Low-poly stylized look, but dense and detailed close up: many small parts, rich clutter. Keep shaders simple and post-processing light.
 - Keep zombies cheap: flow fields, pooling/reuse, throttled updates when distant.
 
 ## Code rules
