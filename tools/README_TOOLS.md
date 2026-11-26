@@ -58,6 +58,7 @@ The remaining `.py` files in these folders are helpers that the scripts above im
 - `--biome=<key>` (`plains`, `forest`, `desert`, `snow`, `swamp`, `mountains`) — teleports the player on startup into that biome (outer biomes: `core_radius + blend_band + 300 m` along the sector centre angle, facing outward; `plains`/`forest`: nearest core point):
   `flock /tmp/rotland-heavy.lock target/release/rotland --save-dir=/tmp/scratch --shot=/tmp/desert.png --biome=desert --frames=30`
 - `--town=<key>` (`dusthollow`, `frostmere`, `blackwater`, `ridgeback`) — teleports the player 25 m from that town's centre along its street, facing the town.
+- `--metro=<spot>` (`edge`, `core`, `highway`, `town_view`, `top`) — teleports into New Halden: `edge` 10 m inside the first avenue entrance looking in, `core` the city centre along the nearest avenue, `highway` beside the jam looking at the skyline, `town_view` 25 m from the highway's town looking at the city, `top` 120 m above the Core looking down 60 degrees (the camera is set on the rig's spring, so it hangs about 70 m off the Core toward the highway).
 - `--trailhead=<n>` — teleports the player 25 m before trailhead `n`, facing outward along the road.
 - `--bridge=<n>` — teleports the player onto the deck of the `n`-th road-river bridge crossing, facing along the road.
 - `--river=<n>` — teleports the player to a bank point 25 m from river `n`, facing the water.

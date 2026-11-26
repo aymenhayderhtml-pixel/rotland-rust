@@ -8,6 +8,7 @@ use crate::city::{CityGround, CityLayout};
 use crate::color::Color;
 use crate::generator_world::RoadHeightField;
 use crate::lake::LakeLayout;
+use crate::metro::MetroWorld;
 use crate::math::{lerp, smooth_step};
 use crate::noise::GodotNoise;
 use crate::poi::{PoiConfigData, PoiGeometry, PoiPlacer};
@@ -66,6 +67,7 @@ pub struct WorldGenerator {
     pub(crate) crossings: Vec<(Vec2, f32, f32)>,
     pub(crate) towns_data: crate::towns::TownsData,
     pub(crate) has_outer: bool,
+    pub(crate) metro: Option<MetroWorld>,
 }
 
 impl WorldGenerator {
@@ -246,6 +248,17 @@ impl WorldGenerator {
             }
         }
 
+        h = self.apply_roads_and_water(x, z, h);
+        if let Some(m) = &self.metro {
+            h = m.highway_field.flatten(h, p);
+            h = m.layout.flatten(h, p);
+        }
+        h
+    }
+
+    /// Bridges, roads and river banks on top of the (town-blended) height.
+    fn apply_roads_and_water(&self, x: f32, z: f32, mut h: f32) -> f32 {
+        let p = Vec2::new(x, z);
         let at_bridge = self.crossings.iter().any(|(cp, _, span)| {
             let r = span * 0.5 + BRIDGE_APPROACH_PAD_M;
             p.distance_squared(*cp) <= r * r
@@ -331,6 +344,7 @@ impl WorldGenerator {
             roads: self.has_outer.then_some(&self.roads),
             rivers: self.has_outer.then_some(&self.rivers),
             towns: &self.towns,
+            metro: self.metro.as_ref(),
         };
         let triangles = self.paint.build_triangles(&ctx, &|wx, wz| self.biome_sample(wx, wz));
         ChunkGround { coord, heights, triangles }

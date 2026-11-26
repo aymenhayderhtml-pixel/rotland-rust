@@ -48,4 +48,31 @@ Goal: the city reads as a big dying grey-green place from far away (the skyline)
 - The lead lines (LoadedChunk field, streaming collider call, terrain_paint ctx field, render_frame draw) are written under Worker notes; no file outside Owns is changed.
 
 ## Worker notes
-(fill in: the shared-file lines for the lead, triangles per near and far tower measured by the tests, any engine gap found (far plane, one Lighting per draw), questions)
+Status: tests pass. `cargo test --lib metro` (world): 57 pass. rotland `metro` filter in a scratch copy: 13 pass. The real worktree did not compile at the time because of another coder's `rotland/src/app/frame_ui.rs:144` (region_banner.update takes 5 args). The scratch copy used HEAD versions of frame_ui.rs and region_banner.rs; my files were copied unchanged. clippy shows only "never used" warnings in metro_render, which go away once R38-08 wires the calls.
+
+Files: world/src/metro/paint.rs (MetroLook, from_json/load_from_file, metro_ground_color, tests); world/src/metro/mod.rs (added `pub use paint::{MetroLook, metro_ground_color};`); data/metro.json `look` key (new, last top-level key); rotland/src/metro_render/{mod.rs, boxes.rs, near.rs, hulls.rs, skyline.rs, tests.rs}.
+
+Triangles (measured by tests): near tower max 1,372 (landmark, 42 floors, footprint 40) under the 1,500 budget; far tower max 20 (landmark with step) under trisPerTower 60. Winding: every triangle is clockwise seen from outside (test `every_triangle_is_clockwise_seen_from_outside`), matching the `mesh` pipeline's FrontFace::Cw. Not verified in a screenshot yet.
+
+Signatures (differ from the brief because the GPU and ground height need passing in):
+- `near::near_tower_mesh(device: &wgpu::Device, towers: &[TowerSpot], coord: IVec2, ground_y: f32, look: &MetroLook) -> Option<GpuMesh>`
+- `hulls::tower_hulls(towers: &[TowerSpot], coord: IVec2, ground_y: f32) -> Vec<(Vec3, f32, Vec<[f32; 3]>)>`
+- `skyline::SkylineBatch::default()`, then `rebuild_if_needed(&mut self, device: &wgpu::Device, inputs: &SkylineInputs, loaded: &HashSet<IVec2>, player: Vec2) -> bool`, `draw_items(&self) -> Vec<DrawItem>`, `tower_count()`. `SkylineInputs { towers, ground_y, cfg: &MetroConfig, look: &MetroLook }`.
+- `ground_y` is `layout.site.ground_y`. `look` = `MetroLook::load_from_file(paths::repo_path("data/metro.json"))`, loaded once at startup.
+- `paint::metro_ground_color(base, wx, wz, &layout, &look)`: wire it in terrain_paint after city_ground.paint.
+
+Lines for the lead (shared files, not edited by me):
+- rotland/src/streaming.rs LoadedChunk: add `pub towers: Option<GpuMesh>,` (and `tower_colliders` if you want them in the list). In `upload`, after building the ground: `let towers = near_tower_mesh(device, &self.metro_towers, b.coord, ground_y, &look);`, then for colliders: `let hulls = tower_hulls(&self.metro_towers, b.coord, ground_y); let h = physics.add_static_compound_deferred(hulls.iter().map(|(p, yaw, pts)| (std::slice::from_ref(pts), *p, *yaw, 1.0)));` and push h if valid. (`pts` is `Vec<[f32;3]>`, so `from_ref(pts)` gives `&[Vec<[f32;3]>]`; check the element type matches the compound API.)
+- world/src/terrain_paint.rs: `TerrainPaintCtx` gets `metro: Option<&MetroLayout>` and a `look: Option<&MetroLook>`, then after `city_ground.paint`: `if let (Some(m), Some(l)) = (ctx.metro, ctx.look) { c = metro_ground_color(c, wx, wz, m, l); }`.
+- Skyline in render_frame: `let fog = rotland_ui::metro_ui::haze::skyline_fog(&haze_cfg, base_sky_color)` gives (colour, begin, end). Make a Lighting copy with fog_color/fog_begin/fog_end set from it, then pass `batch.draw_items()` to the main pass.
+- Streaming: keep a `HashSet<IVec2>` of loaded chunk coords (the ones with towers) and call `skyline.rebuild_if_needed(device, &inputs, &loaded, player_xz)` once per frame.
+
+ENGINE GAP (not edited, needs the lead's decision): `LitRenderer::draw` takes ONE `Lighting` and ONE `items` list. Those items are also drawn in the sun shadow pass (`record_items(... visible_scratch ...)`), so the skyline would cast shadows, which the spec forbids. Also the skyline needs its own fog (`skyline_fog`, which keeps the far towers visible), while the scene uniform (`write_scene`) applies the same fog to the whole frame. Proposed fix: add a `main_only: &[DrawItem]` parameter to `draw()` that is recorded in the "world" pass after `record_items` and never in the shadow pass, plus a second fog uniform (or, simplest, draw the skyline with the same fog and accept a stronger far fade). Please decide; I did not change the engine.
+
+Camera: engine/src/render/camera.rs uses an infinite reverse-Z projection (line 39), so 6000 m is not clipped.
+
+Deviations: far meshes are generated per rebuild, not cached per tower (about 60 tris per tower, cheap, rebuilds are rare). Skyline batch key = sorted loaded set + player cell (512 m), so it also rebuilds on a cell crossing.
+
+Tests (rotland/src/metro_render/tests.rs, world/src/metro/paint.rs): budgets, winding, base band darker, rooftop box and landmark step, near batch per chunk and deterministic, None for empty chunk, hulls (8 points, extents), skyline excludes loaded chunks and distant towers, key stable within a cell and changes with set or cell.
+
+Not done (not in my ownership): `skyline_fog` from R38-07 is not called inside my code. The lead wires it in render_frame, as noted above.

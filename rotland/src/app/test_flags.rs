@@ -13,6 +13,7 @@ use world::biome::layout::BiomeSample;
 use world::weather::WeatherKind;
 use world::BiomeId;
 
+use super::metro_flags::{self, MetroSpot};
 use super::state::{ActorsState, AudioState, PlaySide, RenderState, SessionState, UiState, WorldState};
 
 /// Distance in metres to place the player from the nearest unrescued survivor for `--tp-rescue`.
@@ -51,6 +52,8 @@ pub struct TestFlags {
     pub spawn_zombie: Option<String>,
     /// `--town=<key>`: teleport 25 m from that town's centre, facing it (R33-05).
     pub town: Option<String>,
+    /// `--metro=<spot>`: teleport into New Halden (`edge|core|highway|town_view|top`).
+    pub metro: Option<String>,
     /// `--trailhead=<n>`: teleport 25 m before trailhead `n`, facing outward along the road (R33-05).
     pub trailhead: Option<usize>,
     /// `--bridge=<n>`: teleport onto the `n`-th road-river bridge deck (R33-05).
@@ -109,6 +112,10 @@ impl TestFlags {
                 .filter(|s| !s.is_empty()),
             town: args
                 .value("--town")
+                .map(|s| s.trim().to_ascii_lowercase())
+                .filter(|s| !s.is_empty()),
+            metro: args
+                .value("--metro")
                 .map(|s| s.trim().to_ascii_lowercase())
                 .filter(|s| !s.is_empty()),
             trailhead: args
@@ -345,6 +352,9 @@ pub fn apply_startup(
     if let Some(key) = session.test_flags.town.as_deref() {
         apply_town_tp(gpu, render, world, actors, session, key);
     }
+    if let Some(key) = session.test_flags.metro.as_deref() {
+        apply_metro_tp(gpu, render, world, actors, session, key);
+    }
     if let Some(index) = session.test_flags.trailhead {
         apply_trailhead_tp(gpu, render, world, actors, session, index);
     }
@@ -524,6 +534,50 @@ fn apply_town_tp(
     };
     let (xz, yaw) = town_tp_pose(town);
     teleport_player_and_stream(gpu, render, world, actors, session, xz, yaw);
+}
+
+/// `--metro=<spot>`: teleports to a New Halden pose (see `metro_flags`). `top` also sets the camera
+/// pitch and the rig's spring length, so the camera hangs above the Core.
+fn apply_metro_tp(
+    gpu: &Gpu,
+    render: &mut RenderState,
+    world: &mut WorldState,
+    actors: &mut ActorsState,
+    session: &SessionState,
+    key: &str,
+) {
+    let Some(spot) = MetroSpot::parse(key) else {
+        log::warn!("--metro={key}: unknown spot (expected edge|core|highway|town_view|top)");
+        return;
+    };
+    let Some(world_gen) = world.world_gen.clone() else {
+        return;
+    };
+    let Some(metro) = world_gen.metro_world() else {
+        log::warn!("--metro={key}: this world has no New Halden");
+        return;
+    };
+    // The town on the highway is the nearest one to the city
+    let town_center = world_gen
+        .towns()
+        .iter()
+        .find(|t| t.key.eq_ignore_ascii_case(&metro.highway.from_town))
+        .map(|t| t.center);
+    let eye_height = actors.camera_rig.as_ref().map_or(0.0, |r| r.eye_height);
+    let Some(pose) = metro_flags::metro_pose(spot, metro, town_center, WORLD_TP_DISTANCE_M, eye_height)
+    else {
+        log::warn!("--metro={key}: the city has nothing for this spot");
+        return;
+    };
+    teleport_player_and_stream(gpu, render, world, actors, session, pose.pos, pose.yaw);
+    if let (Some(top), Some(rig)) = (pose.top, actors.camera_rig.as_mut()) {
+        rig.pitch = top.pitch;
+        rig.stored_zoom = top.spring;
+        rig.current_spring_length = top.spring;
+        if session.scene == "play" && !session.free_cam {
+            render.camera = rig.camera(&actors.player, &world.physics);
+        }
+    }
 }
 
 fn apply_trailhead_tp(
@@ -888,6 +942,7 @@ mod tests {
             "--biome=desert",
             "--weather=sandstorm",
             "--town=Dusthollow",
+            "--metro=Top",
             "--trailhead=2",
             "--bridge=1",
             "--river=0",
@@ -903,6 +958,7 @@ mod tests {
         assert_eq!(parsed.biome, Some(BiomeId::Desert));
         assert_eq!(parsed.weather, Some(WeatherKind::Sandstorm));
         assert_eq!(parsed.town.as_deref(), Some("dusthollow"));
+        assert_eq!(parsed.metro.as_deref(), Some("top"));
         assert_eq!(parsed.trailhead, Some(2));
         assert_eq!(parsed.bridge, Some(1));
         assert_eq!(parsed.river, Some(0));

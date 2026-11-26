@@ -37,4 +37,38 @@ Read: tasks/R38-common.md ("Jam", "Jam models", "Data file"), tasks/R38-03-metro
 - Tests above pass; clippy clean; no file outside Owns changed.
 
 ## Worker notes
-(fill in: lateral sign chosen for outbound, exact `config.rs` field lines needed, colliders confirmation, any prop model missing from R38-05, lines for the lead)
+
+**Files (all in `world/src/metro/`):** `jam.rs` (JamProp, plan_jam, lanes, specials, avenues, gantry, seed; 295 lines), `jam_vehicles.rs` (Planner: one car, burnt, yaw jitter, seated body, luggage, clothes, shoulder sheet; 146 lines; declared from jam.rs with `#[path]`), `jam_chunks.rs` (jam_props_in_chunk + 3 tests), `jam_tests.rs` (11 tests; declared from jam.rs). `data/metro.json` "jam": edited only that block.
+
+**Tests:** `cargo test --lib metro`: 57 passed, 0 failed (15 jam/chunk tests, the rest from R38-01/02/03). Clippy: no warnings in my files. The workspace build currently fails in `rotland/src/app/frame_ui.rs:144` (another coder's file), not in mine.
+
+**Choices to check**
+- Outbound = the RIGHT side of the city-to-town direction (positive lateral). Inbound = left.
+- `carSpacingM` is the full bumper-to-bumper pitch per car (car plus gap). No car length in data, so the count test uses it directly.
+- Lane centres: median/2 + 0.5 and + 1.5 lane widths (1.75 and 5.25 from median edge, lane width 3.5). Avenue lanes at the same 0.5 and 1.5 lane widths on each side.
+- Bus that lies on its side: on the outer outbound lane, first car slot nearest the city, centred 1.75 m further out (lateral about 8 m), yaw turned 90 degrees across the lanes. Other buses and trucks take random free outbound slots.
+- Inbound cars are always wrecks (burnt variant), placed with `inboundChance` per slot.
+- Bodies: `body_seated` placed at car pos plus the seat point rotated by car yaw (local forward -Z). Its `pos.y` holds the seat height; `jam_props_in_chunk` returns height(x,z) + pos.y. Every other prop has pos.y 0. With empty `seatOffsets` there are no bodies (tested).
+- Shoulder body sheet: on the highway shoulder at the car's along-track position.
+- Pitch and roll always 0. Colliders: no new code; jam props are ordinary non-tree static props, so `streaming.rs` gives them compound colliders like `car_wreck*`. I did not check that `shapes` contains the new model ids (they come from R38-05's pack). If a model is missing from the pack it gets no collider.
+
+**Data changes (`data/metro.json` jam):** inboundChance 0.04, avenueJamChance 0.6, shoulderBodyChance 0.08 (brief values, replacing the old 0.15/0.5/0.05). New keys laneWidthM 3.5, yawJitterDeg 6, luggageOffsetM [1.5, 3.0], clothesSpillChance 0.33. The yaw jitter and luggage numbers are my picks, to tune.
+
+**Shared-file edits (lead, please keep):**
+- `world/src/metro/config.rs` JamConfig gained (after `shoulder_body_chance`):
+  `pub lane_width_m: f32`, `pub yaw_jitter_deg: f32`, `pub luggage_offset_m: [f32; 2]`, `pub clothes_spill_chance: f32` (with serde camelCase names from data above).
+- `world/src/metro/mod.rs` added:
+  `pub use jam::{JamProp, plan_jam};` and `pub use jam_chunks::jam_props_in_chunk;`
+
+**Wiring for the lead (generator_contents.rs, after keep_scattered_prop):**
+```rust
+let jam = crate::metro::plan_jam(&highway, &layout, &metro_cfg); // once, store with the metro site
+// per chunk:
+props.extend(crate::metro::jam_props_in_chunk(&jam, coord, &|x, z| self.height(x, z)));
+```
+The `height` closure should be the same ground height used for other props.
+
+**Unsure**
+- `pick_avenues` takes the avenues whose midpoint lies inside the square, nearest endpoint to the entrance first.
+- Test helper builds a synthetic straight highway, not the real route (real route is R38-03's job).
+- Seat offsets and body ratio are tested with synthetic seats; the real ratio depends on R38-05 filling `seatOffsets`.

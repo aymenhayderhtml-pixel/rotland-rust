@@ -349,6 +349,7 @@ pub fn start_world(
     }
     session.loaded_save = save_file;
     let world_gen = Arc::new(world_gen);
+    play.metro = crate::metro_play::MetroPlay::start(&world_gen);
     let mut streamer = crate::streaming::Streamer::new(world_gen.clone());
     streamer.felled = world
         .trees

@@ -6,4 +6,5 @@ pub mod hud;
 pub mod keys_ui;
 pub mod map_ui;
 pub mod menus;
+pub mod metro_ui;
 pub mod settings;

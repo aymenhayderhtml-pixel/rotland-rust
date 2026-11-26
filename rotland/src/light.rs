@@ -165,6 +165,22 @@ fn darken_tint_to_base(base: Vec3, tint: Vec3) -> Vec3 {
     tint * scale
 }
 
+/// Height above the ground (m) where the view starts to clear. // new: DECISIONS 2026-11-26
+#[allow(dead_code)] // unused by the humanoid_view example, which includes this file
+const FOG_LIFT_START_M: f32 = 10.0;
+/// Extra fog end per metre of height above that (begin gets half). // new: DECISIONS 2026-11-26
+#[allow(dead_code)] // unused by the humanoid_view example, which includes this file
+const FOG_LIFT_PER_M: f32 = 2.0;
+
+/// The higher the camera above the ground, the farther it sees (rooftops, the `--metro=top` view).
+/// On the ground (camera under ~10 m up) nothing changes.
+#[allow(dead_code)] // unused by the humanoid_view example, which includes this file
+pub fn lift_fog_for_height(lighting: &mut Lighting, height_above_ground: f32) {
+    let lift = (height_above_ground - FOG_LIFT_START_M).max(0.0) * FOG_LIFT_PER_M;
+    lighting.fog_begin += lift * 0.5;
+    lighting.fog_end += lift;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -269,5 +285,17 @@ mod tests {
         let flash2 = muzzle_flash(Vec3::Z, Vec3::NEG_Z, 5.0);
         add_flash_light(&mut lighting, flash2);
         assert_eq!(lighting.spots[2], Some(flash2));
+    }
+
+    #[test]
+    fn fog_lifts_only_high_above_the_ground() {
+        let mut low = at_hour(12.0, None);
+        let (b, e) = (low.fog_begin, low.fog_end);
+        lift_fog_for_height(&mut low, 3.0);
+        assert_eq!((low.fog_begin, low.fog_end), (b, e));
+        let mut high = at_hour(12.0, None);
+        lift_fog_for_height(&mut high, 210.0);
+        assert!((high.fog_end - (e + 400.0)).abs() < 1e-3);
+        assert!((high.fog_begin - (b + 200.0)).abs() < 1e-3);
     }
 }

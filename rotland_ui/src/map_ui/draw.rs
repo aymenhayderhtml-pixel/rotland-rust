@@ -7,6 +7,7 @@ use glam::Vec2;
 
 use super::action::MapAction;
 use super::draw_city::draw_city_and_road;
+use crate::metro_ui::draw_metro_map;
 use super::draw_lake::draw_lake;
 use super::draw_icons::{
     draw_bounty_icon, draw_building_icon, draw_camp_icon, draw_death_icon, draw_player_icon,
@@ -138,6 +139,10 @@ pub fn draw_map(
 
         // Draw city streets, camp road, blocked street marks, and city/district labels
         draw_city_and_road(&painter, state, view, rect, view_size);
+        // New Halden draws over the Ashford streets (outline and streets once discovered)
+        if let Some(layout) = view.generator.and_then(|g| g.metro_layout()) {
+            draw_metro_map(&painter, state, &view.map_state.explore, layout, &state.metro_cfg, rect, view_size);
+        }
 
         // Draw lake water, shore outline, docks, village lots, fishing spots, and label
         draw_lake(&painter, state, view, rect, view_size);

@@ -1,0 +1,231 @@
+//! Tests for the New Halden placeholder towers: budgets, winding, colours, chunks, colliders, skyline.
+
+use std::collections::HashSet;
+
+use engine::render::ColorVertex;
+use glam::{IVec2, Vec2, Vec3};
+use world::metro::{MetroConfig, MetroLayout, MetroLook, MetroSite, TowerKind, TowerSpot, plan_towers};
+
+use super::boxes::{Detail, spot_seed, tower_mesh};
+use super::hulls::tower_hulls;
+use super::near::{near_tower_vertices, tower_chunk, towers_in_chunk};
+use super::skyline::{skyline_indices, skyline_key, skyline_vertices};
+
+/// Triangles in a flat vertex list.
+fn tri_count(verts: &[ColorVertex]) -> usize {
+    verts.len() / 3
+}
+
+const GROUND_Y: f32 = 20.0;
+
+fn cfg() -> MetroConfig {
+    MetroConfig::load_from_file(paths::repo_path("data/metro.json")).expect("metro.json loads")
+}
+
+fn look() -> MetroLook {
+    MetroLook::load_from_file(paths::repo_path("data/metro.json")).expect("metro.json look loads")
+}
+
+/// A city 6 km east of the origin (so its towers sit in other chunks than chunk 0).
+fn city(cfg: &MetroConfig) -> Vec<TowerSpot> {
+    let site = MetroSite {
+        key: cfg.key.clone(),
+        name: cfg.name.clone(),
+        center: Vec2::new(6000.0, 0.0),
+        half_size: cfg.size_blocks as f32 * cfg.block_size * 0.5,
+        yaw: 0.0,
+        ground_y: GROUND_Y,
+    };
+    let layout = MetroLayout::generate(site, cfg);
+    plan_towers(&layout, cfg)
+}
+
+fn spot(floors: u32, half: f32, landmark: bool) -> TowerSpot {
+    TowerSpot {
+        pos: Vec2::new(6000.0, 0.0),
+        half: Vec2::splat(half),
+        yaw: 0.0,
+        height: floors as f32 * 3.8,
+        floors,
+        kind: if landmark { TowerKind::Landmark } else { TowerKind::Highrise },
+        landmark,
+        block: (0, 0),
+    }
+}
+
+fn luma(c: [u8; 3]) -> f32 {
+    0.299 * f32::from(c[0]) + 0.587 * f32::from(c[1]) + 0.114 * f32::from(c[2])
+}
+
+#[test]
+fn near_tower_stays_inside_the_triangle_budget() {
+    let look = look();
+    let towers = city(&cfg());
+    assert!(!towers.is_empty(), "the city plans towers");
+    for t in &towers {
+        assert!(tri_count(&tower_mesh(t, &look, Detail::Near)) <= 1500);
+    }
+    // Worst case: the tallest landmark on the biggest footprint, and a 30-floor Core tower.
+    let worst_landmark = spot(42, 20.0, true);
+    let worst_core = spot(30, 20.0, false);
+    assert!(tri_count(&tower_mesh(&worst_landmark, &look, Detail::Near)) <= 1500);
+    assert!(tri_count(&tower_mesh(&worst_core, &look, Detail::Near)) <= 1500);
+}
+
+#[test]
+fn far_tower_stays_inside_tris_per_tower() {
+    let cfg = cfg();
+    let look = look();
+    for t in &city(&cfg) {
+        assert!(tri_count(&tower_mesh(t, &look, Detail::Far)) <= cfg.skyline.tris_per_tower);
+    }
+    assert!(tri_count(&tower_mesh(&spot(42, 20.0, true), &look, Detail::Far)) <= cfg.skyline.tris_per_tower);
+}
+
+#[test]
+fn every_triangle_is_clockwise_seen_from_outside() {
+    // The mesh pipeline culls back faces with FrontFace::Cw, so each triangle's normal (edge cross
+    // product) must point into the tower's interior side of its own centroid direction.
+    let look = look();
+    let samples = [spot(12, 10.0, false), spot(42, 20.0, true), spot(30, 14.0, false)];
+    for s in &samples {
+        for detail in [Detail::Near, Detail::Far] {
+            let verts = tower_mesh(s, &look, detail);
+            let inside = Vec3::new(0.0, s.height * 0.5, 0.0);
+            for tri in verts.chunks(3) {
+                let [a, b, c] = [tri[0], tri[1], tri[2]].map(|v| Vec3::from(v.position));
+                let cross = (b - a).cross(c - a);
+                let centroid = (a + b + c) / 3.0;
+                assert!(cross.dot(centroid - inside) < 0.0, "triangle faces inward");
+            }
+        }
+    }
+}
+
+#[test]
+fn base_band_is_darker_than_every_wall_colour() {
+    let look = look();
+    let t = spot(20, 12.0, false);
+    let verts = tower_mesh(&t, &look, Detail::Near);
+    let base_verts: Vec<&ColorVertex> = verts.iter().filter(|v| v.color[..3] == look.base_color).collect();
+    assert!(!base_verts.is_empty(), "the base band is drawn");
+    assert!(base_verts.iter().all(|v| v.position[1] <= look.base_height + 1e-3));
+    for body in &look.wall_palette {
+        assert!(luma(look.base_color) < luma(*body), "base must be darker than {body:?}");
+    }
+}
+
+#[test]
+fn ordinary_towers_have_a_rooftop_box_and_landmarks_a_step() {
+    let look = look();
+    let ordinary = spot(20, 12.0, false);
+    let top_box = ordinary.height + look.roof_box_height;
+    let verts = tower_mesh(&ordinary, &look, Detail::Near);
+    assert!(verts.iter().any(|v| (v.position[1] - top_box).abs() < 1e-3), "rooftop box top at height + 4");
+
+    let landmark = spot(40, 16.0, true);
+    let step_top = landmark.height + look.step_height;
+    let verts = tower_mesh(&landmark, &look, Detail::Near);
+    assert!(verts.iter().any(|v| (v.position[1] - step_top).abs() < 1e-3), "landmark step on top");
+}
+
+#[test]
+fn spot_seed_is_stable_and_distinct_for_different_spots() {
+    let a = spot(10, 10.0, false);
+    let mut b = a.clone();
+    b.pos.x += 64.0;
+    assert_eq!(spot_seed(&a), spot_seed(&a.clone()));
+    assert_ne!(spot_seed(&a), spot_seed(&b));
+}
+
+#[test]
+fn near_batch_holds_only_the_towers_of_its_chunk_and_is_deterministic() {
+    let look = look();
+    let towers = city(&cfg());
+    let first = towers[0].pos;
+    let coord = tower_chunk(first);
+    let expected: usize = towers_in_chunk(&towers, coord)
+        .map(|t| tri_count(&tower_mesh(t, &look, Detail::Near)) * 3)
+        .sum();
+    let a = near_tower_vertices(&towers, coord, GROUND_Y, &look).expect("chunk has towers");
+    assert_eq!(a.len(), expected);
+    let b = near_tower_vertices(&towers, coord, GROUND_Y, &look).expect("chunk has towers");
+    assert!(a == b, "same input, same mesh");
+}
+
+#[test]
+fn near_batch_is_none_for_an_empty_chunk() {
+    let look = look();
+    let towers = city(&cfg());
+    assert!(near_tower_vertices(&towers, IVec2::new(-500, -500), GROUND_Y, &look).is_none());
+}
+
+#[test]
+fn hulls_are_one_box_per_tower_with_matching_extents() {
+    let towers = city(&cfg());
+    let coord = tower_chunk(towers[0].pos);
+    let hulls = tower_hulls(&towers, coord, GROUND_Y);
+    assert_eq!(hulls.len(), towers_in_chunk(&towers, coord).count());
+    for (i, (pos, yaw, pts)) in hulls.iter().enumerate() {
+        let t = towers_in_chunk(&towers, coord).nth(i).expect("same order");
+        assert_eq!(pts.len(), 8);
+        assert_eq!(*pos, Vec3::new(t.pos.x, GROUND_Y, t.pos.y));
+        assert_eq!(*yaw, t.yaw);
+        let (min, max) = pts.iter().fold(([f32::MAX; 3], [f32::MIN; 3]), |(lo, hi), p| {
+            (
+                [lo[0].min(p[0]), lo[1].min(p[1]), lo[2].min(p[2])],
+                [hi[0].max(p[0]), hi[1].max(p[1]), hi[2].max(p[2])],
+            )
+        });
+        assert!((max[0] - min[0] - 2.0 * t.half.x).abs() < 1e-3);
+        assert!((max[2] - min[2] - 2.0 * t.half.y).abs() < 1e-3);
+        assert!((max[1] - min[1] - t.height).abs() < 1e-3);
+    }
+}
+
+#[test]
+fn a_tower_in_a_loaded_chunk_is_not_in_the_skyline() {
+    let cfg = cfg();
+    let towers = city(&cfg);
+    let first = towers[0].pos;
+    let loaded: HashSet<IVec2> = [tower_chunk(first)].into_iter().collect();
+    let idx = skyline_indices(&towers, &loaded, first, &cfg);
+    for (i, t) in towers.iter().enumerate() {
+        assert_eq!(idx.contains(&i), tower_chunk(t.pos) != tower_chunk(first), "tower {i}");
+    }
+}
+
+#[test]
+fn a_tower_outside_the_loaded_chunks_is_in_the_skyline() {
+    let cfg = cfg();
+    let towers = city(&cfg);
+    let idx = skyline_indices(&towers, &HashSet::new(), towers[0].pos, &cfg);
+    assert!(idx.contains(&0));
+    assert_eq!(idx.len(), towers.len(), "all towers are within 6 km of the first tower");
+}
+
+#[test]
+fn the_skyline_is_empty_when_every_tower_is_loaded_and_far_towers_are_dropped() {
+    let cfg = cfg();
+    let look = look();
+    let towers = city(&cfg);
+    let all: HashSet<IVec2> = towers.iter().map(|t| tower_chunk(t.pos)).collect();
+    let idx = skyline_indices(&towers, &all, towers[0].pos, &cfg);
+    assert!(idx.is_empty());
+    assert!(skyline_vertices(&towers, &idx, GROUND_Y, &look).is_empty());
+
+    let far_player = Vec2::new(-20000.0, 0.0);
+    assert!(skyline_indices(&towers, &HashSet::new(), far_player, &cfg).is_empty());
+}
+
+#[test]
+fn the_skyline_key_is_stable_inside_a_cell_and_changes_with_the_set_or_cell() {
+    let mut loaded: HashSet<IVec2> = [IVec2::new(1, 2), IVec2::new(3, 4)].into_iter().collect();
+    let same: HashSet<IVec2> = [IVec2::new(3, 4), IVec2::new(1, 2)].into_iter().collect();
+    let key = skyline_key(&loaded, Vec2::new(100.0, 100.0), 512.0);
+    assert_eq!(key, skyline_key(&same, Vec2::new(100.0, 100.0), 512.0), "same set, same key");
+    assert_eq!(key, skyline_key(&loaded, Vec2::new(110.0, 120.0), 512.0), "same cell, same key");
+    assert_ne!(key, skyline_key(&loaded, Vec2::new(600.0, 100.0), 512.0), "new cell, new key");
+    loaded.insert(IVec2::new(9, 9));
+    assert_ne!(key, skyline_key(&loaded, Vec2::new(100.0, 100.0), 512.0), "new set, new key");
+}

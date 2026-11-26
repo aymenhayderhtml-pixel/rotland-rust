@@ -1,18 +1,18 @@
 {
   "frame": {
-    "triangles": 228000,
-    "shadowTriangles": 121000,
-    "drawCalls": 120
+    "triangles": 1400000,
+    "shadowTriangles": 700000,
+    "drawCalls": 400
   },
   "models": {
     "animals": 4000,
-    "buildings": 12000,
+    "buildings": 80000,
     "characters": 8000,
     "farming": 3000,
     "gear": 3000,
-    "nature": 4000,
-    "props": 3000,
-    "vehicles": 5000,
+    "nature": 15000,
+    "props": 15000,
+    "vehicles": 25000,
     "weapons": 3000
   }
 }

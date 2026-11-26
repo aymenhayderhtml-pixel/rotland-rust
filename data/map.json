@@ -11,5 +11,9 @@
   "fishing_spot_radius": 3.5,
   "label_color": "#f5f0e1",
   "label_size": 16.0,
-  "max_shore_points": 64
+  "max_shore_points": 64,
+  "metro_outline_color": "#9aae9a",
+  "metro_street_color": "#45454a",
+  "metro_label_size": 16.0,
+  "metro_label_color": "#f5f0e1"
 }

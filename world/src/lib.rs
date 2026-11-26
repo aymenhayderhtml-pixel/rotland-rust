@@ -5,12 +5,14 @@ pub mod color;
 pub mod daynight;
 pub mod generator;
 mod generator_contents;
+mod generator_metro;
 mod generator_world;
 pub mod ground_detail;
 pub mod ground_paint;
 pub mod lake;
 pub mod loot;
 pub mod math;
+pub mod metro;
 pub mod noise;
 pub mod poi;
 pub mod random;
@@ -42,6 +44,11 @@ pub use city::{
 pub use color::Color;
 pub use daynight::{DayNightLook, SkyColors};
 pub use generator::{ChunkGround, GroundTriangle, WorldGenerator};
+pub use metro::{
+    Highway, HighwayHeightField, JamProp, MetroConfig, MetroLayout, MetroLook, MetroSite,
+    MetroWorld, TowerKind, TowerSpot, highway_height_at, jam_props_in_chunk, metro_ground_color,
+    place_metro, plan_highway, plan_jam, plan_towers,
+};
 pub use ground_paint::GroundPaint;
 pub use lake::{
     place_lake_props, Dock, FishingSpot, FishingSpotKind, LakeConfig, LakeConfigData, LakeLayout,

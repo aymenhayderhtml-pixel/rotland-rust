@@ -144,6 +144,7 @@ impl Game for HumanoidView {
         let items = [DrawItem {
             mesh: ground,
             offset: Vec3::ZERO,
+            fog_scale: 1.0,
         }];
 
         let lighting = light::at_hour(12.0, None); // noon

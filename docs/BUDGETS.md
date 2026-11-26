@@ -34,3 +34,6 @@ Run: `cargo run --release -p baker -- --report-budgets`
 - Prints folder, model, triangles, cap and OK / OVER BUDGET for every model. Writes no pack.
 - Normal baking prints `BUDGET: <model> <tris> > <cap>` and fails if a model is over its folder cap.
 - Result now: all models within caps. Biggest per folder: settlement 5,614 (buildings cap 12,000), zombie_01 3,700 (characters 8,000), tree_oak_big 1,380 (nature 4,000), car_hatchback_* 2,172 (vehicles 5,000).
+
+## 2026-11-26: detail first, 20 FPS floor (owner)
+The owner wants dense detail and accepts 20 FPS in the slowest moments (was 30). The bench extrapolates about 1.1-1.8M triangles at 30 FPS, so the frame budget is now 1.4M triangles, 700k shadow triangles and 400 draw calls. Model caps went up for v1.1 (New Halden): buildings 80k, vehicles 25k, props 15k, nature 15k. A round fails only if a scene's 1% low drops under 20 FPS.

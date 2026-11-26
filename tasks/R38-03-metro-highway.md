@@ -19,3 +19,42 @@ Read: tasks/R38-common.md ("Highway", "Data file"), world/src/metro/mod.rs, conf
 - Tests above pass; clippy clean; `world/tests/golden.rs` unedited.
 
 ## Worker notes
+
+**Changed (my files):** `world/src/metro/highway.rs` (Highway, plan_highway, route), `world/src/metro/highway_height.rs` (HighwayHeightField, highway_height_at), `world/src/metro/highway_tests.rs` (13 tests). Declared from inside highway.rs with `#[path]`, so **mod.rs needs no extra mod lines**.
+
+**Shared-file edits made (small, please keep):**
+- `world/src/metro/mod.rs`: added `pub use highway::{Highway, HighwayHeightField, highway_height_at, plan_highway};`.
+- `world/src/metro/config.rs`: `HighwayConfig` gained `pub city_blend_m: f32` (JSON `cityBlendM`), the length of the highway's last stretch that blends into the flat city ground.
+- `data/metro.json` "highway": filled values were already there; added `"cityBlendM": 100`.
+
+**Wiring for the lead (generator_world.rs; I did not touch it):**
+```rust
+use crate::metro::{plan_highway, HighwayHeightField};
+// after towns and roads exist, and after site.ground_y is set:
+let highway = plan_highway(&metro_site, &town_sites, &roads_data, &metro_cfg);
+let highway_field = HighwayHeightField::build(&highway, metro_site.ground_y, &|x, z| /* same closure as RoadHeightField::build */, &metro_cfg);
+// bridges: append to the existing crossings list
+crossings.extend(world_gen.rivers().crossings_for_polylines(&[&highway.points]));
+// in apply_outer_height, BEFORE the metro city flatten:
+h = highway_field.flatten(h, p);   // p: Vec2 world XZ
+// props/jam: highway_height_at(&highway_field, p) -> Option<f32>
+```
+Store `highway` and `highway_field` on WorldGenerator (or wherever the metro site lives). `field.points` and `field.heights` are pub.
+
+**Behaviour:**
+- Start: the nearer of Blackwater / Frostmere (fallback: nearest town), `townSetbackM` past its edge on the street side facing the city.
+- End: the nearest **interior** avenue on the city edge facing that town. Corner lines (k = 0 and k = sizeBlocks) are never used.
+- Route: straight line, sampled every `roads.json point_spacing`, seeded sideways bend up to `wiggle_m` (zero at both ends). Exact end point.
+- Height: base height smoothed over ±`heightSmoothM` arc (same as roads), last `cityBlendM` blended into `site.ground_y`. `flatten` is full height within half width, easing to raw over `flattenEdgeM`.
+
+**Check results:**
+- `cargo test --lib metro`: 34 passed (all R38-01 and R38-03 tests). Clippy shows nothing in metro files.
+- The real route crosses **no** `rivers.json` chord (checked with the same chord math as place.rs, camp at origin, reference +X). The check uses the ideal town spots from the sector and distance, not the spiral-shifted ones, so it is an estimate. The `crossings_for_polylines` wiring above is the real check.
+- `world/tests/golden.rs` untouched.
+
+**Unsure / for review:**
+- `HighwayHeightField` has a grid of cells and some private fields beyond the spec's `points` + `heights` (needed for speed over ~175 segments per lookup).
+- `build` takes `&MetroConfig` (not the highway sub-struct), so it matches the other metro calls.
+- The reference direction in the test is +X (as place.rs tests). In the game, the lead's `cfg.reference_dir` decides the real route.
+- `highway_tests.rs` is 312 lines (a little over the ~300 target).
+- The workspace `cargo test` currently fails to compile `rotland/src/app/frame_ui.rs:144` (another coder's file, `takes 5 arguments`); I used `cargo test --lib` to avoid it.
