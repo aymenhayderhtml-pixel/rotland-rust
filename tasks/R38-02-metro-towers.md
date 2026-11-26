@@ -17,3 +17,15 @@ Read: tasks/R38-common.md ("Towers", "Data file"), world/src/metro/mod.rs, confi
 - Tests above pass; clippy clean; `world/tests/golden.rs` unedited.
 
 ## Worker notes
+
+- Done: `world/src/metro/towers.rs` (planning, ~265 lines) and `world/src/metro/towers_tests.rs` (tests, 8 tests). `cargo test --lib metro` passes (34 metro tests). Clippy: no warnings in metro files.
+- Shared-file lines (added to `world/src/metro/mod.rs` for the test build, lead to keep):
+  - `pub use towers::{TowerKind, TowerSpot, plan_towers};`
+  - `#[cfg(test)] mod towers_tests;`
+- `config.rs` NOT edited (TowersConfig already has every field needed: `lot_gap`, `max_lots_per_block`, `landmark_count`, `landmark_floors`, `floor_height`, and the per-district ranges).
+- `data/metro.json` towers: only `maxLotsPerBlock` changed 2 -> 4. Everything else in `towers` was already as the brief asked.
+- Packing rules: usable rect = block minus half street/avenue per edge plus `lotGap`. Lots are square. 1 to 4 lots per block: 1 cell, 2 cells along the longer side, or a 2x2 grid. A block drops to 1 lot when the cells would be smaller than the district's minimum footprint. In practice Core blocks (46 m usable, minimum footprint 24 m) hold 1 tower each; Edge and Midtown hold 1 to 4. If the owner wants more Core lots, lower `towers.core.footprint[0]` in data.
+- Landmarks: 3-5 Core blocks chosen from the site seed, kept at least 4 blocks apart, one tower per block, centred, footprint up to 40 m, 38-42 floors (about 145-160 m).
+- Safe-house tower: one Core highrise in its block (district floors and footprint).
+- Yaw: site yaw, plus a quarter turn on every other lot. Footprints are square, so the turn is visual only.
+- Unsure: no tower count is written to data; the density check is only `> 700` (it passes).

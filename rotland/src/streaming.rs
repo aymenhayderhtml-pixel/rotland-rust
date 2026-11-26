@@ -12,6 +12,7 @@ use glam::{IVec2, Vec3};
 use physics::{ColliderHandle, PhysicsWorld};
 use world::{LootSpot, PoiInstance, PropInstance, WorldGenerator};
 
+use crate::metro_render::{hulls::tower_hulls, near::near_tower_mesh};
 use crate::props::{Placed, PropLibrary};
 use crate::terrain;
 
@@ -33,6 +34,8 @@ struct Built {
 pub struct LoadedChunk {
     pub ground: GpuMesh,
     pub origin: Vec3,
+    /// New Halden's placeholder towers on this chunk, as one world-space mesh.
+    pub towers: Option<GpuMesh>,
     pub placed: Vec<Placed>,
     /// Loot crate spots of this chunk (opened with E; see crates.rs).
     pub crates: Vec<LootSpot>,
@@ -320,10 +323,30 @@ impl Streamer {
                 colliders.push(h);
             }
         }
+        // New Halden: the towers of this chunk are solid (one box hull each) and drawn near
+        let (towers, hulls) = match self.world_gen.metro_world() {
+            Some(m) => {
+                let ground_y = m.layout.site.ground_y;
+                (
+                    near_tower_mesh(device, &m.towers, b.coord, ground_y, &m.look),
+                    tower_hulls(&m.towers, b.coord, ground_y),
+                )
+            }
+            None => (None, Vec::new()),
+        };
+        if !hulls.is_empty() {
+            let h = physics.add_static_compound_deferred(
+                hulls.iter().map(|(p, yaw, pts)| (std::slice::from_ref(pts), *p, *yaw, 1.0)),
+            );
+            if h != ColliderHandle::invalid() {
+                colliders.push(h);
+            }
+        }
         let origin = Vec3::new(b.coord.x as f32, 0.0, b.coord.y as f32) * WorldGenerator::CHUNK_SIZE;
         LoadedChunk {
             ground: GpuMesh::new(device, "ground", &b.ground),
             origin,
+            towers,
             placed,
             crates: b.crates,
             ladders,

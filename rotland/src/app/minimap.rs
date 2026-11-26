@@ -12,6 +12,7 @@ pub use super::minimap_cache::MinimapState;
 use super::minimap_draw::{
     draw_camp_outlines, draw_lake_features, draw_marker, draw_player, draw_streets_and_road,
 };
+use super::minimap_metro::draw_metro_streets;
 
 const CIRCLE_SEGMENTS: usize = 48;
 const CAMP_GATE_HALF_METRES: f32 = 3.2;
@@ -70,19 +71,29 @@ pub fn draw_minimap_hud(
         }
     }
 
-    let city = world.world_gen.as_ref().and_then(|g| g.city());
-    let lake = world.world_gen.as_ref().and_then(|g| g.lake());
+    let shapes = MinimapShapes {
+        city: world.world_gen.as_ref().and_then(|g| g.city()),
+        lake: world.world_gen.as_ref().and_then(|g| g.lake()),
+        metro: world.world_gen.as_ref().and_then(|g| g.metro_layout()),
+    };
 
     draw_minimap_overlay(
         ctx,
         &ui.minimap,
         &play_state.map,
         play_state.camp.bounties.active(),
-        city,
-        lake,
+        shapes,
         player_xz,
         player_yaw,
     );
+}
+
+/// The map shapes the mini-map draws: Ashford's city and lake, and New Halden's layout.
+#[derive(Clone, Copy)]
+struct MinimapShapes<'a> {
+    city: Option<&'a world::CityLayout>,
+    lake: Option<&'a world::LakeLayout>,
+    metro: Option<&'a world::metro::MetroLayout>,
 }
 
 fn draw_minimap_overlay(
@@ -90,11 +101,11 @@ fn draw_minimap_overlay(
     state: &MinimapState,
     map: &game::MapState,
     bounties: &[game::BountyDef],
-    city: Option<&world::CityLayout>,
-    lake: Option<&world::LakeLayout>,
+    shapes: MinimapShapes<'_>,
     player_xz: Vec2,
     yaw: f32,
 ) {
+    let MinimapShapes { city, lake, metro } = shapes;
     egui::Area::new(egui::Id::unique("rotland_minimap_hud"))
         .fixed_pos(pos2(0.0, 0.0))
         .interactable(false)
@@ -169,6 +180,25 @@ fn draw_minimap_overlay(
                 scale,
                 &state.streets_cfg,
             );
+
+            // New Halden: only when the player is near the city (the layout is big)
+            if let Some(layout) = metro.filter(|l| l.near(player_xz)) {
+                let streets = rotland_ui::metro_ui::minimap_streets(
+                    layout,
+                    player_xz,
+                    cfg.radius_metres,
+                    radius,
+                    state.streets_cfg.street_min_px,
+                );
+                draw_metro_streets(
+                    painter,
+                    centre,
+                    &streets,
+                    disk_r - 1.0 * scale,
+                    scale,
+                    state.streets_cfg.street_color,
+                );
+            }
 
             draw_lake_features(
                 painter,

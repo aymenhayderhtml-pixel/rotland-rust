@@ -43,4 +43,30 @@ The seats are built where these points say, and the model origin must be the one
 - No sounds, no real brands, no extreme gore. No palette sheet changed.
 
 ## Worker notes
-(fill in: what changed, any colour missing from the palette and what was used instead, measured triangles per model, corrected seat values, lines for the lead)
+R38-05 rework (second pass, after lead review). Blender only, no cargo, no baker, no commits, data/metro.json not touched.
+
+**Final triangles (build log, `R38 BUILD OK`, all within budget)**
+- Cars (target 8k-15k): sedan 10,052 / burnt 9,136; hatch 9,388 / 8,848; SUV 10,246 / 9,334; pickup 9,114 / 8,514; van 9,162 / 8,622
+- Buses (12k-20k): bus_city 14,196; bus_city_side 13,116
+- Army truck (12k-20k): army_truck_jam 12,888
+- Props: luggage_pile 3,140; suitcase_open 5,452; clothes_spill 3,888 (3k-10k); body_seated 4,980 (4k-8k); body_sheet 5,336; highway_sign_gantry 9,220; highway_barrier 3,380
+
+**Seat table (unchanged from the contract; verified in the exported glTF files, the empties `seat_*` match these exactly)**
+```json
+"seatOffsets": {
+  "car_jam_sedan":  [[-0.38, 0.45, 0.42], [0.38, 0.45, 0.42], [-0.38, -0.45, 0.42], [0.38, -0.45, 0.42]],
+  "car_jam_hatch":  [[-0.36, 0.42, 0.42], [0.36, 0.42, 0.42], [-0.34, -0.50, 0.42]],
+  "car_jam_suv":    [[-0.40, 0.55, 0.48], [0.40, 0.55, 0.48], [-0.40, -0.25, 0.48], [0.40, -0.25, 0.48]],
+  "car_jam_pickup": [[-0.38, 0.30, 0.48], [0.38, 0.30, 0.48]],
+  "car_jam_van":    [[-0.38, 0.95, 0.46], [0.38, 0.95, 0.46], [-0.38, -0.40, 0.46]]
+}
+```
+Burnt variants use the same points (base key). data/metro.json still has no `jam` key; the lead adds it.
+
+**What is in the models now**
+- Cars: bevelled panels, front bumper with plate, grille, headlights, rear lights, mirrors, fenders over the wheels, full doors (outer skin, inner trim, window with frame, handle), greenhouse with frames, pillars and wipers, cracked and holed windows, dash, seats with headrests, 16-segment steering wheel, rear shelf, bags on seats, 24-segment tyres with 5-spoke rims, one flat tyre, raised rust and dust patches, roof rack luggage (SUV, van), pickup bed load. Burnt: black body, rust-orange patches, no glass, bare spring seats, rims on the ground, no tyres.
+- Buses: closed body with 8 glass panes per side (some cracked or missing), pillars, roof units, destination board "NOT IN SERVICE", open front door with full panel, seats with headrests, handrails, chassis rails, axles, fuel tank and exhaust under the floor, four wheels in arches, one flat. bus_city_side is the same bus rotated 90 degrees on its length axis, so the windowed side faces up, the underside faces sideways and the wheels stick out into the air; origin on the ground.
+- Truck: ribbed canvas bed with torn panels, tailgate down, troop benches, cab with glass, grille, headlights, mirrors, cab seats and steering wheel, six tyres (one flat), spare tyre, jerrycans, toolboxes, exhaust stack; olive drab with generic white markings.
+- Props: bevelled suitcases with wheels, zips and handles, duffel bags, open suitcase with clothes, scattered shirts; body_seated slumped with head to one side and arms hanging; body_sheet shows head, shoulders, legs and shoes under a sheet; gantry with bevelled "NEW HALDEN" lettering, truss, lamps and two exit arrows; barrier with a dent and chips.
+
+**Previews checked by eye (all changed ones re-viewed)**: sedan, sedan burnt and top, hatch, hatch burnt, SUV top, pickup top, van, bus upright and top, bus on its side, truck and truck top, body seated, body sheet, luggage pile, open suitcase, clothes spill, gantry, barrier. The burnt SUV/pickup/van and the bus interior were checked only by the build log and top views.

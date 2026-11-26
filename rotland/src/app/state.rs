@@ -259,6 +259,8 @@ pub struct PlaySide {
     pub temperature: Option<crate::temperature_play::TemperaturePlay>,
     /// Procedural clouds and biome fog tint (R35-04).
     pub sky: Option<crate::sky_play::SkyPlay>,
+    /// New Halden's skyline and haze; None in a world without the metro city.
+    pub metro: Option<crate::metro_play::MetroPlay>,
 }
 
 impl Default for PlaySide {
@@ -288,6 +290,7 @@ impl Default for PlaySide {
             weather: None,
             temperature: None,
             sky: None,
+            metro: None,
         }
     }
 }

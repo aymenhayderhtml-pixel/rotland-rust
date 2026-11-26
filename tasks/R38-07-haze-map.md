@@ -38,4 +38,27 @@ Read: tasks/R38-common.md ("Haze", "Map", "Test flags"), rotland/src/light.rs (`
 - Night: the haze never brightens dark fog; grass outside the city stays green (haze weight is 0 outside `blend_m`).
 
 ## Worker notes
-(fill in: the shared-file lines for lead (`rotland/src/main.rs` mod lines if needed, `rotland_ui/src/lib.rs` `pub mod metro_ui;`, the `render_frame.rs` call, the `frame_ui.rs` banner argument), the MetroSite/MetroStreet field names used, questions)
+**Done (all owned files):** `rotland_ui/src/metro_ui/{mod,haze,outline,draw_map,minimap,tests}.rs`, `rotland/src/metro_haze.rs`, `rotland/src/region_banner.rs` (Metro state + 2 new tests + the old tests updated), `data/sky.json` (`metro_haze` only), `data/map.json` (4 `metro_*` keys only).
+**Verified by me:** `cargo test metro_ui` 15 pass, `cargo test region` 6 pass, clippy shows no warnings in my files (only `metro_haze.rs apply is never used`, gone once wired). To get the banner tests to compile I temporarily added the fifth argument to `frame_ui.rs`; that edit is REVERTED (file is unchanged in this worktree).
+
+**Lines for the lead (shared / other files):**
+1. `rotland/src/app/frame_ui.rs` line ~144, the `play.region_banner.update(` call: add a fifth argument after the town closure, for example `|| wg.metro_name_at(p.position.x, p.position.z)` or, with the site in hand, `|| metro_site.as_ref().filter(|s| s.contains_square(Vec2::new(p.position.x, p.position.z))).map(|s| s.name.clone()),`. Without it the rotland crate does not compile.
+2. `rotland/src/app/render_frame.rs`, right after `sky.apply_biome_fog(&mut lighting, actors.player, generator);` (inside the `if let (Some(sky), Some(generator))` block, or just after it):
+   `crate::metro_haze::apply(&mut lighting, actors.player, metro_site.as_ref(), &metro_haze_cfg);`
+   Load `metro_haze_cfg = rotland_ui::metro_ui::MetroHazeConfig::load_default();` ONCE in state (not per frame). Skyline fog for the far batch (R38-06/08): `rotland_ui::metro_ui::skyline_fog(&metro_haze_cfg, lighting.fog_color)` returns (colour, begin, end).
+3. `rotland/src/main.rs` already has `mod metro_haze;`. `rotland_ui/src/lib.rs` already has `pub mod metro_ui;`. Nothing else needed.
+4. Big map (R38-08, `rotland_ui/src/map_ui/draw.rs`): call once the city layout exists:
+   `crate::metro_ui::draw_metro_map(painter, state, &view.map_state.explore, layout, &metro_map_cfg, rect, view_size);`
+   with `metro_map_cfg = rotland_ui::metro_ui::MetroMapConfig::load_default();` cached once (not per frame). Here `layout` is `&world::metro::MetroLayout` (the site is `layout.site`). Note the function is `rotland_ui::metro_ui::draw_metro_map` (the module path is `metro_ui`, it is not inside map_ui).
+5. Minimap (R38-08, `rotland/src/app/minimap_draw.rs`): `rotland_ui::metro_ui::minimap_streets(layout, player_xz, radius_metres, radius_px, cfg.street_min_px)` returns `MinimapStreet { a, b, width_px, avenue }` where a/b are pixel offsets from the minimap centre. Draw: clip with `game::clip_segment_to_circle(a, b, disk_r)`, stroke width `width_px * scale` in `cfg.street_color`, the same as the Ashford streets. Only call it when the player is near the city (`layout.near(player_xz)`) for speed.
+
+**Deviations from the brief (on purpose):**
+- `outline::streets_on_map` returns `Vec<&MetroStreet>` (there is no `MapStreet` type; `MetroStreet` from world).
+- `draw_metro_map` takes `layout` (the site comes from `layout.site`) and a `&MetroMapConfig` argument, so it has 7 arguments (clippy limit).
+- `minimap_streets` has an extra `street_min_px: f32` argument (from `data/minimap.json`); the rotland side owns that config, and rotland_ui cannot read it from the minimap cache.
+- Minimap keep rule: a street is kept when its centreline comes within `radius + width/2` of the player (the same rule as `minimap_draw.rs`). The brief's "both ends outside the disc" would hide long streets that cross the disc, so I did not use it. The test cases in the brief still hold.
+- Discovery uses a 5 x 5 sample grid over the square (`DISCOVERY_GRID`), so a very small explored spot far from the sample points may not count yet.
+- `MetroMapConfig` has its own small `#rrggbb` parser because `draw_city.rs` keeps `parse_color` private. The lead may merge the two later.
+- The Ashford-style zoom rule: streets draw at any zoom once a street midpoint is explored; the outline and label show at every zoom once discovered.
+
+**Questions / unsure:** none blocking. Owner may want to tune `metro_haze` (sky.json) and the `metro_*` colours (map.json) by eye after the first screenshot.

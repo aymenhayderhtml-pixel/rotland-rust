@@ -4,6 +4,7 @@
 pub mod minimap;
 mod minimap_cache;
 mod minimap_draw;
+mod minimap_metro;
 
 pub mod anim_shot;
 pub mod bench;
@@ -26,6 +27,7 @@ mod frame_team_revive;
 mod frame_team_view;
 pub mod frame_ui;
 pub mod frame_warmth;
+mod metro_flags;
 pub mod frame_world;
 pub mod render_frame;
 pub mod save_load;

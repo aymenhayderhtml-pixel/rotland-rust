@@ -137,6 +137,8 @@ struct VsOut {
     // Self-lit amount (flames): a vertex alpha below 1 glows by (1 - alpha); every baked model has alpha 1
     @location(3) glow: f32,
     @location(4) @interpolate(flat) lod_fade: f32,
+    // Far items (skyline): fog distance is divided by this (1.0 = normal)
+    @location(5) @interpolate(flat) fog_scale: f32,
 };
 
 // Per-draw offset (chunk origin), so chunk meshes keep small local coordinates
@@ -153,6 +155,7 @@ fn mesh_vs(v: VsIn) -> VsOut {
     o.albedo = srgb_to_linear(v.color.rgb);
     o.glow = 1.0 - v.color.a;
     o.lod_fade = 1.0;
+    o.fog_scale = max(draw.offset.w, 1.0);
     return o;
 }
 
@@ -162,7 +165,7 @@ fn shade_fragment(i: VsOut) -> vec4<f32> {
     let ndl = max(dot(n, scene.sun_dir.xyz), 0.0);
     var shade = 1.0;
     // new: PERF R30.5
-    if (ndl > 0.0 && scene.sun_dir.w > 0.001) {
+    if (ndl > 0.0 && scene.sun_dir.w > 0.001 && i.fog_scale <= 1.0) {
         shade = sun_shadow(i.world, n, dist);
     }
     let sun = scene.sun_color.rgb * scene.sun_dir.w * ndl * shade;
@@ -172,7 +175,7 @@ fn shade_fragment(i: VsOut) -> vec4<f32> {
     // The moon lights the night without shadows (like Godot's moon light), the spots light the dark (flashlight + car headlights)
     let moon = scene.moon_color.rgb * scene.moon_dir.w * max(dot(n, scene.moon_dir.xyz), 0.0);
     var color = i.albedo * (sun + moon + ambient + spot_lights(i.world, n)) + i.albedo * i.glow * 3.0;
-    let fog = smoothstep(scene.fog.x, scene.fog.y, dist) * scene.fog.z;
+    let fog = smoothstep(scene.fog.x, scene.fog.y, dist / i.fog_scale) * scene.fog.z;
     color = mix(color, scene.fog_color.rgb, fog);
     return vec4(filmic(color), 1.0);
 }
@@ -238,6 +241,7 @@ fn skinned_vs(v: SkinIn) -> VsOut {
     o.albedo = srgb_to_linear(v.color.rgb);
     o.glow = 1.0 - v.color.a;
     o.lod_fade = v.lod_fade;
+    o.fog_scale = 1.0;
     return o;
 }
 

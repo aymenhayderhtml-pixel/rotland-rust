@@ -118,12 +118,27 @@ impl WorldGenerator {
             self.append_bridge_props(coord, &mut props);
             self.append_signpost_props(coord, &mut props);
         }
+        if let Some(metro) = self.metro_world() {
+            props.extend(crate::metro::jam_props_in_chunk(&metro.jam, coord, &|x, z| self.height(x, z)));
+        }
 
         (pois, props)
     }
 
     fn keep_scattered_prop(&self, prop: &PropInstance) -> bool {
         let p = Vec2::new(prop.position.x, prop.position.z);
+        if let Some(metro) = self.metro_world() {
+            // New Halden: no scatter on its streets, in its tower footprints, or on the highway.
+            // Lots and parks inside the square keep their scatter.
+            if metro.layout.site.contains_square(p)
+                && (metro.layout.street_at(p).is_some() || metro.in_tower_footprint(p))
+            {
+                return false;
+            }
+            if metro.highway_field.surface_weight(p) > 0.0 {
+                return false;
+            }
+        }
         if let Some(city) = self.city()
             && city.contains(p)
         {

@@ -95,6 +95,9 @@ pub fn srgb_to_linear(c: Vec3) -> Vec3 {
 pub struct DrawItem<'a> {
     pub mesh: &'a GpuMesh,
     pub offset: Vec3,
+    /// 1.0 = normal. Above 1.0 = a far item (the city skyline): its fog distance is divided by this
+    /// and it casts no sun shadow.
+    pub fog_scale: f32,
 }
 
 /// Counts of the last frame, for the stats JSON.
@@ -230,7 +233,7 @@ impl LitRenderer {
         self.offsets_scratch.resize(items.len() * DRAW_STRIDE as usize, 0);
         for (i, d) in items.iter().enumerate() {
             let at = i * DRAW_STRIDE as usize;
-            self.offsets_scratch[at..at + 16].copy_from_slice(bytemuck::bytes_of(&[d.offset.x, d.offset.y, d.offset.z, 0.0f32]));
+            self.offsets_scratch[at..at + 16].copy_from_slice(bytemuck::bytes_of(&[d.offset.x, d.offset.y, d.offset.z, d.fog_scale]));
         }
         if !self.offsets_scratch.is_empty() {
             gpu.queue.write_buffer(&self.draw_buf, 0, &self.offsets_scratch);
@@ -271,7 +274,7 @@ impl LitRenderer {
         if shadows_on {
             let sun_frustum = Frustum::from_view_proj(&light_vp);
             self.visible_scratch.clear();
-            self.visible_scratch.extend((0..items.len()).filter(|&i| in_view(&sun_frustum, &items[i])));
+            self.visible_scratch.extend((0..items.len()).filter(|&i| items[i].fog_scale <= 1.0 && in_view(&sun_frustum, &items[i])));
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("sun shadow"),
                 color_attachments: &[],

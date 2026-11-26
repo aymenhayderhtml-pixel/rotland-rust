@@ -183,6 +183,18 @@ fn is_blocked(world_gen: &WorldGenerator, p: Vec2) -> bool {
             return true;
         }
     }
+    // New Halden: no tufts on its streets or on the highway into it (lots keep them: overgrowth)
+    if let Some(metro) = world_gen.metro_layout()
+        && metro.contains(p)
+        && metro.street_at(p).is_some()
+    {
+        return true;
+    }
+    if let Some(highway) = world_gen.metro_highway_field()
+        && highway.height_at(p).is_some()
+    {
+        return true;
+    }
     if let Some(lake) = world_gen.lake()
         && lake.contains_region(p)
         && lake.shore_distance(p) < 0.0

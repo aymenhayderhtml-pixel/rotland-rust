@@ -76,3 +76,36 @@ Read: tasks/R38-common.md ("Placement", "Layout", "Data file"), world/src/city/c
 - `world/tests/golden.rs` is unedited and still passes; clippy is clean; the exact shared wiring lines are in Worker notes.
 
 ## Worker notes
+
+Done by coder (R38-01). `cargo test metro`: 17 passed. `cargo clippy --all-targets`: no warnings in `world/src/metro`. `world/tests/golden.rs` not touched.
+
+**Files (all in `world/src/metro/` unless noted)**
+- `config.rs` (283 lines): `MetroConfig` (+ `DistrictsConfig`, `ReservedArea`, `DistrictTowers`, `TowersConfig`, `HighwayConfig`, `WeightedModel`, `JamConfig`, `SkylineConfig`), `validate`, `from_json`, `load_from_file`. Runtime field `reference_dir` (serde skip, default `Vec2::X`).
+- `place.rs` (298 lines): `MetroSite`, `MetroPlacementFrame`, `place_metro`, `place_metro_in_frame`, `shortest_arc_midpoint_deg`.
+- `layout.rs` (296 lines): `MetroDistrict`, `Reserved` (+ `Reserved::ALL`), `MetroBlock`, `MetroStreet`, `MetroLayout` and its queries.
+- `layout_tests.rs` (NEW, 119 lines): the layout tests. Deviation from the brief: `layout.rs` with inline tests was 413 lines, so the tests moved to a sibling file, the same way `city/` does it. Declared in `mod.rs` as `#[cfg(test)] mod layout_tests;`.
+- `mod.rs`: declares config, layout, place, layout_tests, and re-exports (see below).
+- `data/metro.json`: all top-level keys, with the placeholder values from the brief.
+
+**Shared-file lines for the lead (do not edit from my side)**
+- `world/src/lib.rs` already has `pub mod metro;`. Add this re-export if you want the root names:
+  `pub use metro::{MetroBlock, MetroConfig, MetroDistrict, MetroLayout, MetroPlacementFrame, MetroSite, MetroStreet, Reserved, place_metro, place_metro_in_frame};`
+- Wiring order in `attach_metro`:
+  1. `cfg.reference_dir = self.layout.reference_dir();` (`WorldLayout::reference_dir`, before calling `place_metro`)
+  2. `let mut site = place_metro(seed as u64, camp, &cfg);`
+  3. `site.ground_y = self.raw_height(site.center.x, site.center.y);`
+  4. `let layout = MetroLayout::generate(site, &cfg);` (takes the site by value; keep `cfg` for R38-02..06).
+- Per-frame: `if let Some(m) = &self.metro { if m.near(p) { h = m.flatten(h, p) } }`. `near` is the cheap gate, and `flatten` is a no-op outside the skirt.
+- `place_metro` reads `data/world_layout.json` and `data/rivers.json` from disk (`WorldLayoutData::load` / `RiversData::load`), and `data/towns.json` via `TownsData::load_embedded`. It panics with a message if those are broken, as `place_towns` does.
+
+**How to see it**: nothing is visible yet, because no wiring is in. After wiring, `--metro=<spot>` (R38-08) and a city screenshot show the grid.
+
+**Choices and things to check**
+- `safeHouseTower` and `subway` are 1x1 blocks. The brief's 2x2 at (15,15) and (16,16) would overlap, so the validator would reject them. Police and FireStation are 2x2 (the brief gave only anchors). Tell me if you want other sizes.
+- `MetroBlock.rect` is the full 64 m cell (streets are centred on the cell edges). R38-02 lots must inset by half the street width.
+- `MetroLayout.blocks` holds present blocks only (dropped corner blocks are absent). Lookup goes through a private grid index. `block_at(ix, iz)`, `block_at_point(p)`, `district_at(p)`, `street_at(p)`, `contains(p)`, `near(p)`, `height_at(p)`, `flatten(raw, p)` are world-space queries; the stored `rect`, `a`, `b` are site-local.
+- Site-local frame: origin at `site.center`, local +Y toward camp, `yaw` in radians (Godot +Y rotation). `to_local(camp)` lies on +Y (tested).
+- Obstacle clearance uses a conservative radius of `half * sqrt(2)`. Towns use `radius + spiralMax` (drift), as specified. The core check measures from `camp`, so I assumed camp is the core centre. Please confirm.
+- `place_metro` takes `seed: u64` and casts to `i32` for `DotnetRandom`, matching the brief.
+- Tests with the real data: the site is 5.9–6.7 km out and within 10 degrees of the swamp/snow seam, deterministic for a seed (asserted).
+- New numbers are tagged `// data:` or `// new: DECISIONS 2026-11-26`. A few geometry constants (360, 180, 1e-6, SQRT_2 and the 0.5 half-width factor) are tagged or use std constants.

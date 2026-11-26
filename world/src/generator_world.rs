@@ -196,6 +196,14 @@ impl WorldGenerator {
             let roads_data = RoadsData::load_from_file(&roads_path)
                 .map_err(|e| format!("roads.json: {e}"))?;
             generator.attach_outer_world(&towns_data, &rivers_data, &roads_data);
+            let metro_path = read("metro.json");
+            if metro_path.exists() {
+                let metro_cfg = crate::metro::MetroConfig::load_from_file(&metro_path)
+                    .map_err(|e| format!("metro.json: {e}"))?;
+                let look = crate::metro::MetroLook::load_from_file(&metro_path)
+                    .map_err(|e| format!("metro.json: {e}"))?;
+                generator.attach_metro(metro_cfg, look, &roads_data);
+            }
         }
         Ok(generator)
     }
@@ -378,6 +386,7 @@ impl WorldGenerator {
             crossings: Vec::new(),
             towns_data: TownsData::load_embedded(),
             has_outer: false,
+            metro: None,
         };
         let site = SettlementPlacer::find(&world_gen, &config);
         let camp = Vec2::new(site.center.x, site.center.z);

@@ -8,6 +8,7 @@ use crate::color::Color;
 use crate::generator::{GroundTriangle, WorldGenerator};
 use crate::ground_paint::GroundPaint;
 use crate::lake::LakeLayout;
+use crate::metro::MetroWorld;
 use crate::math::{lerp, smooth_step};
 use crate::noise::GodotNoise;
 use crate::rivers::RiverNetwork;
@@ -37,6 +38,7 @@ pub struct ChunkPaintContext<'a> {
     pub roads: Option<&'a RoadNetwork>,
     pub rivers: Option<&'a RiverNetwork>,
     pub towns: &'a [TownSite],
+    pub metro: Option<&'a MetroWorld>,
 }
 
 impl TerrainPaint {
@@ -178,6 +180,9 @@ impl TerrainPaint {
             biome_color = Self::paint_outer_features(ctx, wx, wz, biome_color);
             core_color.lerp(biome_color, sample.outer)
         };
+        if let Some(metro) = ctx.metro {
+            color = metro.paint_ground(color, wx, wz);
+        }
 
         color *= 1.0 + Self::BRIGHTNESS_JITTER * Self::jitter(ctx.coord, cell_x, cell_z, half);
         color = Self::apply_hue(color, hue_n);

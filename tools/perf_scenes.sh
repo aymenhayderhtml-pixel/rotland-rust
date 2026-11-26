@@ -71,7 +71,7 @@ done
 case "$SET" in
   default) SCENES=(camp forest city night zombies) ;;
   biomes)  SCENES=(desert snow swamp mountains) ;;
-  all)     SCENES=(camp forest city night zombies desert snow swamp mountains town_desert town_snow) ;;
+  all)     SCENES=(camp forest city night zombies desert snow swamp mountains town_desert town_snow metro) ;;
   *)
     echo "perf_scenes: unknown --set value: $SET (expected default, biomes, or all)" >&2
     exit 2
@@ -144,6 +144,7 @@ run_scene() {
     mountains)   scene_args=(--biome=mountains --autowalk --hour=12) ;;
     town_desert) scene_args=(--town=dusthollow --autowalk --hour=12) ;;
     town_snow)   scene_args=(--town=frostmere --autowalk --hour=12) ;;
+    metro)       scene_args=(--metro=core --autowalk --hour=12) ;;
     *)
       echo "perf_scenes: unknown scene: $scene" >&2
       exit 1

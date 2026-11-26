@@ -7,6 +7,7 @@ use glam::{IVec2, Vec2};
 
 use super::draw_city::MapStreetsConfig;
 use super::draw_lake::MapLakeConfig;
+use crate::metro_ui::MetroMapConfig;
 
 /// Persistent interactive state of the map view.
 pub struct MapUiState {
@@ -17,6 +18,7 @@ pub struct MapUiState {
     pub(crate) cached_version: u64,
     pub streets_cfg: MapStreetsConfig,
     pub lake_cfg: MapLakeConfig,
+    pub metro_cfg: MetroMapConfig,
 }
 
 impl Default for MapUiState {
@@ -29,6 +31,7 @@ impl Default for MapUiState {
             cached_version: 0,
             streets_cfg: MapStreetsConfig::load_default(),
             lake_cfg: MapLakeConfig::load_default(),
+            metro_cfg: MetroMapConfig::load_default(),
         }
     }
 }

@@ -169,12 +169,16 @@ pub fn render_frame(
         render.scratch_beds = beds;
         return;
     };
-    let items: Vec<DrawItem> = streamer
+    if let (Some(metro), Some(generator)) = (play.metro.as_mut(), world.world_gen.as_ref()) {
+        metro.update_skyline(&gpu.device, generator, streamer, actors.player);
+    }
+    let mut items: Vec<DrawItem> = streamer
         .chunks
         .values()
-        .map(|c| DrawItem {
-            mesh: &c.ground,
-            offset: c.origin,
+        .flat_map(|c| {
+            let ground = DrawItem { mesh: &c.ground, offset: c.origin, fog_scale: 1.0 };
+            let towers = c.towers.as_ref().map(|mesh| DrawItem { mesh, offset: glam::Vec3::ZERO, fog_scale: 1.0 });
+            std::iter::once(ground).chain(towers)
         })
         .collect();
     // Joint 0 is the identity: static instanced props use it
@@ -235,6 +239,24 @@ pub fn render_frame(
     };
     if let (Some(sky), Some(generator)) = (play.sky.as_ref(), world.world_gen.as_ref()) {
         sky.apply_biome_fog(&mut lighting, actors.player, generator);
+    }
+    // New Halden's grey-green haze near the city, then the far skyline (main pass only, see fog_scale)
+    if let (Some(metro), Some(generator)) = (play.metro.as_ref(), world.world_gen.as_ref()) {
+        crate::metro_haze::apply(
+            &mut lighting,
+            actors.player,
+            generator.metro_layout().map(|l| &l.site),
+            &metro.haze,
+        );
+    }
+    // After the haze: high cameras (rooftops) see farther
+    if let Some(generator) = world.world_gen.as_ref() {
+        let cam = render.camera.position;
+        light::lift_fog_for_height(&mut lighting, cam.y - generator.height(cam.x, cam.z));
+    }
+    if let Some(metro) = play.metro.as_ref() {
+        let fog_scale = crate::metro_play::skyline_fog_scale(metro.haze.skyline_fog_end, lighting.fog_end);
+        items.extend(metro.skyline.draw_items(fog_scale));
     }
     // The nearest car with its lights on lights the road (Godot CarLights); the renderer has 3 spots
     if let Some(cars) = &actors.cars

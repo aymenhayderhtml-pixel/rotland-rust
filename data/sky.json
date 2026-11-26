@@ -47,5 +47,14 @@
     "snow": [215, 228, 242],
     "swamp": [145, 160, 130],
     "mountains": [210, 220, 235]
+  },
+  "metro_haze": {
+    "_why": "R38-07: light grey-green haze over New Halden; fades out over blend_m past the city edge. Night stays dark.",
+    "color": [150, 168, 150],
+    "fog_start": 70,
+    "fog_end": 190,
+    "blend_m": 250,
+    "skyline_fog_start": 3000,
+    "skyline_fog_end": 6000
   }
 }
