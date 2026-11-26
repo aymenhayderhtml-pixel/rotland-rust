@@ -56,6 +56,7 @@ Note: The game is now built in Rust (custom wgpu engine, see docs/archive/RUST_P
 | 2026-11-12 | World: 64 m chunks, 2 m grid, load radius 3 (about 450 m), fog 120–190 m; random seed per new game; plains = flat light grass, forest = hilly dark grass |
 | 2026-11-12 | One save slot; autosave every 2 min and on quit; auto-continue on start; F5/F9/F8 |
 | 2026-11-11 | Skills: max level 20; XP to next level = 100 × 1.35^(level−1); zombie kill 25 XP (×1.5 headshot); 1 agility XP per 20 m sprinted; Combat +3% melee / +2% gun damage per level; Agility +3% stamina / +1% speed per level |
+| 2026-11-26 | Weapon shop (R37): camp gunsmith (grows with camp upgrades) + a gun shop in each far town; paid in scrap metal (the camp trader keeps dollars); buy guns/ammo, repair (weapons now wear), attachments, sell loot for scrap | owner |
 
 ## Performance notes
 - 2026-11-11 benchmark (empty test scene, uncapped): Mobile 1080p = ~88 FPS; 3D scale 0.75 = ~117; shadow map 2048 + low soft-shadow filter = ~115; Compatibility renderer = no gain (~86). Vsync caps at 60.
@@ -68,4 +69,3 @@ Note: The game is now built in Rust (custom wgpu engine, see docs/archive/RUST_P
 - **No music; minimal sound.**
 - **Action over horror.**
 - **Difficulty curve: hard from the start, easier as the player grows.** (Danger rings outside the home core were added 2026-11-25, see the "0.3 World" row.) The player's power grows through skills, gear, camp upgrades, the dog and the car.
-| 2026-11-26 | Weapon shop (R37): camp gunsmith (grows with camp upgrades) + a gun shop in each far town; paid in scrap metal (the camp trader keeps dollars); buy guns/ammo, repair (weapons now wear), attachments, sell loot for scrap | owner |
