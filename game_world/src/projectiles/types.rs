@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum ProjectileKind {
     Arrow,
+    CrossbowBolt,
     ThrownSpear,
 }
 
@@ -96,6 +97,12 @@ impl Projectile {
                 // data: weapons.json pickupChance
                 0.6,
                 // data: weapons.json headshotMultiplier
+                2.5,
+            ),
+            ProjectileKind::CrossbowBolt => (
+                // data: weapons.json crossbow.pickupChance
+                0.75,
+                // data: weapons.json crossbow.headshotMultiplier
                 2.5,
             ),
             ProjectileKind::ThrownSpear => (

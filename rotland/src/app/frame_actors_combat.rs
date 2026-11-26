@@ -195,7 +195,8 @@ pub(super) fn step_guard(
     }
 }
 
-/// Handles throwable spears, bow draw/release, and active projectile stepping.
+/// Handles throwable spears, bow draw/release, crossbow fire/reload, and active projectile stepping.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn step_ranged_and_projectiles(
     input: &Input,
     dt: f32,
@@ -204,6 +205,7 @@ pub(super) fn step_ranged_and_projectiles(
     in_car: bool,
     captured: bool,
     right_pressed: bool,
+    reload_pressed: bool,
     render: &mut RenderState,
     world: &WorldState,
     actors: &mut ActorsState,
@@ -219,6 +221,7 @@ pub(super) fn step_ranged_and_projectiles(
         && !in_car
         && let Some(weapon) = c.weapon_def().cloned()
         && weapon.throwable
+        && weapon.id != "grenade"
         && right_pressed
     {
         if let Some(play_state) = play.play.as_mut() {
@@ -244,43 +247,103 @@ pub(super) fn step_ranged_and_projectiles(
         && let Some(weapon) = c.weapon_def().cloned()
         && weapon.is_bow()
     {
-        let attack_held = captured && input.mouse_held(MouseButton::Left);
-        let released = c.bow.update(dt, attack_held, weapon.draw_time);
-        if c.bow.draw > 0.0 {
-            let target_fov = if rig.is_first_person {
-                shooting::FIRST_PERSON_AIM_FOV
+        if weapon.id == "crossbow" {
+            let fire_pressed = captured && input.mouse_pressed(MouseButton::Left);
+            let spare_bolts = play
+                .play
+                .as_ref()
+                .map_or(0, |pl| pl.inventory.count(&weapon.ammo_item));
+            // data: data/weapons.json crossbow.reloadTime
+            let reload_time = if weapon.reload_time > 0.0 {
+                weapon.reload_time
             } else {
-                shooting::THIRD_PERSON_AIM_FOV
+                2.0
             };
-            render.camera.fov_y_deg = crate::combat::BowState::aim_fov(
-                render.camera.fov_y_deg,
-                c.bow.draw,
-                target_fov,
+            let step = c.bow.update_crossbow(
+                dt,
+                fire_pressed,
+                reload_pressed,
+                spare_bolts > 0,
+                reload_time,
             );
-        }
-        if let Some(draw) = released
-            && let Some(play_state) = play.play.as_mut()
-            && play_state.inventory.count(&weapon.ammo_item) > 0
-        {
-            play_state.inventory.remove(&weapon.ammo_item, 1);
-            play_state.hotbar.on_inventory_changed(&play_state.inventory);
-            let aim_origin = render.camera.position;
-            let aim_dir = render.camera.forward();
-            let shot = game::projectiles::bow_shot(draw, aim_origin, aim_dir, &weapon);
-            c.projectiles.spawn(shot);
-            actors.fp_sway.trigger_shot();
-            c.noises.push(game::zombie::Noise {
-                position: p.position,
-                radius: weapon.noise_radius,
-            });
-            if let Some(a) = audio.as_mut() {
-                a.event("bowRelease", Some(p.position));
+            if step.fired {
+                let aim_origin = render.camera.position;
+                let aim_dir = render.camera.forward();
+                let shot = game::projectiles::bow_shot(1.0, aim_origin, aim_dir, &weapon);
+                c.projectiles.spawn(shot);
+                c.shots += 1;
+                actors.fp_sway.trigger_shot();
+                render.gun_feel.set_context(Some(&weapon.id), false);
+                render.gun_feel.on_shot(&weapon.id);
+                c.noises.push(game::zombie::Noise {
+                    position: p.position,
+                    radius: weapon.noise_radius,
+                });
+                if let Some(a) = audio.as_mut() {
+                    a.event("bowRelease", Some(p.position));
+                }
             }
-        }
-        if let Some(play_state) = play.play.as_mut() {
-            let arrows = play_state.inventory.count(&weapon.ammo_item);
-            play_state.last_shot.ammo = (arrows, u32::MAX);
-            play_state.gun = Some(weapon.clone());
+            if step.reload_started {
+                if let Some(pv) = actors.player_visual.as_mut() {
+                    let clip = weapon.anim.reload.as_deref().unwrap_or("crossbow_reload");
+                    pv.animator.play_action(clip, 1.0);
+                }
+                if let Some(a) = audio.as_mut() {
+                    a.event("reload", Some(p.position));
+                }
+            }
+            if step.reload_finished
+                && let Some(play_state) = play.play.as_mut()
+            {
+                play_state.inventory.remove(&weapon.ammo_item, 1);
+                play_state.hotbar.on_inventory_changed(&play_state.inventory);
+            }
+            if let Some(play_state) = play.play.as_mut() {
+                let bolts = play_state.inventory.count(&weapon.ammo_item);
+                play_state.last_shot.ammo = (u32::from(c.bow.crossbow_loaded), bolts);
+                play_state.gun = Some(weapon.clone());
+            }
+        } else {
+            let attack_held = captured && input.mouse_held(MouseButton::Left);
+            let released = c.bow.update(dt, attack_held, weapon.draw_time);
+            if c.bow.draw > 0.0 {
+                let target_fov = if rig.is_first_person {
+                    shooting::FIRST_PERSON_AIM_FOV
+                } else {
+                    shooting::THIRD_PERSON_AIM_FOV
+                };
+                render.camera.fov_y_deg = crate::combat::BowState::aim_fov(
+                    render.camera.fov_y_deg,
+                    c.bow.draw,
+                    target_fov,
+                );
+            }
+            if let Some(draw) = released
+                && let Some(play_state) = play.play.as_mut()
+                && play_state.inventory.count(&weapon.ammo_item) > 0
+            {
+                play_state.inventory.remove(&weapon.ammo_item, 1);
+                play_state.hotbar.on_inventory_changed(&play_state.inventory);
+                let aim_origin = render.camera.position;
+                let aim_dir = render.camera.forward();
+                let shot = game::projectiles::bow_shot(draw, aim_origin, aim_dir, &weapon);
+                c.projectiles.spawn(shot);
+                actors.fp_sway.trigger_shot();
+                render.gun_feel.set_context(Some(&weapon.id), c.bow.draw > 0.0);
+                render.gun_feel.on_shot(&weapon.id);
+                c.noises.push(game::zombie::Noise {
+                    position: p.position,
+                    radius: weapon.noise_radius,
+                });
+                if let Some(a) = audio.as_mut() {
+                    a.event("bowRelease", Some(p.position));
+                }
+            }
+            if let Some(play_state) = play.play.as_mut() {
+                let arrows = play_state.inventory.count(&weapon.ammo_item);
+                play_state.last_shot.ammo = (arrows, u32::MAX);
+                play_state.gun = Some(weapon.clone());
+            }
         }
     }
 

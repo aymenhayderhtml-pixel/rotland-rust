@@ -153,6 +153,9 @@ pub fn render_frame(
     }
     // Base building: placed parts and ghost preview model
     if let Some(pack) = render.pack.as_ref() {
+        actors
+            .grenades
+            .fill_render_instances(&gpu.device, pack, &mut render.library, &mut beds);
         build_mode::render_placed_and_ghost(
             &mut play.build_mode,
             &gpu.device,
@@ -206,6 +209,11 @@ pub fn render_frame(
         .chain(upgrade_placed.iter())
         .chain(bench_placed.iter())
         .chain(render.ground_detail.placed().iter());
+    if let Some(rig) = actors.camera_rig.as_ref()
+        && session.anim_shot.pose.is_none()
+    {
+        rig.apply_kick(&mut render.camera);
+    }
     let spot = render.flashlight_on.then(|| {
         // Held at the camera, pointing where it looks (Godot hangs it on the camera)
         light::flashlight(render.camera.position, render.camera.forward())
@@ -242,6 +250,14 @@ pub fn render_frame(
         );
         lighting.spots[1] = l;
         lighting.spots[2] = r;
+    }
+    if let Some(flash) = render.gun_feel.flash_light() {
+        light::add_flash_light(&mut lighting, flash);
+    }
+    if let Some(flash) = render.explosion_view.flash_light()
+        && let Some(slot) = lighting.spots.iter_mut().find(|s| s.is_none())
+    {
+        *slot = Some(flash);
     }
     let shadows_on = renderer.shadows.enabled && lighting.sun_energy > 0.01;
     let sun_frustum = shadows_on.then(|| {
@@ -328,7 +344,8 @@ pub fn render_frame(
         }
         // The player's yaw already uses the model's facing (checked in a screenshot: no extra turn)
         let anim_dt = if pose_frozen { 0.0 } else { session.last_dt };
-        let (body, weapon) = pv.pose(anim_dt, pose.position, pose.yaw, loco, &mut render.bones);
+        let (base, weapon_world) = pv.update_pose(anim_dt, pose.position, pose.yaw, loco, &mut render.bones);
+        let (body, weapon) = pv.build_pose(pose.position, pose.yaw, base, weapon_world);
         // First person: the body only casts its shadow (like Godot's shadows-only body)
         if !pose.first_person {
             main.push(engine::render::SkinnedBatch {
@@ -340,6 +357,24 @@ pub fn render_frame(
                     mesh: w.mesh,
                     instances: w.instances.clone(),
                 });
+            }
+            if let Some(bv) = actors.backpack_view.as_ref() {
+                let kind = session.test_backpack.or_else(|| {
+                    play.play
+                        .as_ref()
+                        .and_then(|p| crate::backpack_view::select_backpack(&p.inventory))
+                });
+                let char_world = Mat4::from_translation(pose.position) * Mat4::from_rotation_y(pose.yaw);
+                let bone_base = body.instances[0].bone_base as usize;
+                if let Some(pack_batch) =
+                    bv.draw_batch(pv, kind, pose.first_person, char_world, &render.bones, bone_base)
+                {
+                    main.push(engine::render::SkinnedBatch {
+                        mesh: pack_batch.mesh,
+                        instances: pack_batch.instances.clone(),
+                    });
+                    shadow.push(pack_batch);
+                }
             }
         } else if let Some(w) = &weapon
             && let Some(def) = play
@@ -498,6 +533,9 @@ pub fn render_frame(
             }
         }
     }
+    render.gun_feel.init(&gpu.device);
+    render.gun_feel.draw_flash(&mut main);
+    render.explosion_view.draw(&gpu.device, &mut main);
     renderer.draw(
         gpu,
         target,

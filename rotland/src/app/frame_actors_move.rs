@@ -313,4 +313,5 @@ pub(super) fn update_camera_and_aim(
     {
         render.camera.fov_y_deg = fov;
     }
+    render.camera.position += render.explosion_view.camera_shake_offset();
 }

@@ -14,6 +14,7 @@ WEAPONS = [
     "bat", "machete", "pistol", "knife", "axe", "shotgun", "rifle", "ak47", "smg", "crowbar", "katana",
     "bow", "arrow", "spear", "dagger", "hammer", "pipe", "fire_axe",
     "fishing_rod",
+    "revolver", "hunting_rifle", "crossbow", "crossbow_bolt", "grenade",
 ]
 
 

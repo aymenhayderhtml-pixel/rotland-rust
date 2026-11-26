@@ -19,7 +19,7 @@ fn every_weapon_id_has_sound_entry() {
         let kind = val.get("kind").and_then(|k| k.as_str()).unwrap_or("");
         let required_event = match kind {
             "gun" | "bow" => "shot",
-            "melee" => "swing",
+            "melee" | "throwable" => "swing",
             other => panic!("unknown weapon kind '{other}' for weapon '{id}'"),
         };
 

@@ -245,14 +245,18 @@
   },
   "weapons": {
     "pistol": "pistol",
+    "revolver": "pistol",
     "rifle": "rifle",
     "ak47": "rifle",
     "smg": "rifle",
+    "hunting_rifle": "rifle",
+    "crossbow": "rifle",
     "shotgun": "shotgun",
     "knife": "melee_1h",
     "dagger": "melee_1h",
     "machete": "melee_1h",
     "pipe": "melee_1h",
+    "grenade": "melee_1h",
     "bat": "melee_2h",
     "axe": "melee_2h",
     "fire_axe": "melee_2h",
@@ -311,6 +315,20 @@
         0.0,
         0.0,
         0.18
+      ]
+    },
+    "hunting_rifle": {
+      "offHandGrip": [
+        0.0,
+        0.03,
+        -0.39
+      ]
+    },
+    "crossbow": {
+      "offHandGrip": [
+        0.0,
+        0.03,
+        -0.39
       ]
     }
   }

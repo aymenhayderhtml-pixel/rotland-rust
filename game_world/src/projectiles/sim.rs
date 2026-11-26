@@ -84,6 +84,7 @@ impl ProjectileSim {
                         let pickup = if roll < proj.pickup_chance {
                             match proj.kind {
                                 ProjectileKind::Arrow => Some("arrow".to_string()),
+                                ProjectileKind::CrossbowBolt => Some("crossbow_bolt".to_string()),
                                 ProjectileKind::ThrownSpear => Some("spear".to_string()),
                             }
                         } else {
@@ -139,10 +140,15 @@ pub fn bow_shot(draw: f32, aim_origin: Vec3, aim_dir: Vec3, def: &WeaponDef) -> 
         // data: weapons.json pickupChance
         0.6
     };
+    let kind = if def.id == "crossbow" {
+        ProjectileKind::CrossbowBolt
+    } else {
+        ProjectileKind::Arrow
+    };
     Projectile {
         pos: aim_origin,
         vel,
-        kind: ProjectileKind::Arrow,
+        kind,
         damage,
         owner: None,
         headshot_multiplier,

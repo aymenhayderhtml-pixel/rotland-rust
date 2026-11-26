@@ -1,14 +1,39 @@
-//! Bow draw charging, release, and aiming field-of-view calculation.
+//! Bow draw charging, crossbow fire/reload state, and aiming field-of-view calculation.
 
-/// Tracks the draw amount of a bow from 0.0 to 1.0.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+/// Result of updating the crossbow for one frame.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CrossbowStep {
+    /// True on the exact frame the crossbow fires a loaded bolt.
+    pub fired: bool,
+    /// True on the exact frame a reload begins (caller should play `crossbow_reload`).
+    pub reload_started: bool,
+    /// True on the exact frame a reload completes (caller should consume 1 bolt from inventory).
+    pub reload_finished: bool,
+}
+
+/// Tracks the draw amount of a bow from 0.0 to 1.0, and crossbow loaded/reload state.
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BowState {
     pub draw: f32,
+    /// Stays loaded while carried across weapon switches.
+    pub crossbow_loaded: bool,
+    /// Remaining reload time in seconds when reloading the crossbow.
+    pub crossbow_reload_timer: Option<f32>,
+}
+
+impl Default for BowState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BowState {
     pub fn new() -> Self {
-        Self { draw: 0.0 }
+        Self {
+            draw: 0.0,
+            crossbow_loaded: true,
+            crossbow_reload_timer: None,
+        }
     }
 
     /// Advances the bow draw while fire is held, or releases the arrow when released.
@@ -27,9 +52,53 @@ impl BowState {
         }
     }
 
-    /// Cancels the bow draw (e.g. on weapon switch or death).
+    /// Updates crossbow firing (instant when loaded, no draw) and 2.0 s reload state.
+    pub fn update_crossbow(
+        &mut self,
+        dt: f32,
+        fire_pressed: bool,
+        reload_pressed: bool,
+        has_ammo_in_bag: bool,
+        reload_time: f32,
+    ) -> CrossbowStep {
+        let mut step = CrossbowStep::default();
+        if let Some(t) = self.crossbow_reload_timer.as_mut() {
+            *t -= dt;
+            if *t <= 0.0 {
+                self.crossbow_reload_timer = None;
+                if has_ammo_in_bag {
+                    self.crossbow_loaded = true;
+                    step.reload_finished = true;
+                }
+            }
+            return step;
+        }
+        if fire_pressed && self.crossbow_loaded {
+            self.crossbow_loaded = false;
+            step.fired = true;
+            if has_ammo_in_bag {
+                self.crossbow_reload_timer = Some(reload_time.max(0.0));
+                step.reload_started = true;
+            }
+            return step;
+        }
+        if (reload_pressed || fire_pressed) && !self.crossbow_loaded && has_ammo_in_bag {
+            self.crossbow_reload_timer = Some(reload_time.max(0.0));
+            step.reload_started = true;
+        }
+        step
+    }
+
+    /// True while the crossbow is actively reloading.
+    pub fn is_crossbow_reloading(&self) -> bool {
+        self.crossbow_reload_timer.is_some()
+    }
+
+    /// Cancels the bow draw and any in-progress crossbow reload (e.g. on weapon switch or death).
+    /// Preserves `crossbow_loaded` so the crossbow stays loaded across weapon switches.
     pub fn cancel(&mut self) {
         self.draw = 0.0;
+        self.crossbow_reload_timer = None;
     }
 
     /// Computes the camera FOV narrowing while drawing the bow (slight zoom like aiming).
@@ -90,5 +159,39 @@ mod tests {
         assert_eq!(BowState::aim_fov(base_fov, 0.0, aim_target_fov), 75.0);
         assert_eq!(BowState::aim_fov(base_fov, 0.5, aim_target_fov), 65.0);
         assert_eq!(BowState::aim_fov(base_fov, 1.0, aim_target_fov), 55.0);
+    }
+
+    #[test]
+    fn crossbow_fires_instantly_and_reloads() {
+        let mut state = BowState::new();
+        assert!(state.crossbow_loaded);
+
+        let fired = state.update_crossbow(0.016, true, false, true, 2.0);
+        assert!(fired.fired);
+        assert!(fired.reload_started);
+        assert!(!fired.reload_finished);
+        assert!(!state.crossbow_loaded);
+        assert!(state.is_crossbow_reloading());
+
+        // Mid-reload: cannot fire, not finished yet
+        let mid = state.update_crossbow(1.0, true, false, true, 2.0);
+        assert!(!mid.fired);
+        assert!(!mid.reload_finished);
+        assert!(!state.crossbow_loaded);
+
+        // Finish reload
+        let done = state.update_crossbow(1.0, false, false, true, 2.0);
+        assert!(!done.fired);
+        assert!(done.reload_finished);
+        assert!(state.crossbow_loaded);
+        assert!(!state.is_crossbow_reloading());
+    }
+
+    #[test]
+    fn crossbow_stays_loaded_across_cancel() {
+        let mut state = BowState::new();
+        assert!(state.crossbow_loaded);
+        state.cancel();
+        assert!(state.crossbow_loaded);
     }
 }

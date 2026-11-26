@@ -7,6 +7,7 @@ use glam::{Mat4, Quat, Vec3};
 pub fn projectile_model_name(kind: ProjectileKind) -> &'static str {
     match kind {
         ProjectileKind::Arrow => "arrow",
+        ProjectileKind::CrossbowBolt => "crossbow_bolt",
         ProjectileKind::ThrownSpear => "spear",
     }
 }

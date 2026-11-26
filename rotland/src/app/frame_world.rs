@@ -65,7 +65,7 @@ pub fn update_needs(
 pub fn update_world_interactions(
     input: &Input,
     dt: f32,
-    render: &RenderState,
+    render: &mut RenderState,
     world: &mut WorldState,
     actors: &mut ActorsState,
     play: &mut PlaySide,
@@ -99,6 +99,7 @@ pub fn update_world_interactions(
             reload_pressed: !in_car && input.pressed(ui.keys.reload),
             aiming: captured && input.mouse_held(MouseButton::Right),
         };
+        render.gun_feel.update(dt);
         let animal_bonus = play_state.camp.skills.get_bonus("animalDamage");
         if let Some(z) = actors.zombies.as_mut()
             && let Some(ev) = play_state.shoot_tick(
@@ -128,6 +129,23 @@ pub fn update_world_interactions(
             if ev.shots_fired > 0 {
                 actors.fp_sway.trigger_shot();
             }
+            let active_id = play_state.gun.as_ref().map(|g| g.id.as_str());
+            render.gun_feel.set_context(active_id, shoot.aiming);
+            if let Some(weapon_id) = ev.fired_weapon.as_deref() {
+                let fp = actors.camera_rig.as_ref().is_some_and(|r| r.is_first_person);
+                let dir = render.camera.forward();
+                let muzzle_pos = if fp {
+                    let right = dir.cross(glam::Vec3::Y).normalize_or_zero();
+                    let up = right.cross(dir).normalize_or_zero();
+                    render.camera.position + right * 0.25 - up * 0.14 + dir * 0.72
+                } else {
+                    p.position + glam::Vec3::Y * 1.35 + dir * 0.7
+                };
+                render.gun_feel.set_muzzle(muzzle_pos, dir);
+                for _ in 0..ev.shots_fired {
+                    render.gun_feel.on_shot(weapon_id);
+                }
+            }
             // No bullets in the gun or the bag: the click swings it as a club (Godot GunBash)
             if ev.bash
                 && let Some(gun) = play_state.gun.as_ref()
@@ -153,6 +171,12 @@ pub fn update_world_interactions(
                 }
             }
             c.noises.extend(ev.noise);
+        }
+        actors.fp_sway.fp_kick = render.gun_feel.fp_kick();
+        if let Some(rig) = actors.camera_rig.as_mut() {
+            let (pitch_deg, yaw_deg) = render.gun_feel.view_kick_deg();
+            rig.kick_pitch_deg = pitch_deg;
+            rig.kick_yaw_deg = yaw_deg;
         }
 
         // Crates within reach: only the nearby chunks' spots are looked at

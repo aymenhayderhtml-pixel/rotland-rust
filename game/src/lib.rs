@@ -19,10 +19,10 @@ pub use game_camp::{
     guild, map, rescue, rescue_place, team_anim,
 };
 pub use game_player::{
-    death_anim, downed, fishing, fp_motion, guns, hit_react, ladders, melee_combo, player,
-    survival, swim_hands, swimming, trees, vault, vehicles,
+    death_anim, downed, fishing, fp_motion, gun_feel, guns, hit_react, ladders, melee_combo,
+    player, survival, swim_hands, swimming, trees, vault, vehicles,
 };
-pub use game_world::{animals, dogs, guns_fire, melee, melee_guard, projectiles};
+pub use game_world::{animals, dogs, grenade, guns_fire, melee, melee_guard, projectiles};
 
 pub use game_core::damage::DamageInfo;
 pub use game_core::dev_panel::*;
@@ -73,6 +73,9 @@ pub use game_player::fishing::{
     FishingSession,
 };
 pub use game_player::fp_motion::{FpMotion, FpMotionConfig, FpMotionInput};
+pub use game_player::gun_feel::{
+    GunFeelConfig, GunFeelDef, GunFeelDefaults, GunFeelLoadError, GunFeelState,
+};
 pub use game_player::hit_react::{HitInput, HitReactConfig, HitReactState, HitReaction, HitSide, hit_side};
 pub use game_player::ladders::*;
 pub use game_player::melee_combo::{ComboMove, MeleeComboState, MeleeMovesConfig};
@@ -89,6 +92,7 @@ pub use game_player::vehicles::*;
 
 pub use game_world::animals::*;
 pub use game_world::dogs::*;
+pub use game_world::grenade::*;
 pub use game_world::melee_guard::{GuardConfig, GuardEvent, GuardInput, GuardState, shove_targets};
 pub use game_world::projectiles::*;
 

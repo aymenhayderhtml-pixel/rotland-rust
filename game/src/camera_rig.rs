@@ -44,6 +44,10 @@ pub struct CameraRig {
     pub eye_height: f32,
     pub shoulder_offset: Vec2,
     pub fov: f32,
+    /// Visual-only recoil pitch offset in degrees (applied after aim direction is computed).
+    pub kick_pitch_deg: f32,
+    /// Visual-only recoil yaw offset in degrees (applied after aim direction is computed).
+    pub kick_yaw_deg: f32,
 }
 
 impl Default for CameraRig {
@@ -59,6 +63,8 @@ impl Default for CameraRig {
             eye_height: STANDING_EYE_HEIGHT,
             shoulder_offset: Vec2::new(SHOULDER_OFFSET, SHOULDER_RAISE),
             fov: DEFAULT_FOV,
+            kick_pitch_deg: 0.0,
+            kick_yaw_deg: 0.0,
         }
     }
 }
@@ -179,5 +185,43 @@ impl CameraRig {
             fov_y_deg: self.fov,
             near: 0.05,
         }
+    }
+
+    /// Applies the visual-only recoil kick (`kick_pitch_deg`, `kick_yaw_deg`) to `cam`.
+    /// Call after aim/shoot direction is computed so bullets still go where the player aimed.
+    pub fn apply_kick(&self, cam: &mut Camera) {
+        let max_pitch = 89.0f32.to_radians(); // godot: CameraRig.cs:275
+        cam.pitch = (cam.pitch + self.kick_pitch_deg.to_radians()).clamp(-max_pitch, max_pitch);
+        cam.yaw += self.kick_yaw_deg.to_radians();
+    }
+
+    /// Computes the camera transform with visual-only recoil kick applied.
+    pub fn camera_with_kick(&self, player_position: &Vec3, physics: &PhysicsWorld) -> Camera {
+        let mut cam = self.camera(player_position, physics);
+        self.apply_kick(&mut cam);
+        cam
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kick_offset_moves_view_camera_without_changing_aim_camera() {
+        let mut rig = CameraRig::new();
+        rig.yaw = 0.0;
+        rig.pitch = 0.0;
+        rig.kick_pitch_deg = 5.0;
+        rig.kick_yaw_deg = -1.5;
+
+        let physics = PhysicsWorld::new();
+        let aim_cam = rig.camera(&Vec3::ZERO, &physics);
+        let view_cam = rig.camera_with_kick(&Vec3::ZERO, &physics);
+
+        assert!((aim_cam.pitch - 0.0).abs() < 1e-6);
+        assert!((aim_cam.yaw - 0.0).abs() < 1e-6);
+        assert!((view_cam.pitch - 5.0f32.to_radians()).abs() < 1e-5);
+        assert!((view_cam.yaw - (-1.5f32.to_radians())).abs() < 1e-5);
     }
 }

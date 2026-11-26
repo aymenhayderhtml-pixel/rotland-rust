@@ -87,6 +87,17 @@ def pistol_ammo():
             _box((0.165, 0.035, 0.02), (0.0, 0.0, 0.10), "gun_black")]
 
 
+def revolver_ammo():
+    # Dark leather/brown ammo box with a brass band and 3 upright magnum rounds
+    bms = [_box((0.14, 0.10, 0.06), (0.0, 0.0, 0.03), "bark_dark"),
+           _box((0.144, 0.104, 0.014), (0.0, 0.0, 0.055), "brass")]
+    for x in (-0.036, 0.0, 0.036):
+        casing = common.make_frustum(0.013, 0.013, 0.060, 0.105, segments=8, center=(x, 0.0), color="brass")
+        bullet = common.make_frustum(0.012, 0.005, 0.105, 0.130, segments=8, center=(x, 0.0), color="red_paint")
+        bms.extend([casing, bullet])
+    return bms
+
+
 def wood():
     return [_box((0.36, 0.10, 0.04), (0.0, 0.0, 0.02), "wood_crate"),
             _box((0.36, 0.10, 0.04), (0.01, 0.0, 0.06), "bark_light"),
@@ -199,6 +210,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import farming_parts  # noqa: E402
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "weapons"))
 import arrow as arrow_weapon  # noqa: E402
+import crossbow_bolt as crossbow_bolt_weapon  # noqa: E402
+import grenade as grenade_weapon  # noqa: E402
 
 
 class _Bag:
@@ -284,6 +297,18 @@ def arrow():
     return bag.bms
 
 
+def crossbow_bolt():
+    bag = _Bag()
+    crossbow_bolt_weapon.build(bag)
+    return bag.bms
+
+
+def grenade():
+    bag = _Bag()
+    grenade_weapon.build(bag)
+    return bag.bms
+
+
 def arrow_broken():
     # An arrow snapped in two: the two halves meet at the jagged fracture vertex in an angled V
     bag = _Bag()
@@ -354,4 +379,7 @@ BUILDERS = {
     "wool_hat": warm_clothes_meshes.wool_hat,
     "desert_scarf": warm_clothes_meshes.desert_scarf,
     "hand_warmer": warm_clothes_meshes.hand_warmer,
+    "revolver_ammo": revolver_ammo,
+    "crossbow_bolt": crossbow_bolt,
+    "grenade": grenade,
 }
