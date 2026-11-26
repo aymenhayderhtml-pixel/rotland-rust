@@ -49,7 +49,13 @@ pub use metro::{
     MetroWorld, PartKind, StyleDef, TowerKind, TowerPart, TowerSpot, TowerStyle, default_styles,
     highway_height_at, jam_props_in_chunk, load_styles, metro_ground_color, place_metro,
     plan_highway, plan_jam, plan_towers, plan_towers_with_styles, style_for, tower_parts,
-    tower_parts_with_extras, validate_styles,
+    tower_parts_with_damage, tower_parts_with_extras, validate_styles,
+    // R40: overgrowth, damage, traces
+    CampSite, DamageConfig, DamageMode, DamageSites, DistrictOvergrowth, OvergrowthConfig, TraceConfig,
+    camp_sites, car_wall_sites, damage_props_in_chunk, damage_sites, default_damage, default_overgrowth,
+    default_traces, load_damage, load_overgrowth, load_traces, lobby_dressing,
+    overgrowth_props_in_chunk, overgrowth_props_in_chunk_with_config,
+    traces_props_in_chunk, validate_damage,
 };
 pub use ground_paint::GroundPaint;
 pub use lake::{

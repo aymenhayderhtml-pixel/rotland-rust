@@ -37,6 +37,7 @@ pub fn place_chunk_towers(
         metro.layout.site.ground_y,
         styles,
         &metro.config,
+        &metro.damage,
     );
     let lod0 = metro.config.towers.lod0_distance;
     let range = tower_load_ring_range();

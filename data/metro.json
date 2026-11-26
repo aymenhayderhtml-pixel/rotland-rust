@@ -29,6 +29,7 @@
     "landmarkCount": [3, 5],
     "landmarkFloors": [38, 42],
     "lotGap": 3.0,
+    "damagedShare": 0.25,
     "maxLotsPerBlock": 4,
     "lod0Distance": 90,
     "setbacks": [
@@ -53,6 +54,7 @@
       "floorHeight": 3.8,
       "baseHeight": 7.6,
       "crownHeight": 3.5,
+      "roofDeckHeight": 2.4,
       "color": [118, 96, 80]
     },
     {
@@ -63,6 +65,7 @@
       "floorHeight": 3.8,
       "baseHeight": 7.6,
       "crownHeight": 5.0,
+      "roofDeckHeight": 2.95,
       "color": [128, 128, 124]
     },
     {
@@ -73,6 +76,7 @@
       "floorHeight": 3.8,
       "baseHeight": 7.6,
       "crownHeight": 4.5,
+      "roofDeckHeight": 3.33,
       "color": [88, 100, 108]
     },
     {
@@ -83,6 +87,7 @@
       "floorHeight": 3.8,
       "baseHeight": 7.6,
       "crownHeight": 3.0,
+      "roofDeckHeight": 0.3,
       "color": [144, 144, 140]
     },
     {
@@ -93,6 +98,7 @@
       "floorHeight": 3.8,
       "baseHeight": 7.6,
       "crownHeight": 5.5,
+      "roofDeckHeight": 1.0,
       "color": [112, 110, 104]
     }
   ],
@@ -173,5 +179,220 @@
     "curbWidth": 1.0,
     "kerbStoneLength": 1.0,
     "skylineHazeShare": 0.5
+  },
+
+  "overgrowth": {
+    "edge": {
+      "crackWeedsPerBlock": 14,
+      "streetTreeChance": 0.85,
+      "mossPerBlock": 10,
+      "lotShrubsPerBlock": 14,
+      "lotTreesPerBlock": 6,
+      "lotGrassPerBlock": 16,
+      "vineTowerChance": 0.9,
+      "roofBushChance": 0.7
+    },
+    "midtown": {
+      "crackWeedsPerBlock": 10,
+      "streetTreeChance": 0.65,
+      "mossPerBlock": 6,
+      "lotShrubsPerBlock": 9,
+      "lotTreesPerBlock": 4,
+      "lotGrassPerBlock": 10,
+      "vineTowerChance": 0.75,
+      "roofBushChance": 0.5
+    },
+    "core": {
+      "crackWeedsPerBlock": 6,
+      "streetTreeChance": 0.4,
+      "mossPerBlock": 3,
+      "lotShrubsPerBlock": 4,
+      "lotTreesPerBlock": 2,
+      "lotGrassPerBlock": 5,
+      "vineTowerChance": 0.5,
+      "roofBushChance": 0.3
+    },
+    "vineSpacingM": 6.0,
+    "crackWeedLengthM": 3.0,
+    "streetTreeSpacingM": 32.0,
+    "crackWeedCurbOffsetM": 0.3,
+    "streetTreeCurbOffsetM": [
+      1.5,
+      3.0
+    ],
+    "lotTowerClearanceM": 1.5,
+    "vineHalfDepthM": 0.0,
+    "vineWallStandoffM": [
+      0.02,
+      0.05
+    ],
+    "vineCornerMarginM": 1.5,
+    "vineDoorGapM": 4.0,
+    "roofEdgeInsetM": 1.5,
+    "roofTreeChance": 0.35
+  },
+  "damage": {
+    "fallenLengthM": [
+      60.0,
+      80.0
+    ],
+    "fallenWidthM": 24.0,
+    "fallenDistrict": "midtown",
+    "leaningDistrict": "core",
+    "leaningMinSize": 24,
+    "burntDistrict": "midtown",
+    "burntMinTowers": 2,
+    "burntCarCount": [
+      3,
+      5
+    ],
+    "ashPatchesPerTower": 1,
+    "rubbleFieldsPerSite": 3
+  },
+  "traces": {
+    "carWalls": {
+      "count": [
+        2,
+        3
+      ],
+      "minDistrict": "edge",
+      "inM": [
+        20.0,
+        40.0
+      ]
+    },
+    "wallWidthM": 10,
+    "gapM": 2,
+    "wallOffsetM": 0.02,
+    "graffitiLobbyChance": 0.35,
+    "graffitiStreetWallChance": 0.12,
+    "graffitiHeightM": [
+      1.0,
+      3.0
+    ],
+    "posterChance": 0.3,
+    "posterHeightM": [
+      1.2,
+      2.0
+    ],
+    "posterXShare": [
+      0.3,
+      0.4
+    ],
+    "campChance": 0.15,
+    "campFloors": [
+      4,
+      8
+    ],
+    "campSizeM": 6,
+    "campMarginM": 1,
+    "bodySidewalkChance": 0.35,
+    "lobbyCeilingY": 7.3,
+    "lobbyDressing": [
+      {
+        "model": "lobby_column",
+        "chance": 0.9,
+        "y": 0.1,
+        "x": -0.22,
+        "z": 0.18,
+        "yaw": 0.0
+      },
+      {
+        "model": "lobby_column",
+        "chance": 0.9,
+        "y": 0.1,
+        "x": 0.22,
+        "z": -0.18,
+        "yaw": 0.0
+      },
+      {
+        "model": "lobby_ceiling_hang",
+        "chance": 0.75,
+        "y": 5.8,
+        "x": 0.0,
+        "z": -0.1,
+        "yaw": 0.2
+      },
+      {
+        "model": "lobby_light_broken",
+        "chance": 0.75,
+        "y": 5.6,
+        "x": 0.12,
+        "z": 0.08,
+        "yaw": -0.3
+      },
+      {
+        "model": "lobby_rug",
+        "chance": 0.55,
+        "y": 0.1,
+        "x": 0.0,
+        "z": -0.22,
+        "yaw": 0.0
+      },
+      {
+        "model": "lobby_chair_tipped",
+        "chance": 0.6,
+        "y": 0.1,
+        "x": 0.16,
+        "z": -0.15,
+        "yaw": 1.1
+      },
+      {
+        "model": "lobby_debris",
+        "chance": 0.9,
+        "y": 0.1,
+        "x": -0.14,
+        "z": -0.08,
+        "yaw": 0.7
+      },
+      {
+        "model": "lobby_column",
+        "chance": 0.9,
+        "y": 0.1,
+        "x": -0.22,
+        "z": -0.18,
+        "yaw": 0.0
+      },
+      {
+        "model": "lobby_column",
+        "chance": 0.9,
+        "y": 0.1,
+        "x": 0.22,
+        "z": 0.18,
+        "yaw": 0.0
+      },
+      {
+        "model": "lobby_ceiling_hang",
+        "chance": 0.6,
+        "y": 5.8,
+        "x": -0.15,
+        "z": 0.12,
+        "yaw": 1.4
+      },
+      {
+        "model": "lobby_debris",
+        "chance": 0.8,
+        "y": 0.1,
+        "x": 0.12,
+        "z": 0.16,
+        "yaw": 2.3
+      },
+      {
+        "model": "lobby_debris",
+        "chance": 0.6,
+        "y": 0.1,
+        "x": -0.06,
+        "z": 0.24,
+        "yaw": 4.0
+      },
+      {
+        "model": "body_sheet_b",
+        "chance": 0.25,
+        "y": 0.1,
+        "x": 0.2,
+        "z": -0.24,
+        "yaw": 0.5
+      }
+    ]
   }
 }

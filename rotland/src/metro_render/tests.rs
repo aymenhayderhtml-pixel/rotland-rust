@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use engine::render::ColorVertex;
 use glam::{IVec2, Vec2, Vec3};
 use world::metro::{
-    MetroConfig, MetroLayout, MetroLook, MetroSite, PartKind, TowerKind, TowerSpot, TowerStyle,
+    DamageSites, MetroConfig, MetroLayout, MetroLook, MetroSite, PartKind, TowerKind, TowerSpot, TowerStyle,
     default_styles, plan_towers, style_for,
 };
 
@@ -152,15 +152,15 @@ fn chunk_parts_hold_only_the_towers_of_their_chunk_and_are_deterministic() {
     let styles = default_styles();
     let towers = city(&cfg);
     let coord = tower_chunk(towers[0].pos);
-    let a = chunk_tower_parts(&towers, coord, GROUND_Y, styles, &cfg);
+    let a = chunk_tower_parts(&towers, coord, GROUND_Y, styles, &cfg, &DamageSites::default());
     assert!(!a.is_empty(), "chunk with towers produces parts");
-    let b = chunk_tower_parts(&towers, coord, GROUND_Y, styles, &cfg);
+    let b = chunk_tower_parts(&towers, coord, GROUND_Y, styles, &cfg, &DamageSites::default());
     assert_eq!(a, b, "same input, same parts");
-    assert!(chunk_tower_parts(&towers, IVec2::new(-500, -500), GROUND_Y, styles, &cfg).is_empty());
+    assert!(chunk_tower_parts(&towers, IVec2::new(-500, -500), GROUND_Y, styles, &cfg, &DamageSites::default()).is_empty());
 
     // Single-tower slice: every non-interior part shares the tower's yaw.
     let single = vec![towers[0].clone()];
-    let one_parts = chunk_tower_parts(&single, coord, GROUND_Y, styles, &cfg);
+    let one_parts = chunk_tower_parts(&single, coord, GROUND_Y, styles, &cfg, &DamageSites::default());
     assert!(one_parts.iter().filter(|p| p.kind != PartKind::Interior).all(|p| (p.yaw - single[0].yaw).abs() < 1e-6));
 }
 
@@ -196,7 +196,7 @@ fn lobby_interior_parts_stay_inside_the_base_footprint() {
     let mut t = spot(12, 12.0, false);
     t.yaw = 0.7;
     let coord = tower_chunk(t.pos);
-    let parts = chunk_tower_parts(&[t.clone()], coord, GROUND_Y, styles, &cfg);
+    let parts = chunk_tower_parts(&[t.clone()], coord, GROUND_Y, styles, &cfg, &DamageSites::default());
     let interior: Vec<_> = parts.iter().filter(|p| p.kind == PartKind::Interior).collect();
     assert!(!interior.is_empty(), "tower has lobby interior props");
     let (s, c) = t.yaw.sin_cos();
@@ -214,13 +214,16 @@ fn hulls_are_one_box_per_tower_starting_at_base_height() {
     let styles = default_styles();
     let towers = city(&cfg());
     let coord = tower_chunk(towers[0].pos);
-    let hulls = tower_hulls(&towers, coord, GROUND_Y, styles);
-    let bases = tower_bases(&towers, coord, GROUND_Y);
+    let hulls = tower_hulls(&towers, coord, GROUND_Y, styles, &DamageSites::default());
+    let bases = tower_bases(&towers, coord, GROUND_Y, &DamageSites::default());
     assert_eq!(hulls.len(), towers_in_chunk(&towers, coord).count());
     assert_eq!(bases.len(), hulls.len());
     for (i, (pos, yaw, pts)) in hulls.iter().enumerate() {
         let t = towers_in_chunk(&towers, coord).nth(i).expect("same order");
-        let base_h = style_for(styles, t.style).expect("style exists").base_height;
+        let style = style_for(styles, t.style).expect("style exists");
+        let base_h = style.base_height;
+        // Plain crowns stop at the walkable roof deck; landmarks keep their full height.
+        let top = if t.landmark { t.height } else { t.height - style.crown_height + style.roof_deck_height };
         assert_eq!(bases[i].0, format!("tw_{}_{}_base", t.style.key(), t.size));
         assert_eq!(pts.len(), 8);
         assert_eq!(*pos, Vec3::new(t.pos.x, GROUND_Y, t.pos.y));
@@ -234,7 +237,7 @@ fn hulls_are_one_box_per_tower_starting_at_base_height() {
         assert!((max[0] - min[0] - 2.0 * t.half.x).abs() < 1e-3);
         assert!((max[2] - min[2] - 2.0 * t.half.y).abs() < 1e-3);
         assert!((min[1] - base_h).abs() < 1e-3);
-        assert!((max[1] - t.height.max(base_h)).abs() < 1e-3);
+        assert!((max[1] - top.max(base_h)).abs() < 1e-3);
     }
 }
 

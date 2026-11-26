@@ -38,3 +38,28 @@ Read: tasks/R40-common.md ("R40 shared names", survivor trace bullets, "Owner de
 - `build_r40_models.py` runs all groups; other R40 tasks add one line each to its GROUPS list.
 
 ## Worker notes
+
+- **Files created / changed:**
+  - `tools/blender/traces/graffiti_font.py` (copy of `jam_font.FONT` plus `B`, `F`, `G`, `K`, `M`, `U`, with 2-tri `+Y`-facing `quad_bar` option in `text_bms` to keep decals under 300 tris)
+  - `tools/blender/traces/decals.py` (`graffiti_dead_inside`, `graffiti_turn_back`, `graffiti_no_food`, `graffiti_went_north`, `graffiti_x`, `graffiti_arrow`, `poster_wall`)
+  - `tools/blender/traces/car_wall.py` (`car_wall_stack`, reusing `jam_cars.CARS` and `jam_car_shell` with solid-side `strip_doors=True` on two wrecks and 10-seg wheels)
+  - `tools/blender/traces/camp.py` (`rooftop_camp`, `boarded_door`, `sandbags_line`, `body_sheet_b`)
+  - `tools/blender/traces/lobby_dressing.py` (`lobby_column`, `lobby_ceiling_hang`, `lobby_light_broken`, `lobby_rug`, `lobby_chair_tipped`, `lobby_debris`)
+  - `tools/blender/traces/traces.py` (`build_all()`)
+  - `tools/blender/build_r40_models.py` (shared R40 build script with `GROUPS = [("traces", traces.build_all)]`)
+  - 18 `.glb` files in `assets/models/props/` and 19 preview PNGs (including `rooftop_camp_top.png`) in `assets/models/_previews/`.
+- **Blender run & triangle counts (`R40 BUILD OK`, zero `Traceback` or `FAILED`):**
+  - `car_wall_stack`: 7814 / 8000 (`wall` solid box + `ramp` convex wedge at 31.1 deg slope on +X/+Y side)
+  - `graffiti_dead_inside`: 162 / 300; `graffiti_turn_back`: 126 / 300; `graffiti_no_food`: 102 / 300; `graffiti_went_north`: 158 / 300; `graffiti_x`: 14 / 300; `graffiti_arrow`: 18 / 300 (all flat XZ planes at `y = +0.023..+0.028`, `grip=(0,0,0)` so `y=0` is the wall plane, no colliders)
+  - `poster_wall`: 400 / 1500 (board at `y = +0.01..+0.025`, 5 posters at `y = +0.045..+0.053`, `grip=(0,0,0)`, no collider)
+  - `rooftop_camp`: 1618 / 6000 (`tent` collider only)
+  - `boarded_door`: 204 / 1500 (`grip=(0,0,0)` so frame sits 0.1 m proud of `y=0` wall, `board` box collider)
+  - `sandbags_line`: 952 / 1500 (`row` box collider 0.8 m tall)
+  - `body_sheet_b`: 6760 / 8000 (no collider, matching `jam_props_bodies._sheet`)
+  - `lobby_column`: 616 / 1500 (`col` box collider 0.6 x 0.6 x 6.8 m)
+  - `lobby_ceiling_hang`: 156 / 1500; `lobby_light_broken`: 136 / 800; `lobby_rug`: 72 / 400; `lobby_chair_tipped`: 312 / 1000; `lobby_debris`: 408 / 2000 (visual only, no colliders)
+- **Wiring notes for lead / R40-06:**
+  - `graffiti_*`, `poster_wall`, and `boarded_door` use `grip=(0, 0, 0)` so placing them at the wall face coordinate `(x, y, z)` with the facade yaw puts them 2-3 cm (or 0.1 m for the door frame) proud of the facade on `+Y`.
+  - Other R40 Blender tasks (02, 04, 07) can append their `(group, module.build_all)` entry to `GROUPS` in `tools/blender/build_r40_models.py`.
+  - All 19 preview PNGs in `assets/models/_previews/` were visually inspected; letters read cleanly left-to-right from `+Y` and no floating or flat grey blob issues remain.
+

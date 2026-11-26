@@ -5,7 +5,8 @@ use glam::Vec2;
 use crate::generator::WorldGenerator;
 use crate::metro::{
     Highway, HighwayHeightField, JamProp, MetroConfig, MetroLayout, MetroLook, MetroSite,
-    MetroWorld, TowerSpot, place_metro, plan_highway, plan_jam, plan_towers,
+    MetroWorld, TowerSpot, damage_sites, default_damage, place_metro, plan_highway, plan_jam,
+    plan_towers,
 };
 use crate::roads::RoadsData;
 
@@ -41,6 +42,7 @@ impl WorldGenerator {
             .crossings_for_polylines(&[highway.points.as_slice()]);
         self.crossings.extend(highway_crossings);
         let towers_by_block = crate::metro::state::index_towers_by_block(&towers);
+        let damage = damage_sites(&layout, &towers, default_damage()); // data: metro.json damage
         self.metro = Some(MetroWorld {
             config: cfg,
             layout,
@@ -50,6 +52,7 @@ impl WorldGenerator {
             highway_field,
             jam,
             look,
+            damage,
         });
     }
 

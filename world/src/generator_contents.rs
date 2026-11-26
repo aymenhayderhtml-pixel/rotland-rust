@@ -120,6 +120,11 @@ impl WorldGenerator {
         }
         if let Some(metro) = self.metro_world() {
             props.extend(crate::metro::jam_props_in_chunk(&metro.jam, coord, &|x, z| self.height(x, z)));
+            let chunk = (coord.x, coord.y);
+            let hfn = &|x: f32, z: f32| self.height(x, z);
+            props.extend(crate::metro::overgrowth_props_in_chunk(metro, chunk, hfn)); // R40-01
+            props.extend(crate::metro::damage_props_in_chunk(metro, chunk, hfn));     // R40-03
+            props.extend(crate::metro::traces_props_in_chunk(metro, chunk, hfn));     // R40-06
         }
 
         (pois, props)

@@ -9,8 +9,10 @@ for p in (HERE, BLENDER_DIR, os.path.join(BLENDER_DIR, "buildings"), os.path.joi
         sys.path.insert(0, p)
 
 import common  # noqa: E402
+import damaged_parts  # noqa: E402
 import kit  # noqa: E402
 import roof_parts  # noqa: E402
+import roof_props  # noqa: E402
 import shell  # noqa: E402
 
 CATEGORY = "buildings"
@@ -248,12 +250,27 @@ def _build_crown(size):
         k.box((1.0, 1.98, 1.1), (2.1, 2.04, 2.1), "glass_dark")
         k.box((1.1, 1.99, 0.45), (2.0, 2.05, 1.1), "concrete_stain")
 
-        # Shared roof_parts + two satellite dishes
+        # Shared roof_parts + roof_props + two satellite dishes
         roof_parts.vent_stack(k, -half + 2.2, half - 2.2, 0.30, 1.4)
         roof_parts.vent_stack(k, half - 2.2, -half + 2.2, 0.30, 1.4)
-        roof_parts.ac_unit(k, -half + 3.0, -half + 3.0, 0.30)
         _satellite_dish(k, half - 1.5, half - 1.5, 0.60, yaw=0.3)
         _satellite_dish(k, -half + 1.5, half - 1.5, 0.60, yaw=-0.4)
+        if size == 24:
+            roof_props.roof_water_tank_ny(k, -6.8, -6.4, 0.30, r=1.30, leg_h=1.25, tank_h=2.00)
+            roof_props.roof_stair_hut(k, 6.4, -5.8, 0.30)
+            roof_props.roof_machinery(k, -6.2, 5.4, 0.30)
+            roof_props.roof_antenna(k, 6.8, 6.2, 0.30, h=3.6)
+            roof_parts.ac_unit(k, 0.0, 6.6, 0.30)
+            roof_parts.ac_unit(k, 0.0, -6.6, 0.30)
+        else:
+            roof_props.roof_water_tank_ny(k, -9.8, -9.0, 0.30, r=1.40, leg_h=1.40, tank_h=2.20)
+            roof_props.roof_water_tank_ny(k, -9.8, 8.6, 0.30, r=1.30, leg_h=1.25, tank_h=2.05)
+            roof_props.roof_stair_hut(k, 9.4, -8.6, 0.30)
+            roof_props.roof_machinery(k, 0.0, -9.2, 0.30)
+            roof_props.roof_antenna(k, 9.8, 9.2, 0.30, h=4.2)
+            roof_props.roof_antenna(k, -0.8, 9.4, 0.30, h=3.4)
+            roof_parts.ac_unit(k, 8.8, 0.4, 0.30)
+            roof_parts.ac_unit(k, -8.8, 0.4, 0.30)
 
     return common.run_model(name, CATEGORY, BUDGET_CROWN, fn, grip=(0.0, 0.0, 0.0), view=kit.FRONT_VIEW)
 
@@ -266,8 +283,89 @@ def _build_crown_lod1(size):
         half = size / 2.0
         k.box((-half, -half, 0.0), (half, half, 0.6), "concrete_grey")
         k.box((-2.5, -2.0, 0.6), (2.5, 2.0, CROWN_H), "concrete_grey")
+        if size == 24:
+            model.add(common.make_frustum(1.3, 1.3, 0.6, 4.3, segments=6, center=(-6.8, -6.4), color="bark_light"))
+            k.box((4.9, -7.5, 0.3), (7.9, -4.1, 2.7), "concrete_grey")
+            k.box((-7.8, 4.3, 0.3), (-4.6, 6.5, 2.0), "concrete_grey")
+            k.box((6.6, 6.0, 0.3), (7.0, 6.4, 3.9), "metal")
+        else:
+            model.add(common.make_frustum(1.4, 1.4, 0.6, 4.7, segments=6, center=(-9.8, -9.0), color="bark_light"))
+            model.add(common.make_frustum(1.3, 1.3, 0.6, 4.3, segments=6, center=(-9.8, 8.6), color="bark_light"))
+            k.box((7.9, -10.3, 0.3), (10.9, -6.9, 2.7), "concrete_grey")
+            k.box((-1.6, -10.3, 0.3), (1.6, -8.1, 2.0), "concrete_grey")
+            k.box((9.6, 9.0, 0.3), (10.0, 9.4, 4.5), "metal")
+            k.box((-1.0, 9.2, 0.3), (-0.6, 9.6, 3.7), "metal")
 
     return common.run_model(name, CATEGORY, BUDGET_CROWN // 10, fn, grip=(0.0, 0.0, 0.0), view=kit.FRONT_VIEW)
+
+
+def _build_floor_c(size):
+    name = f"tw_slab_{size}_floor_c"
+
+    def fn(model):
+        k = kit.Kit(model)
+        half = size / 2.0
+        damaged_parts.damaged_wall_core(k, size, SLAB_T, FLOOR_H - SLAB_T, "concrete_grey", trim_color="concrete_stain")
+        k.box((-half - 0.03, -half - 0.03, 0.0), (half + 0.03, half + 0.03, SLAB_T), "concrete_stain")
+        k.box((-half - 0.03, -half - 0.03, FLOOR_H - SLAB_T), (half + 0.03, half + 0.03, FLOOR_H), "concrete_stain")
+
+        bays = size // 4
+        for fi, face in enumerate(("+Y", "+X", "-X", "-Y")):
+            axis = 1 if face in ("+Y", "-Y") else 0
+            sign = 1 if face in ("+Y", "+X") else -1
+            coord = sign * half
+            for bi in range(bays):
+                u = -half + (bi + 0.5) * BAY_W
+                idx = fi * bays + bi
+                if (fi == 0 and bi == 2) or (fi == 1 and bi == 1):
+                    damaged_parts.missing_frame(k, coord, axis, sign, u, 1.15, 2.75, 1.35)
+                    damaged_parts.soot_streak(k, coord, axis, sign, u, 2.75, width=1.25)
+                    continue
+                shattered = (fi == 0 and bi == 4) or (fi == 1 and bi == 3) or (fi == 2 and bi == 2)
+                if shattered:
+                    _slab_window(k, size, face, u, 1.15, 2.75, "soot", stain=(face != "-Y"))
+                    damaged_parts.shattered_pane(k, coord, axis, sign, u, 1.15, 2.75, 1.30, d_base=0.028)
+                else:
+                    st = "soot" if idx % 3 == 0 else ("boarded" if idx % 5 == 2 else "glass")
+                    _slab_window(k, size, face, u, 1.15, 2.75, st, stain=(face != "-Y" or bi % 2 == 0))
+                    if st == "glass" and idx % 4 == 1:
+                        damaged_parts.box_on_face(k, coord, axis, sign, u - 1.33, u + 1.33, 1.17, 2.73, 0.01, 0.032, "glass_dark")
+                if (fi == 0 and bi == 1) or (fi == 2 and bi == 1):
+                    damaged_parts.soot_streak(k, coord, axis, sign, u, 2.75, width=1.20)
+                if face != "-Y" and idx % 2 == 0:
+                    damaged_parts.rust_streak(k, coord, axis, sign, u, 1.15, width=0.65)
+
+        balc_bays = (1,) if size == 24 else (1, 4)
+        for bi in balc_bays:
+            cx = -half + (bi + 0.5) * BAY_W
+            _balcony(k, cx, half, 0.12, has_tarp=False, has_bike=(bi == 1), has_dish=(bi == balc_bays[-1]))
+
+    return common.run_model(name, CATEGORY, BUDGET_FLOOR[size], fn, grip=(0.0, 0.0, 0.0), view=kit.FRONT_VIEW)
+
+
+def _build_floor_c_lod1(size):
+    name = f"tw_slab_{size}_floor_c_lod1"
+
+    def fn(model):
+        k = kit.Kit(model)
+        half = size / 2.0
+        damaged_parts.damaged_wall_core(k, size, 0.0, FLOOR_H, "concrete_grey", patch=1.2, short_h=0.40)
+        k.box((-half - 0.02, -half - 0.02, 1.2), (half + 0.02, half + 0.02, 2.7), "glass_tint")
+        k.box((-half * 0.65, half - 0.01, 1.15), (-half * 0.25, half + 0.04, 2.75), "soot")
+        k.box((half * 0.05, half - 0.01, 1.15), (half * 0.45, half + 0.04, 2.75), "soot")
+        k.box((half - 0.01, -half * 0.45, 1.15), (half + 0.04, -half * 0.05, 2.75), "glass_dark")
+
+    return common.run_model(name, CATEGORY, BUDGET_FLOOR[size] // 10, fn, grip=(0.0, 0.0, 0.0), view=kit.FRONT_VIEW)
+
+
+def build_r40_all():
+    results = []
+    for size in (24, 32):
+        results.append((f"tw_slab_{size}_floor_c", _build_floor_c(size)))
+        results.append((f"tw_slab_{size}_floor_c_lod1", _build_floor_c_lod1(size)))
+        results.append((f"tw_slab_{size}_crown", _build_crown(size)))
+        results.append((f"tw_slab_{size}_crown_lod1", _build_crown_lod1(size)))
+    return results
 
 
 def build_all():

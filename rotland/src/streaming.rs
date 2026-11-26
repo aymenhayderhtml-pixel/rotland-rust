@@ -233,6 +233,9 @@ impl Streamer {
 
     fn shapes_of(&mut self, pack: &pack::ModelPack, id: &str) -> &Vec<Vec<[f32; 3]>> {
         self.shapes.entry(id.to_string()).or_insert_with(|| {
+            if is_no_collider_prop(id) {
+                return Vec::new();
+            }
             let Some(m) = pack.find(id) else {
                 return Vec::new();
             };
@@ -288,7 +291,14 @@ impl Streamer {
                 ladders.extend(game::ladders_from_markers(&m.markers, matrix));
             }
             let mut placed_at = None;
-            if let Some(slot) = library.get(device, pack, id, building) {
+            // Big damage set pieces (fallen section, leaning tower) use the tower LOD distances,
+            // not the small-prop ones, so their full model shows from the street.
+            let set_piece_lod0 = id.starts_with("tw_").then(|| self.world_gen.metro_world().map(|m| m.config.towers.lod0_distance)).flatten();
+            let slot = match set_piece_lod0 {
+                Some(lod0) => library.get_tower(device, pack, id, lod0, crate::metro_render::parts::tower_load_ring_range()),
+                None => library.get(device, pack, id, building),
+            };
+            if let Some(slot) = slot {
                 placed_at = Some(placed.len());
                 placed.push(library.place(slot, position, yaw, scale));
             }
@@ -339,8 +349,8 @@ impl Streamer {
                 b.coord,
                 styles,
             );
-            let bases = tower_bases(&m.towers, b.coord, ground_y);
-            let hulls = tower_hulls(&m.towers, b.coord, ground_y, styles);
+            let bases = tower_bases(&m.towers, b.coord, ground_y, &m.damage);
+            let hulls = tower_hulls(&m.towers, b.coord, ground_y, styles, &m.damage);
             (curbs, tower_placed, bases, hulls)
         });
         let mut curbs = None;
@@ -392,6 +402,22 @@ impl Streamer {
         }
         Some(slot)
     }
+}
+
+fn is_no_collider_prop(id: &str) -> bool {
+    [
+        "weeds_",
+        "moss_",
+        "leaves_",
+        "graffiti_",
+        "poster_",
+        "vine_",
+        "grass_tall_patch",
+        "roof_bush",
+        "roof_tree",
+    ]
+    .iter()
+    .any(|p| id.starts_with(p))
 }
 
 fn is_walkable_deck_model(id: &str) -> bool {

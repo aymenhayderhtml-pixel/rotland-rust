@@ -44,3 +44,51 @@ Read:
 - Lead lines (mod.rs) and the lobby-dressing note for R40-08 are in Worker notes.
 
 ## Worker notes
+
+Implemented R40-06 survivor trace placement (pure world logic; did not run `cargo` or `tools/gate.sh` per subagent rules).
+
+**Files created:**
+- `world/src/metro/traces.rs` (~360 lines): `TraceConfig`, `CarWallsConfig`, `LobbyDressingEntry`, `load_traces`, `default_traces`, `traces_props_in_chunk`, street-end car wall planning (`car_wall_stack`), and seed/geometry helpers.
+- `world/src/metro/traces_camps.rs` (~285 lines): `CampSite`, `camp_sites`, `lobby_dressing`, facade graffiti (`graffiti_*`), missing-person posters (`poster_wall`), rooftop camps (`rooftop_camp` at `tower_parts` last `Floor` top + `floor_height`), and sidewalk bodies (`body_sheet`, `body_sheet_b`).
+- `world/src/metro/traces_tests.rs` (~265 lines): tests for car walls (single street, >= `gapM` open, skips entrance avenue / reserved / `damage` fallen street), graffiti & posters (0.015-0.025 m off facade, height in range, poster `|x|` in `[0.3, 0.4]` of size), camps (Brick 4-8 floors, roof top y within 0.05 m, 6x6 footprint fits), sidewalk bodies (on sidewalk strip only, off asphalt & reserved), Edge >= Midtown >= Core counts, replaced & burnt tower skips, determinism + chunk union, and config validation.
+
+**Shared-file lines for the lead:**
+- `world/src/metro/mod.rs`:
+  - Add `pub mod traces;`
+  - Add `pub use traces::{CampSite, CarWallsConfig, LobbyDressingEntry, TraceConfig, camp_sites, default_traces, load_traces, lobby_dressing, traces_props_in_chunk};`
+- `world/src/lib.rs`:
+  - Extend `pub use metro::{ ... }` with `CampSite, TraceConfig, camp_sites, default_traces, load_traces, lobby_dressing, traces_props_in_chunk`
+- `data/metro.json` (add top-level `"traces"` key):
+```json
+  "traces": {
+    "carWalls": { "count": [2, 3], "minDistrict": "edge", "inM": [20, 40] },
+    "wallWidthM": 10,
+    "gapM": 2,
+    "wallOffsetM": 0.02,
+    "graffitiLobbyChance": 0.35,
+    "graffitiStreetWallChance": 0.12,
+    "graffitiHeightM": [1.0, 3.0],
+    "posterChance": 0.3,
+    "posterHeightM": [1.2, 2.0],
+    "posterXShare": [0.3, 0.4],
+    "campChance": 0.15,
+    "campFloors": [4, 8],
+    "campSizeM": 6,
+    "campMarginM": 1,
+    "bodySidewalkChance": 0.35,
+    "lobbyCeilingY": 7.3,
+    "lobbyDressing": [
+      { "model": "lobby_column", "chance": 0.65, "y": 0.1, "x": -0.22, "z": 0.18, "yaw": 0.0 },
+      { "model": "lobby_column", "chance": 0.65, "y": 0.1, "x": 0.22, "z": -0.18, "yaw": 0.0 },
+      { "model": "lobby_ceiling_hang", "chance": 0.45, "y": 5.8, "x": 0.0, "z": -0.10, "yaw": 0.2 },
+      { "model": "lobby_light_broken", "chance": 0.50, "y": 5.6, "x": 0.12, "z": 0.08, "yaw": -0.3 },
+      { "model": "lobby_rug", "chance": 0.55, "y": 0.1, "x": 0.0, "z": -0.22, "yaw": 0.0 },
+      { "model": "lobby_chair_tipped", "chance": 0.40, "y": 0.1, "x": 0.16, "z": -0.15, "yaw": 1.1 },
+      { "model": "lobby_debris", "chance": 0.50, "y": 0.1, "x": -0.14, "z": -0.08, "yaw": 0.7 },
+      { "model": "body_sheet_b", "chance": 0.18, "y": 0.1, "x": 0.20, "z": -0.24, "yaw": 0.5 }
+    ]
+  }
+```
+
+**Lobby-dressing note for R40-08:**
+- `lobby_dressing(spot, cfg, seed) -> Vec<LobbyProp>` is provided for inspection/testing, and `traces_props_in_chunk` already emits all rolled `lobbyDressing` props with their `y` height (`height(wx, wz) + entry.y`), skipping replaced towers (`damage.tower_is_replaced`) and burnt blocks (`damage.tower_is_burnt`). `rotland/src/metro_render/parts.rs` does NOT need any change for lobby dressing.

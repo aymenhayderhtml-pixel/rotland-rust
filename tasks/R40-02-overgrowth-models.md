@@ -38,3 +38,25 @@ Read: tasks/R40-common.md ("R40 shared names", overgrowth bullets, "Owner decisi
 - `tools/blender/overgrowth/` has `overgrowth.py` with `build_all()` returning `[(name, ok)]` like the R39 scripts.
 
 ## Worker notes
+- **Files added:**
+  - `tools/blender/overgrowth/og_util.py` (shared leaf diamond, twig, grass blade, crumpled paper, broken pavement rim helpers)
+  - `tools/blender/overgrowth/vines.py` (`vine_wall_s`, `vine_wall_m`, `vine_wall_l`, `vine_cornice`)
+  - `tools/blender/overgrowth/ground_weeds.py` (`weeds_crack`, `grass_tall_patch`, `moss_patch`, `leaves_litter`)
+  - `tools/blender/overgrowth/trees_shrubs.py` (`tree_asphalt`, `sapling_city`, `shrub_wild`, `roof_bush`, `roof_tree`)
+  - `tools/blender/overgrowth/overgrowth.py` (`build_all()` returning `[(name, ok)]`)
+  - 13 `.glb` files in `assets/models/nature/` and 13 preview PNGs in `assets/models/_previews/`.
+- **Lines for `tools/blender/build_r40_models.py` (R40-05):**
+  - `sys.path.insert(0, os.path.join(HERE, "overgrowth"))`
+  - `import overgrowth  # noqa: E402`
+  - Add `("overgrowth", overgrowth.build_all),` to `GROUPS`.
+- **Origins, orientation & z-fighting:**
+  - Upright models (`tree_asphalt`, `sapling_city`, `shrub_wild`, `roof_bush`, `roof_tree`): bottom center at `(0, 0, 0)`.
+  - Ground pieces (`weeds_crack`, `grass_tall_patch`, `moss_patch`, `leaves_litter`): built with `grip=(0.0, 0.0, 0.0)` so lowest Z sits at `+0.015` to `+0.02` m above `Z=0`, avoiding road/roof z-fighting.
+  - Wall vines (`vine_wall_s`, `vine_wall_m`, `vine_wall_l`): built with `grip=(0.0, 0.0, 0.0)`, facing `+Y`, bottom center at `(0, 0, 0)`, backmost gap diamonds at `Y=+0.014..0.020`, stems/leaves spanning `Y=+0.022..0.27` (within 0.3 m depth) so they never z-fight a wall at `Y=0`. Note: built 2.6–3.2 m wide x 0.3 m deep (rather than 0.3 m wide, which would be a 47:1 ribbon at 14 m tall and matches `vine_cornice` 3 m and `R40-common.md`).
+  - `vine_cornice`: `grip=(0.0, 0.0, 0.0)`, 3.0 m wide, top drape sits on ledge (`Z=+0.018..0.06`, `Y=-0.32..+0.02`) and front sheet hangs `1.2 m` down (`Z=-1.2..0`, `Y=+0.018..0.27`).
+- **Colliders:** **NO colliders** on any of the 13 models (including `tree_asphalt` and `roof_tree`).
+- **Blender & normal check results (observed):**
+  - `flock /tmp/rotland-blender.lock blender -b --python tools/blender/overgrowth/overgrowth.py` exited 0 (`OVERGROWTH OK`, no `Traceback` or `FAILED`).
+  - Triangle counts: `vine_wall_s` 1408/1500, `vine_wall_m` 2664/3000, `vine_wall_l` 5196/6000, `vine_cornice` 1288/1500, `weeds_crack` 792/800, `grass_tall_patch` 1000/1500, `moss_patch` 496/600, `leaves_litter` 372/800, `tree_asphalt` 1052/6000, `sapling_city` 716/1500, `shrub_wild` 928/2000, `roof_bush` 664/2000, `roof_tree` 1108/6000.
+  - `check_normals.py` reported `manifold & normals consistent` (0 open edges, 0 reversed normals) for all 13 `.glb` files.
+  - Inspected all 13 preview PNGs via `read_file`.

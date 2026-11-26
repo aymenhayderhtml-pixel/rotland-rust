@@ -44,3 +44,81 @@ Read:
 - Density is visibly higher in Edge than in Core on the test numbers.
 
 ## Worker notes
+
+Implemented R40-01 pure overgrowth placement (did not run `cargo`, `tools/gate.sh`, `blender`, or the game per subagent rules).
+
+### Files created
+- `world/src/metro/overgrowth.rs` (294 lines): `DistrictOvergrowth`, `OvergrowthConfig` (with `#[serde(default)]` defaults), `load_overgrowth`, `default_overgrowth` (`OnceLock` cached), `overgrowth_props_in_chunk`, `overgrowth_props_in_chunk_with_config`, chunk/block overlap lookup, entrance avenue filter, and FNV-1a `"overgrowth"` per-block seeding.
+- `world/src/metro/overgrowth_roofs.rs` (287 lines): street overgrowth (`weeds_crack` 0.3 m off curb on asphalt, `moss_patch` at curb base, `tree_asphalt` 1.5–3.0 m from curb spaced by `streetTreeSpacingM`), lot overgrowth (`shrub_wild`, `sapling_city`, `grass_tall_patch` outside tower footprints + `lotTowerClearanceM`), wall vines (`vine_wall_s`/`_m`/`_l` on 1–2 non-front faces), and roof props (`roof_bush`/`roof_tree` at last `PartKind::Floor` top from `tower_parts`, inset `roofEdgeInsetM` from edge).
+- `world/src/metro/overgrowth_tests.rs` (298 lines): tests for chunk/block 64 m alignment, district counts (Edge > Midtown > Core for weeds & vines), entrance avenue & reserved block exclusion, vine standoff/ground/non-front rules, roof height & inset rules, lot clearance & off-street checks, determinism & chunk union completeness, and `load_overgrowth` validation (rejecting negative chances).
+
+### Exact `data/metro.json` `"overgrowth"` JSON block to merge
+```json
+  "overgrowth": {
+    "edge": {
+      "crackWeedsPerBlock": 8,
+      "streetTreeChance": 0.70,
+      "mossPerBlock": 6,
+      "lotShrubsPerBlock": 8,
+      "lotTreesPerBlock": 4,
+      "lotGrassPerBlock": 10,
+      "vineTowerChance": 0.75,
+      "roofBushChance": 0.55
+    },
+    "midtown": {
+      "crackWeedsPerBlock": 5,
+      "streetTreeChance": 0.45,
+      "mossPerBlock": 3,
+      "lotShrubsPerBlock": 5,
+      "lotTreesPerBlock": 2,
+      "lotGrassPerBlock": 6,
+      "vineTowerChance": 0.50,
+      "roofBushChance": 0.30
+    },
+    "core": {
+      "crackWeedsPerBlock": 2,
+      "streetTreeChance": 0.20,
+      "mossPerBlock": 1,
+      "lotShrubsPerBlock": 2,
+      "lotTreesPerBlock": 1,
+      "lotGrassPerBlock": 2,
+      "vineTowerChance": 0.25,
+      "roofBushChance": 0.12
+    },
+    "vineSpacingM": 6.0,
+    "crackWeedLengthM": 3.0,
+    "streetTreeSpacingM": 32.0,
+    "crackWeedCurbOffsetM": 0.3,
+    "streetTreeCurbOffsetM": [1.5, 3.0],
+    "lotTowerClearanceM": 1.5,
+    "vineHalfDepthM": 0.15,
+    "vineWallStandoffM": [0.02, 0.05],
+    "vineCornerMarginM": 1.5,
+    "roofEdgeInsetM": 1.5,
+    "roofTreeChance": 0.35
+  },
+```
+
+### Exact shared-file lines for the lead
+- `world/src/metro/mod.rs`:
+  Add module declaration (with the other `pub mod` lines):
+  ```rust
+  pub mod overgrowth;
+  ```
+  Add `pub use` line (with the other `pub use` lines):
+  ```rust
+  pub use overgrowth::{
+      DistrictOvergrowth, OvergrowthConfig, default_overgrowth, load_overgrowth,
+      overgrowth_props_in_chunk, overgrowth_props_in_chunk_with_config,
+  };
+  ```
+- `world/src/lib.rs`:
+  Extend `pub use metro::{...}` with:
+  ```rust
+      DistrictOvergrowth, OvergrowthConfig, default_overgrowth, load_overgrowth,
+      overgrowth_props_in_chunk, overgrowth_props_in_chunk_with_config,
+  ```
+
+### Notes / unsure items for the lead
+- **Vine origin vs R40-02:** `R40-01` specifies placing vine centres at `half + 0.15 + 0.02..0.05` (assuming a 0.3 m centered model), while `R40-02` Worker notes state `vine_wall_*` were built with origin at the back (`Y=0`, leaves at `Y=+0.022..0.27`). `OvergrowthConfig.vineHalfDepthM` defaults to `0.15` per R40-01; if vines look ~15 cm off the wall in screenshots, set `"vineHalfDepthM": 0.0` in `data/metro.json` `overgrowth` (or adjust `R40-01` test accordingly).
+- **Not run:** Per subagent rules, compilation, clippy, and unit tests were not executed yet.
