@@ -66,6 +66,8 @@ def build(model):
     model.add(box((0.098, 0.010, 0.010), (0.0, 0.400, 0.015), "metal"))
 
     model.add_empty("grip_L", (0.0, 0.16, -0.01))
+    model.add_empty("mount_optic", (0.0, -0.08, 0.056))
+    model.add_empty("mount_magazine", (0.020, 0.08, 0.005))
 
 
 def main():

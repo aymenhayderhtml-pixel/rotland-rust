@@ -14,6 +14,7 @@ fn camp_upgrades_config_loads_and_validates() {
     assert_eq!(cfg.max_level(UpgradeLine::Guards), 3);
     assert_eq!(cfg.max_level(UpgradeLine::Workshop), 3);
     assert_eq!(cfg.max_level(UpgradeLine::Traders), 4);
+    assert_eq!(cfg.max_level(UpgradeLine::Gunsmith), 3);
 
     let wall_def: &WallLevelDef = &cfg.walls[0];
     assert_eq!(wall_def.level, 0);
@@ -26,6 +27,11 @@ fn camp_upgrades_config_loads_and_validates() {
 
     let tr_def: &TraderLevelDef = &cfg.traders[0];
     assert_eq!(tr_def.level, 0);
+
+    assert_eq!(cfg.gunsmith.len(), 4);
+    assert_eq!(cfg.gunsmith[0].level, 0);
+    assert_eq!(cfg.gunsmith[0].gunsmith_tier, 0);
+    assert_eq!(cfg.gunsmith[3].gunsmith_tier, 3);
 
     // Test load_from_file and from_json explicitly
     let path = paths::repo_path("data/camp_upgrades.json");
@@ -194,12 +200,14 @@ fn camp_upgrades_effects_grow_with_level() {
     assert!(!eff0.has_doctor);
     assert!(!eff0.has_mechanic);
     assert_eq!(eff0.trader_stock_tier, 0);
+    assert_eq!(eff0.gunsmith_tier, 0);
 
     // Max all levels
     state.set_level(UpgradeLine::Walls, 3);
     state.set_level(UpgradeLine::Guards, 3);
     state.set_level(UpgradeLine::Workshop, 3);
     state.set_level(UpgradeLine::Traders, 4);
+    state.set_level(UpgradeLine::Gunsmith, 3);
 
     let eff_max = state.effects(&cfg);
     assert_eq!(eff_max.wall_hp_max, 2500.0);
@@ -215,6 +223,7 @@ fn camp_upgrades_effects_grow_with_level() {
     assert!(eff_max.has_doctor);
     assert!(eff_max.has_mechanic);
     assert_eq!(eff_max.trader_stock_tier, 1);
+    assert_eq!(eff_max.gunsmith_tier, 3);
 
     // Verify CantStart::MaxLevel when at max level
     let err = can_start(&state, &cfg, UpgradeLine::Walls, 10000, |_id, _cnt| true);
@@ -230,6 +239,7 @@ fn camp_upgrades_save_round_trip() {
         guards_level: 1,
         workshop_level: 3,
         traders_level: 2,
+        gunsmith_level: 2,
         in_progress: Some(UpgradeInProgress {
             line: UpgradeLine::Guards,
             target_level: 2,
@@ -251,6 +261,7 @@ fn camp_upgrades_empty_json_loads_as_level_0() {
     assert_eq!(loaded.guards_level, 0);
     assert_eq!(loaded.workshop_level, 0);
     assert_eq!(loaded.traders_level, 0);
+    assert_eq!(loaded.gunsmith_level, 0);
     assert!(loaded.in_progress.is_none());
     assert_eq!(loaded.wall_hp, 0.0);
     assert!(!loaded.has_walls());
@@ -299,4 +310,43 @@ fn camp_upgrades_wall_damage_repair_breached() {
     let restored3 = state.repair_walls(&cfg, &[("scrap_metal", 10)]);
     assert_eq!(restored3, 150.0); // only 150 missing (500 - 350)
     assert_eq!(state.wall_hp, 500.0);
+}
+
+#[test]
+fn camp_upgrades_gunsmith_tiers_0_to_3() {
+    let cfg = CampUpgradesConfig::load_default().expect("load config");
+    let mut state = CampUpgradeState::default();
+    assert_eq!(state.effects(&cfg).gunsmith_tier, 0);
+
+    // Tier 0 -> 1
+    let c1 = can_start(&state, &cfg, UpgradeLine::Gunsmith, 500, |_id, _cnt| true).expect("tier 1");
+    assert_eq!(c1.cash, 100);
+    start(&mut state, &cfg, UpgradeLine::Gunsmith);
+    let done1 = tick(&mut state, &cfg, 2.0);
+    assert_eq!(done1, Some((UpgradeLine::Gunsmith, 1)));
+    assert_eq!(state.effects(&cfg).gunsmith_tier, 1);
+
+    // Tier 2 requires workshop level 1
+    let blocked = can_start(&state, &cfg, UpgradeLine::Gunsmith, 500, |_id, _cnt| true);
+    assert_eq!(
+        blocked,
+        Err(CantStart::MissingRequirement {
+            line: UpgradeLine::Workshop,
+            required_level: 1,
+        })
+    );
+    state.set_level(UpgradeLine::Workshop, 1);
+    assert!(can_start(&state, &cfg, UpgradeLine::Gunsmith, 500, |_id, _cnt| true).is_ok());
+    start(&mut state, &cfg, UpgradeLine::Gunsmith);
+    tick(&mut state, &cfg, 4.0);
+    assert_eq!(state.effects(&cfg).gunsmith_tier, 2);
+
+    // Tier 3
+    start(&mut state, &cfg, UpgradeLine::Gunsmith);
+    tick(&mut state, &cfg, 6.0);
+    assert_eq!(state.effects(&cfg).gunsmith_tier, 3);
+    assert_eq!(
+        can_start(&state, &cfg, UpgradeLine::Gunsmith, 1000, |_id, _cnt| true),
+        Err(CantStart::MaxLevel)
+    );
 }

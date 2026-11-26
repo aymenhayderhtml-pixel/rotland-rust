@@ -1,0 +1,95 @@
+{
+  "scope_2x": {
+    "name": "2x Scope",
+    "slot": "optic",
+    "fits": ["smg", "ak47", "rifle", "hunting_rifle", "crossbow"],
+    "model": "res://assets/models/attachments/scope_2x.glb",
+    "priceScrap": 25,
+    "effects": {
+      "spreadMult": 0.75,
+      "scopeFov": 40.0
+    }
+  },
+  "scope_4x": {
+    "name": "4x Scope",
+    "slot": "optic",
+    "fits": ["ak47", "rifle", "hunting_rifle", "crossbow"],
+    "model": "res://assets/models/attachments/scope_4x.glb",
+    "priceScrap": 50,
+    "effects": {
+      "spreadMult": 0.5,
+      "scopeFov": 20.0
+    }
+  },
+  "red_dot": {
+    "name": "Red Dot Sight",
+    "slot": "optic",
+    "fits": ["pistol", "revolver", "smg", "ak47"],
+    "model": "res://assets/models/attachments/red_dot.glb",
+    "priceScrap": 20,
+    "effects": {
+      "spreadMult": 0.85
+    }
+  },
+  "suppressor": {
+    "name": "Suppressor",
+    "slot": "muzzle",
+    "fits": ["pistol", "smg", "ak47", "rifle", "hunting_rifle"],
+    "model": "res://assets/models/attachments/suppressor.glb",
+    "priceScrap": 35,
+    "effects": {
+      "noiseMult": 0.35
+    }
+  },
+  "ext_mag": {
+    "name": "Extended Magazine",
+    "slot": "magazine",
+    "fits": ["pistol", "smg", "ak47"],
+    "model": "res://assets/models/attachments/ext_mag.glb",
+    "priceScrap": 25,
+    "effects": {
+      "magBonus": 0.5
+    }
+  },
+  "drum_mag": {
+    "name": "Drum Magazine",
+    "slot": "magazine",
+    "fits": ["ak47", "smg"],
+    "model": "res://assets/models/attachments/drum_mag.glb",
+    "priceScrap": 55,
+    "effects": {
+      "magBonus": 1.5,
+      "reloadMult": 1.3
+    }
+  },
+  "foregrip": {
+    "name": "Foregrip",
+    "slot": "grip",
+    "fits": ["ak47", "smg", "shotgun"],
+    "model": "res://assets/models/attachments/foregrip.glb",
+    "priceScrap": 22,
+    "effects": {
+      "kickMult": 0.7
+    }
+  },
+  "stock_pad": {
+    "name": "Recoil Stock Pad",
+    "slot": "stock",
+    "fits": ["rifle", "hunting_rifle", "shotgun", "ak47"],
+    "model": "res://assets/models/attachments/stock_pad.glb",
+    "priceScrap": 18,
+    "effects": {
+      "kickMult": 0.8
+    }
+  },
+  "bolt_quiver": {
+    "name": "Quick-Draw Bolt Quiver",
+    "slot": "magazine",
+    "fits": ["crossbow"],
+    "model": "res://assets/models/attachments/bolt_quiver.glb",
+    "priceScrap": 20,
+    "effects": {
+      "reloadMult": 0.75
+    }
+  }
+}

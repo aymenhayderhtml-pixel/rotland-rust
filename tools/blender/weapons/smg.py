@@ -37,6 +37,10 @@ def build(model):
         model.add(box((0.006, 0.20, 0.008), (x, -0.15, 0.050), "metal"))
     model.add(rbox((0.050, 0.015, 0.050), (0.0, -0.25, 0.040), "gun_black", 0.3))
     model.add_empty("grip_L", (0.0, 0.18, -0.01))
+    model.add_empty("mount_optic", (0.0, 0.03, 0.075))
+    model.add_empty("mount_muzzle", (0.0, 0.35, 0.040))
+    model.add_empty("mount_magazine", (0.0, 0.13, -0.110))
+    model.add_empty("mount_grip", (0.0, 0.21, 0.007))
 
 
 def main():

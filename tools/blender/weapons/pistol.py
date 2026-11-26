@@ -35,6 +35,9 @@ def build(model):
     for x in (-0.009, 0.009):
         model.add(box((0.006, 0.010, 0.010), (x, -0.088, 0.080), "gun_black"))
     model.add(box((0.010, 0.010, 0.016), (0.0, -0.101, 0.068), "gun_black"))
+    model.add_empty("mount_optic", (0.0, -0.035, 0.076))
+    model.add_empty("mount_muzzle", (0.0, 0.118, 0.058))
+    model.add_empty("mount_magazine", (0.0, -0.061, -0.077))
 
 
 def main():

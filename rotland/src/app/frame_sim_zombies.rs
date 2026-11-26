@@ -237,6 +237,9 @@ pub(super) fn step_poi_zombies(
             world.poi_zombie_sites.clear();
             for chunk in st.chunks.values() {
                 for poi in &chunk.pois {
+                    if poi.building_id == world::GUN_SHOP_MODEL {
+                        continue;
+                    }
                     let spawns = markers
                         .entry(poi.building_id.clone())
                         .or_insert_with(|| {

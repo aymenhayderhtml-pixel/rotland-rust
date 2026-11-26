@@ -117,7 +117,18 @@ pub fn restore_play(file: &SaveFile, play: &mut PlayState) -> Vec<String> {
             .systems
             .inventory
             .as_ref()
-            .map(|i| i.stacks.iter().map(|s| game::items::SavedSlot { slot: s.slot, id: s.id.clone(), count: s.count }).collect())
+            .map(|i| {
+                i.stacks
+                    .iter()
+                    .map(|s| game::items::SavedSlot {
+                        slot: s.slot,
+                        id: s.id.clone(),
+                        count: s.count,
+                        wear: s.wear,
+                        mods: s.mods.clone(),
+                    })
+                    .collect()
+            })
             .unwrap_or_default(),
     };
     let looted = file.systems.worldstate.as_ref().map(|w| w.looted.clone()).unwrap_or_default();
@@ -199,7 +210,17 @@ pub fn capture(base: Option<&SaveFile>, s: &Snapshot) -> SaveFile {
     sys.stats = Some(stats);
     let (stacks, looted) = s.play.save_parts();
     sys.inventory = Some(save::InventorySaveData {
-        stacks: stacks.stacks.into_iter().map(|e| save::SavedSlot { slot: e.slot, id: e.id, count: e.count }).collect(),
+        stacks: stacks
+            .stacks
+            .into_iter()
+            .map(|e| save::SavedSlot {
+                slot: e.slot,
+                id: e.id,
+                count: e.count,
+                wear: e.wear,
+                mods: e.mods,
+            })
+            .collect(),
     });
     s.play.camp.save_into(sys);
     sys.extra.insert("need_hunger".into(), s.play.hunger.to_save());

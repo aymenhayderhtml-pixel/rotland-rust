@@ -191,11 +191,18 @@ impl Default for GunFeelState {
 impl GunFeelState {
     /// Applies one shot's view kick, optional climb, and first-person weapon kick.
     pub fn on_shot(&mut self, def: &GunFeelDef, aiming: bool) {
-        let mul = if aiming { def.aim_mul } else { 1.0 };
+        self.on_shot_scaled(def, aiming, 1.0);
+    }
+
+    /// Applies one shot's view kick, optional climb, and first-person weapon kick scaled by `kick_mult`.
+    pub fn on_shot_scaled(&mut self, def: &GunFeelDef, aiming: bool, kick_mult: f32) {
+        let km = kick_mult.max(0.0);
+        let mul = (if aiming { def.aim_mul } else { 1.0 }) * km;
         let kick = def.kick_deg * mul;
         if def.climb {
-            self.climb_deg = (self.climb_deg + kick).min(def.max_climb_deg);
-            let max_pitch = (def.max_climb_deg - self.climb_deg).max(0.0);
+            let max_climb = def.max_climb_deg * km;
+            self.climb_deg = (self.climb_deg + kick).min(max_climb);
+            let max_pitch = (max_climb - self.climb_deg).max(0.0);
             self.pitch_deg = self.pitch_deg.min(max_pitch);
         } else {
             self.pitch_deg += kick;
@@ -265,5 +272,41 @@ fn move_toward_zero(val: f32, step: f32) -> f32 {
         val + step
     } else {
         0.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn on_shot_scaled_reduces_kick_and_climb_proportionally() {
+        let def = GunFeelDef {
+            kick_deg: 2.0,
+            kick_yaw_deg: 0.4,
+            recover_deg_per_sec: 12.0,
+            climb: true,
+            max_climb_deg: 8.0,
+            aim_mul: 0.5,
+            fp_back: 0.06,
+            fp_tilt_deg: 4.0,
+            fp_recover_sec: 0.12,
+            flash_light: 4.0,
+            flash_duration_sec: 0.05,
+            no_flash: false,
+        };
+        let mut full = GunFeelState::default();
+        let mut half = GunFeelState::default();
+        full.on_shot(&def, false);
+        half.on_shot_scaled(&def, false, 0.5);
+
+        let (full_p, full_y) = full.view_kick_deg();
+        let (half_p, half_y) = half.view_kick_deg();
+        assert!((half_p - full_p * 0.5).abs() < 1e-5);
+        assert!((half_y - full_y * 0.5).abs() < 1e-5);
+        let (full_b, full_t) = full.fp_kick();
+        let (half_b, half_t) = half.fp_kick();
+        assert!((half_b - full_b * 0.5).abs() < 1e-5);
+        assert!((half_t - full_t * 0.5).abs() < 1e-5);
     }
 }

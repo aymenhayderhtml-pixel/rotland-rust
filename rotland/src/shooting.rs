@@ -44,6 +44,8 @@ pub struct ShootEvents {
     pub reload_started: bool,
     pub ammo: (u32, u32),
     pub empty_click: bool,
+    pub jammed: bool,
+    pub broken: bool,
     pub bash: bool,
     pub fired_weapon: Option<String>,
 }
@@ -78,6 +80,7 @@ impl TargetWorld for Zombies {
 /// The player's shooting state: owns magazine counts for all guns used, and the spread RNG.
 pub struct Shooting {
     guns: HashMap<String, Gun>,
+    shot_cooldowns: HashMap<String, f32>,
     rng: GunRng,
     active_weapon: Option<String>,
 }
@@ -92,8 +95,19 @@ impl Shooting {
     pub fn new(seed: u64) -> Self {
         Self {
             guns: HashMap::new(),
+            shot_cooldowns: HashMap::new(),
             rng: GunRng::new(seed),
             active_weapon: None,
+        }
+    }
+
+    /// Clamps a cached magazine if an attachment removal reduced `max_mag`.
+    pub fn sync_mag_cap(&mut self, weapon_id: &str, max_mag: u32) {
+        if let Some(gun) = self.guns.get_mut(weapon_id)
+            && !gun.is_reloading()
+            && gun.rounds() > max_mag
+        {
+            *gun = Gun::new(max_mag);
         }
     }
 
@@ -123,6 +137,7 @@ impl Shooting {
     }
 
     /// One frame of shooting logic against any `TargetWorld` (enables pure tests without GPU).
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub fn update_targets<T: TargetWorld>(
         &mut self,
@@ -134,6 +149,35 @@ impl Shooting {
         inventory: &mut Inventory,
         targets: &mut T,
         physics: &PhysicsWorld,
+    ) -> ShootEvents {
+        self.update_targets_with_wear(
+            dt,
+            input,
+            weapon,
+            eye,
+            aim_dir,
+            inventory,
+            targets,
+            physics,
+            1.0,
+            &game::WearConfig::default(),
+        )
+    }
+
+    /// One frame of shooting logic with weapon condition wear, jams, broken gating, and spread scaling.
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_targets_with_wear<T: TargetWorld>(
+        &mut self,
+        dt: f32,
+        input: ShootInput,
+        weapon: &WeaponDef,
+        eye: Vec3,
+        aim_dir: Vec3,
+        inventory: &mut Inventory,
+        targets: &mut T,
+        physics: &PhysicsWorld,
+        condition: f32,
+        wear_cfg: &game::WearConfig,
     ) -> ShootEvents {
         if weapon.is_bow() {
             let spare_in_bag = inventory.count(&weapon.ammo_item);
@@ -158,25 +202,29 @@ impl Shooting {
         // Switching weapons cancels any reload in progress on the previous weapon
         if let Some(prev_id) = &self.active_weapon
             && prev_id != &weapon.id
-                && let Some(prev_gun) = self.guns.get_mut(prev_id) {
-                    prev_gun.cancel_reload();
-                }
+            && let Some(prev_gun) = self.guns.get_mut(prev_id)
+        {
+            prev_gun.cancel_reload();
+        }
         self.active_weapon = Some(weapon.id.clone());
 
         let gun = self
             .guns
             .entry(weapon.id.clone())
             .or_insert_with(|| Gun::new(weapon.magazine_size));
+        let cd = self.shot_cooldowns.entry(weapon.id.clone()).or_insert(0.0);
+        *cd = (*cd - dt).max(0.0);
 
         // Advance cooldown and reload timer
         if let Some(done) = gun.update(dt)
-            && done.rounds_taken > 0 {
-                let available = inventory.count(&weapon.ammo_item);
-                let to_take = done.rounds_taken.min(available);
-                if to_take > 0 {
-                    inventory.remove(&weapon.ammo_item, to_take);
-                }
+            && done.rounds_taken > 0
+        {
+            let available = inventory.count(&weapon.ammo_item);
+            let to_take = done.rounds_taken.min(available);
+            if to_take > 0 {
+                inventory.remove(&weapon.ammo_item, to_take);
             }
+        }
 
         let mut events = ShootEvents::default();
         let spare_in_bag = inventory.count(&weapon.ammo_item);
@@ -194,7 +242,12 @@ impl Shooting {
         };
 
         if wants_fire && !gun.is_reloading() {
-            if gun.rounds() == 0 {
+            if game::is_broken(condition) {
+                events.broken = true;
+                if input.fire_pressed {
+                    events.empty_click = true;
+                }
+            } else if gun.rounds() == 0 {
                 if spare_in_bag == 0 {
                     // Empty with no spares: swung like a club instead of clicking (GunHandler.cs line 263)
                     events.bash = true;
@@ -205,21 +258,31 @@ impl Shooting {
                         events.reload_started = true;
                     }
                 }
+            } else if *cd <= 0.0 && game::jam_roll(condition, wear_cfg, || self.rng.next_f32()) {
+                *cd = weapon.fire_interval;
+                events.jammed = true;
+                events.empty_click = true;
             } else if gun.try_fire(weapon, input.fire_pressed, input.fire_held) {
-                events.shots_fired += 1;
-                events.fired_weapon = Some(weapon.id.clone());
-                events.noise = Some(shot_noise(weapon, eye));
+                *cd = weapon.fire_interval;
+                let mut shot_weapon = weapon.clone();
+                let sm = game::spread_mult(condition, wear_cfg);
+                shot_weapon.spread_hip_deg *= sm;
+                shot_weapon.spread_aim_deg *= sm;
 
-                let rays = fire_rays(weapon, eye, aim_dir, input.aiming, &mut self.rng);
+                events.shots_fired += 1;
+                events.fired_weapon = Some(shot_weapon.id.clone());
+                events.noise = Some(shot_noise(&shot_weapon, eye));
+
+                let rays = fire_rays(&shot_weapon, eye, aim_dir, input.aiming, &mut self.rng);
                 let target_list = targets.gun_targets();
-                let hits = resolve_hits(&rays, weapon, &target_list, physics, weapon.range);
+                let hits = resolve_hits(&rays, &shot_weapon, &target_list, physics, shot_weapon.range);
 
                 for hit in hits {
                     if let (Some(target_id), Some(damage)) = (hit.target, hit.damage) {
                         events.hits += 1;
                         let knockback = Vec3::new(damage.direction.x, 0.0, damage.direction.z)
                             .normalize_or_zero()
-                            * weapon.knockback;
+                            * shot_weapon.knockback;
                         if targets.hit(target_id, damage, knockback) {
                             events.kills += 1;
                         }
@@ -235,15 +298,16 @@ impl Shooting {
     }
 }
 
-/// Aim FOV for a weapon: scope FOV if scoped, else 50 deg for 1st-person or 55 deg for 3rd-person.
-/// Returns None for non-guns (melee).
+/// Aim FOV for a weapon: scope FOV if scoped (including scoped crossbows), else 50 deg for 1st-person or 55 deg for 3rd-person.
+/// Returns None for unscoped non-guns (melee, unscoped bows).
 pub fn aim_fov(weapon: &WeaponDef, first_person: bool) -> Option<f32> {
+    if let Some(scope) = &weapon.scope {
+        return Some(scope.fov);
+    }
     if !weapon.is_gun() {
         return None;
     }
-    if let Some(scope) = &weapon.scope {
-        Some(scope.fov)
-    } else if first_person {
+    if first_person {
         Some(FIRST_PERSON_AIM_FOV)
     } else {
         Some(THIRD_PERSON_AIM_FOV)
@@ -812,5 +876,46 @@ mod tests {
         );
         assert_eq!(ev.ammo, (25, u32::MAX));
         assert_eq!(ev.shots_fired, 0);
+    }
+
+    #[test]
+    fn broken_gun_refuses_to_fire_and_clicks() {
+        let registry = load_weapons();
+        let pistol = registry.get("pistol").expect("pistol def");
+        let wear_cfg = game::WearConfig::from_repo().expect("wear config");
+        let physics = flat_world();
+        let mut shooting = Shooting::default();
+        let mut inventory = Inventory::new();
+        inventory.add("pistol_ammo", 12);
+        let mut targets = MockWorld { zombies: Vec::new() };
+
+        let ev = shooting.update_targets_with_wear(
+            0.0,
+            ShootInput { fire_pressed: true, ..Default::default() },
+            pistol,
+            Vec3::new(0.0, 1.65, 0.0),
+            Vec3::NEG_Z,
+            &mut inventory,
+            &mut targets,
+            &physics,
+            0.0,
+            &wear_cfg,
+        );
+        assert!(ev.broken);
+        assert!(ev.empty_click);
+        assert_eq!(ev.shots_fired, 0);
+        assert_eq!(ev.ammo.0, pistol.magazine_size);
+    }
+
+    #[test]
+    fn scoped_crossbow_returns_scope_aim_fov() {
+        let registry = load_weapons();
+        let crossbow = registry.get("crossbow").expect("crossbow def");
+        let atts = game::AttachmentRegistry::from_repo().expect("attachments");
+        assert_eq!(aim_fov(crossbow, false), None);
+
+        let scoped = game::effective_stats(crossbow, &["scope_2x".to_string()], &atts);
+        assert_eq!(aim_fov(&scoped, false), Some(40.0));
+        assert_eq!(aim_fov(&scoped, true), Some(40.0));
     }
 }

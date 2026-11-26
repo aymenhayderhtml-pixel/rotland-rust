@@ -253,10 +253,7 @@ impl Hotbar {
             if let Some(bag_slot) = in_bag_slot {
                 inventory.swap_slots(bag_slot, target);
             } else {
-                inventory.slots_mut()[target] = Some(ItemStack {
-                    item_id: item.to_string(),
-                    count: 1,
-                });
+                inventory.slots_mut()[target] = Some(ItemStack::new(item, 1));
                 inventory.set_changed();
             }
             self.equipped_item_id = Some(item.to_string());
@@ -266,10 +263,7 @@ impl Hotbar {
             let first_free_bag = (hotbar_end..inventory.slots().len())
                 .find(|&i| inventory.slots()[i].is_none());
             if let Some(target) = first_free_bag {
-                inventory.slots_mut()[target] = Some(ItemStack {
-                    item_id: item.to_string(),
-                    count: 1,
-                });
+                inventory.slots_mut()[target] = Some(ItemStack::new(item, 1));
                 inventory.set_changed();
                 self.equipped_item_id = Some(item.to_string());
             }

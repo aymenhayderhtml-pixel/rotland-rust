@@ -306,6 +306,35 @@ fn interact_finds_trader_in_front_and_nothing_behind() {
 }
 
 #[test]
+fn camp_has_gunsmith_npc_and_is_interactable() {
+    let data = CampLifeConfig::load_default().expect("data/camp_life.json must load");
+    let cfg = SettlementConfig::load_from_file(paths::repo_path("data/settlements.json"))
+        .expect("data/settlements.json must load");
+    assert_eq!(cfg.npc_models.get("npc_gunsmith").map(String::as_str), Some("npc_mechanic"));
+
+    let site = SettlementSite::new("camp_1", Vec3::new(100.0, 10.0, 200.0), 0.0);
+    let camp = CampLifeDirector::new(site, data, &cfg);
+    let gunsmith = camp
+        .fixed_npcs()
+        .iter()
+        .find(|n| n.id == "npc_gunsmith")
+        .expect("npc_gunsmith must be in camp fixed_npcs");
+    assert_eq!(gunsmith.role, "gunsmith");
+    assert_eq!(gunsmith.model_id, "npc_mechanic");
+    assert!(gunsmith.can_interact());
+    assert_eq!(gunsmith.prompt(), "[E] Talk to gunsmith");
+
+    let player_near = gunsmith.position + Vec3::new(0.0, 0.0, 1.5);
+    let facing_north = Vec3::new(0.0, 0.0, -1.0);
+    let hit = camp
+        .nearest_interactable(player_near, facing_north)
+        .expect("must find npc_gunsmith within 2.5m cone");
+    assert_eq!(hit.0, "npc_gunsmith");
+    assert_eq!(hit.1, "gunsmith");
+    assert_eq!(hit.2, "[E] Talk to gunsmith");
+}
+
+#[test]
 fn settlement_watcher_save_round_trip() {
     let mut compared = 0;
     let mut watcher = SettlementWatcher::new();

@@ -253,7 +253,12 @@ pub fn draw_ui(
             };
             super::frame_team::draw_hud(ctx, &play.team.figures, render.camera.view_proj(aspect), actors.player);
             // Guild task tracker under the clock (R24-N6); hidden behind menus, camp screens and the hub
-            if !super::frame_siege::menu_open(ui) && !on_main && ui.camp_ui.is_none() && ui.hub.is_none() {
+            if !super::frame_siege::menu_open(ui)
+                && !on_main
+                && ui.camp_ui.is_none()
+                && ui.hub.is_none()
+                && ui.gunsmith.is_none()
+            {
                 crate::guild_task_view::draw_task_tracker(ctx, &play.guild_panel.rows);
             }
         }
@@ -587,6 +592,27 @@ pub fn draw_ui(
     }
     if let Some(change) = hand {
         apply_hand(change, render, play, actors, world);
+    }
+    if !on_main
+        && let (Some(gs), Some(play_state)) = (ui.gunsmith.as_mut(), play.play.as_mut())
+    {
+        let kind = gs.kind.clone();
+        let view = crate::gunsmith_play::build_view(&kind, play_state);
+        if let Some(action) = gs.screen.draw(ctx, &view, Some(&mut ui.icons)) {
+            match crate::gunsmith_play::apply_action(
+                action,
+                &kind,
+                play_state,
+                actors.combat.as_mut(),
+                &mut ui.hud,
+            ) {
+                Some(status) => gs.screen.state.set_status(status),
+                None => {
+                    ui.gunsmith = None;
+                    ui.cursor_captured = true;
+                }
+            }
+        }
     }
     let Some(m) = ui.menus.as_mut() else { return };
     if let Some(action) = m.ui(ctx, &session.slot_cards) {

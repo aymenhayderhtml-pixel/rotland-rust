@@ -61,6 +61,17 @@ pub struct TraderLevelDef {
     pub trader_stock_tier: u8,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GunsmithLevelDef {
+    pub level: u8,
+    pub name: String,
+    pub cost: UpgradeCost,
+    #[serde(default)]
+    pub requires: Option<UpgradeRequirement>,
+    pub gunsmith_tier: u8,
+}
+
 /// Root configuration struct matching data/camp_upgrades.json.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -73,6 +84,7 @@ pub struct CampUpgradesConfig {
     pub guards: Vec<GuardLevelDef>,
     pub workshop: Vec<WorkshopLevelDef>,
     pub traders: Vec<TraderLevelDef>,
+    pub gunsmith: Vec<GunsmithLevelDef>,
 }
 
 fn default_refund_ratio() -> f32 {
@@ -111,6 +123,7 @@ impl CampUpgradesConfig {
             UpgradeLine::Guards => self.guards.len().saturating_sub(1) as u8,
             UpgradeLine::Workshop => self.workshop.len().saturating_sub(1) as u8,
             UpgradeLine::Traders => self.traders.len().saturating_sub(1) as u8,
+            UpgradeLine::Gunsmith => self.gunsmith.len().saturating_sub(1) as u8,
         }
     }
 
@@ -132,6 +145,10 @@ impl CampUpgradesConfig {
                 cost: &d.cost,
                 requires: d.requires.as_ref(),
             }),
+            UpgradeLine::Gunsmith => self.gunsmith.get(level as usize).map(|d| CommonLevelDef {
+                cost: &d.cost,
+                requires: d.requires.as_ref(),
+            }),
         }
     }
 
@@ -148,11 +165,13 @@ impl CampUpgradesConfig {
         let guard_idx = (state.guards_level as usize).min(self.guards.len().saturating_sub(1));
         let ws_idx = (state.workshop_level as usize).min(self.workshop.len().saturating_sub(1));
         let tr_idx = (state.traders_level as usize).min(self.traders.len().saturating_sub(1));
+        let gs_idx = (state.gunsmith_level as usize).min(self.gunsmith.len().saturating_sub(1));
 
         let walls = &self.walls[wall_idx];
         let guards = &self.guards[guard_idx];
         let ws = &self.workshop[ws_idx];
         let traders = &self.traders[tr_idx];
+        let gunsmith = &self.gunsmith[gs_idx];
 
         CampEffects {
             safe_zone_half_bonus: walls.safe_zone_half_bonus,
@@ -168,6 +187,7 @@ impl CampUpgradesConfig {
             has_doctor: traders.has_doctor,
             has_mechanic: traders.has_mechanic,
             trader_stock_tier: traders.trader_stock_tier,
+            gunsmith_tier: gunsmith.gunsmith_tier,
         }
     }
 
@@ -184,6 +204,10 @@ impl CampUpgradesConfig {
         // data: camp_upgrades.json traders
         if self.traders.len() < 5 {
             return Err("traders must have at least 5 levels (0..=4)".to_string());
+        }
+        // data: camp_upgrades.json gunsmith
+        if self.gunsmith.len() < 4 {
+            return Err("gunsmith must have at least 4 levels (0..=3)".to_string());
         }
 
         for (i, def) in self.walls.iter().enumerate() {
@@ -204,6 +228,11 @@ impl CampUpgradesConfig {
         for (i, def) in self.traders.iter().enumerate() {
             if def.level as usize != i {
                 return Err(format!("traders level index mismatch: expected {i}, got {}", def.level));
+            }
+        }
+        for (i, def) in self.gunsmith.iter().enumerate() {
+            if def.level as usize != i {
+                return Err(format!("gunsmith level index mismatch: expected {i}, got {}", def.level));
             }
         }
 

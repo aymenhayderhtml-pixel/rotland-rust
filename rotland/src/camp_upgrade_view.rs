@@ -15,21 +15,26 @@ use crate::props::{Placed, PropLibrary};
 
 static CLI_OVERRIDE: RwLock<Option<CampLevels>> = RwLock::new(None);
 
-/// Parses `--camp-levels=W,G,K,T` into `CampLevels`.
+/// Parses `--camp-levels=W,G,K,T` (or `W,G,K,T,S`) into `CampLevels`.
 pub fn parse_camp_levels(s: &str) -> Option<CampLevels> {
     let parts: Vec<&str> = s.split(',').collect();
-    if parts.len() != 4 {
+    if parts.len() != 4 && parts.len() != 5 {
         return None;
     }
     let walls = parts[0].trim().parse::<u8>().ok()?;
     let guards = parts[1].trim().parse::<u8>().ok()?;
     let workshop = parts[2].trim().parse::<u8>().ok()?;
     let traders = parts[3].trim().parse::<u8>().ok()?;
+    let gunsmith = match parts.get(4) {
+        Some(p) => p.trim().parse::<u8>().ok()?,
+        None => 0,
+    };
     Some(CampLevels {
         walls,
         guards,
         workshop,
         traders,
+        gunsmith,
     })
 }
 
@@ -216,6 +221,7 @@ mod tests {
             guards: 1,
             workshop: 1,
             traders: 2,
+            gunsmith: 0,
         };
         let changed2 = view.sync_props(&site, lvl2);
         assert!(changed2);
@@ -233,6 +239,7 @@ mod tests {
             guards: 1,
             workshop: 0,
             traders: 0,
+            gunsmith: 0,
         };
         let changed1 = view.sync_props(&site, lvl);
         assert!(changed1);
@@ -282,6 +289,7 @@ mod tests {
                 guards: 2,
                 workshop: 3,
                 traders: 4,
+                gunsmith: 0,
             })
         );
         assert_eq!(
@@ -291,11 +299,22 @@ mod tests {
                 guards: 1,
                 workshop: 0,
                 traders: 2,
+                gunsmith: 0,
+            })
+        );
+        assert_eq!(
+            parse_camp_levels("1,2,3,4,2"),
+            Some(CampLevels {
+                walls: 1,
+                guards: 2,
+                workshop: 3,
+                traders: 4,
+                gunsmith: 2,
             })
         );
         assert_eq!(parse_camp_levels("invalid"), None);
         assert_eq!(parse_camp_levels("1,2,3"), None);
-        assert_eq!(parse_camp_levels("1,2,3,4,5"), None);
+        assert_eq!(parse_camp_levels("1,2,3,4,5,6"), None);
 
         let args = EngineArgs::parse(vec!["--camp-levels=3,2,1,0".to_string()]);
         init(&args);
@@ -306,6 +325,7 @@ mod tests {
                 guards: 2,
                 workshop: 1,
                 traders: 0,
+                gunsmith: 0,
             })
         );
         set_override_levels(None);

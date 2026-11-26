@@ -33,6 +33,9 @@ def build(model):
     for y in (0.22, 0.245, 0.27, 0.295, 0.32):
         model.add(box((0.060, 0.006, 0.044), (0.0, y, -0.008), "bark_dark"))
     model.add_empty("grip_L", (0.0, 0.27, 0.0))
+    model.add_empty("mount_optic", (0.0, 0.0, 0.050))
+    model.add_empty("mount_grip", (0.0, 0.27, -0.038))
+    model.add_empty("mount_stock", (0.0, -0.461, -0.0125))
 
 
 def main():

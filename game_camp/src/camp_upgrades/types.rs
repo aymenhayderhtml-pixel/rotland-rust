@@ -3,7 +3,7 @@
 use std::fmt;
 use serde::{Deserialize, Serialize};
 
-/// The four camp upgrade branches.
+/// The five camp upgrade branches.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum UpgradeLine {
@@ -11,14 +11,16 @@ pub enum UpgradeLine {
     Guards,
     Workshop,
     Traders,
+    Gunsmith,
 }
 
 impl UpgradeLine {
-    pub const ALL: [Self; 4] = [
+    pub const ALL: [Self; 5] = [
         Self::Walls,
         Self::Guards,
         Self::Workshop,
         Self::Traders,
+        Self::Gunsmith,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -27,6 +29,7 @@ impl UpgradeLine {
             Self::Guards => "guards",
             Self::Workshop => "workshop",
             Self::Traders => "traders",
+            Self::Gunsmith => "gunsmith",
         }
     }
 }
@@ -89,6 +92,7 @@ pub struct CampUpgradeState {
     pub guards_level: u8,
     pub workshop_level: u8,
     pub traders_level: u8,
+    pub gunsmith_level: u8,
     pub in_progress: Option<UpgradeInProgress>,
     pub wall_hp: f32,
 }
@@ -100,6 +104,7 @@ impl CampUpgradeState {
             UpgradeLine::Guards => self.guards_level,
             UpgradeLine::Workshop => self.workshop_level,
             UpgradeLine::Traders => self.traders_level,
+            UpgradeLine::Gunsmith => self.gunsmith_level,
         }
     }
 
@@ -109,6 +114,7 @@ impl CampUpgradeState {
             UpgradeLine::Guards => self.guards_level = lvl,
             UpgradeLine::Workshop => self.workshop_level = lvl,
             UpgradeLine::Traders => self.traders_level = lvl,
+            UpgradeLine::Gunsmith => self.gunsmith_level = lvl,
         }
     }
 
@@ -180,4 +186,5 @@ pub struct CampEffects {
     pub has_doctor: bool,
     pub has_mechanic: bool,
     pub trader_stock_tier: u8,
+    pub gunsmith_tier: u8,
 }

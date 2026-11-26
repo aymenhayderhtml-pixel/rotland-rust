@@ -25,6 +25,8 @@ pub struct Camp {
     pub wallet: Wallet,
     pub bank: Bank,
     pub trader: TraderStock,
+    pub gunsmith_config: game::GunsmithConfig,
+    pub gunsmith: game::GunsmithStock,
     pub skills: SkillSystem,
     pub bounties: BountyManager,
     pub difficulty_config: DifficultyConfigData,
@@ -51,6 +53,8 @@ pub struct Camp {
 impl Camp {
     pub fn new(seed: i32, items: Arc<ItemRegistry>) -> Result<Self, String> {
         let economy = EconomyConfigData::from_repo().map_err(|e| format!("data/economy.json: {e:?}"))?;
+        let gunsmith_config = game::GunsmithConfig::from_repo().map_err(|e| format!("data/gunsmith.json: {e}"))?;
+        let gunsmith = game::GunsmithStock::new(&gunsmith_config);
         let difficulty_config = DifficultyConfigData::from_repo().map_err(|e| format!("data/difficulty.json: {e}"))?;
         let upgrades_config = CampUpgradesConfig::load_default().map_err(|e| format!("data/camp_upgrades.json: {e}"))?;
         let mut upgrades = CampUpgradeState::default();
@@ -59,11 +63,14 @@ impl Camp {
             upgrades.guards_level = levels.guards;
             upgrades.workshop_level = levels.workshop;
             upgrades.traders_level = levels.traders;
+            upgrades.gunsmith_level = levels.gunsmith;
         }
         Ok(Self {
             wallet: Wallet::new(economy.start_dollars),
             bank: Bank::with_slots_and_registry(economy.bank_slots, items),
             trader: TraderStock::new(&economy),
+            gunsmith_config,
+            gunsmith,
             skills: SkillSystem::from_repo().map_err(|e| format!("data/skills.json: {e}"))?,
             bounties: BountyManager::from_repo(seed).map_err(|e| format!("data/bounties.json: {e:?}"))?,
             difficulty: DifficultySettings::default_preset(&difficulty_config),
@@ -86,6 +93,7 @@ impl Camp {
     /// Returns true on the frame the guild's morning reset ran.
     pub fn tick(&mut self, day: i32, hour: f32) -> bool {
         self.trader.tick_with_config(day, hour as u32, &self.economy);
+        self.gunsmith.tick_with_config(day, hour as u32, &self.gunsmith_config);
         self.bounties.on_hour_changed(day, hour);
         // Guild board rerolls and wages are paid once each morning
         let mut dollars = self.wallet.dollars();
@@ -272,6 +280,10 @@ impl Camp {
         sys.extra.insert("farm".into(), self.farm.to_save());
         // NOTE(R10-09): ws.campfires is now captured in session::capture (SAVE-001 / ARCH-002)
         sys.extra.insert("trader".into(), self.trader.to_save());
+        sys.extra.insert(game::GUNSMITH_SAVE_ID.into(), self.gunsmith.to_save());
+        if self.upgrades.gunsmith_level > 0 {
+            sys.extra.insert("gunsmith_level".into(), serde_json::json!(self.upgrades.gunsmith_level));
+        }
         sys.extra.insert("skills".into(), self.skills.to_save());
         sys.extra.insert("bounties".into(), self.bounties.to_save());
         if let Ok(v) = serde_json::to_value(self.guild.to_state()) {
@@ -317,6 +329,12 @@ impl Camp {
         if let Some(v) = sys.extra.get("trader") {
             self.trader.from_save(v);
         }
+        if let Some(v) = sys.extra.get(game::GUNSMITH_SAVE_ID) {
+            self.gunsmith.from_save(v);
+        }
+        if let Some(lvl) = sys.extra.get("gunsmith_level").and_then(|v| v.as_u64()) {
+            self.upgrades.gunsmith_level = lvl.min(u8::MAX as u64) as u8;
+        }
         if let Some(v) = sys.extra.get("skills") {
             self.skills.from_save(v);
         }
@@ -345,6 +363,7 @@ impl Camp {
             self.upgrades.guards_level = levels.guards;
             self.upgrades.workshop_level = levels.workshop;
             self.upgrades.traders_level = levels.traders;
+            self.upgrades.gunsmith_level = levels.gunsmith;
         }
         warnings
     }
@@ -417,6 +436,7 @@ impl Camp {
             guards: self.upgrades.guards_level,
             workshop: self.upgrades.workshop_level,
             traders: self.upgrades.traders_level,
+            gunsmith: self.upgrades.gunsmith_level,
         }
     }
 
@@ -426,6 +446,7 @@ impl Camp {
             UpgradeLine::Guards => self.upgrades_config.guards.get(level as usize).map_or_else(|| "Guards".into(), |d| d.name.clone()),
             UpgradeLine::Workshop => self.upgrades_config.workshop.get(level as usize).map_or_else(|| "Workshop".into(), |d| d.name.clone()),
             UpgradeLine::Traders => self.upgrades_config.traders.get(level as usize).map_or_else(|| "Traders".into(), |d| d.name.clone()),
+            UpgradeLine::Gunsmith => self.upgrades_config.gunsmith.get(level as usize).map_or_else(|| "Gunsmith".into(), |d| d.name.clone()),
         }
     }
 
@@ -435,6 +456,7 @@ impl Camp {
             guards_level: self.upgrades.guards_level,
             workshop_level: self.upgrades.workshop_level,
             traders_level: self.upgrades.traders_level,
+            gunsmith_level: self.upgrades.gunsmith_level,
             in_progress: self.upgrades.in_progress.as_ref().map(|p| save::UpgradeInProgressSaveData {
                 line: p.line.as_str().to_string(),
                 target_level: p.target_level,
@@ -449,6 +471,7 @@ impl Camp {
         self.upgrades.guards_level = data.guards_level;
         self.upgrades.workshop_level = data.workshop_level;
         self.upgrades.traders_level = data.traders_level;
+        self.upgrades.gunsmith_level = data.gunsmith_level;
         self.upgrades.wall_hp = data.wall_hp;
         self.upgrades.in_progress = data.in_progress.as_ref().and_then(|p| {
             let line = match p.line.as_str() {
@@ -456,6 +479,7 @@ impl Camp {
                 "guards" => UpgradeLine::Guards,
                 "workshop" => UpgradeLine::Workshop,
                 "traders" => UpgradeLine::Traders,
+                "gunsmith" => UpgradeLine::Gunsmith,
                 _ => return None,
             };
             Some(game::camp_upgrades::UpgradeInProgress {
@@ -479,6 +503,7 @@ impl Camp {
                     UpgradeLine::Guards => "2 basic camp guards".into(),
                     UpgradeLine::Workshop => "Basic hand crafting".into(),
                     UpgradeLine::Traders => "Single trader stock".into(),
+                    UpgradeLine::Gunsmith => "Basic pistol & ammo".into(),
                 }
             } else {
                 self.upgrade_name(line, cur)
@@ -508,6 +533,10 @@ impl Camp {
                         if d.has_mechanic { perks.push("Mechanic"); }
                         let perk_str = if perks.is_empty() { String::new() } else { format!(" ({})", perks.join(", ")) };
                         (d.name.clone(), format!("+{} stock slots{}", d.trader_slots_bonus, perk_str), &d.cost)
+                    }
+                    UpgradeLine::Gunsmith => {
+                        let d = &self.upgrades_config.gunsmith[target as usize];
+                        (d.name.clone(), format!("Unlocks tier {} gunsmith stock", d.gunsmith_tier), &d.cost)
                     }
                 };
                 let cost_items = cost.materials.iter().map(|m| {
@@ -561,6 +590,7 @@ impl Camp {
                 make_line(UpgradeLine::Guards),
                 make_line(UpgradeLine::Workshop),
                 make_line(UpgradeLine::Traders),
+                make_line(UpgradeLine::Gunsmith),
             ],
             in_progress,
             wall_hp: self.upgrades.wall_hp,
@@ -684,6 +714,7 @@ mod tests {
                 guards: 1,
                 workshop: 3,
                 traders: 2,
+                gunsmith: 0,
             }
         );
     }

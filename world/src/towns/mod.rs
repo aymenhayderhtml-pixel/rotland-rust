@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use glam::Vec2;
+use glam::{Vec2, Vec3};
 use serde::{Deserialize, Serialize};
 
 use crate::biome::BiomeId;
@@ -14,6 +14,41 @@ pub use place::place_towns;
 
 /// Model name for boardwalk strip lots in swamp towns.
 pub const BOARDWALK_MODEL: &str = "boardwalk_section";
+/// Model name for the unique gun shop lot in every town.
+pub const GUN_SHOP_MODEL: &str = "gun_shop";
+
+/// Building-local counter spot for a town gun shopkeeper (`x` = right, `y` = forward/+Y in Blender).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ShopkeeperSpot {
+    pub building: String,
+    pub x: f32,
+    pub y: f32,
+    pub floor_y: f32,
+    #[serde(default)]
+    pub yaw: f32,
+}
+
+impl Default for ShopkeeperSpot {
+    fn default() -> Self {
+        Self {
+            building: GUN_SHOP_MODEL.to_string(),
+            x: -0.9,      // data: towns.json shopkeeper
+            y: -2.45,     // data: towns.json shopkeeper
+            floor_y: 0.1, // data: towns.json shopkeeper
+            yaw: 0.0,     // data: towns.json shopkeeper
+        }
+    }
+}
+
+/// World-space spawn info for a town gun shopkeeper (`shopkeeper_<town_key>`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct TownShopkeeper {
+    pub id: String,
+    pub town_key: String,
+    pub town_name: String,
+    pub position: Vec3,
+    pub yaw: f32,
+}
 
 /// Fallback half-extents (m) when a model is absent from `data/towns.json` footprints.
 // new: DECISIONS 2026-11-25
@@ -25,6 +60,8 @@ pub struct TownsData {
     pub placement: PlacementConfig,
     pub footprints: BTreeMap<String, [f32; 2]>,
     pub towns: Vec<TownDef>,
+    #[serde(default)]
+    pub shopkeeper: ShopkeeperSpot,
     #[serde(default)]
     pub interiors: interior::InteriorsConfig,
 }
@@ -127,6 +164,27 @@ impl TownSite {
         self.lots
             .iter()
             .any(|lot| lot.building != BOARDWALK_MODEL && lot.contains_point(p))
+    }
+
+    /// Returns the `gun_shop` lot in this town, if present.
+    pub fn gun_shop_lot(&self) -> Option<&TownLot> {
+        self.lots.iter().find(|lot| lot.building == GUN_SHOP_MODEL)
+    }
+
+    /// Computes the world-space position and yaw for `shopkeeper_<town_key>` inside `gun_shop`.
+    pub fn shopkeeper_spawn(&self, data: &TownsData, ground_y: f32) -> Option<TownShopkeeper> {
+        let lot = self.gun_shop_lot()?;
+        let spot = &data.shopkeeper;
+        let forward = lot.forward();
+        let right = Vec2::new(-forward.y, forward.x);
+        let world_xz = lot.pos + right * spot.x + forward * spot.y;
+        Some(TownShopkeeper {
+            id: format!("shopkeeper_{}", self.key),
+            town_key: self.key.clone(),
+            town_name: self.name.clone(),
+            position: Vec3::new(world_xz.x, ground_y + spot.floor_y, world_xz.y),
+            yaw: lot.yaw + spot.yaw,
+        })
     }
 }
 

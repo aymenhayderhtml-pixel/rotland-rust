@@ -16,7 +16,7 @@ pub use game_zombie::{
 };
 pub use game_camp::{
     bounties, building, camp, camp_guards, camp_upgrades, campfire, crafting, economy, farming,
-    guild, map, rescue, rescue_place, team_anim,
+    guild, gunsmith, map, rescue, rescue_place, team_anim,
 };
 pub use game_player::{
     death_anim, downed, fishing, fp_motion, gun_feel, guns, hit_react, ladders, melee_combo,
@@ -35,7 +35,10 @@ pub use game_core::loot::*;
 pub use game_core::profile_stats::*;
 pub use game_core::skills::*;
 pub use game_core::weapons::{
-    WeaponAnim, WeaponDef, WeaponHold, WeaponKind, WeaponLoadError, WeaponRegistry, WeaponScope,
+    apply_hit_wear, apply_shot_wear, can_fit, effective_stats, is_broken, jam_chance, jam_roll,
+    kick_mult, melee_damage_mult, spread_mult, AttachEffects, AttachSlot, AttachmentDef,
+    AttachmentLoadError, AttachmentRegistry, WeaponAnim, WeaponDef, WeaponHold, WeaponKind,
+    WeaponLoadError, WeaponRegistry, WeaponScope, WeaponWearEntry, WearConfig, WearLoadError,
 };
 
 pub use game_zombie::director::*;
@@ -58,6 +61,13 @@ pub use game_camp::crafting::*;
 pub use game_camp::economy::*;
 pub use game_camp::farming::*;
 pub use game_camp::guild::*;
+pub use game_camp::gunsmith::{
+    buy_check, fit, fit_at_shop, fit_cost, fit_slot, fit_slot_at_shop, remove_mod, remove_mod_slot,
+    repair, repair_all, repair_all_cost, repair_cost, repair_slot, sell_slot, sell_value,
+    BuyResult, CampStockEntry, GunsmithConfig, GunsmithConfigData, GunsmithError,
+    GunsmithLoadError, GunsmithPriceEntry, GunsmithStock, SellResult, ShopKind, ShopStock,
+    TownShopConfig, GUNSMITH_SAVE_ID,
+};
 pub use game_camp::map::*;
 pub use game_camp::team_anim::{
     plan_npc_anim, NpcAnimInput, NpcAnimPlan, NpcAnimRole, NpcAnimTrack, RoleAnimConfig,

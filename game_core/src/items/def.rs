@@ -16,6 +16,7 @@ pub enum ItemCategory {
     Tool,
     Placeable,
     Fuel,
+    Attachment,
 }
 
 impl ItemCategory {
@@ -30,6 +31,7 @@ impl ItemCategory {
             Self::Tool => "tool",
             Self::Placeable => "placeable",
             Self::Fuel => "fuel",
+            Self::Attachment => "attachment",
         }
     }
 }

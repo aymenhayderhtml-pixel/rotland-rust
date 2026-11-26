@@ -288,7 +288,7 @@ fn hotbar_loaded_save_moves_from_bag_to_hotbar_or_uses_bag_if_full() {
     let mut hotbar = Hotbar::new();
 
     // Place bat in bag slot 10
-    inv.slots_mut()[10] = Some(ItemStack { item_id: "bat".into(), count: 1 });
+    inv.slots_mut()[10] = Some(ItemStack::new("bat", 1));
     assert!(hotbar.slot_entry(1, &inv).is_none());
 
     // Fixup moves bat from slot 10 to slot 1 (index 0) and equips
@@ -301,7 +301,7 @@ fn hotbar_loaded_save_moves_from_bag_to_hotbar_or_uses_bag_if_full() {
     let mut full_inv = Inventory::new();
     let mut full_hotbar = Hotbar::new();
     for i in 0..6 {
-        full_inv.slots_mut()[i] = Some(ItemStack { item_id: "water_bottle".into(), count: 1 });
+        full_inv.slots_mut()[i] = Some(ItemStack::new("water_bottle", 1));
     }
     // Hand item not in hotbar; hotbar is full -> puts into first free bag slot (slot 6) and equips
     full_hotbar.fixup_equipped_from_save(Some("bat"), &mut full_inv);

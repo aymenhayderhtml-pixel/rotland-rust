@@ -97,3 +97,20 @@ fn place_traders(
         out.push(PropInstance::new("camp_mechanic", mech_pos, mech_yaw, 1.0));
     }
 }
+
+/// Returns the camp gunsmith workbench prop inside the settlement (present at all gunsmith tiers, 0..=3).
+#[allow(dead_code)] // re-exported in camp_layout/mod.rs and lib.rs by Lead
+pub fn camp_gunsmith_prop(site: &SettlementSite) -> PropInstance {
+    camp_gunsmith_prop_with_config(site, &CampLayoutConfigData::load_default())
+}
+
+/// Returns the camp gunsmith workbench prop using a specific layout configuration.
+#[allow(dead_code)] // re-exported in camp_layout/mod.rs and lib.rs by Lead
+pub fn camp_gunsmith_prop_with_config(
+    site: &SettlementSite,
+    cfg: &CampLayoutConfigData,
+) -> PropInstance {
+    let pos = site.center + site.local(cfg.gunsmith_offset[0], 0.0, cfg.gunsmith_offset[1]);
+    let yaw = site.yaw + cfg.gunsmith_yaw;
+    PropInstance::new("gunsmith_bench", pos, yaw, 1.0)
+}

@@ -111,3 +111,13 @@ Always pass `--save-dir=/tmp/...` so real saves stay untouched:
 `flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/rescue.png --tp-rescue --frames=30`
 * `--hold-e` — holds the interact key (`E`) the whole run (e.g. for self-revive with `--give=bandage`):
 `flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/self_revive.png --give=bandage --down-at=1 --hold-e --frames=180 --cam-yaw=90`
+
+## Gunsmith, wear & attachment screenshot flags (used with `--shot=<png>`)
+
+* `--gunsmith=<tab>` — opens the camp gunsmith screen at startup (`buy`, `sell`, `repair`, `upgrade`):
+`flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/gunsmith.png --gunsmith=buy --give=scrap_metal:60 --frames=10`
+* `--gunsmith-town=<key>` — teleports to that outer town (`dusthollow`, `frostmere`, `blackwater`, `ridgeback`) and opens its gun shop screen:
+`flock /tmp/rotland-heavy.lock target/debug/rotland --save-dir=/tmp/scratch --shot=/tmp/town_shop.png --gunsmith-town=dusthollow --frames=10`
+* `--give=<item>[:count]` — adds items (comma-separated) into the starting inventory (e.g. `--give=scrap_metal:60,rifle_ammo:30`).
+* `--wear=<weapon>:<0..1>` — sets starting condition on `<weapon>` in the bag (adding one if missing, e.g. `--wear=pistol:0.25`).
+* `--mods=<weapon>:<id,id>` — fits comma-separated attachments onto `<weapon>` (adding one if missing) and refreshes held stats/models (e.g. `--weapon=rifle --mods=rifle:scope_4x,suppressor`).

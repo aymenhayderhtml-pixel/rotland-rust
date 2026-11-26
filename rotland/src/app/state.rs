@@ -113,6 +113,8 @@ pub struct RenderState {
     pub explosion_view: crate::explosion_view::ExplosionView,
     /// Gun feel view kick, FP kick, and muzzle flash (R36-01).
     pub gun_feel: crate::gun_feel_view::GunFeelView,
+    /// Weapon attachment meshes and mount-point offsets (R37-08).
+    pub attachment_view: Option<crate::attachment_view::AttachmentView>,
 }
 
 /// Terrain, streaming chunks, static physics, trees, and POI markers.
@@ -171,6 +173,8 @@ pub struct ActorsState {
     pub camp_guards: Option<game::CampGuards>,
     pub camp_npcs: Option<camp_npcs::CampNpcs>,
     pub rescue_view: Option<crate::rescue_view::RescueView>,
+    /// Camp gunsmith bench and outer-town gun shopkeepers (R37-08).
+    pub gunsmith_world: crate::gunsmith_play::GunsmithWorld,
     pub zombie_voices: Option<game::ZombieVoices>,
     pub climb: game::LadderClimb,
     pub downed: crate::downed_play::DownedPlay,
@@ -296,6 +300,7 @@ pub struct UiState {
     pub camp_ui: Option<camp_ui::CampUiState>,
     pub hub: Option<hub_ui::HubUiState>,
     pub overlays: Option<hub_ui::HubUiState>,
+    pub gunsmith: Option<crate::gunsmith_play::GunsmithSession>,
     pub keys: KeyMap,
     pub cursor_captured: bool,
     pub e_used: bool,
@@ -314,7 +319,7 @@ pub struct UiState {
 impl UiState {
     /// A camp screen or the hub is open: the mouse is free and the player's hands are busy.
     pub fn screen_open(&self) -> bool {
-        self.camp_ui.is_some() || self.hub.is_some() || self.dev_panel.open
+        self.camp_ui.is_some() || self.hub.is_some() || self.gunsmith.is_some() || self.dev_panel.open
     }
 }
 

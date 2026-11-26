@@ -138,6 +138,7 @@ pub fn line_display_name(line: UpgradeLine) -> &'static str {
         UpgradeLine::Guards => "Guards & Towers",
         UpgradeLine::Workshop => "Workshop",
         UpgradeLine::Traders => "Traders & Services",
+        UpgradeLine::Gunsmith => "Gunsmith",
     }
 }
 

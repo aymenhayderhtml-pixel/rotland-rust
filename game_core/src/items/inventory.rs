@@ -111,7 +111,7 @@ impl Inventory {
         for slot in &self.slots {
             match slot {
                 None => capacity += def.max_stack,
-                Some(stack) if stack.item_id == id => {
+                Some(stack) if stack.item_id == id && stack.is_plain() => {
                     capacity += def.max_stack.saturating_sub(stack.count);
                 }
                 _ => {}
@@ -161,7 +161,9 @@ impl Inventory {
         for slot in &mut self.slots {
             if left == 0 { break; }
             if let Some(stack) = slot
-                && stack.item_id == id && stack.count < def.max_stack {
+                && stack.item_id == id
+                && stack.is_plain()
+                && stack.count < def.max_stack {
                     let take = left.min(def.max_stack - stack.count);
                     stack.count += take;
                     left -= take;
@@ -241,6 +243,8 @@ impl Inventory {
 
         if let (Some(first), Some(second)) = (&self.slots[a], &self.slots[b])
             && first.item_id == second.item_id
+            && first.is_plain()
+            && second.is_plain()
                 && let Some(def) = self.registry.get(&first.item_id) {
                     let room = def.max_stack.saturating_sub(first.count);
                     let move_count = room.min(second.count);

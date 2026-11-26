@@ -3,6 +3,18 @@ use std::path::Path;
 
 use serde::Deserialize;
 
+pub mod attachments;
+pub mod wear;
+
+pub use attachments::{
+    AttachEffects, AttachSlot, AttachmentDef, AttachmentLoadError, AttachmentRegistry,
+    can_fit, effective_stats, kick_mult,
+};
+pub use wear::{
+    apply_hit_wear, apply_shot_wear, is_broken, jam_chance, jam_roll, melee_damage_mult,
+    spread_mult, WeaponWearEntry, WearConfig, WearLoadError,
+};
+
 /// Melee weapons swing; guns fire; bows shoot arrows; throwables are thrown. Unknown kinds fail the load so a typo in data is caught early.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]

@@ -16,6 +16,7 @@ pub struct CampUpgradesSaveData {
     pub guards_level: u8,
     pub workshop_level: u8,
     pub traders_level: u8,
+    pub gunsmith_level: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub in_progress: Option<UpgradeInProgressSaveData>,
     pub wall_hp: f32,

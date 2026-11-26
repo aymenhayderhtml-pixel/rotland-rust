@@ -46,6 +46,7 @@ def build(model):
     model.add(box((0.008, 0.018, 0.016), (0.0, -0.062, 0.068), "gun_black"))
     model.add(box((0.014, 0.010, 0.007), (0.0, -0.020, 0.084), "gun_black"))
     model.add(box((0.005, 0.014, 0.011), (0.0, 0.175, 0.078), "brass"))
+    model.add_empty("mount_optic", (0.0, 0.025, 0.083))
 
 
 def main():

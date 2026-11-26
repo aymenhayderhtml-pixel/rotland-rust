@@ -31,8 +31,9 @@ pub use biome::{
     TierConfig, WorldLayout, WorldLayoutData,
 };
 pub use camp_layout::{
-    camp_upgrade_props, camp_upgrade_props_with_config, wall_section_count, CampLayoutConfigData,
-    CampLevels, TowerCorner,
+    camp_gunsmith_prop, camp_gunsmith_prop_with_config, camp_upgrade_props,
+    camp_upgrade_props_with_config, wall_section_count, CampLayoutConfigData, CampLevels,
+    TowerCorner,
 };
 pub use city::{
     BuildingWeight, CityBlock, CityConfig, CityConfigData, CityDistrictsData, CityLayout, CityLot,
@@ -61,5 +62,7 @@ pub use settlement::{
     SettlementConfig, SettlementConfigData, SettlementGround, SettlementPlacer, SettlementSite,
 };
 pub use time::{Clock, ClockChanges};
-pub use towns::{place_towns, TownLot, TownSite, TownsData};
+pub use towns::{
+    place_towns, ShopkeeperSpot, TownLot, TownShopkeeper, TownSite, TownsData, GUN_SHOP_MODEL,
+};
 pub use weather::{WeatherData, WeatherKind, WeatherKindDef, WeatherState, WeatherWeight};

@@ -18,6 +18,7 @@ pub struct GunFeelView {
     state: GunFeelState,
     active_weapon: Option<String>,
     aiming: bool,
+    kick_mult: f32,
     flash_timer: f32,
     flash_pos: Vec3,
     flash_dir: Vec3,
@@ -40,6 +41,7 @@ impl GunFeelView {
             state: GunFeelState::default(),
             active_weapon: None,
             aiming: false,
+            kick_mult: 1.0,
             flash_timer: 0.0,
             flash_pos: Vec3::ZERO,
             flash_dir: Vec3::NEG_Z,
@@ -60,7 +62,7 @@ impl GunFeelView {
     pub fn on_shot(&mut self, weapon_id: &str) {
         self.active_weapon = Some(weapon_id.to_string());
         if let Some(def) = self.config.get(weapon_id) {
-            self.state.on_shot(def, self.aiming);
+            self.state.on_shot_scaled(def, self.aiming, self.kick_mult);
             if !def.no_flash && def.flash_duration_sec > 0.0 {
                 self.flash_timer = def.flash_duration_sec;
                 self.flash_radius = def.flash_light;
@@ -83,6 +85,11 @@ impl GunFeelView {
     pub fn set_context(&mut self, weapon_id: Option<&str>, aiming: bool) {
         self.active_weapon = weapon_id.map(str::to_string);
         self.aiming = aiming;
+    }
+
+    /// Sets the attachment kick multiplier applied to subsequent shots.
+    pub fn set_kick_mult(&mut self, kick_mult: f32) {
+        self.kick_mult = if kick_mult.is_finite() { kick_mult.max(0.0) } else { 1.0 };
     }
 
     /// Advances recoil recovery and muzzle flash timer by `dt` seconds.

@@ -50,6 +50,9 @@ pub fn strike_trees(
             game::find_tree_strike(me + Vec3::Y, dir, weapon.range, weapon.arc_deg, near)
         };
         if let Some(hit) = hit {
+            if let Some(play_state) = play.play.as_mut() {
+                play_state.apply_equipped_hit_wear();
+            }
             let id = game::tree_id(hit.chunk, hit.index);
             let model = st
                 .chunks
@@ -149,8 +152,7 @@ pub fn update_actors(
         let in_car = actors.cars.as_ref().is_some_and(|c| c.driven_car_id.is_some());
         // Ladders first: while climbing, the ladder moves the player instead of walking
         let mut grab = input.pressed(ui.keys.interact)
-            && ui.camp_ui.is_none()
-            && ui.hub.is_none()
+            && !ui.screen_open()
             && !dead
             && !downed;
         apply_test_teleports(world, actors, session, &mut grab);

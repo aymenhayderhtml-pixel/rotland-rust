@@ -95,6 +95,17 @@ pub fn draw_line_icon(
                 ICON_CUTOUT,
             );
         }
+        UpgradeLine::Gunsmith => {
+            let center = rect.center();
+            let ring = Stroke::new((2.0 * scale).max(1.5), color);
+            painter.circle_stroke(center, w * 0.28, ring);
+            let tick = Stroke::new((1.6 * scale).max(1.0), color);
+            painter.line_segment([pt(0.16, 0.50), pt(0.36, 0.50)], tick);
+            painter.line_segment([pt(0.64, 0.50), pt(0.84, 0.50)], tick);
+            painter.line_segment([pt(0.50, 0.16), pt(0.50, 0.36)], tick);
+            painter.line_segment([pt(0.50, 0.64), pt(0.50, 0.84)], tick);
+            painter.circle_filled(center, w * 0.06, color);
+        }
     }
 }
 

@@ -130,6 +130,10 @@ pub fn update_world_interactions(
                 actors.fp_sway.trigger_shot();
             }
             let active_id = play_state.gun.as_ref().map(|g| g.id.as_str());
+            let kick_mult = active_id.map_or(1.0, |id| {
+                game::kick_mult(play_state.equipped_mods(), id, &play_state.attachments)
+            });
+            render.gun_feel.set_kick_mult(kick_mult);
             render.gun_feel.set_context(active_id, shoot.aiming);
             if let Some(weapon_id) = ev.fired_weapon.as_deref() {
                 let fp = actors.camera_rig.as_ref().is_some_and(|r| r.is_first_person);
@@ -166,7 +170,7 @@ pub fn update_world_interactions(
                 if ev.reload_started {
                     a.event("reload", Some(at));
                 }
-                if ev.empty_click {
+                if ev.empty_click || ev.jammed || (ev.broken && shoot.fire_pressed) {
                     a.event("dryFire", Some(at));
                 }
             }
@@ -196,15 +200,21 @@ pub fn update_world_interactions(
             .camp_npcs
             .as_ref()
             .and_then(|c| c.facing(p.position, facing));
-        let pressed =
-            input.pressed(ui.keys.interact) && ui.camp_ui.is_none() && ui.hub.is_none() && !ui.e_used;
+        let interact_range = play_state.camp.gunsmith_config.interact_range;
+        let shopkeeper = actors
+            .gunsmith_world
+            .facing_shopkeeper(p.position, facing, interact_range)
+            .map(|(k, d)| (k.town_key.clone(), k.position, d));
+        let pressed = input.pressed(ui.keys.interact) && !ui.screen_open() && !ui.e_used;
         play_state.camp.player_at = p.position;
 
         // A car within reach: E drives it; with a fuel can, F pours it in (Godot CarDriver / CarFuel)
         let mut car_prompt = None;
         let mut car_dist = f32::INFINITY;
         // The back of a parked car: E opens its trunk (Godot PlayerInteractor / TrunkScreen)
-        if let (None, Some(cars)) = (&npc, actors.cars.as_ref())
+        if npc.is_none()
+            && shopkeeper.is_none()
+            && let Some(cars) = actors.cars.as_ref()
             && cars.driven_car_id.is_none()
             && let Some(id) = trunk_play::trunk_in_front(cars, p.position, facing, render.car_markers.trunk)
         {
@@ -440,29 +450,78 @@ pub fn update_world_interactions(
                 play_state.show_toast(text);
             }
         } else if let Some((id, role, mut prompt)) = npc {
-            let mut screen = match role.as_str() {
-                "trader" => Some(camp_ui::CampScreen::Shop),
-                "banker" => Some(camp_ui::CampScreen::Bank),
-                r if r.starts_with("bounty") => Some(camp_ui::CampScreen::Bounties),
-                "board" | "camp_board" | "upgrades" => Some(camp_ui::CampScreen::Upgrades),
-                "guild" => Some(camp_ui::CampScreen::Guild),
-                _ => None,
-            };
-            if role == "trader" {
-                prompt = "[E] Trader   [B] Camp Board".to_string();
-                if input.pressed(winit::keyboard::KeyCode::KeyB) && ui.camp_ui.is_none() && ui.hub.is_none() {
-                    screen = Some(camp_ui::CampScreen::Upgrades);
-                    ui.camp_ui = Some(camp_ui::CampUiState::new(camp_ui::CampScreen::Upgrades));
+            if role == "gunsmith" {
+                play_state.set_prompt(prompt);
+                let npc_d = actors
+                    .camp_npcs
+                    .as_ref()
+                    .and_then(|c| {
+                        c.director
+                            .fixed_npcs()
+                            .iter()
+                            .find(|n| n.id == id)
+                            .map(|n| n.position.distance(p.position))
+                    })
+                    .unwrap_or(2.5);
+                other_dist = other_dist.min(npc_d);
+                if pressed {
+                    let tier = play_state.camp.upgrades.level(game::UpgradeLine::Gunsmith);
+                    let anchor = actors.camp_npcs.as_ref().and_then(|c| {
+                        c.director
+                            .fixed_npcs()
+                            .iter()
+                            .find(|n| n.id == id)
+                            .map(|n| n.position)
+                    });
+                    ui.gunsmith = Some(crate::gunsmith_play::GunsmithSession::new(
+                        rotland_ui::gunsmith_ui::GunsmithTab::Buy,
+                        game::ShopKind::Camp { tier },
+                        anchor,
+                    ));
+                    ui.cursor_captured = false;
+                }
+            } else {
+                let mut screen = match role.as_str() {
+                    "trader" => Some(camp_ui::CampScreen::Shop),
+                    "banker" => Some(camp_ui::CampScreen::Bank),
+                    r if r.starts_with("bounty") => Some(camp_ui::CampScreen::Bounties),
+                    "board" | "camp_board" | "upgrades" => Some(camp_ui::CampScreen::Upgrades),
+                    "guild" => Some(camp_ui::CampScreen::Guild),
+                    _ => None,
+                };
+                if role == "trader" {
+                    prompt = "[E] Trader   [B] Camp Board".to_string();
+                    if input.pressed(winit::keyboard::KeyCode::KeyB) && !ui.screen_open() {
+                        screen = Some(camp_ui::CampScreen::Upgrades);
+                        ui.camp_ui = Some(camp_ui::CampUiState::new(camp_ui::CampScreen::Upgrades));
+                    }
+                }
+                play_state.set_prompt(prompt);
+                let npc_d = actors.camp_npcs.as_ref().and_then(|c| {
+                    c.director.fixed_npcs().iter().find(|n| n.id == id).map(|n| n.position.distance(p.position))
+                        .or_else(|| c.director.residents().iter().find(|r| r.id == id).map(|r| r.position.distance(p.position)))
+                }).unwrap_or(2.5);
+                other_dist = other_dist.min(npc_d);
+                if let (true, Some(s)) = (pressed, screen) {
+                    ui.camp_ui = Some(camp_ui::CampUiState::new(s));
                 }
             }
-            play_state.set_prompt(prompt);
-            let npc_d = actors.camp_npcs.as_ref().and_then(|c| {
-                c.director.fixed_npcs().iter().find(|n| n.id == id).map(|n| n.position.distance(p.position))
-                    .or_else(|| c.director.residents().iter().find(|r| r.id == id).map(|r| r.position.distance(p.position)))
-            }).unwrap_or(2.5);
-            other_dist = other_dist.min(npc_d);
-            if let (true, Some(s)) = (pressed, screen) {
-                ui.camp_ui = Some(camp_ui::CampUiState::new(s));
+        } else if let Some((town_key, keeper_pos, keeper_dist)) = shopkeeper {
+            let shop_name = play_state
+                .camp
+                .gunsmith_config
+                .towns
+                .get(&town_key)
+                .map_or("Gun Shop", |t| t.name.as_str());
+            play_state.set_prompt(format!("[E] {shop_name}"));
+            other_dist = other_dist.min(keeper_dist);
+            if pressed {
+                ui.gunsmith = Some(crate::gunsmith_play::GunsmithSession::new(
+                    rotland_ui::gunsmith_ui::GunsmithTab::Buy,
+                    game::ShopKind::Town { key: town_key },
+                    Some(keeper_pos),
+                ));
+                ui.cursor_captured = false;
             }
         }
 
@@ -518,4 +577,5 @@ pub fn update_world_interactions(
     if let Some(rv) = actors.rescue_view.as_mut() {
         rv.update(dt);
     }
+    actors.gunsmith_world.update(dt);
 }

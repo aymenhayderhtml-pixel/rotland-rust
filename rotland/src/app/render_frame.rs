@@ -201,6 +201,12 @@ pub fn render_frame(
             actors.player,
         );
     }
+    if let Some(pack) = render.pack.as_ref() {
+        actors
+            .gunsmith_world
+            .ensure_bench_placed(&gpu.device, pack, &mut render.library);
+    }
+    let gunsmith_bench = actors.gunsmith_world.bench_placed();
     let placed = streamer
         .chunks
         .values()
@@ -208,6 +214,7 @@ pub fn render_frame(
         .chain(beds.iter())
         .chain(upgrade_placed.iter())
         .chain(bench_placed.iter())
+        .chain(gunsmith_bench)
         .chain(render.ground_detail.placed().iter());
     if let Some(rig) = actors.camera_rig.as_ref()
         && session.anim_shot.pose.is_none()
@@ -357,6 +364,24 @@ pub fn render_frame(
                     mesh: w.mesh,
                     instances: w.instances.clone(),
                 });
+                if let (Some(av), Some(ww), Some(play_state)) = (
+                    render.attachment_view.as_ref(),
+                    weapon_world,
+                    play.play.as_ref(),
+                ) && let Some(def) = play_state
+                    .gun
+                    .as_ref()
+                    .or_else(|| actors.combat.as_ref().and_then(|c| c.weapon_def()))
+                {
+                    av.draw_batches(
+                        &def.id,
+                        play_state.equipped_mods(),
+                        &play_state.attachments,
+                        ww,
+                        &mut main,
+                        Some(&mut shadow),
+                    );
+                }
             }
             if let Some(bv) = actors.backpack_view.as_ref() {
                 let kind = session.test_backpack.or_else(|| {
@@ -394,6 +419,18 @@ pub fn render_frame(
                 mesh: w.mesh,
                 instances: vec![engine::render::SkinInstance::new(at, 0)],
             });
+            if let (Some(av), Some(play_state)) =
+                (render.attachment_view.as_ref(), play.play.as_ref())
+            {
+                av.draw_batches(
+                    &def.id,
+                    play_state.equipped_mods(),
+                    &play_state.attachments,
+                    at,
+                    &mut main,
+                    None,
+                );
+            }
         }
         shadow.push(body);
         shadow.extend(weapon);
@@ -420,6 +457,14 @@ pub fn render_frame(
         }));
         main.extend(survivors);
     }
+    let keepers = actors
+        .gunsmith_world
+        .pose_shopkeepers(actors.player, &mut render.bones);
+    shadow.extend(keepers.iter().map(|b| engine::render::SkinnedBatch {
+        mesh: b.mesh,
+        instances: b.instances.clone(),
+    }));
+    main.extend(keepers);
     let zombies = actors
         .zombies
         .as_ref()

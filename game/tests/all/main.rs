@@ -74,3 +74,6 @@ mod temperature_tests;
 mod towns_gameplay_tests;
 mod warmth_items_tests;
 mod warmth_save_tests;
+mod weapon_wear_tests;
+mod attachments_tests;
+mod gunsmith_tests;
