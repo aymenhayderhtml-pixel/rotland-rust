@@ -2,7 +2,7 @@
 // Godot: AnimalHunting.cs
 
 use game_core::items::Inventory;
-use super::config::{AnimalButcherData, AnimalSpeciesData};
+use super::config::AnimalButcherData;
 
 pub struct AnimalHunting;
 
@@ -51,11 +51,5 @@ impl AnimalHunting {
                 }
         }
         false
-    }
-
-    // Godot: AnimalHunting.cs AwardKill
-    #[allow(dead_code)]
-    fn award_kill(species: &AnimalSpeciesData) -> u32 {
-        species.xp
     }
 }

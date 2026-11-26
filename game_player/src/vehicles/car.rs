@@ -9,8 +9,6 @@ use crate::vehicles::fuel::CarFuel;
 use crate::vehicles::health::CarHealth;
 use crate::vehicles::zombie_damage::CarDamageBox;
 
-#[allow(dead_code)]
-const WHEEL_RADIUS: f32 = 0.30;
 /// Radius of the wheel `.glb` the renderer draws (the 4x4's chunky off-road tyre).
 pub const VISUAL_WHEEL_RADIUS: f32 = 0.34;
 pub const NOISE_INTERVAL: f32 = 0.5;
@@ -157,12 +155,6 @@ impl Car {
 
     pub fn is_grounded(&self) -> bool {
         self.body.grounded
-    }
-
-    /// Driver seat and left exit in car local space.
-    #[allow(dead_code)]
-    fn seat_local(&self) -> Vec3 {
-        Vec3::new(-0.36, 0.72, -0.12)
     }
 
     pub fn exit_left_local(&self) -> Vec3 {

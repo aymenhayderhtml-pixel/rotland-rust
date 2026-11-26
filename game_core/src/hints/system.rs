@@ -91,13 +91,9 @@ impl HintSystem {
     pub fn config(&self) -> &HintConfigData { &self.config }
     pub fn current(&self) -> Option<&HintDef> { self.current.as_ref() }
     pub fn current_id(&self) -> Option<&str> { self.current.as_ref().map(|h| h.id.as_str()) }
-    #[allow(dead_code)]
-    fn current_text(&self) -> Option<&str> { self.current.as_ref().map(|h| h.text.as_str()) }
     pub fn is_shown(&self, id: &str) -> bool { self.shown.contains(id) }
     pub fn is_queued(&self, id: &str) -> bool { self.queued.contains(id) }
     pub fn times_shown(&self, id: &str) -> u32 { self.times_shown.get(id).copied().unwrap_or(0) }
-    #[allow(dead_code)]
-    fn is_visible(&self) -> bool { self.current.is_some() }
 
     /// Requests a specific tip to be queued next.
     // Godot: HintSystem.cs Request
@@ -166,22 +162,6 @@ impl HintSystem {
                 self.current = None;
                 self.gap_left = GAP_SECONDS;
             }
-        }
-    }
-
-    // Godot: HintSystem.cs OnDied
-    #[allow(dead_code)]
-    fn on_player_died(&mut self) {
-        self.dead = true;
-        self.died = true;
-    }
-
-    // Godot: HintSystem.cs OnRespawned
-    #[allow(dead_code)]
-    fn on_player_respawned(&mut self) {
-        self.dead = false;
-        if self.died {
-            self.died_and_respawned = true;
         }
     }
 

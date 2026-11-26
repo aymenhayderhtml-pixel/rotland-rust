@@ -48,26 +48,4 @@ impl HintContext {
     pub fn new() -> Self {
         Self::default()
     }
-
-    /// Sets the distance to the nearest NPC with a given role.
-    // Godot: HintNpcDistance.cs
-    #[allow(dead_code)]
-    fn with_npc_distance(mut self, role: impl Into<String>, distance: f32) -> Self {
-        self.npc_distances.insert(role.into(), distance);
-        self
-    }
-
-    /// Sets a player need value (e.g. "food", "water").
-    #[allow(dead_code)]
-    fn with_need(mut self, need_id: impl Into<String>, value: f32) -> Self {
-        self.needs.insert(need_id.into(), value);
-        self
-    }
-
-    /// Adds an item ID present in the player inventory.
-    #[allow(dead_code)]
-    fn with_item(mut self, item_id: impl Into<String>) -> Self {
-        self.inventory_items.insert(item_id.into());
-        self
-    }
 }

@@ -99,13 +99,11 @@ fn place_traders(
 }
 
 /// Returns the camp gunsmith workbench prop inside the settlement (present at all gunsmith tiers, 0..=3).
-#[allow(dead_code)] // re-exported in camp_layout/mod.rs and lib.rs by Lead
 pub fn camp_gunsmith_prop(site: &SettlementSite) -> PropInstance {
     camp_gunsmith_prop_with_config(site, &CampLayoutConfigData::load_default())
 }
 
 /// Returns the camp gunsmith workbench prop using a specific layout configuration.
-#[allow(dead_code)] // re-exported in camp_layout/mod.rs and lib.rs by Lead
 pub fn camp_gunsmith_prop_with_config(
     site: &SettlementSite,
     cfg: &CampLayoutConfigData,

@@ -9,7 +9,6 @@ use game::guild::{
 };
 
 /// High-level guild gameplay controller attached to the game session/camp.
-#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq)]
 pub struct GuildPlay {
     manager: GuildManager,
@@ -21,7 +20,6 @@ impl Default for GuildPlay {
     }
 }
 
-#[allow(dead_code)]
 impl GuildPlay {
     /// Creates a guild controller from the world seed, loading configuration from repo.
     /// Falls back to default config if repo files are unavailable.

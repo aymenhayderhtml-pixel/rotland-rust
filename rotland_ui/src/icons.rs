@@ -80,12 +80,6 @@ impl IconCache {
         None
     }
 
-    /// Returns true if the given item ID has already been queried (either loaded or confirmed missing).
-    #[allow(dead_code)]
-    fn is_cached(&self, item_id: &str) -> bool {
-        self.textures.contains_key(item_id)
-    }
-
     /// Clears all cached texture handles.
     pub fn clear(&mut self) {
         self.textures.clear();

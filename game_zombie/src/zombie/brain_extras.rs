@@ -51,11 +51,6 @@ impl ZombieBrain {
         self.scream_chance = chance;
     }
 
-    #[allow(dead_code)]
-    fn set_hideout_override(&mut self, val: Option<bool>) {
-        self.hideout_override = val;
-    }
-
     pub fn set_eat_chance_override(&mut self, chance: Option<f32>) {
         self.eat_chance_override = chance;
     }

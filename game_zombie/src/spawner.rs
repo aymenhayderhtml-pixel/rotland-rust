@@ -10,8 +10,6 @@ pub use crate::spawner_config::*;
 
 pub const MAX_SPAWN_SLOPE_DEG: f32 = 35.0;
 pub const SLOPE_PROBE_DIST: f32 = 1.0;
-#[allow(dead_code)]
-const CLEARANCE_RADIUS: f32 = 0.35;
 pub const CLEARANCE_HEIGHT: f32 = 1.0;
 pub const FLOOR_OFFSET: f32 = 0.1;
 pub const SPAWN_ATTEMPTS_PER_TICK: usize = 12;
@@ -115,18 +113,6 @@ impl<'a> SpawnContext<'a> {
 
     pub fn with_zombie_amount(mut self, amount: f32) -> Self {
         self.zombie_amount = amount;
-        self
-    }
-
-    #[allow(dead_code)]
-    fn with_settlement_config(mut self, cfg: &'a SettlementConfigData) -> Self {
-        self.settlement_config = Some(cfg);
-        self
-    }
-
-    #[allow(dead_code)]
-    fn with_ground_check(mut self, check: &'a dyn Fn(Vec3) -> Option<Vec3>) -> Self {
-        self.ground_check = Some(check);
         self
     }
 

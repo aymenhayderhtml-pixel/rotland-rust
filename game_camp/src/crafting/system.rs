@@ -241,22 +241,4 @@ impl CraftingSystem {
             xp: recipe.xp,
         }
     }
-
-    /// Instantly performs a craft without timing (useful for testing or direct crafting).
-    /// Respects inventory constraints: inputs are removed, outputs are added.
-    #[allow(dead_code)]
-    fn craft_instant(
-        recipe_id: &str,
-        station: &str,
-        inventory: &mut Inventory,
-        near_lit_campfire: bool,
-        is_dead: bool,
-        registry: &RecipeRegistry,
-    ) -> Result<CraftFinishResult, &'static str> {
-        let mut system = Self::new();
-        if !system.start_craft(recipe_id, station, inventory, near_lit_campfire, is_dead, registry) {
-            return Err("cannot craft recipe");
-        }
-        Ok(system.finish(inventory))
-    }
 }

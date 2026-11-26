@@ -99,13 +99,6 @@ impl ZombieVoices {
         self.scan(player, zombies)
     }
 
-    /// Performs an immediate scan of the provided zombies without waiting for `SCAN_INTERVAL`.
-    #[allow(dead_code)]
-    fn force_scan(&mut self, player: Vec3, zombies: &[VoiceZombie]) -> Vec<VoiceEvent> {
-        self.scan_timer = 0.0;
-        self.scan(player, zombies)
-    }
-
     /// Scans the given zombies against the player's position (Godot ZombieVoices.Scan).
     fn scan(&mut self, player: Vec3, zombies: &[VoiceZombie]) -> Vec<VoiceEvent> {
         self.next_records.clear();
@@ -208,24 +201,6 @@ impl ZombieVoices {
     /// Maximum concurrent voice cap.
     pub fn max_voices(&self) -> usize {
         self.max_voices
-    }
-
-    /// Sets a new maximum concurrent voice cap.
-    #[allow(dead_code)]
-    fn set_max_voices(&mut self, max: usize) {
-        self.max_voices = max;
-    }
-
-    /// Sets the voice clock manually (useful for testing).
-    #[allow(dead_code)]
-    fn set_clock(&mut self, clock: f32) {
-        self.clock = clock;
-    }
-
-    /// Sets the scan timer manually (useful for testing).
-    #[allow(dead_code)]
-    fn set_scan_timer(&mut self, timer: f32) {
-        self.scan_timer = timer;
     }
 
     /// Resets the RNG with a new seed.

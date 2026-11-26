@@ -29,6 +29,7 @@ pub mod frame_warmth;
 pub mod frame_world;
 pub mod render_frame;
 pub mod save_load;
+#[cfg(test)]
 pub mod spikes;
 pub mod start_world;
 pub mod startup;

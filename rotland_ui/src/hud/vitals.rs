@@ -133,31 +133,6 @@ impl VitalsTrailState {
     }
 }
 
-/// Draws player health and stamina bars in the bottom-left corner with default styling.
-#[allow(dead_code)]
-fn draw_vital_bars(
-    painter: &egui::Painter,
-    screen: &Rect,
-    health: f32,
-    max_health: f32,
-    stamina: f32,
-    max_stamina: f32,
-    scale: f32,
-) {
-    draw_vital_bars_polished(
-        painter,
-        screen,
-        health,
-        max_health,
-        stamina,
-        max_stamina,
-        None,
-        0.0,
-        scale,
-        &HudConfig::default(),
-    );
-}
-
 /// Draws polished player health and stamina bars with rounded ends, darker back, recent damage trail, and low pulse.
 #[allow(clippy::too_many_arguments)]
 pub fn draw_vital_bars_polished(
@@ -276,19 +251,6 @@ pub fn draw_vital_bars_polished(
         );
         painter.rect_filled(fill_rect, stam_corner_r, stamina_fill);
     }
-}
-
-/// Draws food and water need bars above the health bar.
-#[allow(dead_code)]
-fn draw_need_bars(
-    painter: &egui::Painter,
-    screen: &Rect,
-    time: f64,
-    food: Option<(f32, bool)>,
-    water: Option<(f32, bool)>,
-    scale: f32,
-) {
-    draw_need_bars_polished(painter, screen, time, food, water, None, scale, &HudConfig::default());
 }
 
 /// Draws polished food and water need bars with rounded ends, darker back, recent damage trail, and low pulse.

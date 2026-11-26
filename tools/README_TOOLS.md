@@ -3,6 +3,48 @@
 All commands are run from the repo root. Heavy commands use the shared build
 folder `/home/aymen/Documents/rotland-rust/target` and `/tmp/rotland-heavy.lock`.
 
+## Index of every tool
+
+Scripts and shell tools:
+
+- `tools/gate.sh` — the one build and check command workers run (see below).
+- `tools/gate_checks.py` — the scope, number-source and unused-code checks that `gate.sh` runs.
+- `tools/claim_target.sh` — clears the shared build folder for this checkout before a build (used by `gate.sh` and `build_speed.sh`).
+- `tools/build_speed.sh` — times a small change's incremental build, tests and clippy.
+- `tools/perf_scenes.sh` — measures FPS and draw calls in the game scenes.
+- `tools/find_coplanar.py` — finds faces that flicker (z-fight) in a `.glb` model.
+- `tools/neon_pack.py` — packs one task into a paste-ready prompt for Gemini Neon.
+- `tools/neon_apply.py` — writes Neon's answer into the repo files.
+- `tools/audio/synth.py` — makes the old computer-generated sound effects again (sounds were removed from the game; see `assets/audio/PREVIEW.md`).
+- `tools/audio/play_all.sh` — plays all those generated sounds one after another, to listen.
+
+Blender model scripts (run with `blender -b --python <file>`; output goes to `assets/models/`). Each model script writes one `.glb` named after the script, in the folder named in its `run_model` call. The batch builders run many of them at once; `build_all.py` does NOT run the four batch builders below, so run each one by hand:
+
+- `tools/blender/build_all.py` — main build: the basic props, all characters, weapons, buildings and item icons. Prints `BUILD OK` or `BUILD FAILED`.
+- `tools/blender/build_biome_props.py` — batch for desert, snow, mountain and swamp props plus tree LODs.
+- `tools/blender/build_detail_props.py` — batch for biome detail props, town clutter and interior props.
+- `tools/blender/build_world_props.py` — batch for world props (trees, ground cover, street clutter).
+- `tools/blender/build_r37_models.py` — builds the gunsmith bench, gun shop, 9 weapon attachments and their icons.
+- `tools/blender/common.py` — shared helpers for every model (export, triangle budgets, previews). Not run on its own.
+- `tools/blender/palette.py` — the colour sheets every model uses. Not run on its own.
+- `tools/blender/check_palette.py` — checks the colour sheets (plain `python3`, no Blender needed).
+- `tools/blender/check_normals.py` — checks a `.glb` for holes and reversed faces.
+
+Folders under `tools/blender/` (one script per model unless noted):
+
+- `animals/` — `build_dog.py` (dog coats), `build_wild.py` (deer, rabbit, boar); other files are their helpers.
+- `building_parts/` — one script per player base part; `build_parts.py` builds them all; `base_preview_room.py` makes the test room.
+- `buildings/` — one script per building, plus `_lod1` versions; `build_buildings.py` (town and camp buildings, settlement) and `build_town_buildings.py` (outer-biome towns) run them in batches.
+- `characters/` — `build_characters.py` builds the player, zombies and NPCs with their animations; `poses*.py` hold the animation clip tables (`poses.py` is the index).
+- `farming/` — `build_farming.py` builds the crops, soil plot, hoe and watering can.
+- `gear/` — `backpacks.py` builds the two backpacks worn on the back.
+- `icons/` — `render_icons.py` renders every item icon into `assets/icons/`; `item_meshes.py` and `warm_clothes_meshes.py` make the icon shapes; `make_sheet.py` makes the labelled icon sheet.
+- `props/` — one script per prop, tree and rock (name = model name, `_lod1`/`_lod2` = simpler versions); `build_lods.py` runs all vegetation LOD scripts; `veg.py` holds shared tree builders.
+- `vehicles/` — `build_car.py` builds the 4x4 SUV and its doors, tailgate and wheel; `car_parts.py` holds the shapes.
+- `weapons/` — one script per weapon; `build_weapons.py` builds them all; `attachments.py` builds the 9 attachments; `parts.py` holds shared gun and blade parts.
+
+The remaining `.py` files in these folders are helpers that the scripts above import.
+
 ## Build & performance scripts
 
 - `cargo build --profile play` — fast incremental play build (`target/play/rotland`), recommended for daily playtesting.
@@ -26,7 +68,7 @@ folder `/home/aymen/Documents/rotland-rust/target` and `/tmp/rotland-heavy.lock`
 
 ```bash
 tools/gate.sh                                  # full check + whole test suite
-tools/gate.sh --task tasks/R11-01-....md       # also check scope / numbers / unused
+tools/gate.sh --task tasks/archive/R11-01-....md       # also check scope / numbers / unused
 tools/gate.sh --test minimap                   # only tests whose name matches
 
 
@@ -43,7 +85,7 @@ never edit it by hand.
 ## `tools/gate_checks.py` — the three checks on their own
 
 ```bash
-python3 -I tools/gate_checks.py --base main --task tasks/R11-01-....md
+python3 -I tools/gate_checks.py --base main --task tasks/archive/R11-01-....md
 python3 -I tools/gate_checks.py --selftest     # quick self-test, no repo needed
 
 
@@ -60,7 +102,7 @@ Needs a source tag on the same line (or the line above) for each new number in
 ## `tools/neon_pack.py` — make one file to paste into Gemini Neon
 
 ```bash
-python3 -I tools/neon_pack.py tasks/R11-01-....md
+python3 -I tools/neon_pack.py tasks/archive/R11-01-....md
 
 
 ```
@@ -74,8 +116,8 @@ output into AI Studio.
 
 ```bash
 # save Neon's answer as neon/in/<task>.md first
-python3 -I tools/neon_apply.py neon/in/R11-01-....md --task tasks/R11-01-....md --dry-run
-python3 -I tools/neon_apply.py neon/in/R11-01-....md --task tasks/R11-01-....md
+python3 -I tools/neon_apply.py neon/in/R11-01-....md --task tasks/archive/R11-01-....md --dry-run
+python3 -I tools/neon_apply.py neon/in/R11-01-....md --task tasks/archive/R11-01-....md
 
 
 ```

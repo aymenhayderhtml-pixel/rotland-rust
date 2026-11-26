@@ -63,8 +63,6 @@ pub struct GuardFrame {
 pub struct GuardRifle;
 
 impl GuardRifle {
-    #[allow(dead_code)]
-    const WEAPON_ID: &'static str = "rifle";
     pub const READY_POSE: &'static str = "rifle_aim";
     pub const FIRE_ACTION: &'static str = "rifle_fire";
     pub const SHOT_SOUND: &'static str = "rifle_shot";

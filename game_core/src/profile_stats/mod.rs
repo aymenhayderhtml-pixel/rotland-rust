@@ -109,12 +109,6 @@ impl ProfileStats {
         }
     }
 
-    /// Convenience alias for `add_walked`.
-    #[allow(dead_code)]
-    fn add_distance(&mut self, metres: f32) {
-        self.add_walked(metres);
-    }
-
     /// Tracks walking distance from horizontal movement, filtering out jumps >= 5m as teleports.
     // Godot: PlayerStats.cs _PhysicsProcess
     pub fn update_position(&mut self, pos_xz: glam::Vec2) {

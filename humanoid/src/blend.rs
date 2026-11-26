@@ -135,19 +135,6 @@ pub fn blend_local_poses(
     }
 }
 
-/// Returns the update interval in seconds based on distance and screen visibility (HumanoidVisual.SetLod).
-pub fn lod_interval(distance: f32, on_screen: bool) -> f32 {
-    if !on_screen {
-        if distance > 30.0 { 1.0 } else { 0.5 }
-    } else if distance < 10.0 {
-        0.0
-    } else if distance < 25.0 {
-        0.04
-    } else {
-        0.1
-    }
-}
-
 /// Evaluates the base locomotion local pose into `out` using `scratch`, with zero allocations.
 pub fn sample_locomotion_into(
     rig: &engine::anim::Rig,

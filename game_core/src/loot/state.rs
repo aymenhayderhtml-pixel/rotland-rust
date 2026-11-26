@@ -46,12 +46,6 @@ impl LootState {
             || self.looted.contains(crate_id)
     }
 
-    /// Returns the set of crate ids looted in a chunk, if any.
-    #[allow(dead_code)]
-    fn looted_in_chunk(&self, coord: IVec2) -> Option<&HashSet<String>> {
-        self.by_chunk.get(&coord)
-    }
-
     /// All looted crate ids.
     pub fn all_looted(&self) -> &HashSet<String> {
         &self.looted

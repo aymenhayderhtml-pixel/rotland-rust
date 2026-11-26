@@ -20,14 +20,6 @@ impl FarmManager {
         })
     }
 
-    /// Mutable version of bed_under.
-    #[allow(dead_code)]
-    fn bed_under_mut(&mut self, point: Vec3, half: f32) -> Option<&mut PlotRecord> {
-        self.plots.iter_mut().find(|plot| {
-            (point.x - plot.position.x).abs() <= half && (point.z - plot.position.z).abs() <= half
-        })
-    }
-
     /// Checks moving entities (zombies/animals) over plots. Returns list of trampled plot IDs.
     /// Each entity that walks onto a field bed rolls once (tramplePerPass) for its crop.
     // Godot: FarmManager.Trample.cs TrampleCheck

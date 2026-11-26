@@ -150,8 +150,6 @@ pub struct SpikeRecord {
 }
 
 struct ActiveFrame {
-    #[allow(dead_code)]
-    frame: u64,
     start: Instant,
     render_start: Option<Instant>,
     phases: FramePhases,
@@ -185,11 +183,10 @@ pub fn init_spike_recorder(path: Option<&Path>) {
     });
 }
 
-pub fn start_frame(frame: u64) {
+pub fn start_frame() {
     SPIKE_RECORDER.with(|r| {
         let mut st = r.borrow_mut();
         st.active = Some(ActiveFrame {
-            frame,
             start: Instant::now(),
             render_start: None,
             phases: FramePhases::default(),

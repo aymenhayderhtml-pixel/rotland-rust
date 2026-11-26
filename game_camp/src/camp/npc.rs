@@ -89,12 +89,6 @@ impl SettlementNpc {
         &self.prompt
     }
 
-    /// Chest interaction point (Godot: RootLift).
-    #[allow(dead_code)]
-    fn chest_position(&self) -> Vec3 {
-        self.position + Vec3::new(0.0, Self::ROOT_LIFT, 0.0)
-    }
-
     // Godot: SettlementNpc.cs ApplyIdleVariety
     fn apply_idle_variety(&mut self) {
         let h1 = CampMath::hash(&self.seed, 1);

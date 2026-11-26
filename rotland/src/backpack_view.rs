@@ -130,7 +130,6 @@ pub fn backpack_world_matrix(
 /// Picks which backpack model to show based on the player's inventory.
 ///
 /// Prefers `backpack_large` over `backpack_small`; returns `None` if neither is carried.
-#[allow(dead_code)]
 pub fn select_backpack(inv: &Inventory) -> Option<BackpackKind> {
     if inv.has("backpack_large", 1) {
         // new: DECISIONS 2026-11-25
@@ -144,14 +143,12 @@ pub fn select_backpack(inv: &Inventory) -> Option<BackpackKind> {
 }
 
 /// GPU meshes and attachment config for the player's visible backpack.
-#[allow(dead_code)]
 pub struct BackpackView {
     small_mesh: Option<GpuMesh>,
     large_mesh: Option<GpuMesh>,
     config: BackpackConfig,
 }
 
-#[allow(dead_code)]
 impl BackpackView {
     /// Loads `backpack_small` and `backpack_large` meshes from `pack` and offsets from `data/backpack.json`.
     pub fn load(device: &wgpu::Device, pack: &ModelPack) -> Self {

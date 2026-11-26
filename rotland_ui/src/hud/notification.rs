@@ -51,7 +51,6 @@ impl HudNotification {
 }
 
 /// Small queue of notifications displayed at top center under the compass.
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct HudNotifications {
     #[serde(default)]
@@ -59,25 +58,21 @@ pub struct HudNotifications {
 }
 
 impl HudNotifications {
-    #[allow(dead_code)]
     pub fn new() -> Self {
         Self { items: Vec::new() }
     }
 
     /// Pushes a new notification with default duration (4.0s).
-    #[allow(dead_code)]
     pub fn push(&mut self, text: impl Into<String>, kind: NotificationKind) {
         self.push_with_duration(text, kind, 0.0, 4.0);
     }
 
     /// Pushes a new notification with timestamp and duration.
-    #[allow(dead_code)]
     pub fn push_at(&mut self, text: impl Into<String>, kind: NotificationKind, now: f64) {
         self.push_with_duration(text, kind, now, 4.0);
     }
 
     /// Pushes a new notification with explicit duration.
-    #[allow(dead_code)]
     pub fn push_with_duration(
         &mut self,
         text: impl Into<String>,
@@ -92,26 +87,22 @@ impl HudNotifications {
     }
 
     /// Removes expired notifications.
-    #[allow(dead_code)]
     pub fn update(&mut self, now: f64) {
         self.items.retain(|n| !n.is_expired(now));
     }
 
     /// Returns the number of currently active notifications.
-    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.items.len()
     }
 
     /// Returns true if there are no active notifications.
-    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
 }
 
 /// Returns the primary color for a notification kind from config.
-#[allow(dead_code)]
 pub fn notification_color(kind: NotificationKind, config: &HudConfig) -> engine::egui::Color32 {
     let cfg = &config.notifications;
     match kind {

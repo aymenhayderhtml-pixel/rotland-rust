@@ -38,11 +38,6 @@ impl WorldItems {
         Self::default()
     }
 
-    #[allow(dead_code)]
-    fn with_items(items: Vec<WorldItem>) -> Self {
-        Self { items }
-    }
-
     /// Adds a dropped item to the world.
     pub fn add(&mut self, item_id: impl Into<String>, count: u32, position: Vec3) {
         if count > 0 {
@@ -87,37 +82,9 @@ impl WorldItems {
         best.map(|(i, _)| (i, &self.items[i]))
     }
 
-    /// Finds the nearest dropped item within `radius` of `pos` with mutable access.
-    #[allow(dead_code)]
-    fn nearest_within_mut(&mut self, pos: Vec3, radius: f32) -> Option<(usize, &mut WorldItem)> {
-        let r2 = radius * radius;
-        let mut best: Option<(usize, f32)> = None;
-
-        for (i, item) in self.items.iter().enumerate() {
-            let d2 = item.position.distance_squared(pos);
-            if d2 <= r2 {
-                if let Some((_, best_d2)) = best {
-                    if d2 < best_d2 {
-                        best = Some((i, d2));
-                    }
-                } else {
-                    best = Some((i, d2));
-                }
-            }
-        }
-
-        best.map(move |(i, _)| (i, &mut self.items[i]))
-    }
-
     /// Finds the nearest dropped item within `radius` of `pos`.
     pub fn nearest(&self, pos: Vec3, radius: f32) -> Option<&WorldItem> {
         self.nearest_within(pos, radius).map(|(_, item)| item)
-    }
-
-    /// Finds the index of the nearest dropped item within `radius` of `pos`.
-    #[allow(dead_code)]
-    fn nearest_index(&self, pos: Vec3, radius: f32) -> Option<usize> {
-        self.nearest_within(pos, radius).map(|(i, _)| i)
     }
 
     pub fn get(&self, index: usize) -> Option<&WorldItem> {

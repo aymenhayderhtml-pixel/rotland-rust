@@ -58,27 +58,12 @@ impl FarmManager {
         self.rng = DotnetRandom::new(seed);
     }
 
-    #[allow(dead_code)]
-    fn set_rng(&mut self, rng: DotnetRandom) {
-        self.rng = rng;
-    }
-
     pub fn plots(&self) -> &[PlotRecord] {
         &self.plots
     }
 
-    #[allow(dead_code)]
-    fn plots_mut(&mut self) -> &mut [PlotRecord] {
-        &mut self.plots
-    }
-
     pub fn charges(&self) -> u32 {
         self.charges
-    }
-
-    #[allow(dead_code)]
-    fn set_charges(&mut self, charges: u32) {
-        self.charges = charges.min(self.config.can_capacity);
     }
 
     pub fn synced_hours(&self) -> f64 {
@@ -170,13 +155,6 @@ impl FarmManager {
         let now = Self::now_hours(clock.day, clock.hour);
         let bonus = skills.map_or(0.0, |s| s.get_bonus("cropGrowth"));
         self.sync(now, bonus);
-    }
-
-    /// Syncs growth using day, hour, and explicit growth bonus.
-    #[allow(dead_code)]
-    fn sync_day_hour(&mut self, day: i32, hour: f32, growth_bonus: f32) {
-        let now = Self::now_hours(day, hour);
-        self.sync(now, growth_bonus);
     }
 
     /// Steps a single hour for all plots directly.

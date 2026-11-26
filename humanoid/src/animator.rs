@@ -15,7 +15,7 @@ use crate::aim::{AimController, AimJoints};
 use crate::airborne::{AirState, LandingKind, landing_clip};
 use crate::anim_config::AnimConfig;
 use crate::blend::{
-    locomotion_weights, lod_interval, sample_locomotion_into, tempo_for, Locomotion,
+    locomotion_weights, sample_locomotion_into, tempo_for, Locomotion,
     LocomotionClips, RUN_BLEND,
 };
 use crate::clip_events::{ClipEvent, ClipEventTable, EventQueue, EventSpan};
@@ -38,7 +38,6 @@ use crate::wound_anim::{WoundAnimState, WoundContext};
 
 const POSE_POOL_BUFFERS: usize = 3; // new: DECISIONS 2026-11-23
 const LAYER_EPSILON: f32 = 0.001; // godot: HumanoidAnimTree.cs:210
-const MIN_TEMPO_SCALE: f32 = 0.05; // godot: HumanoidAnimTree.cs:112
 const SWING_MAX_TIME: f32 = 0.70; // godot: poses_combat.py:47
 const DEFAULT_OFF_HAND_GRIP: Vec3 = Vec3::new(0.0, 0.0, 0.10); // godot: HumanoidVisual.cs:95
 
@@ -257,13 +256,6 @@ impl HumanoidAnimator {
     /// Returns the blended weapon hold transform when a stance is active, or `None` for legacy hold.
     pub fn weapon_hold(&self) -> Option<HoldTransform> {
         self.stance.ready_clip().map(|_| self.stance.hold())
-    }
-
-    /// Explicitly sets two-handed mode and off-hand grip offset.
-    pub fn set_two_handed(&mut self, two_handed: bool, off_hand_grip: Option<Vec3>) {
-        self.two_handed = two_handed;
-        self.off_hand_grip = off_hand_grip;
-        self.dirty = true;
     }
 
     pub fn is_two_handed(&self) -> bool { self.two_handed }
@@ -539,10 +531,6 @@ impl HumanoidAnimator {
         self.dirty = true;
     }
 
-    pub fn play_hit(&mut self) {
-        self.play_action("hit", 1.0); // godot: HumanoidAnimTree.cs:152
-    }
-
     pub fn set_aim_pose(&mut self, clip_name: Option<&str>) {
         if let Some(name) = clip_name {
             self.layers.set_clip(LayerId::Aim, Some(name));
@@ -706,12 +694,6 @@ impl HumanoidAnimator {
     }
 
     pub fn release_pose(&mut self) { self.held_pose = None; self.dirty = true; }
-    pub fn set_tempo_scale(&mut self, scale: f32) { self.tempo_scale = scale.max(MIN_TEMPO_SCALE); }
-
-    /// Multi-tiered LOD update throttling from `HumanoidVisual.SetLod`.
-    pub fn set_lod(&mut self, distance: f32, on_screen: bool) {
-        self.set_update_interval(lod_interval(distance, on_screen));
-    }
 
     pub fn set_update_interval(&mut self, interval: f32) {
         self.update_interval = interval.max(0.0);
@@ -721,7 +703,6 @@ impl HumanoidAnimator {
     }
 
     pub fn update_interval(&self) -> f32 { self.update_interval }
-    pub fn blend_position(&self) -> f32 { self.blend_pos }
     pub fn is_action_active(&self) -> bool { self.action.as_ref().is_some_and(|a| !a.is_finished()) }
     pub fn current_action(&self) -> Option<&str> { self.action.as_ref().map(|a| a.clip_name.as_str()) }
     pub fn action_state(&self) -> Option<&ActionState> { self.action.as_ref() }
@@ -729,7 +710,6 @@ impl HumanoidAnimator {
     pub fn layers(&self) -> &LayerStack { &self.layers }
     pub fn layers_mut(&mut self) -> &mut LayerStack { self.dirty = true; &mut self.layers }
     pub fn foot_ik_mut(&mut self) -> &mut FootIkState { self.dirty = true; &mut self.foot_ik }
-    pub fn event_table_mut(&mut self) -> &mut ClipEventTable { &mut self.events }
 
     /// Writes character skin matrices into `out`.
     pub fn write_skin(&mut self, rig: &Rig, out: &mut [Mat4]) {

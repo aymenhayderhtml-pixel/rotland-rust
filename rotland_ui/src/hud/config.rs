@@ -1,5 +1,4 @@
 //! Configuration loaded from `data/hud.json`.
-#![allow(dead_code)]
 
 use std::path::Path;
 use engine::egui::Color32;

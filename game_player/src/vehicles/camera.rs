@@ -2,8 +2,6 @@ use glam::{Quat, Vec2, Vec3};
 use physics::PhysicsWorld;
 
 pub const MIN_DISTANCE: f32 = 1.5;
-#[allow(dead_code)]
-const SMOOTHING: f32 = 10.0;
 pub const ORBIT_MOUSE_RAD_PER_PIXEL: f32 = 0.004;
 
 /// Camera mode while driving: chase camera, tight trail view, or hood-mounted view.

@@ -52,20 +52,6 @@ impl RecipeRegistry {
         Self::from_vec(list, None)
     }
 
-    /// Loads and validates recipes against an explicit ItemRegistry.
-    #[allow(dead_code)]
-    fn load_with_items(path: &Path, items: &ItemRegistry) -> Result<Self, RecipeLoadError> {
-        let text = std::fs::read_to_string(path).map_err(RecipeLoadError::Io)?;
-        Self::from_json_with_items(&text, items)
-    }
-
-    /// Parses recipes and validates them against an explicit ItemRegistry.
-    pub fn from_json_with_items(text: &str, items: &ItemRegistry) -> Result<Self, RecipeLoadError> {
-        let list: Vec<RecipeDef> =
-            serde_json::from_str(text).map_err(RecipeLoadError::Parse)?;
-        Self::from_vec(list, Some(items))
-    }
-
     fn from_vec(list: Vec<RecipeDef>, items: Option<&ItemRegistry>) -> Result<Self, RecipeLoadError> {
         if list.is_empty() {
             return Err(RecipeLoadError::Validation("recipes list is empty".to_string()));

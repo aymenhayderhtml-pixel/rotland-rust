@@ -74,22 +74,6 @@ impl Zombies {
         self.hit(id, damage, knockback)
     }
 
-    /// Convenience alias for hit_with_height matching task brief.
-    pub fn hit_at_height(
-        &mut self,
-        id: u64,
-        damage: DamageInfo,
-        knockback: Vec3,
-        hit_point_y: f32,
-    ) -> bool {
-        self.hit_with_height(id, damage, knockback, hit_point_y)
-    }
-
-    /// Records an external corpse position (e.g. from wildlife or camp guards) for zombie eating.
-    pub fn record_corpse(&mut self, position: Vec3) {
-        self.corpses.record(position, self.game_time);
-    }
-
     /// A hit that is not the player's (camp guards): a kill does not count for the player.
     pub fn hit_unclaimed(&mut self, id: u64, damage: DamageInfo, knockback: Vec3) -> bool {
         let killed = self.hit(id, damage, knockback);

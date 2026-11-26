@@ -58,8 +58,6 @@ impl Inventory {
     pub fn slot_count(&self) -> usize { self.slots.len() }
     pub fn max_weight(&self) -> f32 { self.max_weight }
     pub fn set_max_weight(&mut self, max_weight: f32) { self.max_weight = max_weight; }
-    #[allow(dead_code)]
-    fn set_slot_count(&mut self, new_count: usize) { self.slots.resize(new_count, None); }
     pub fn registry(&self) -> &ItemRegistry { &self.registry }
     pub fn set_registry(&mut self, registry: Arc<ItemRegistry>) { self.registry = registry; }
 
@@ -118,12 +116,6 @@ impl Inventory {
             }
         }
         count <= capacity.min(self.max_fit_by_weight_with(def, registry))
-    }
-
-    /// How many of this item the weight limit still allows.
-    #[allow(dead_code)]
-    fn max_fit_by_weight(&self, def: &ItemDef) -> u32 {
-        self.max_fit_by_weight_with(def, &self.registry)
     }
 
     pub fn max_fit_by_weight_with(&self, def: &ItemDef, registry: &ItemRegistry) -> u32 {
@@ -273,8 +265,6 @@ impl Inventory {
         self.raise_changed();
     }
 
-    #[allow(dead_code)]
-    fn is_changed(&self) -> bool { self.changed }
     pub fn clear_changed(&mut self) { self.changed = false; }
     pub fn set_changed(&mut self) { self.raise_changed(); }
 

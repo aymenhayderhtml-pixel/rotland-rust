@@ -47,17 +47,14 @@ pub use config::HudConfig;
 pub use damage::DamageIndicator;
 pub use downed::DownedHudInfo;
 pub use draw::draw_hud;
-#[allow(unused_imports)]
 pub use events::{
     direction_word_from_angle, direction_word_to_target, EventCooldowns, EventKind, HordeIndicator,
 };
 pub use game::hud_math::HeldKind;
 pub use icons::IconCache;
-#[allow(unused_imports)]
 pub use manager::Hud;
 pub use notification::{HudNotification, HudNotifications, NotificationKind};
 pub use pickup::PickupPopup;
-#[allow(unused_imports)]
 pub use state::{HotbarSlot, HudState, KeyLabels};
 pub use vehicle::VehicleHudInfo;
 pub use vitals::{DogHudInfo, VitalsTrailState};

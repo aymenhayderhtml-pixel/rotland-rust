@@ -59,40 +59,8 @@ impl<'a> DogUpdateContext<'a> {
         self
     }
 
-    #[allow(dead_code)]
-    fn with_dead(mut self, dead: bool) -> Self {
-        self.player_dead = dead;
-        self
-    }
-
     pub fn with_zombies(mut self, zombies: &'a [(u64, Vec3, bool)]) -> Self {
         self.zombies = zombies;
-        self
-    }
-
-    #[allow(dead_code)]
-    fn with_animals(mut self, animals: &'a [(u64, Vec3, bool)]) -> Self {
-        self.animals = animals;
-        self
-    }
-
-    #[allow(dead_code)]
-    fn with_camp(mut self, camp_pos: Option<Vec3>) -> Self {
-        self.camp_position = camp_pos;
-        self
-    }
-
-    #[allow(dead_code)]
-    fn with_time(mut self, day: i32, now_hours: f64) -> Self {
-        self.day = day;
-        self.now_hours = now_hours;
-        self
-    }
-
-    #[allow(dead_code)]
-    fn with_pois(mut self, world_seed: i32, poi_sites: &'a [DogPoiSite]) -> Self {
-        self.world_seed = world_seed;
-        self.poi_sites = poi_sites;
         self
     }
 }

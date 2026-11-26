@@ -3,13 +3,11 @@
 use std::collections::VecDeque;
 
 /// A per-frame work queue that processes items within a per-frame budget or limit.
-#[allow(dead_code)]
 pub struct SpikeBudgetQueue<T> {
     queue: VecDeque<T>,
     max_per_frame: usize,
 }
 
-#[allow(dead_code)]
 impl<T> SpikeBudgetQueue<T> {
     pub fn new(max_per_frame: usize) -> Self {
         Self {

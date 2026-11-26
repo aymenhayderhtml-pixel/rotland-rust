@@ -1,5 +1,4 @@
 // Helper methods and fields here are used by screens, HUD overlays, and tests
-#![allow(dead_code)]
 
 //! egui 0.37 UI for player hub screens: Bag, Skills, Bounties, Profile, Trunk, and Dogs.
 //! Follows Godot layouts, colors, and styles from scripts/UI/ and scripts/Dogs/.

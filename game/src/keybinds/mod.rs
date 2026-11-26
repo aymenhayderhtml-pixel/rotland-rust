@@ -49,20 +49,10 @@ impl KeyBindings {
         find_action(action).map_or("", |a| a.label)
     }
 
-    /// Section group name for an action (e.g. "Move", "Actions", "Hotbar").
-    pub fn section_of(action: &str) -> &'static str {
-        find_action(action).map_or("", |a| a.section)
-    }
-
     /// Default Godot integer key code for an action (0 if unknown).
     // Godot: KeyBindings.cs DefaultOf
     pub fn default_of(action: &str) -> u32 {
         find_action(action).map_or(0, |a| a.default_code)
-    }
-
-    /// Default winit `KeyCode` and shift flag for an action.
-    pub fn default_key_of(action: &str) -> Option<(KeyCode, bool)> {
-        find_action(action).map(|a| (a.default_key, a.default_shift))
     }
 
     /// Active Godot key code for an action (falls back to default if not present).
@@ -97,11 +87,6 @@ impl KeyBindings {
             }
         }
         None
-    }
-
-    /// Checks if another action already uses the given winit key.
-    pub fn conflict_with_key(&self, action: &str, key: KeyCode, shift: bool) -> Option<&'static str> {
-        key_to_godot_code(key, shift).and_then(|code| self.conflict_with(action, code))
     }
 
     /// Sets one action's binding code.

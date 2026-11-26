@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 
 use glam::Vec3;
 use serde_json::Value;
-use world::{DotnetRandom, PoiBuildingDef, PoiConfig, PoiConfigData};
+use world::{DotnetRandom, PoiConfig, PoiConfigData};
 
 use super::save::{from_save_visited_pois, to_save_visited_pois};
 use super::types::{PoiSpawn, PoiZombieSite};
@@ -89,22 +89,6 @@ impl PoiZombies {
             spawn_config,
             spawner_rng: SpawnerRng::new(world_seed as u64),
         }
-    }
-
-    /// Adds or updates a building definition in the active config.
-    #[allow(dead_code)]
-    fn add_building_def(&mut self, def: PoiBuildingDef) {
-        if let Some(existing) = self.config.buildings.iter_mut().find(|b| b.id == def.id) {
-            *existing = def;
-        } else {
-            self.config.buildings.push(def);
-        }
-    }
-
-    /// Sets whether it is currently night time for zombie type rolls.
-    #[allow(dead_code)]
-    fn set_night(&mut self, is_night: bool) {
-        self.is_night = is_night;
     }
 
     /// True if the building has woken before or was loaded from a visit save.

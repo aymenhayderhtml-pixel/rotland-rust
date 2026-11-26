@@ -302,11 +302,6 @@ impl Slots {
         Ok(())
     }
 
-    /// True if any slot (1..=COUNT) has a save file.
-    pub fn any_filled(&self) -> bool {
-        (1..=Self::COUNT).any(|s| self.path_for(s).map(|p| p.is_file()).unwrap_or(false))
-    }
-
     /// Imports a Godot save slot into this Rust slot by READING the Godot file only.
     pub fn import_godot(&self, slot: usize) -> Result<SaveFile, SaveError> {
         import_godot(slot, self)

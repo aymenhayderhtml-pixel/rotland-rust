@@ -6,7 +6,6 @@ use super::{
 };
 
 /// The main HUD manager containing persistent UI state, transient effects, and notifications.
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Hud {
     pub damage_indicators: Vec<DamageIndicator>,
@@ -40,7 +39,6 @@ impl Default for Hud {
     }
 }
 
-#[allow(dead_code)]
 impl Hud {
     pub fn new() -> Self {
         Self::default()

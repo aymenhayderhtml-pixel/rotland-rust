@@ -76,12 +76,6 @@ impl MapExplore {
         self.dirty.remove(&chunk);
     }
 
-    /// Returns all dirty chunks.
-    #[allow(dead_code)]
-    fn dirty_chunks(&self) -> impl Iterator<Item = IVec2> + '_ {
-        self.dirty.iter().copied()
-    }
-
     /// Marks every cell whose centre lies within radius of the point. Returns how many were new.
     // Godot: MapExplore.cs Reveal
     pub fn reveal(&mut self, centre: Vec2, radius: f32) -> usize {

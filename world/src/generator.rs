@@ -90,8 +90,6 @@ impl WorldGenerator {
     pub fn poi_config(&self) -> &PoiConfigData { &self.poi_config }
     pub fn biome_registry(&self) -> &BiomeRegistry { &self.biome_registry }
     pub fn world_layout(&self) -> &WorldLayout { &self.layout }
-    pub fn set_scatter_config(&mut self, cfg: ScatterConfigData) { self.scatter_config = cfg; }
-    pub fn set_poi_config(&mut self, cfg: PoiConfigData) { self.poi_config = cfg; }
     pub fn city(&self) -> Option<&CityLayout> { self.city.as_ref() }
     pub fn city_ground(&self) -> Option<&CityGround> { self.city_ground.as_ref() }
     pub fn lake(&self) -> Option<&LakeLayout> { self.lake.as_ref() }

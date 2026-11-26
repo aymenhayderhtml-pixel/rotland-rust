@@ -43,9 +43,6 @@ pub struct DisplayChange {
 }
 
 impl DisplayChange {
-    pub fn has_change(&self) -> bool {
-        self.new_scale.is_some() || self.new_vsync.is_some()
-    }
 }
 
 /// Checks if the game requested display settings changes that differ from the current state,
@@ -182,7 +179,7 @@ impl<G: Game> App<G> {
         }
         let (dt, fps_ready) = self.timer.tick();
         self.frame += 1;
-        crate::timing::start_frame(self.frame);
+        crate::timing::start_frame();
         let elapsed = self.started.elapsed().as_secs_f32();
         if elapsed >= self.args.warmup {
             self.stats.push(dt as f64 * 1000.0);

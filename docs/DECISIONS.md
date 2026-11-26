@@ -27,7 +27,7 @@ Note: The game is now built in Rust (custom wgpu engine, see docs/archive/RUST_P
 | 2026-11-20 | Base: camp upgrades first, player-built base later in 0.2 | Owner's choice |
 | 2026-11-20 | Spare frame time (~3x over the 30 FPS minimum) goes to better-looking models | Owner's choice |
 | 2026-11-20 | Workers run `tools/gate.sh` (checks + tests + scope + number sources) and loop until PASS; max 4 workers at once | Write-only workers produced ~35 compile errors that Opus fixed (JESTER #35) |
-| 2026-11-21 | Ruined city: 1.5 km from camp, 640 m square (10x10 blocks of 64 m), 2x plains zombies, about 1 in 4 street pieces blocked for cars; all other city numbers per docs/CITY_SPEC.md | Owner's choice |
+| 2026-11-21 | Ruined city: 1.5 km from camp, 640 m square (10x10 blocks of 64 m), 2x plains zombies, about 1 in 4 street pieces blocked for cars; all other city numbers per docs/archive/CITY_SPEC.md | Owner's choice |
 | 2026-11-21 | The first city is named Ashford | Owner's choice |
 | 2026-11-21 | Arrow keys turn the camera (for playing without a mouse): about 120 degrees per second, scaled by the mouse sensitivity setting; up/down arrows tilt | Owner request |
 | 2026-11-21 | 0.2 push (11-22 to 11-27): all four camp upgrade lines (walls & gates, guards & towers, workshop, traders & services); next place lake & coast; frontend: new menus, big map, inventory/crafting, HUD polish; features: more weapons, player-built base, smarter zombies, guild. Plan: docs/PLAN_0.2_PUSH.md | Owner's choice |

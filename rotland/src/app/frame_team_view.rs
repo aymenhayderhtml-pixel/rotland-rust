@@ -2,8 +2,10 @@
 
 use engine::egui;
 use game::guild::companion::CompanionAnim;
+#[cfg(test)]
 use game::NpcAnimPlan;
 use glam::{Mat4, Vec3};
+#[cfg(test)]
 use humanoid::{HumanoidAnimator, Locomotion};
 
 use super::frame_team::TeamFigure;
@@ -17,7 +19,7 @@ const NAME_TAG_HEAD_HEIGHT: f32 = 2.0; // new: DECISIONS 2026-11-23
 const NAME_TAG_MAX_Y_FRACTION: f32 = 0.85; // new: DECISIONS 2026-11-23
 
 /// Applies a resolved [`NpcAnimPlan`] to a [`HumanoidAnimator`] using the player's API.
-#[allow(dead_code)] // Wired by companion_model.rs and camp_npcs.rs (see Worker notes in R27-03-team-anim.md)
+#[cfg(test)]
 pub fn apply_npc_anim(animator: &mut HumanoidAnimator, plan: &NpcAnimPlan<'_>, dt: f32) {
     animator.set_update_interval(plan.lod_interval);
     animator.set_weapon(plan.weapon);

@@ -214,12 +214,6 @@ impl WeaponDef {
     pub fn is_throwable(&self) -> bool {
         self.kind == WeaponKind::Throwable
     }
-
-    /// First-person hold offset. If none was specified in data, returns default zero.
-    #[allow(dead_code)]
-    fn fp_hold_or_default(&self) -> WeaponHold {
-        self.fp_hold.clone().unwrap_or_default()
-    }
 }
 
 /// Every weapon from weapons.json, keyed by id (port of scripts/Combat/WeaponRegistry.cs).

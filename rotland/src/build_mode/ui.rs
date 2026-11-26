@@ -9,7 +9,6 @@ use super::state::BuildModeState;
 use super::types::part_display_name;
 
 /// Draws the build mode egui UI: part picker, costs, status panel, and projected ghost tint overlay.
-#[allow(dead_code)]
 pub fn draw_build_mode_ui(
     ctx: &egui::Context,
     state: &BuildModeState,

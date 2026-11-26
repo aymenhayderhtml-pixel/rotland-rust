@@ -112,13 +112,6 @@ impl FarmConfigData {
     pub fn try_crop(&self, id: &str) -> Option<&CropDef> {
         self.crops.iter().find(|c| c.id == id)
     }
-
-    /// The crop that seeds of this item plant, or None.
-    // Godot: FarmConfig.cs CropForSeed
-    #[allow(dead_code)]
-    fn crop_for_seed(&self, seed_id: &str) -> Option<&CropDef> {
-        self.crops.iter().find(|c| c.seed == seed_id)
-    }
 }
 
 #[derive(Debug)]

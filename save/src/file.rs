@@ -143,8 +143,4 @@ impl SaveFile {
     pub fn to_json_pretty(&self) -> Result<String, SaveError> {
         Ok(serde_json::to_string_pretty(self)?)
     }
-
-    pub fn to_json_string(&self) -> Result<String, SaveError> {
-        Ok(serde_json::to_string(self)?)
-    }
 }

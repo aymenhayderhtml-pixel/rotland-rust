@@ -60,8 +60,6 @@ impl Cars {
     }
 
     pub fn config(&self) -> &VehicleConfigData { &self.config }
-    #[allow(dead_code)]
-    fn record_count(&self) -> usize { self.records.len() }
     pub fn has_record(&self, id: &str) -> bool { self.records.contains_key(id) || self.live.contains_key(id) }
     pub fn live_count(&self) -> usize { self.live.len() }
     pub fn live_cars(&self) -> impl Iterator<Item = &Car> { self.live.values() }
@@ -69,18 +67,6 @@ impl Cars {
     pub fn get(&self, id: &str) -> Option<&Car> { self.live.get(id) }
     pub fn get_mut(&mut self, id: &str) -> Option<&mut Car> { self.live.get_mut(id) }
     pub fn driven_car(&self) -> Option<&Car> { self.driven_car_id.as_deref().and_then(|id| self.live.get(id)) }
-    #[allow(dead_code)]
-    fn driven_car_mut(&mut self) -> Option<&mut Car> {
-        let id = self.driven_car_id.clone()?;
-        self.live.get_mut(&id)
-    }
-
-    #[allow(dead_code)]
-    fn add_record_for_test(&mut self, record: serde_json::Value) {
-        if let Some(id) = record.get("id").and_then(|v| v.as_str()) {
-            self.records.insert(id.to_string(), record);
-        }
-    }
 
     pub fn spawn_car(
         &mut self,

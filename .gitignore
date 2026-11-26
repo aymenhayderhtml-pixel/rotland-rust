@@ -8,6 +8,7 @@ shots/
 *.blend1
 *.blend2
 __pycache__/
+*.pyc
 .DS_Store
 # Gemini Neon copy-paste files (prompts out, answers in)
 neon/

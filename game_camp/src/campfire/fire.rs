@@ -88,16 +88,6 @@ impl Campfire {
         }
     }
 
-    /// Sets remaining hours directly (clamped to 0..=BURN_HOURS).
-    // Godot: Campfire.cs SetRemainingHours
-    #[allow(dead_code)]
-    fn set_remaining_hours(&mut self, hours: f32) {
-        if !self.permanent {
-            self.remaining_hours = hours.clamp(0.0, BURN_HOURS);
-            self.visuals.set_lit(self.is_lit());
-        }
-    }
-
     /// Flat horizontal distance from `pos` to this campfire.
     pub fn distance_flat(&self, pos: Vec3) -> f32 {
         Vec2::new(self.position.x - pos.x, self.position.z - pos.z).length()

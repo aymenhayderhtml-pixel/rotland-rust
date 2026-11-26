@@ -20,19 +20,6 @@ impl StoredCampfire {
     pub fn new(position: Vec3, hours: f32) -> Self {
         Self { position, hours }
     }
-
-    #[allow(dead_code, clippy::wrong_self_convention)]
-    fn to_campfire(&self) -> Campfire {
-        Campfire::restore(self.position, self.hours, false)
-    }
-
-    #[allow(dead_code)]
-    fn from_campfire(fire: &Campfire) -> Self {
-        Self {
-            position: fire.position,
-            hours: fire.remaining_hours,
-        }
-    }
 }
 
 /// Converts world position to 64m chunk coordinate.

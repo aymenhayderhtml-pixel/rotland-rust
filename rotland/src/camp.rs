@@ -372,10 +372,6 @@ impl Camp {
         self.upgrades_config.effects(&self.upgrades)
     }
 
-    pub fn camp_effects(&self) -> CampEffects {
-        self.effects()
-    }
-
     pub fn tick_upgrades(&mut self, game_hours: f32) -> Option<(UpgradeLine, u8)> {
         game::camp_upgrades::tick(&mut self.upgrades, &self.upgrades_config, game_hours)
     }

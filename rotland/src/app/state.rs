@@ -18,7 +18,6 @@ use crate::{
 };
 
 /// Visual hook for the player body (to be rendered by another worker).
-#[allow(dead_code)]
 #[derive(Clone, Copy, Debug)]
 pub struct PlayerPose {
     pub position: Vec3,
@@ -429,7 +428,6 @@ pub struct R0 {
 
 impl R0 {
     /// Visual hook exposing player state for character models and animations.
-    #[allow(dead_code)]
     pub fn player_pose(&self) -> Option<PlayerPose> {
         self.actors.player_pose()
     }

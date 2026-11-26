@@ -92,11 +92,6 @@ impl Stray {
         self.yaw
     }
 
-    #[allow(dead_code)]
-    fn is_fleeing(&self) -> bool {
-        self.fleeing
-    }
-
     pub fn flee_count(&self) -> usize {
         self.flee_count
     }

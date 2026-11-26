@@ -6,7 +6,6 @@ use super::icons::IconCache;
 use super::text::draw_outline_text;
 
 /// A single active pickup popup message.
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct PickupPopup {
     pub item_id: String,
@@ -17,7 +16,6 @@ pub struct PickupPopup {
 }
 
 impl PickupPopup {
-    #[allow(dead_code)]
     pub fn new(item_id: impl Into<String>, label: impl Into<String>, count: u32, spawn_time: f64, duration: f32) -> Self {
         Self {
             item_id: item_id.into(),
@@ -29,21 +27,18 @@ impl PickupPopup {
     }
 
     /// Returns remaining alpha fraction [0.0, 1.0].
-    #[allow(dead_code)]
     pub fn alpha(&self, now: f64) -> f32 {
         let elapsed = (now - self.spawn_time).max(0.0) as f32;
         game::hud_math::damage_alpha(elapsed, self.duration)
     }
 
     /// Whether the popup has faded out.
-    #[allow(dead_code)]
     pub fn is_expired(&self, now: f64) -> bool {
         (now - self.spawn_time) as f32 >= self.duration
     }
 }
 
 /// Helper function to convert snake_case or raw ID to Title Case words.
-#[allow(dead_code)]
 pub fn format_pickup_label(item_id: &str) -> String {
     item_id
         .split('_')
@@ -60,7 +55,6 @@ pub fn format_pickup_label(item_id: &str) -> String {
 
 /// Adds or merges an item pickup into a queue of popups.
 /// If `item_id` is already present, increments `count` and resets the timer to `now`.
-#[allow(dead_code)]
 pub fn push_or_merge_pickup(
     queue: &mut Vec<PickupPopup>,
     item_id: &str,
@@ -88,7 +82,7 @@ pub fn push_or_merge_pickup(
 }
 
 /// Draws the pickup popups stacked on the right side above the hotbar.
-#[allow(dead_code, clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 pub fn draw_pickup_popups(
     painter: &egui::Painter,
     ctx: &egui::Context,

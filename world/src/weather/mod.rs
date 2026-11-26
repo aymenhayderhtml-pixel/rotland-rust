@@ -83,10 +83,6 @@ impl WeatherKind {
         self as usize
     }
 
-    pub const fn as_u32(self) -> u32 {
-        self as u32
-    }
-
     /// Fallback `(fog_mult, visibility, noise_mask)` matching `data/weather.json`
     /// for reads before the first `update()` or immediately after deserialization.
     const fn default_metrics(self) -> (f32, f32, f32) {

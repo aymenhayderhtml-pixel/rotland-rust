@@ -67,12 +67,6 @@ impl CampGuards {
         self
     }
 
-    /// Sets the camp center point.
-    #[allow(dead_code)]
-    fn set_camp_center(&mut self, center: Vec3) {
-        self.camp_center = Some(center);
-    }
-
     /// Sets the random seed for reproducible tests.
     pub fn with_seed(mut self, seed: i32) -> Self {
         self.rng = DotnetRandom::new(seed);
@@ -83,12 +77,6 @@ impl CampGuards {
     pub fn with_miss_chance(mut self, miss_chance: f32) -> Self {
         self.config.guard_miss_chance = miss_chance;
         self
-    }
-
-    /// Sets the miss chance directly.
-    #[allow(dead_code)]
-    fn set_miss_chance(&mut self, miss_chance: f32) {
-        self.config.guard_miss_chance = miss_chance;
     }
 
     /// Returns the number of shots fired by a specific guard.

@@ -203,12 +203,6 @@ impl BountyManager {
 
     // --- Test hooks ---
 
-    // Godot: BountyManager.cs AddOfferedForTest
-    #[allow(dead_code)]
-    fn add_offered_for_test(&mut self, bounty: BountyDef) {
-        self.offered.push(bounty);
-    }
-
     // Godot: BountyManager.cs AddActiveForTest
     pub fn add_active_for_test(&mut self, bounty: BountyDef) {
         self.active.push(bounty);

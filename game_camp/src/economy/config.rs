@@ -95,15 +95,6 @@ impl EconomyConfigData {
         Ok(config)
     }
 
-    /// Loads and validates configuration against an explicit ItemRegistry.
-    #[allow(dead_code)]
-    fn load_with_registry(path: &Path, items: &ItemRegistry) -> Result<Self, EconomyLoadError> {
-        let text = std::fs::read_to_string(path).map_err(EconomyLoadError::Io)?;
-        let config: Self = serde_json::from_str(&text).map_err(EconomyLoadError::Parse)?;
-        config.validate(Some(items))?;
-        Ok(config)
-    }
-
     /// Validates fields and verifies stock items exist if an ItemRegistry is provided.
     /// // Godot: EconomyConfig.cs Validate
     pub fn validate(&self, items: Option<&ItemRegistry>) -> Result<(), EconomyLoadError> {

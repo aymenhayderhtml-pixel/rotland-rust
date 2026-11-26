@@ -93,12 +93,6 @@ impl Default for TreeFelling {
 
 impl TreeFelling {
     pub const FELL_HITS: u32 = TREE_FELL_HITS;
-    #[allow(dead_code)]
-    const WOOD_MIN: u32 = TREE_WOOD_MIN;
-    #[allow(dead_code)]
-    const WOOD_MAX: u32 = TREE_WOOD_MAX;
-    #[allow(dead_code)]
-    const DROP_OFFSET: f32 = TREE_DROP_OFFSET;
 
     /// Creates a TreeFelling manager, loading `data/weapons.json` from the repo if available.
     pub fn new() -> Self {
@@ -137,12 +131,6 @@ impl TreeFelling {
     /// Overrides random wood roll with a fixed count (useful for tests).
     pub fn set_fixed_wood(&mut self, count: Option<u32>) {
         self.fixed_wood = count;
-    }
-
-    /// Sets the weapon registry for checking weapon tags.
-    #[allow(dead_code)]
-    fn set_weapons(&mut self, weapons: Arc<WeaponRegistry>) {
-        self.weapons = Some(weapons);
     }
 
     /// True if the weapon has tag "chop" (or fallback to id "axe").

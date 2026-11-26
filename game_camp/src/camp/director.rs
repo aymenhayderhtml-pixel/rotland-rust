@@ -74,8 +74,6 @@ impl CampLifeDirector {
     }
 
     pub fn residents(&self) -> &[CampResident] { &self.residents }
-    #[allow(dead_code)]
-    fn residents_mut(&mut self) -> &mut [CampResident] { &mut self.residents }
     pub fn fixed_npcs(&self) -> &[SettlementNpc] { &self.fixed_npcs }
     pub fn guards(&self) -> &[SettlementGuard] { &self.guards }
     pub fn chats(&self) -> &[CampChat] { &self.chats }

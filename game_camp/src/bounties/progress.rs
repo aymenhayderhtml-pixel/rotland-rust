@@ -45,22 +45,6 @@ impl BountyManager {
         changed
     }
 
-    /// Sets item delivery progress based on current bag inventory count.
-    // Godot: BountyManager.cs UpdateProgress
-    #[allow(dead_code)]
-    fn set_item_count(&mut self, item_id: &str, count: i32) -> usize {
-        let mut changed = 0;
-        for bounty in &mut self.active {
-            if bounty.bounty_type == DELIVER_ITEMS
-                && bounty.item.as_deref() == Some(item_id)
-                && Self::set_bounty_progress(bounty, count)
-            {
-                changed += 1;
-            }
-        }
-        changed
-    }
-
     /// Plain call when a wild animal is killed.
     // Godot: BountyManager.cs OnAnimalKilled
     pub fn on_animal_killed(&mut self, species: &str) -> usize {
@@ -97,21 +81,6 @@ impl BountyManager {
         for bounty in &mut self.active {
             if bounty.bounty_type == CLEAR_POI
                 && bounty.poi_id.as_deref() == Some(poi_id)
-                && Self::set_bounty_progress(bounty, 1)
-            {
-                changed += 1;
-            }
-        }
-        changed
-    }
-
-    /// Plain call when a building type is cleared of zombies.
-    #[allow(dead_code)]
-    fn on_building_cleared(&mut self, building: &str) -> usize {
-        let mut changed = 0;
-        for bounty in &mut self.active {
-            if bounty.bounty_type == CLEAR_POI
-                && bounty.building.as_deref() == Some(building)
                 && Self::set_bounty_progress(bounty, 1)
             {
                 changed += 1;

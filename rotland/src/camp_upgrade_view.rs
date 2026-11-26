@@ -6,6 +6,7 @@
 
 use std::sync::RwLock;
 
+#[cfg(test)]
 use engine::EngineArgs;
 use pack::ModelPack;
 use physics::{ColliderHandle, PhysicsWorld};
@@ -39,7 +40,7 @@ pub fn parse_camp_levels(s: &str) -> Option<CampLevels> {
 }
 
 /// Sets the CLI override levels in-memory.
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn set_override_levels(levels: Option<CampLevels>) {
     if let Ok(mut lock) = CLI_OVERRIDE.write() {
         *lock = levels;
@@ -64,7 +65,7 @@ pub fn override_levels() -> Option<CampLevels> {
 }
 
 /// Initializes CLI override from engine args if provided.
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn init(args: &EngineArgs) {
     if let Some(val) = args.value("--camp-levels") {
         set_override_levels(parse_camp_levels(val));
@@ -81,17 +82,14 @@ pub struct CampUpgradeView {
 }
 
 impl CampUpgradeView {
-    #[allow(dead_code)]
     pub fn new() -> Self {
         Self::default()
     }
 
-    #[allow(dead_code)]
     pub fn props(&self) -> &[PropInstance] {
         &self.props
     }
 
-    #[allow(dead_code)]
     pub fn current_levels(&self) -> Option<CampLevels> {
         self.current_levels
     }
@@ -100,7 +98,6 @@ impl CampUpgradeView {
         &self.placed
     }
 
-    #[allow(dead_code)]
     pub fn colliders(&self) -> &[ColliderHandle] {
         &self.colliders
     }
@@ -136,7 +133,6 @@ impl CampUpgradeView {
     }
 
     /// Clears any physics colliders currently registered.
-    #[allow(dead_code)]
     pub fn clear_colliders(&mut self, physics: &mut PhysicsWorld) {
         for handle in self.colliders.drain(..) {
             physics.remove(handle);

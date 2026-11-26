@@ -5,7 +5,6 @@ use glam::Vec3;
 use super::config::HudConfig;
 
 /// A single active damage direction indicator.
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct DamageIndicator {
     pub attacker_pos: Vec3,
@@ -14,7 +13,6 @@ pub struct DamageIndicator {
 }
 
 impl DamageIndicator {
-    #[allow(dead_code)]
     pub fn new(attacker_pos: Vec3, spawn_time: f64, duration: f32) -> Self {
         Self {
             attacker_pos,
@@ -24,13 +22,11 @@ impl DamageIndicator {
     }
 
     /// Whether this indicator has finished its fade duration.
-    #[allow(dead_code)]
     pub fn is_expired(&self, now: f64) -> bool {
         (now - self.spawn_time) as f32 >= self.duration
     }
 
     /// Remaining alpha fraction [0.0, 1.0].
-    #[allow(dead_code)]
     pub fn alpha(&self, now: f64) -> f32 {
         let elapsed = (now - self.spawn_time).max(0.0) as f32;
         game::hud_math::damage_alpha(elapsed, self.duration)
@@ -38,7 +34,7 @@ impl DamageIndicator {
 }
 
 /// Draws all active damage direction indicators around the screen edges.
-#[allow(dead_code, clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 pub fn draw_damage_indicators(
     painter: &egui::Painter,
     screen: &Rect,

@@ -53,11 +53,6 @@ impl Bank {
         self.dollars
     }
 
-    #[allow(dead_code)]
-    fn set_dollars(&mut self, dollars: i32) {
-        self.dollars = dollars.max(0);
-    }
-
     /// Moves items from a bag slot into the bank. Count 0 moves the whole stack. Returns how many moved.
     /// // Godot: Bank.cs MoveToBank
     pub fn move_to_bank(&mut self, bag: &mut Inventory, bag_slot: usize, count: u32) -> u32 {

@@ -59,12 +59,6 @@ impl SettlementGuard {
         }
     }
 
-    #[allow(dead_code)]
-    fn with_patrol(mut self, points: Vec<Vec3>) -> Self {
-        self.patrol_points = points;
-        self
-    }
-
     /// Eye point, measured from feet plus eye height.
     // Godot: SettlementGuard.cs Head
     pub fn eye_position(&self) -> Vec3 {

@@ -54,18 +54,6 @@ impl Default for CampGuardConfig {
 }
 
 impl CampGuardConfig {
-    /// Constructs guard configuration from world's SettlementConfigData.
-    #[allow(dead_code)]
-    fn from_settlement_data(cfg: &world::SettlementConfigData) -> Self {
-        Self {
-            guard_range: if cfg.guard_range > 0.0 { cfg.guard_range } else { 40.0 },
-            guard_sight_interval: if cfg.guard_sight_interval > 0.0 { cfg.guard_sight_interval } else { 0.5 },
-            guard_fire_interval: if cfg.guard_fire_interval > 0.0 { cfg.guard_fire_interval } else { 1.2 },
-            guard_damage: if cfg.guard_damage > 0.0 { cfg.guard_damage } else { 60.0 },
-            guard_miss_chance: cfg.guard_miss_chance,
-            guard_eye_height: if cfg.guard_eye_height > 0.0 { cfg.guard_eye_height } else { 1.6 },
-        }
-    }
 
     /// Loads configuration from a settlements.json file.
     pub fn from_file(path: impl AsRef<Path>) -> Result<Self, String> {

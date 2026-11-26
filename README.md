@@ -1,177 +1,209 @@
 # Rotland
 
-A solo, offline, 3D open-world zombie survival game built in Rust with its own engine (`wgpu`, `winit`, `egui`, `rapier3d` physics, and `kira` audio). You start in a walled camp, venture out into the world to loot houses and crates, sell what you find to the trader, and fight to get back before nightfall. Survive as long as you can: battle zombies with guns and melee weapons, hunt wildlife, farm crops, cook, drive a car, keep a companion dog, and level up your skills.
+**Version 1.0**
+
+Rotland is a solo, offline, 3D open-world zombie survival game. You start in a walled camp. From there you go out to loot houses and crates, trade with the camp trader, and fight your way back before night falls. Battle zombies with guns, a crossbow and melee weapons. Hunt, fish, farm and cook to stay fed. Keep warm in the cold, drive a car, and bring along a companion dog. The game has its own 3D engine, written in Rust. It is built to run well on laptops with integrated graphics.
+
+![Rotland forest](docs/screenshots/forest.jpg)
+
+## Features
+
+**World**
+- A green home land around the camp, with four other regions beyond it: desert, snow forest, swamp and mountains.
+- Four towns to visit: Dusthollow, Frostmere, Blackwater and Ridgeback Station. Each town has its own loot, zombies and gun shop.
+- Roads, long rivers with bridges, and trailheads that lead into the wild.
+- Weather that changes by region: rain, snow and sandstorms.
+- A warmth meter. Cold slows you down and wears you out. Warm clothes, scarves and hand warmers help.
+
+**Survival**
+- Food, water and warmth. Keep all three up or your health drops.
+- Hunting: track wild animals and butcher them for meat and hide.
+- Fishing at lakes and rivers.
+- Farming: plant seeds in farm beds, water them, and harvest the crops.
+- Cooking on a campfire or stove.
+
+**Combat**
+- Guns: pistol, revolver, shotgun, rifle, hunting rifle, AK-47 and more.
+- Melee weapons such as the bat, with combos, shoves and blocks.
+- A crossbow with bolts you can pick up again.
+- Grenades with a visible throw arc. Walls block the blast.
+- Gun feel: kick, recoil, muzzle flash, and a scope in first person.
+- Eight kinds of zombies, from fast runners and tough brutes to swamp bloaters that release toxic clouds, and frozen zombies in the snow.
+
+**Weapon shop**
+- A gunsmith in the camp, and a gun shop in each town with its own stock.
+- You pay with scrap metal.
+- Buy, sell, repair and upgrade guns.
+- Guns wear down over time and can jam. Repair them to keep them working.
+- Attachments for guns, such as scopes and suppressors.
+
+**Camp**
+- Upgrade the camp in tiers. Upgrades unlock the gunsmith tiers and more.
+- A trader who buys and sells goods.
+- Guards in watchtowers, and survivors you can rescue from houses and bring back to camp.
+
+**Car and dog**
+- Drive a car with throttle, steering, handbrake, horn and headlights. It needs fuel.
+- A companion dog follows you, attacks zombies and helps you hunt. You can tell it to stay or follow, and feed it.
+
+**Skills**
+- Combat, hunting, cooking, agility and farming all grow the more you use them.
 
 ## Screenshots
 
-The world: a green home land around the camp, with desert, snow, swamp and mountains beyond it (R31).
+### The world
 
-![World map](docs/screenshots/world-map.jpg)
-
-| Desert | Snow forest |
+| World map | Desert |
 |---|---|
-| ![Desert](docs/screenshots/desert.jpg) | ![Snow forest](docs/screenshots/snow-forest.jpg) |
-| **Swamp** | **Mountains** |
-| ![Swamp](docs/screenshots/swamp.jpg) | ![Mountains](docs/screenshots/mountains.jpg) |
+| ![World map](docs/screenshots/world-map.jpg) | ![Desert](docs/screenshots/desert.jpg) |
+| The home land in the middle, with the other regions around it. | Desert, with cacti and red rock. |
+| **Snow forest** | **Swamp** |
+| ![Snow forest](docs/screenshots/snow-forest.jpg) | ![Swamp](docs/screenshots/swamp.jpg) |
+| Snowy pines in the cold north. | Wet ground and tall trees in the swamp. |
+| **Mountains** | **River and bridge** |
+| ![Mountains](docs/screenshots/mountains.jpg) | ![River and bridge](docs/screenshots/river-bridge.jpg) |
+| Rocky slopes with snow on top. | A frozen river with a bridge to cross. |
 
-Weather, warmth and the new zombies (R32):
+### The four towns
+
+| Dusthollow (desert) | Frostmere (snow) |
+|---|---|
+| ![Dusthollow](docs/screenshots/town-dusthollow.jpg) | ![Frostmere](docs/screenshots/town-frostmere.jpg) |
+| Sandy streets and small buildings. | Snow-covered houses and a snowy road. |
+| **Blackwater (swamp)** | **Ridgeback Station (mountains)** |
+| ![Blackwater](docs/screenshots/town-blackwater.jpg) | ![Ridgeback Station](docs/screenshots/town-ridgeback.jpg) |
+| A town with boardwalks in the swamp. | Rock and ruins at the foot of the mountains. |
+
+### Camp
+
+| Camp in daylight | Camp at dusk |
+|---|---|
+| ![Camp in daylight](docs/screenshots/camp-day.jpg) | ![Camp at dusk](docs/screenshots/camp-dusk.jpg) |
+| The safe camp behind its fence. | The camp as night comes in. |
+| **Camp gunsmith** | |
+| ![Camp gunsmith](docs/screenshots/gunsmith.jpg) | |
+| The gunsmith shop: buy guns and parts with scrap metal. | |
+
+### Weather
 
 | Snowfall | Sandstorm |
 |---|---|
 | ![Snowfall](docs/screenshots/snowfall.jpg) | ![Sandstorm](docs/screenshots/sandstorm.jpg) |
-| **Bloater (swamp)** | **Husk (desert)** |
-| ![Bloater](docs/screenshots/bloater.jpg) | ![Husk](docs/screenshots/husk.jpg) |
-| **Snow at night** | **Rain at camp** |
-| ![Snow at night](docs/screenshots/snow-night.jpg) | ![Rain](docs/screenshots/rain.jpg) |
+| Snow falls over the snow forest. | Sand blows across the desert. |
+| **Rain at camp** | **Snow at night** |
+| ![Rain at camp](docs/screenshots/rain.jpg) | ![Snow at night](docs/screenshots/snow-night.jpg) |
+| Rain over the camp. | A snowy forest at night. |
+
+### Combat
+
+| First person with a scope | Explosion |
+|---|---|
+| ![First person rifle](docs/screenshots/fp-rifle-scope.jpg) | ![Explosion](docs/screenshots/explosion.jpg) |
+| Aiming a rifle with a scope. | A grenade blast leaves a scorched crater. |
+| **Husk zombie (desert)** | **Bloater zombie (swamp)** |
+| ![Husk zombie](docs/screenshots/zombie-husk.jpg) | ![Bloater zombie](docs/screenshots/zombie-bloater.jpg) |
+| A husk stands in front of you on the sand. | A bloater, a slow swamp zombie, close by. |
 
 ## Play it
 
-To build and run the game from this folder:
+### Build and run
+
+You need Rust (edition 2024) and the `mold` linker. On Ubuntu or Debian, install mold with:
 
 ```bash
-cargo build --release
-target/release/rotland
+sudo apt install mold
 ```
 
-- The `mold` linker is required to build (BUILD-001); install it via `sudo apt install mold`.
-- Add `--menu` to start directly on the main menu: `target/release/rotland --menu`.
-- Rebuild model assets: `cargo run --release -p baker` compiles all `.glb` models from `assets/models/` into `assets/models.pack`. This is required on a fresh clone because `assets/models.pack` is not tracked in git.
-- Saves are stored in `~/.local/share/rotland-rust/`.
-- Import Godot saves: add `--import-godot=N` (where `N` is slot 1–3) to copy Godot slot `N` (read-only) into Rust slot `N` and play it.
+Then, in the folder you cloned the game into:
+
+```bash
+# Only once on a fresh copy: bake the 3D models into assets/models.pack
+cargo run --release -p baker
+
+# Build the game the way the owner plays it
+cargo build --profile play
+
+# Start the game
+target/play/rotland
+```
+
+The file `assets/models.pack` is not stored in git. That is why the first step (`baker`) is needed on a fresh clone.
+
+Start straight on the main menu with `target/play/rotland --menu`.
+
+### Saves
+
+Your saves are kept in `~/.local/share/rotland-rust/saves`. To copy a save from the older Godot version of the game into this one, start with `--import-godot=N`, where `N` is the slot number from 1 to 3. The Godot save is only read, never changed.
+
+### No sound yet
+
+Rotland has no sound in this version. This is on purpose. Sound will be added later.
 
 ## Controls
 
-These are the default controls confirmed from code. Most keys can be changed in Settings > Controls. (Settings also lists save/load, arrow-key look, tab switching and "dog go home" keys; those are not wired into the game yet.)
+These are the default keys. Most of them can be changed in Settings > Controls.
 
 ### On foot
+
 | Key / Mouse | Action |
 |---|---|
 | W, A, S, D | Move (camera-relative) |
-| Mouse | Look around (yaw / pitch) |
-| Shift | Sprint (forward only, drains stamina) |
-| Space | Jump (drains stamina) |
+| Mouse | Look around |
+| Shift | Sprint (forward only, uses stamina) |
+| Space | Jump (uses stamina) |
 | C | Crouch |
-| Left Click | Attack: swing melee weapon, or shoot (hold for automatic weapons) |
-| Right Click (hold) | Aim (zooms in, narrower FOV; uses scope on rifle) |
-| E | Interact / use (loot crates, talk to NPCs, butcher animals, tend farm beds, climb ladders, enter cars) |
-| R | Reload weapon |
-| 1 to 6 | Hotbar slots (select weapon or use consumable) |
-| V | Toggle 1st / 3rd person camera |
-| Mouse wheel | Zoom camera in/out (3rd person) |
-| Flashlight | Use the flashlight item from hotbar (1–6) or bag to toggle beam |
-| Esc | Pause menu / release mouse cursor (click window to capture again) |
+| Left click | Attack: swing a melee weapon, or shoot (hold for automatic guns) |
+| Right click (hold) | Aim (zoom in; uses the scope on a rifle) |
+| E | Use or interact: loot crates, talk to people, butcher animals, tend farm beds, climb ladders, get in a car |
+| R | Reload |
+| 1 to 6 | Hotbar slots (equip a weapon or use an item) |
+| V | Switch between first and third person camera |
+| Mouse wheel | Zoom the camera (third person) |
+| Esc | Pause menu, or release the mouse cursor (click the window to capture it again) |
 
-### Player Hub & Screens
-| Key | Screen / Action |
+### Screens
+
+| Key | Screen |
 |---|---|
-| Tab | Bag / Inventory (crafting recipes below item slots) |
+| Tab | Bag and crafting |
 | L | Skills |
 | J | Bounties |
 | P | Profile |
-| M | World Map (drag to pan, wheel to zoom, right-click to place waypoint) |
+| M | World map (drag to pan, wheel to zoom, right click to place a waypoint) |
 
 ### Driving
+
 | Key | Action |
 |---|---|
-| W / S | Throttle / brake and reverse |
+| W / S | Throttle; brake and reverse |
 | A / D | Steer |
 | Space | Handbrake |
 | H | Horn |
-| L | Toggle headlights on/off |
-| E | Exit vehicle |
+| L | Headlights on or off |
+| E | Get out |
 
-### Companion Dog
+### Companion dog
+
 | Key | Action |
 |---|---|
-| G | Stay / follow toggle |
-| E (on dog) | Open dog menu (inventory pack, feed, stay/follow) |
+| G | Stay or follow |
+| E (on the dog) | Open the dog menu: pack, feed, stay or follow |
 
----
+## Tech
 
-## Commands (always through the shared lock: `flock /tmp/rotland-heavy.lock <command>`)
+Rotland is built as a Rust workspace of small crates:
 
-```bash
-cargo build                         # fast dev build (target/debug/rotland)
-cargo build --release               # the build the owner plays and benchmarks use
-cargo run --release -p baker        # bake all models into assets/models.pack
-cargo test                          # all unit and golden tests (no window)
-cargo clippy --all-targets          # must have no warnings in new code
-```
+- `engine`: the 3D renderer, window and menus, built on wgpu, winit and egui.
+- `physics`: collisions and movement, built on rapier3d.
+- `audio`: sound playback, built on kira (not used yet, see above).
+- `game`: the game rules (zombies, camp, player, world logic), kept free of graphics so it can be tested.
+- `world`: terrain, biomes, roads, rivers, towns and weather.
+- `humanoid`: the character rig and its animation states.
+- `rotland_ui`: the heads-up display, menus, camp and shop screens.
+- `save`: save files and the import of Godot saves.
+- `pack`: the binary format for models and other assets.
+- `baker`: turns the `.glb` models into `assets/models.pack`.
+- `paths`: finds the game's data and asset folders.
+- `rotland`: the main program that wires everything together.
 
-## Seeing and measuring the game (made for AI workers)
-
-Every run can be scripted, photographed, and measured. Output lines start with `ROTLAND` so they are easy to grep.
-
-| Option | What it does |
-|---|---|
-| `--shot=PATH.png` | saves frame `--shot-frame` (default 120) as a PNG plus `PATH.json` (frame times, GPU, sizes, the game's own numbers), then quits. Prints `ROTLAND SHOT PATH` |
-| `--seconds=S` / `--frames=N` | ends the run after S seconds / N frames |
-| `--stats=PATH.json` | writes frame-time stats (avgFps, p50/p95/p99 frame ms, worst 1 % FPS) at the end. Prints `ROTLAND STATS PATH` |
-| `--warmup=S` | frames in the first S seconds are not counted (default 2) |
-| `--size=WxH` | window size (default 1920x1080) |
-| `--scale=F` | render scale 0.5 to 1.0 |
-| `--vsync` | cap to the screen rate (default: uncapped) |
-| F12 (while playing) | saves `shots/shot_<time>.png` + `.json` |
-
-Every run ends with `ROTLAND DONE frames=… avgFps=… p95FrameMs=… worst1PercentFps=…`.  
-Game options (scenes, camera spots) are read by the game from the same command line (`EngineArgs::value("--scene")`).
-
-### Save and menu options (play scene)
-
-| Option | What it does |
-|---|---|
-| `--save-dir=PATH` | use this folder for save slots and settings. **Tests and screenshots must always pass it**; without it the game uses the real folder `~/.local/share/rotland-rust/` |
-| `--menu` | start on the main menu |
-| `--load=N` | continue Rust slot N (1-3) |
-| `--import-godot=N` | copy Godot slot N (read only, never changed) into Rust slot N and play it |
-| `--save-at=S` | save into the active slot after S seconds (tests) |
-| `--yaw=DEG` | start the player and camera facing this way (screenshots) |
-| `--give=hoe,seeds_wheat:5` | put these items in the backpack at the start (tests) |
-| `--animals=deer,boar,rabbit` | put these animals 9 m in front of the player at the start (screenshots); `campfire` in the list lays a burning campfire 4 m ahead, `dog` gives the player a grown dog, `drive` seats the player in the camp's car (with `--autowalk` it drives off). Stats: `dogPosition`, `dogClip`, `campCar`, `mapChunks`, `hint`. The stats JSON has `animals` and `animalSpecies` |
-| `--hub=bag\|skills\|bounties\|profile\|map` | start with the player hub open on that tab (screenshots) |
-| `--chop` | after a second, stand at the nearest tree with the axe in hand (with `--autoattack` it is felled after 4 swings). Stats: `felledTrees`, `guardShots`, `parkedSolids`, `mapBuildings`, `strayDogs`, `profile`, `bubbles`, `campChats` |
-| `--first-person` | start in the first-person camera (screenshots of the weapon in view). Stats: `zombieVoices`, `nearestZombie` |
-| `--poi` | after a second, stand 20 m from the nearest building (wakes its zombies). Stats: `poisVisited`, `poiZombiesAwake`, `poisCleared` |
-| `--climb` | after a second, stand at the nearest ladder and grab it (with `--autowalk` the player climbs up). Stats: `ladders`, `climbing`, `campfires`, `campfiresLit` |
-| `--mute` | no sound. Runs with `--shot`, `--seconds`, `--frames` or `--stats` are always muted; the JSON stats still count `soundsPlayed` / `lastSound` |
-| `cargo run -p save --example check_godot` | reads the owner's Godot slots (read only) and prints what was understood |
-
-Example: `flock /tmp/rotland-heavy.lock target/debug/rotland --shot=/tmp/x/forest.png` then open the PNG.
-
-## Repo layout
-
-| Folder / Path | Description |
-|---|---|
-| `engine` | Rotland's custom engine: window (`winit`), input, GPU (`wgpu` on Vulkan), UI (`egui`), frame image, screenshots, and runtime stats |
-| `rotland` | The main game program wiring engine, physics, world, audio, and gameplay logic together |
-| `pack` | Model pack binary format, data types, and serialization (`postcard`) for GPU-ready models |
-| `baker` | Asset baker tool converting Blender `.glb` models into compact binary packs (`assets/models.pack`) |
-| `world` | Procedural world generator, ground paint, terrain chunks, biomes, day/night cycle, scatter, POIs, and settlements (pure, testable) |
-| `physics` | Rapier3D collision (terrain, static props, buildings) and kinematic character mover |
-| `game` | Core gameplay logic: player controller, camera rig, input actions, stamina, health, weapons, economy, crafting, and vehicles (pure, testable) |
-| `humanoid` | Humanoid animation state machine, locomotion blend, one-shot action layering, and right-hand weapon attachment |
-| `save` | Save file format, slots management, player/world state serialization, and read-only Godot save importer |
-| `audio` | Positional 3D and stereo sound effects, day/night ambient loops, and volume management powered by `kira` |
-| `paths` | Runtime project root discovery (`Cargo.lock` + `data/`), avoiding build-time hardcoded paths |
-| `data/` | Game data definitions in JSON format (`data/*.json`: items, recipes, weapons, vehicles, zombies, loot tables, hints, etc.) |
-| `assets/` | Raw assets: `models/` (.glb files), `audio/` (sound effects, music), `icons/`, `fonts/`, `textures/`, and the baked `models.pack` |
-| `golden/` | Deterministic golden reference files (`golden/world.json`) for parity verification against Godot |
-| `tools/blender/` | Blender 5.3 model generation scripts; run via `blender -b --python tools/blender/<script>.py` |
-| `tools/audio/synth.py` | Procedural sound synthesizer generating retro game sound effects |
-| `docs/` | Project documentation and architecture specs (`STATUS.md`, `PLAN_0.2.md`, `PARITY_OPEN.md`, `JESTER.md`, `GAME_DESIGN.md`, `DECISIONS.md`, `ART_PIPELINE.md`, `*_CONTRACT.md`, `CODEMAP.md`) |
-| `tasks/` | Development task specifications and notes from previous implementation slices |
-
-## Reference
-
-The original Godot C# version is frozen at [https://github.com/aymenhayderhtml-pixel/rotland](https://github.com/aymenhayderhtml-pixel/rotland). It serves solely as the behavioral reference for porting. See `docs/RUST_PARITY.md` for current parity status and what features remain to be implemented.
-
-## Rules for workers
-
-- **Read `AGENTS.md` first**, then this file, then only the files your task specifically names.
-- **Workers do not build or run tests.** Do not run `cargo build`, `cargo test`, `cargo clippy`, or the game. Write clean code and unit tests, report, and let the orchestrator merge and execute unified builds and tests.
-- **Port behaviour from the Godot C# file named in the task.** Keep the same numbers, algorithms, and data files (`data/*.json`). The frozen Godot repository is located at `../zombi servival` on the owner's machine (read-only).
-- **Find project files at run time with `paths::repo_path("data/...")`**, never with `env!("CARGO_MANIFEST_DIR")` (which bakes the build directory into the binary). The repo root is located dynamically by the presence of `Cargo.lock` and `data/`.
-- **Pure logic goes in a crate with unit tests.** Compare with golden files from the Godot version where provided.
-- **Always pass `--save-dir` for test and screenshot runs.** Never write to the real save folder (`~/.local/share/rotland-rust/`) or Godot saves.
-- **Run heavy commands through the shared lock:** `flock /tmp/rotland-heavy.lock <command>`.
-- **Keep files small (aim under 300 lines)**, with comments explaining *why*. All code must pass `cargo build`, `cargo test`, and `cargo clippy --all-targets` cleanly.
+The 3D models are made with Blender Python scripts in `tools/blender/`. The game's numbers and lists (items, recipes, zombies, loot, towns and more) live in `data/*.json`, so they can be changed without touching the Rust code.

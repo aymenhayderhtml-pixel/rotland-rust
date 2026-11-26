@@ -181,32 +181,6 @@ impl Zombies {
         )
     }
 
-    /// Spawns a horde of zombies that share one ZombieHorde wander target (Godot ZombieSpawner:186).
-    pub fn spawn_horde(&mut self, kind: &str, positions: &[Vec3]) -> Vec<u64> {
-        let horde = Arc::new(Mutex::new(ZombieHorde::new()));
-        let mut ids = Vec::with_capacity(positions.len());
-        let Some(def) = self.defs.get(kind).cloned() else {
-            return ids;
-        };
-        for &at in positions {
-            let id = self.next_id;
-            self.spawn(kind, &def, at, Some(Arc::clone(&horde)));
-            ids.push(id);
-        }
-        ids
-    }
-
-    /// Assigns a shared ZombieHorde to existing zombies by id so they wander together.
-    pub fn assign_horde(&mut self, ids: &[u64]) -> Arc<Mutex<ZombieHorde>> {
-        let horde = Arc::new(Mutex::new(ZombieHorde::new()));
-        for id in ids {
-            if let Some(z) = self.list.iter_mut().find(|z| z.id == *id) {
-                z.brain.set_horde(Some(Arc::clone(&horde)));
-            }
-        }
-        horde
-    }
-
     /// Removes zombies the spawner says are too far away.
     pub fn despawn(&mut self, ids: &[u64]) {
         self.list.retain(|z| !ids.contains(&z.id));
