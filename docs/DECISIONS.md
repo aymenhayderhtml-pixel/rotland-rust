@@ -68,3 +68,4 @@ Note: The game is now built in Rust (custom wgpu engine, see docs/archive/RUST_P
 - **No music; minimal sound.**
 - **Action over horror.**
 - **Difficulty curve: hard from the start, easier as the player grows.** (Danger rings outside the home core were added 2026-11-25, see the "0.3 World" row.) The player's power grows through skills, gear, camp upgrades, the dog and the car.
+| 2026-11-26 | Weapon shop (R37): camp gunsmith (grows with camp upgrades) + a gun shop in each far town; paid in scrap metal (the camp trader keeps dollars); buy guns/ammo, repair (weapons now wear), attachments, sell loot for scrap | owner |
