@@ -21,7 +21,9 @@ const ROOF_STAND_CLEAR_M: f32 = 0.1; // new: DECISIONS 2026-11-27 (clearance abo
 const ROOF_EDGE_INSET_M: f32 = 1.8; // new: DECISIONS 2026-11-27 (inside parapet on roof edge)
 const FLOOR_IN_DIST_M: f32 = 3.0; // new: DECISIONS 2026-11-27 (3 m in from shaft door)
 const PLANK_BACK_DIST_M: f32 = 4.0; // new: DECISIONS 2026-11-27 (4 m back from plank end)
-const FIRE_ESCAPE_DIST_M: f32 = 14.0; // new: DECISIONS 2026-11-27 (14 m in front of fire escape)
+const FIRE_ESCAPE_DIST_M: f32 = 14.0; // new: DECISIONS 2026-11-27 (14 m out from the front face, zig-zag clear of the trees)
+const FIRE_ESCAPE_U_SIZE16_M: f32 = -2.0; // new: DECISIONS 2026-11-27 (brick.py fe_u, size 16)
+const FIRE_ESCAPE_U_OTHER_M: f32 = -4.0; // new: DECISIONS 2026-11-27 (brick.py fe_u, other sizes)
 const MAST_PLATFORM_SLAB_T_M: f32 = 0.22; // new: DECISIONS 2026-11-27 (landmarks.py pz..pz+0.22)
 const RADIO_STAND_LOCAL: (f32, f32) = (1.3, -2.1); // new: DECISIONS 2026-11-27 (1.5 m from console at (-0.2, -2.1), inside useRadiusM 2.0)
 const RADIO_HUT_LOCAL: (f32, f32) = (-1.1, -0.6); // new: DECISIONS 2026-11-27 (landmarks.py radio_hut centre)
@@ -39,6 +41,11 @@ fn tower_local_xz(t: &TowerSpot, lx: f32, lz: f32) -> Vec2 {
 fn tower_local_dir(t: &TowerSpot, dx: f32, dz: f32) -> Vec2 {
     let (sin_y, cos_y) = t.yaw.sin_cos();
     Vec2::new(dx * cos_y + dz * sin_y, -dx * sin_y + dz * cos_y)
+}
+
+/// Sideways offset of a brick tower's fire escape along its front face (brick.py `fe_u`).
+fn fire_escape_u(size: u32) -> f32 {
+    if size == 16 { FIRE_ESCAPE_U_SIZE16_M } else { FIRE_ESCAPE_U_OTHER_M }
 }
 
 fn floor_height(style: &StyleDef) -> f32 {
@@ -150,11 +157,13 @@ pub(super) fn r43_pose(spot: MetroSpot, metro: &MetroWorld) -> Option<MetroPose>
         MetroSpot::FireEscape => {
             let idx = fire_escape_towers(metro).into_iter().next()?;
             let t = &metro.towers[idx];
-            let front = tower_front_dir(t.yaw);
-            let pos = t.pos + front * (t.half.y + FIRE_ESCAPE_DIST_M);
+            // The escape hangs on the front (street) face, offset sideways by fe_u.
+            let u = fire_escape_u(t.size);
+            let landing = tower_local_xz(t, u, -t.half.y);
+            let pos = tower_local_xz(t, u, -(t.half.y + FIRE_ESCAPE_DIST_M));
             Some(MetroPose {
                 pos,
-                yaw: yaw_facing(-front),
+                yaw: yaw_facing(landing - pos),
                 top: None,
                 y: None,
             })

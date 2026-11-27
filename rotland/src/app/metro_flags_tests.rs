@@ -286,8 +286,14 @@ fn r43_poses_stand_at_right_height_and_face_targets() {
     let fe = metro_pose(MetroSpot::FireEscape, &metro, None, 25.0, EYE).expect("fire_escape");
     assert!(fe.y.is_none());
     let fe_t = &metro.towers[fire_escape_towers(&metro)[0]];
-    assert!(close(fe.pos.distance(fe_t.pos), fe_t.half.y + 14.0));
-    assert!(forward_of(fe.yaw).dot((fe_t.pos - fe.pos).normalize()) > 0.999);
+    // 14 m out from the front face, looking straight at the escape's landing
+    let front = tower_front_dir(fe_t.yaw);
+    assert!(close((fe.pos - fe_t.pos).dot(front), fe_t.half.y + 14.0));
+    let lateral = (fe.pos - fe_t.pos).dot(Vec2::new(front.y, -front.x));
+    assert!(close(lateral.abs(), 2.0) || close(lateral.abs(), 4.0), "lateral {lateral}");
+    let side = Vec2::new(front.y, -front.x);
+    let landing = fe_t.pos + front * fe_t.half.y + side * lateral;
+    assert!(forward_of(fe.yaw).dot((landing - fe.pos).normalize()) > 0.9999);
 
     // 7. radio: on mast platform (+18.22 m above crown), 2 m from console, facing hut
     let radio = metro_pose(MetroSpot::Radio, &metro, None, 25.0, EYE).expect("radio");
