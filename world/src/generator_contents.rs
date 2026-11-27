@@ -143,7 +143,9 @@ impl WorldGenerator {
             // New Halden: no scatter on its streets, in its tower footprints, or on the highway.
             // Lots and parks inside the square keep their scatter.
             if metro.layout.site.contains_square(p)
-                && (metro.layout.street_at(p).is_some() || metro.in_tower_footprint(p))
+                && (metro.layout.street_at(p).is_some()
+                    || metro.in_tower_footprint(p)
+                    || crate::metro::places_floor::in_place_building(&metro.layout, p))
             {
                 return false;
             }

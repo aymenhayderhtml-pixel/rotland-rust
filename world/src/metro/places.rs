@@ -154,7 +154,7 @@ pub fn lot_role(layout: &MetroLayout, block: &MetroBlock) -> Option<LotRole> {
 }
 
 /// The layout's place sites, computed once per thread and layout (see [`lot_role`]).
-fn place_sites_cached(layout: &MetroLayout) -> Rc<Vec<PlaceSite>> {
+pub(crate) fn place_sites_cached(layout: &MetroLayout) -> Rc<Vec<PlaceSite>> {
     struct Memo {
         center: Vec2,
         yaw: f32,

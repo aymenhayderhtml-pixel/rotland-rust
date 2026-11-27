@@ -26,6 +26,7 @@ mod loot_tests;
 pub mod overgrowth;
 pub mod place;
 pub mod places;
+pub mod places_floor;
 mod places_data;
 #[cfg(test)]
 mod places_tests;

@@ -190,9 +190,10 @@ fn is_blocked(world_gen: &WorldGenerator, p: Vec2) -> bool {
     {
         return true;
     }
-    // ...and none on tower floors (the walk-in lobbies)
+    // ...and none on tower floors (the walk-in lobbies) or the R42 place floors
     if let Some(metro) = world_gen.metro_world()
-        && metro.in_tower_footprint(p)
+        && (metro.in_tower_footprint(p)
+            || world::metro::places_floor::in_place_building(&metro.layout, p))
     {
         return true;
     }
