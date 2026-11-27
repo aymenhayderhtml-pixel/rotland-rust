@@ -9,6 +9,7 @@ use world::metro::{
 };
 
 use super::metro_flags_r41::{army_pose, crows_pose, herd_pose};
+use super::metro_flags_r42::r42_pose;
 
 /// Edge spot: metres inside the first avenue entrance. // new: DECISIONS 2026-11-26
 const EDGE_INSET_M: f32 = 10.0;
@@ -76,6 +77,22 @@ pub enum MetroSpot {
     Army,
     /// Core centre at hour 23 (night runners).
     Night,
+    /// 35 m in front of the hospital ER canopy.
+    Hospital,
+    /// Inside the hospital reception hall looking toward the ward.
+    HospitalIn,
+    /// Front steps of the police station.
+    Police,
+    /// Inside the police station open office toward the cells.
+    PoliceIn,
+    /// Forecourt facing the fire station bays.
+    Fire,
+    /// Inside the fire station bay hall beside the fire truck.
+    FireIn,
+    /// 30 m outside the army line barrier looking at the breach and tank.
+    Armyline,
+    /// 60 m up pitched down over the whole army line.
+    ArmylineTop,
 }
 
 impl MetroSpot {
@@ -99,6 +116,14 @@ impl MetroSpot {
             "crows_up" => Some(Self::CrowsUp),
             "army" => Some(Self::Army),
             "night" => Some(Self::Night),
+            "hospital" => Some(Self::Hospital),
+            "hospital_in" => Some(Self::HospitalIn),
+            "police" => Some(Self::Police),
+            "police_in" => Some(Self::PoliceIn),
+            "fire" => Some(Self::Fire),
+            "fire_in" => Some(Self::FireIn),
+            "armyline" => Some(Self::Armyline),
+            "armyline_top" => Some(Self::ArmylineTop),
             _ => None,
         }
     }
@@ -409,6 +434,14 @@ pub fn metro_pose(
         MetroSpot::Herd => herd_pose(metro),
         MetroSpot::Crows | MetroSpot::CrowsUp => crows_pose(metro, spot),
         MetroSpot::Army => army_pose(metro),
+        MetroSpot::Hospital
+        | MetroSpot::HospitalIn
+        | MetroSpot::Police
+        | MetroSpot::PoliceIn
+        | MetroSpot::Fire
+        | MetroSpot::FireIn
+        | MetroSpot::Armyline
+        | MetroSpot::ArmylineTop => r42_pose(spot, metro, eye_height),
     }
 }
 

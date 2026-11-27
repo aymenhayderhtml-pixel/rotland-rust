@@ -190,12 +190,20 @@ impl PoiZombies {
             *self.pending_spawns.entry(site.poi_id.clone()).or_default() += count;
             current_active += count;
 
+            // A building may name the looks its zombies draw (R42 places do: police station, hospital...).
+            let models = self
+                .config
+                .get(&site.building_id)
+                .map(|def| def.zombie_models.clone())
+                .unwrap_or_default();
+
             let rot = glam::Quat::from_rotation_y(site.yaw);
             for i in 0..count {
                 let marker = site.spawn_points[i % site.spawn_points.len()];
                 let pos = site.position + rot * marker;
                 let kind = self.pick_kind();
-                spawns.push(PoiSpawn::new(&site.poi_id, pos, kind));
+                let model = self.pick_model(&models);
+                spawns.push(PoiSpawn::new(&site.poi_id, pos, kind).with_model(model));
             }
         }
 
@@ -265,6 +273,16 @@ impl PoiZombies {
         }
     }
 
+    /// Picks one look from a building's `zombieModels`, or None if it names none.
+    /// Deterministic: it draws from the manager's own rng, like `pick_kind`.
+    fn pick_model(&mut self, models: &[String]) -> Option<String> {
+        if models.is_empty() {
+            return None;
+        }
+        let pick = (self.spawner_rng.next_f32() * models.len() as f32) as usize;
+        models.get(pick).cloned()
+    }
+
     /// Serializes visited POIs matching Godot WorldState save format.
     // Godot: WorldState.cs Save() -> ["visited_pois"]
     pub fn to_save(&self) -> Value {
@@ -285,5 +303,67 @@ impl PoiZombies {
 impl Default for PoiZombies {
     fn default() -> Self {
         Self::new(0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A tiny host config with one building that names its zombie looks (like the R42 places).
+    fn config_with_models() -> PoiConfigData {
+        PoiConfig::from_json(
+            r#"{ "buildings": [
+                { "id": "police_house", "lot": [40.0, 40.0], "chancePerChunk": 0.0,
+                  "minFlatness": 0.9, "minDistanceFromSpawn": 0.0, "zombies": [6, 6],
+                  "zombieModels": ["zombie_police", "zombie_soldier"] },
+                { "id": "plain_house", "lot": [20.0, 20.0], "chancePerChunk": 0.0,
+                  "minFlatness": 0.9, "minDistanceFromSpawn": 0.0, "zombies": [4, 4] }
+            ] }"#,
+        )
+        .expect("host config with zombieModels must parse")
+    }
+
+    fn site(poi_id: &str, building_id: &str, at: Vec3) -> PoiZombieSite {
+        PoiZombieSite::new(
+            poi_id,
+            building_id,
+            at,
+            0.0,
+            vec![Vec3::new(1.0, 0.0, 0.0), Vec3::new(-1.0, 0.0, 0.0)],
+        )
+    }
+
+    #[test]
+    fn spawn_models_come_from_the_building_list() {
+        let mut manager = PoiZombies::with_config(7, config_with_models());
+        let spawns = manager.update(Vec3::new(0.0, 0.0, 5.0), &[site("p1", "police_house", Vec3::ZERO)], 0);
+        assert_eq!(spawns.len(), 6);
+        let allowed = ["zombie_police", "zombie_soldier"];
+        for spawn in &spawns {
+            let model = spawn.model.as_deref().expect("a building with zombieModels always names a look");
+            assert!(allowed.contains(&model), "{model} is not one of the building's looks");
+        }
+    }
+
+    #[test]
+    fn same_seed_picks_the_same_models() {
+        let run = || {
+            let mut manager = PoiZombies::with_config(7, config_with_models());
+            manager
+                .update(Vec3::new(0.0, 0.0, 5.0), &[site("p1", "police_house", Vec3::ZERO)], 0)
+                .into_iter()
+                .map(|s| (s.kind, s.model))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(run(), run(), "the manager rng makes the looks deterministic");
+    }
+
+    #[test]
+    fn building_without_zombie_models_keeps_the_kind_look() {
+        let mut manager = PoiZombies::with_config(7, config_with_models());
+        let spawns = manager.update(Vec3::new(0.0, 0.0, 5.0), &[site("p2", "plain_house", Vec3::ZERO)], 0);
+        assert_eq!(spawns.len(), 4);
+        assert!(spawns.iter().all(|s| s.model.is_none()), "no zombieModels means None (the kind's own look)");
     }
 }

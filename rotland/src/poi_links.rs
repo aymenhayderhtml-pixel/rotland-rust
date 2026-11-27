@@ -57,6 +57,7 @@ mod tests {
             min_distance_from_spawn: 50.0,
             loot_table: "cabin".to_string(),
             zombies: [1, 3],
+            zombie_models: Vec::new(),
         };
         PoiConfigData {
             buildings: vec![cabin],

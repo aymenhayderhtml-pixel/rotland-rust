@@ -529,6 +529,54 @@
       { "id": "surgery_kit", "weight": 6, "count": [1, 1] }
     ]
   },
+  "metro_hospital": {
+    "rolls": [3, 5],
+    "cash": { "chance": 0.5, "min": 10, "max": 40 },
+    "entries": [
+      { "id": "bandage", "weight": 40, "count": [1, 3] },
+      { "id": "medkit", "weight": 26, "count": [1, 2] },
+      { "id": "antibiotics", "weight": 30, "count": [1, 2] },
+      { "id": "adrenaline_shot", "weight": 12, "count": [1, 1] },
+      { "id": "surgery_kit", "weight": 8, "count": [1, 1] },
+      { "id": "water_bottle", "weight": 14, "count": [1, 2] },
+      { "id": "battery", "weight": 3, "count": [1, 1] }
+    ]
+  },
+  "metro_police": {
+    "rolls": [3, 5],
+    "cash": { "chance": 0.7, "min": 20, "max": 60 },
+    "entries": [
+      { "id": "pistol_ammo", "weight": 22, "count": [8, 20] },
+      { "id": "revolver_ammo", "weight": 10, "count": [6, 12] },
+      { "id": "shells_12g", "weight": 16, "count": [4, 12] },
+      { "id": "ammo_556", "weight": 4, "count": [6, 16] },
+      { "id": "pistol", "weight": 10, "count": [1, 1] },
+      { "id": "revolver", "weight": 6, "count": [1, 1] },
+      { "id": "shotgun", "weight": 7, "count": [1, 1] },
+      { "id": "smg", "weight": 6, "count": [1, 1] },
+      { "id": "army_rifle", "weight": 5, "count": [1, 1] },
+      { "id": "body_armor", "weight": 6, "count": [1, 1] },
+      { "id": "army_helmet", "weight": 5, "count": [1, 1] },
+      { "id": "flashlight", "weight": 6, "count": [1, 1] },
+      { "id": "battery", "weight": 5, "count": [1, 2] }
+    ]
+  },
+  "metro_fire": {
+    "rolls": [3, 4],
+    "cash": { "chance": 0.4, "min": 8, "max": 30 },
+    "entries": [
+      { "id": "fire_axe", "weight": 14, "count": [1, 1] },
+      { "id": "axe", "weight": 16, "count": [1, 1] },
+      { "id": "crowbar", "weight": 16, "count": [1, 1] },
+      { "id": "medkit", "weight": 10, "count": [1, 1] },
+      { "id": "bandage", "weight": 16, "count": [1, 2] },
+      { "id": "flashlight", "weight": 12, "count": [1, 1] },
+      { "id": "battery", "weight": 10, "count": [1, 2] },
+      { "id": "cloth", "weight": 14, "count": [1, 3] },
+      { "id": "scrap_metal", "weight": 20, "count": [1, 3] },
+      { "id": "car_parts", "weight": 8, "count": [1, 2] }
+    ]
+  },
   "metro_camp": {
     "rolls": [2, 4],
     "cash": { "chance": 0.35, "min": 4, "max": 18 },

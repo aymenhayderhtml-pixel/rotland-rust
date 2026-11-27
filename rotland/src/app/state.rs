@@ -133,6 +133,7 @@ pub struct WorldState {
     pub poi_sites_generation: u64,
     pub tracked_zombie_scratch: Vec<u64>,
     pub cleared_poi_scratch: Vec<String>,
+    pub army_line_brute_day: Option<i32>,
     pub camps: Vec<glam::Vec2>,
     pub last_chunk_count: usize,
 }

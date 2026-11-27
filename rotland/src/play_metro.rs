@@ -2,11 +2,16 @@
 
 use std::collections::HashMap;
 
-use game::{MetroSpawnConfig, MetroSpawnProfile, StreetHerds, StreetHerdsSaveState, metro_profile};
+use game::{
+    MetroSpawnConfig, MetroSpawnProfile, StreetHerds, StreetHerdsSaveState,
+    metro_profile_near_place,
+};
 use glam::{Vec2, Vec3};
 use physics::PhysicsWorld;
 use world::WorldGenerator;
-use world::metro::{car_wall_sites, herd_routes_avoiding};
+use world::metro::{
+    army_line_blocked_points, army_line_site, car_wall_sites, herd_routes_avoiding, place_sites,
+};
 
 use crate::zombies::Zombies;
 
@@ -24,8 +29,14 @@ pub fn metro_profile_at(
     cfg: &MetroSpawnConfig,
 ) -> Option<MetroSpawnProfile> {
     let layout = world_gen.metro_layout()?;
-    let district = layout.district_at(Vec2::new(player.x, player.z))?;
-    Some(metro_profile(cfg, district.into(), night))
+    let p = Vec2::new(player.x, player.z);
+    let district = layout.district_at(p)?;
+    let near_place = cfg.place_danger.as_ref().is_some_and(|d| {
+        let r2 = d.radius * d.radius;
+        place_sites(layout).iter().any(|s| s.pos.distance_squared(p) <= r2)
+            || army_line_site(layout).is_some_and(|s| s.origin.distance_squared(p) <= r2)
+    });
+    Some(metro_profile_near_place(cfg, district.into(), night, near_place))
 }
 
 /// Spawn ground check inside New Halden: never on a tower (the physics ray from above hits the
@@ -66,6 +77,7 @@ impl MetroHerdRuntime {
         for (cw_pos, _) in car_wall_sites(metro) {
             blocked.push(cw_pos);
         }
+        blocked.extend(army_line_blocked_points(metro));
         if let Some(end) = metro.highway.points.last() {
             let end_local = metro.layout.site.to_local(*end);
             if let Some(ave) = metro

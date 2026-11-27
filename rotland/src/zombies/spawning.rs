@@ -30,6 +30,73 @@ fn default_model_for_kind(kind: &str) -> &'static str {
     }
 }
 
+/// What one spawn rolls for its body: the look, the walk clip, the facing and the animation phase.
+/// Pure, so the picks can be tested without a GPU device.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct SpawnPick {
+    pub look_name: String,
+    pub gait: String,
+    pub yaw: f32,
+    pub phase: f32,
+}
+
+/// Rolls the body of one spawn from the four uniform rolls in `0..1` `spawn` takes from its rng.
+///
+/// `forced_model` (a POI building's `zombieModels` pick) replaces the roll over the kind's `models`,
+/// so a soldier kind can wear the police look; the remaining rolls are consumed the same way, so
+/// every other choice a spawn makes stays the same. `None` behaves exactly like a plain spawn.
+pub(super) fn pick_spawn(
+    kind: &str,
+    models: &[String],
+    gaits: &[String],
+    forced_model: Option<&str>,
+    rolls: [f32; 4],
+) -> SpawnPick {
+    let look_name = match forced_model {
+        Some(name) => name.to_string(),
+        None => {
+            let pick = (rolls[0] * models.len() as f32) as usize;
+            models
+                .get(pick)
+                .cloned()
+                .unwrap_or_else(|| default_model_for_kind(kind).to_string())
+        }
+    };
+    let gait = gaits
+        .get((rolls[1] * gaits.len() as f32) as usize)
+        .cloned()
+        .unwrap_or_else(|| "zombie_shamble".into());
+    SpawnPick {
+        look_name,
+        gait,
+        yaw: rolls[2] * std::f32::consts::TAU,
+        phase: rolls[3] * 2.0,
+    }
+}
+
+/// Index of a look name among the loaded looks; unknown names draw the first look.
+pub(super) fn look_index(look_names: &[&str], name: &str) -> usize {
+    look_names.iter().position(|n| *n == name).unwrap_or(0)
+}
+
+/// Extra look ids that are only named by POI buildings (`data/poi.json` `zombieModels`), so they are
+/// loaded with the zombie looks even though no `data/zombies.json` kind lists them. Read at run time.
+pub(super) fn extra_look_names() -> Vec<String> {
+    let path = paths::repo_path("data/poi.json");
+    let Ok(cfg) = world::PoiConfig::load_from_file(&path) else {
+        return Vec::new();
+    };
+    let mut names = Vec::new();
+    for def in &cfg.buildings {
+        for model in &def.zombie_models {
+            if !names.contains(model) {
+                names.push(model.clone());
+            }
+        }
+    }
+    names
+}
+
 impl Zombies {
     pub(super) fn rand(&mut self) -> f32 {
         self.rng ^= self.rng << 13;
@@ -56,7 +123,7 @@ impl Zombies {
             let dist = min + (max - min) * self.rand();
             let (x, z) = (center.x + angle.cos() * dist, center.z + angle.sin() * dist);
             let y = physics.ground_height(x, z).unwrap_or(center.y);
-            self.spawn(kind, &def, Vec3::new(x, y, z), None);
+            self.spawn(kind, &def, Vec3::new(x, y, z), None, None);
         }
     }
 
@@ -65,23 +132,25 @@ impl Zombies {
         kind: &str,
         def: &ZombieDef,
         at: Vec3,
+        forced_model: Option<&str>,
         horde: Option<Arc<Mutex<ZombieHorde>>>,
     ) {
-        let look_names: Vec<&str> = def.models.iter().map(String::as_str).collect();
-        let pick = (self.rand() * look_names.len() as f32) as usize;
-        let chosen_name = look_names
-            .get(pick)
-            .copied()
-            .unwrap_or_else(|| default_model_for_kind(kind));
-        let look = self.looks.iter().position(|l| l.name == chosen_name).unwrap_or(0);
-        let roll = self.rand();
-        let gaits = &self.defs.behaviour.gaits;
-        let gait = gaits
-            .get((roll * gaits.len() as f32) as usize)
-            .cloned()
-            .unwrap_or_else(|| "zombie_shamble".into());
-        let yaw = self.rand() * std::f32::consts::TAU;
-        let phase = self.rand() * 2.0;
+        let look_roll = self.rand();
+        let gait_roll = self.rand();
+        let yaw_roll = self.rand();
+        let phase_roll = self.rand();
+        let pick = pick_spawn(
+            kind,
+            &def.models,
+            &self.defs.behaviour.gaits,
+            forced_model,
+            [look_roll, gait_roll, yaw_roll, phase_roll],
+        );
+        let look_names: Vec<&str> = self.looks.iter().map(|l| l.name.as_str()).collect();
+        let look = look_index(&look_names, &pick.look_name);
+        let gait = pick.gait;
+        let yaw = pick.yaw;
+        let phase = pick.phase;
         let id = self.next_id;
         self.next_id += 1;
         let tuning: &ZombieBehaviourDef = &self.defs.behaviour;
@@ -138,9 +207,18 @@ impl Zombies {
 
     /// One zombie of type `kind` (e.g. "walker", "runner") at `at`, for the spawner. Returns its id.
     pub fn spawn_kind(&mut self, kind: &str, at: Vec3) -> Option<u64> {
+        self.spawn_kind_look(kind, at, None)
+    }
+
+    /// One zombie of type `kind` at `at` that draws `model` instead of the kind's own looks.
+    ///
+    /// The stats, brain and gait roll stay exactly the kind's; only the model is forced, so a
+    /// police station can put police looks on its normal walker kinds. `None` is exactly
+    /// `spawn_kind` (same stats and the same look for the same seed). Returns the new id.
+    pub fn spawn_kind_look(&mut self, kind: &str, at: Vec3, model: Option<&str>) -> Option<u64> {
         let def = self.defs.get(kind).cloned()?;
         let id = self.next_id;
-        self.spawn(kind, &def, at, None);
+        self.spawn(kind, &def, at, model, None);
         Some(id)
     }
 
@@ -199,5 +277,66 @@ impl Zombies {
                 a
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn models(names: &[&str]) -> Vec<String> {
+        names.iter().map(|n| n.to_string()).collect()
+    }
+
+    fn gaits() -> Vec<String> {
+        models(&["zombie_shamble", "zombie_lurch"])
+    }
+
+    #[test]
+    fn spawn_kind_look_without_model_is_a_plain_spawn() {
+        // spawn_kind hands the same rolls and `None` to pick_spawn, so the pick must be identical.
+        let kinds = models(&["zombie_01", "zombie_02", "zombie_03"]);
+        let rolls = [0.42, 0.61, 0.13, 0.87];
+        let plain = pick_spawn("walker", &kinds, &gaits(), None, rolls);
+        let with_none = pick_spawn("walker", &kinds, &gaits(), None, rolls);
+        assert_eq!(plain, with_none);
+        assert_eq!(plain.look_name, "zombie_02", "same seed picks the same look as before");
+    }
+
+    #[test]
+    fn forced_model_only_changes_the_look() {
+        let kinds = models(&["zombie_01", "zombie_02", "zombie_03"]);
+        let rolls = [0.42, 0.61, 0.13, 0.87];
+        let plain = pick_spawn("walker", &kinds, &gaits(), None, rolls);
+        let forced = pick_spawn("walker", &kinds, &gaits(), Some("zombie_police"), rolls);
+        assert_eq!(forced.look_name, "zombie_police");
+        assert_eq!(forced.gait, plain.gait, "the kind's gait roll is untouched");
+        assert_eq!(forced.yaw, plain.yaw);
+        assert_eq!(forced.phase, plain.phase);
+    }
+
+    #[test]
+    fn a_forced_look_is_always_used() {
+        let kinds = models(&["zombie_01", "zombie_02"]);
+        let picks: Vec<String> = (0..10)
+            .map(|i| {
+                let rolls = [i as f32 / 10.0, 0.0, 0.0, 0.0];
+                pick_spawn("walker", &kinds, &gaits(), Some("zombie_soldier"), rolls).look_name
+            })
+            .collect();
+        assert!(picks.iter().all(|p| p == "zombie_soldier"), "a forced look never falls back: {picks:?}");
+    }
+
+    #[test]
+    fn unknown_model_name_falls_back_to_the_first_look() {
+        let names = ["zombie_01", "zombie_police"];
+        assert_eq!(look_index(&names, "zombie_police"), 1);
+        assert_eq!(look_index(&names, "zombie_not_loaded"), 0);
+    }
+
+    #[test]
+    fn kind_without_models_uses_the_kind_fallback() {
+        let pick = pick_spawn("frozen", &[], &gaits(), None, [0.5, 0.0, 0.0, 0.0]);
+        assert_eq!(pick.look_name, "zombie_frozen");
     }
 }

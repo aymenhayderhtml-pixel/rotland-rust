@@ -240,20 +240,24 @@ pub(super) fn step_poi_zombies(
                     if poi.building_id == world::GUN_SHOP_MODEL {
                         continue;
                     }
-                    let spawns = markers
-                        .entry(poi.building_id.clone())
-                        .or_insert_with(|| {
-                            pack.find(&poi.building_id)
-                                .map(|m| {
-                                    m.markers
-                                        .iter()
-                                        .filter(|k| k.name.starts_with("spawn_"))
-                                        .map(|k| Vec3::from(k.translation))
-                                        .collect()
-                                })
-                                .unwrap_or_default()
-                        })
-                        .clone();
+                    let spawns = if poi.building_id == world::metro::ARMY_LINE_POI_ID {
+                        world::metro::army_line_spawn_offsets()
+                    } else {
+                        markers
+                            .entry(poi.building_id.clone())
+                            .or_insert_with(|| {
+                                pack.find(&poi.building_id)
+                                    .map(|m| {
+                                        m.markers
+                                            .iter()
+                                            .filter(|k| k.name.starts_with("spawn_"))
+                                            .map(|k| Vec3::from(k.translation))
+                                            .collect()
+                                    })
+                                    .unwrap_or_default()
+                            })
+                            .clone()
+                    };
                     world.poi_zombie_sites.push(game::PoiZombieSite::new(
                         &poi.id,
                         &poi.building_id,
@@ -273,9 +277,29 @@ pub(super) fn step_poi_zombies(
             play.rescue.as_ref(),
             &world.physics,
         );
+        let mut woke_army_line = false;
         for spawn in spawns {
-            if let Some(id) = z.spawn_kind(&spawn.kind, spawn.position) {
+            if spawn.poi_id == world::metro::ARMY_LINE_POI_ID {
+                woke_army_line = true;
+            }
+            if let Some(id) = z.spawn_kind_look(&spawn.kind, spawn.position, spawn.model.as_deref()) {
                 pz.on_zombie_spawned(&spawn.poi_id, id);
+            }
+        }
+        if woke_army_line {
+            let day = (play.elapsed_hours / 24.0).floor() as i32;
+            let brute_enabled = play.play.as_ref().is_some_and(|ps| ps.brute_at_army_line());
+            if brute_enabled
+                && world.army_line_brute_day != Some(day)
+                && let Some(site) = world
+                    .poi_zombie_sites
+                    .iter()
+                    .find(|s| s.poi_id == world::metro::ARMY_LINE_POI_ID)
+            {
+                let pos = site.world_spawn_point(0).unwrap_or(site.position);
+                if z.spawn_kind("brute", pos).is_some() {
+                    world.army_line_brute_day = Some(day);
+                }
             }
         }
         // Far behind: gone for good (the building does not wait for them)

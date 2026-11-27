@@ -28,6 +28,14 @@ fn spot_names_parse_any_case_and_reject_unknown() {
     assert_eq!(MetroSpot::parse("BURNT"), Some(MetroSpot::Burnt));
     assert_eq!(MetroSpot::parse("carwall"), Some(MetroSpot::Carwall));
     assert_eq!(MetroSpot::parse("camp"), Some(MetroSpot::Camp));
+    assert_eq!(MetroSpot::parse("hospital"), Some(MetroSpot::Hospital));
+    assert_eq!(MetroSpot::parse("hospital_in"), Some(MetroSpot::HospitalIn));
+    assert_eq!(MetroSpot::parse("police"), Some(MetroSpot::Police));
+    assert_eq!(MetroSpot::parse("police_in"), Some(MetroSpot::PoliceIn));
+    assert_eq!(MetroSpot::parse("fire"), Some(MetroSpot::Fire));
+    assert_eq!(MetroSpot::parse("fire_in"), Some(MetroSpot::FireIn));
+    assert_eq!(MetroSpot::parse("armyline"), Some(MetroSpot::Armyline));
+    assert_eq!(MetroSpot::parse("armyline_top"), Some(MetroSpot::ArmylineTop));
     assert_eq!(MetroSpot::parse("roof"), None);
     assert_eq!(MetroSpot::parse(""), None);
 }

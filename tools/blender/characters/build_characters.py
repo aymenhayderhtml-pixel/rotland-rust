@@ -241,6 +241,67 @@ VARIANTS = [
         "proportions": {"width": 1.7, "depth": 1.8, "height": 1.0},
         "posture": {"spine": (-5, 0, 0), "chest": (-6, 0, 0), "neck": (-4, 0, 0), "head": (-5, 0, 0)},
     },
+    # R42 place looks (built by zombie_looks.py, same rig/size as zombie_01)
+    {
+        "name": "zombie_soldier",
+        "skin": "skin_zombie",
+        "hair": "hair_dark",
+        "hair_style": "helmet_under",
+        "shirt": "cloth_olive",
+        "jacket": "cloth_olive",
+        "pants": "cloth_olive",
+        "shoes": "tire_black",
+        "gloves": "tire_black",
+        "knee_pads": True,
+        "long_sleeves": True,
+        "blood": "blood_dark",
+        "hunched": True,
+        "posture": {"spine": (-10, 0, 0), "chest": (-8, 0, 0), "neck": (-4, 0, 0), "head": (-6, 0, 0)},
+        "extras": "soldier",
+    },
+    {
+        "name": "zombie_police",
+        "skin": "skin_zombie",
+        "hair": "hair_dark",
+        "hair_style": "helmet_under",
+        "shirt": "shirt_blue",
+        "pants": "pants_dark",
+        "shoes": "tire_black",
+        "long_sleeves": True,
+        "blood": "blood_dark",
+        "hunched": False,
+        "posture": {"spine": (-6, 0, 0), "chest": (-5, 0, 0), "neck": (-2, 0, 0), "head": (-4, 0, 0)},
+        "extras": "police",
+    },
+    {
+        "name": "zombie_medic",
+        "skin": "skin_zombie",
+        "hair": "hair_dark",
+        "shirt": "crop_green",
+        "jacket": "car_white",
+        "pants": "crop_green",
+        "shoes": "car_white",
+        "long_sleeves": True,
+        "blood": "blood_dark",
+        "hunched": False,
+        "posture": {"spine": (-7, 0, 0), "chest": (-6, 0, 0), "neck": (2, 0, 0), "head": (-3, 0, 0)},
+        "extras": "medic",
+    },
+    {
+        "name": "zombie_firefighter",
+        "skin": "skin_zombie",
+        "hair": "hair_dark",
+        "hair_style": "helmet_under",
+        "shirt": "canvas_khaki",
+        "pants": "canvas_khaki",
+        "shoes": "tire_black",
+        "gloves": "tire_black",
+        "long_sleeves": True,
+        "blood": "blood_dark",
+        "hunched": False,
+        "posture": {"spine": (-6, 0, 0), "chest": (-5, 0, 0), "neck": (-2, 0, 0), "head": (-4, 0, 0)},
+        "extras": "firefighter",
+    },
 ]
 
 # Zombies only use this subset. Everything else in poses.CLIPS is for the player.
@@ -499,7 +560,28 @@ def render_contact_sheet(name, arm_obj, clip_name, clip_data, target_z=0.82, cam
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
+def _register_extra_roles(variant):
+    """The R42 place-look gear ("soldier", "police", "medic", "firefighter") lives in zombie_looks.py.
+
+    Imported here, lazily, so `build_characters.py` on its own still works for the old looks and the
+    four R42 recipes get their extras whether they are built directly or through `zombie_looks.build_all()`.
+    """
+    kind = variant.get("extras")
+    if not kind:
+        return
+    import npc_extras
+    if kind in npc_extras._KINDS:
+        return
+    try:
+        import zombie_looks
+    except ImportError:
+        print(f"WARNING: extras '{kind}' for {variant['name']} is not registered (Run via zombie_looks.py)")
+        return
+    zombie_looks.register()
+
+
 def build_one_character(variant):
+    _register_extra_roles(variant)
     name = variant["name"]
     common.reset_scene()
     palette.write_palette_png()

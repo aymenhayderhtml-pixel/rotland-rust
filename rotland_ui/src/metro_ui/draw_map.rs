@@ -3,7 +3,7 @@
 
 use engine::egui::{self, Align2, Color32, FontId, Pos2, Rect, Stroke, pos2, vec2};
 use glam::Vec2;
-use world::metro::MetroLayout;
+use world::metro::{MetroLayout, Reserved, army_line_site, place_sites};
 
 use crate::map_ui::MapUiState;
 
@@ -136,6 +136,37 @@ pub fn draw_metro_map(
     if rect.contains(centre) {
         draw_label(painter, centre, &site.name, cfg);
     }
+
+    for place in place_sites(layout) {
+        let label = match place.kind {
+            Reserved::Hospital => "Hospital",
+            Reserved::Police => "Police",
+            Reserved::FireStation => "Fire Station",
+            _ => continue,
+        };
+        let p = to_screen(place.pos);
+        if rect.contains(p) {
+            draw_small_label(painter, p, label, cfg);
+        }
+    }
+    if let Some(line) = army_line_site(layout) {
+        let p = to_screen(line.origin);
+        if rect.contains(p) {
+            draw_small_label(painter, p, "Army Line", cfg);
+        }
+    }
+}
+
+fn draw_small_label(painter: &egui::Painter, at: Pos2, text: &str, cfg: &MetroMapConfig) {
+    let font = FontId::proportional(11.0);
+    painter.text(
+        at + vec2(SHADOW_OFFSET_PX, SHADOW_OFFSET_PX),
+        Align2::CENTER_CENTER,
+        text,
+        font.clone(),
+        Color32::from_black_alpha(200),
+    );
+    painter.text(at, Align2::CENTER_CENTER, text, font, cfg.label_color);
 }
 
 fn draw_label(painter: &egui::Painter, at: Pos2, text: &str, cfg: &MetroMapConfig) {

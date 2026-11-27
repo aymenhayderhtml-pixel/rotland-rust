@@ -53,6 +53,10 @@ pub struct PoiBuildingDef {
     pub loot_table: String,
     #[serde(default)]
     pub zombies: [i32; 2],
+    /// Look ids this building's zombies draw instead of their kind's own `models` (R42).
+    /// // data: poi.json buildings[].zombieModels
+    #[serde(default)]
+    pub zombie_models: Vec<String>,
 }
 
 impl PoiBuildingDef {
@@ -284,5 +288,33 @@ impl PoiPlacer {
             Vec3::new(x, lowest, z),
             yaw,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn json(zombie_models: &str) -> String {
+        format!(
+            r#"{{ "buildings": [{{ "id": "metro_police", "lot": [40.0, 40.0],
+                "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0.0,
+                "zombies": [4, 6]{zombie_models} }}] }}"#
+        )
+    }
+
+    #[test]
+    fn building_def_parses_without_zombie_models() {
+        let cfg = PoiConfig::from_json(&json("")).expect("old host.json entries must keep parsing");
+        let def = cfg.get("metro_police").expect("building entry");
+        assert!(def.zombie_models.is_empty(), "missing zombieModels means no per-building look");
+    }
+
+    #[test]
+    fn building_def_parses_zombie_models() {
+        let cfg = PoiConfig::from_json(&json(r#", "zombieModels": ["zombie_police", "zombie_soldier"]"#))
+            .expect("zombieModels must parse");
+        let def = cfg.get("metro_police").expect("building entry");
+        assert_eq!(def.zombie_models, vec!["zombie_police", "zombie_soldier"]);
     }
 }
