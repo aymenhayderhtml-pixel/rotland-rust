@@ -3,7 +3,10 @@
 //! Facing rule (AGENTS.md): yaw forward = (-sin yaw, -cos yaw), so yaw = atan2(-dx, -dz).
 
 use glam::{Vec2, Vec3Swizzles};
-use world::metro::{MetroStreet, MetroWorld, TowerSpot, TowerStyle, camp_sites, car_wall_sites};
+use world::metro::{
+    MetroStreet, MetroWorld, PerchKind, TowerSpot, TowerStyle, camp_sites, car_wall_sites,
+    crow_perches_in_chunk, herd_routes_avoiding, metro_loot_in_chunk, route_pos,
+};
 
 /// Edge spot: metres inside the first avenue entrance. // new: DECISIONS 2026-11-26
 const EDGE_INSET_M: f32 = 10.0;
@@ -61,6 +64,16 @@ pub enum MetroSpot {
     Carwall,
     /// On the first rooftop camp, 6 m off the camp centre, looking across it.
     Camp,
+    /// On an avenue 25 m ahead of an active street herd walking toward the camera (hour 10).
+    Herd,
+    /// 15 m from a body perch with pecking crows.
+    Crows,
+    /// Inside the startle radius (6 m) of a body perch so crows burst into the air.
+    CrowsUp,
+    /// 2 m in front of a Core army cache crate.
+    Army,
+    /// Core centre at hour 23 (night runners).
+    Night,
 }
 
 impl MetroSpot {
@@ -79,6 +92,11 @@ impl MetroSpot {
             "burnt" => Some(Self::Burnt),
             "carwall" => Some(Self::Carwall),
             "camp" => Some(Self::Camp),
+            "herd" => Some(Self::Herd),
+            "crows" => Some(Self::Crows),
+            "crows_up" => Some(Self::CrowsUp),
+            "army" => Some(Self::Army),
+            "night" => Some(Self::Night),
             _ => None,
         }
     }
@@ -380,6 +398,62 @@ pub fn metro_pose(
                 top: Some(TopView { pitch: -30f32.to_radians(), spring: 10.0 }),
                 y: Some(camp.pos.y + 0.2), // new: DECISIONS 2026-11-26 (on the roof deck, the hull top)
             })
+        }
+        MetroSpot::Night => {
+            let avenue = nearest_avenue(streets, Vec2::ZERO)?;
+            let dir = site.to_world(avenue.b) - site.to_world(avenue.a);
+            Some(core_pose(center, dir))
+        }
+        MetroSpot::Herd => {
+            let routes = herd_routes_avoiding(&metro.layout, &metro.config.herds, &[], 42);
+            let route = routes.first()?;
+            let (hpos, hyaw) = route_pos(route, 0.0);
+            let dir = Vec2::new(-hyaw.sin(), -hyaw.cos());
+            let pos = hpos + dir * 25.0; // new: DECISIONS 2026-11-27
+            Some(MetroPose { pos, yaw: yaw_facing(hpos - pos), top: None, y: None })
+        }
+        MetroSpot::Crows | MetroSpot::CrowsUp => {
+            let dist = if spot == MetroSpot::CrowsUp { 6.0 } else { 15.0 }; // new: DECISIONS 2026-11-27
+            let ground_y = site.ground_y;
+            let cx0 = (center.x / 64.0).floor() as i32;
+            let cz0 = (center.y / 64.0).floor() as i32;
+            let mut found = None;
+            'outer: for dx in -8..=8 {
+                for dz in -8..=8 {
+                    for p in crow_perches_in_chunk(metro, (cx0 + dx, cz0 + dz), &|_, _| ground_y) {
+                        if p.kind == PerchKind::Body {
+                            found = Some(p);
+                            break 'outer;
+                        }
+                    }
+                }
+            }
+            let perch = found?;
+            let pxz = perch.pos.xz();
+            let dir = Vec2::new(-perch.yaw.sin(), -perch.yaw.cos());
+            let pos = pxz + dir * dist;
+            Some(MetroPose { pos, yaw: yaw_facing(pxz - pos), top: None, y: None })
+        }
+        MetroSpot::Army => {
+            let ground_y = site.ground_y;
+            let cx0 = (center.x / 64.0).floor() as i32;
+            let cz0 = (center.y / 64.0).floor() as i32;
+            let mut found = None;
+            'army: for dx in -8..=8 {
+                for dz in -8..=8 {
+                    for s in metro_loot_in_chunk(metro, (cx0 + dx, cz0 + dz), &|_, _| ground_y, 42) {
+                        if s.table.as_deref() == Some("metro_army") {
+                            found = Some(s);
+                            break 'army;
+                        }
+                    }
+                }
+            }
+            let crate_spot = found?;
+            let cxz = crate_spot.position.xz();
+            let dir = Vec2::new(-crate_spot.yaw.sin(), -crate_spot.yaw.cos());
+            let pos = cxz + dir * 2.0; // new: DECISIONS 2026-11-27
+            Some(MetroPose { pos, yaw: yaw_facing(cxz - pos), top: None, y: None })
         }
     }
 }

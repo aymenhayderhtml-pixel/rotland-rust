@@ -227,6 +227,9 @@ pub fn start_world(
             d.sim.from_save(v);
         }
         if let Some(play_state) = play.play.as_mut() {
+            if let Some(v) = file.systems.extra.get("street_herds") {
+                play_state.metro_herds.restore_save(v);
+            }
             let warnings = crate::session::restore_play(file, play_state);
             for w in warnings {
                 play_state.show_toast(w);

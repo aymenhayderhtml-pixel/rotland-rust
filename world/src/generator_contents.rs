@@ -125,6 +125,7 @@ impl WorldGenerator {
             props.extend(crate::metro::overgrowth_props_in_chunk(metro, chunk, hfn)); // R40-01
             props.extend(crate::metro::damage_props_in_chunk(metro, chunk, hfn));     // R40-03
             props.extend(crate::metro::traces_props_in_chunk(metro, chunk, hfn));     // R40-06
+            props.extend(crate::metro::life_props_in_chunk(metro, chunk, hfn));       // R41-03
         }
 
         (pois, props)
@@ -296,6 +297,15 @@ impl WorldGenerator {
             props,
             pois,
         );
-        SettlementGround::remove_crates(&self.settlements, placed, self.config.clear_radius)
+        let mut crates = SettlementGround::remove_crates(&self.settlements, placed, self.config.clear_radius);
+        if let Some(metro) = self.metro_world() {
+            crates.extend(crate::metro::metro_loot_in_chunk(
+                metro,
+                (coord.x, coord.y),
+                &|x, z| self.height(x, z),
+                self.seed as u64,
+            ));
+        }
+        crates
     }
 }

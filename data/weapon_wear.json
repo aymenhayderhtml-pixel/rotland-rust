@@ -11,6 +11,7 @@
     "rifle": { "wearPerShot": 0.0028 },
     "hunting_rifle": { "wearPerShot": 0.0028 },
     "ak47": { "wearPerShot": 0.00167 },
+    "army_rifle": { "wearPerShot": 0.00167 },
     "smg": { "wearPerShot": 0.0018 },
     "bow": { "wearPerShot": 0.004 },
     "crossbow": { "wearPerShot": 0.004 },

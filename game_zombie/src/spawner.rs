@@ -6,6 +6,7 @@ use glam::Vec3;
 use physics::PhysicsWorld;
 pub use world::{BiomeId, SettlementConfigData, SettlementSite};
 
+pub use crate::metro_spawn::MetroSpawnProfile;
 pub use crate::spawner_config::*;
 
 pub const MAX_SPAWN_SLOPE_DEG: f32 = 35.0;
@@ -49,6 +50,7 @@ pub struct SpawnContext<'a> {
     pub spawn_rate_multiplier: f32,
     pub max_active_multiplier: f32,
     pub special_chance: f32,
+    pub metro: Option<MetroSpawnProfile>,
 }
 
 impl<'a> SpawnContext<'a> {
@@ -76,6 +78,7 @@ impl<'a> SpawnContext<'a> {
             spawn_rate_multiplier: 1.0,
             max_active_multiplier: 1.0,
             special_chance: 0.0,
+            metro: None, // new: DECISIONS 2026-11-27
         }
     }
 
@@ -227,6 +230,8 @@ impl Spawner {
         let scaled = self.scaled_max_active(ctx.zombie_amount) as f32;
         let density = if self.ignore_biome_density {
             1.0
+        } else if let Some(metro) = &ctx.metro {
+            metro.density
         } else if ctx.in_city && let Some(city) = &self.config.city {
             city.density
         } else if ctx.in_town {
@@ -244,10 +249,12 @@ impl Spawner {
         };
         let tier_mult = if ctx.tier_mult <= 0.0 { 1.0 } else { ctx.tier_mult }; // new: DECISIONS 2026-11-25
         let mut day_cap = scaled * density * camp_factor * tier_mult;
-        if ctx.in_city && let Some(city) = &self.config.city {
+        if let Some(metro) = &ctx.metro {
+            day_cap = day_cap.min(metro.max_active as f32 * tier_mult);
+        } else if ctx.in_city && let Some(city) = &self.config.city {
             day_cap = day_cap.min(city.max_active as f32 * tier_mult);
         }
-        let night_factor = if ctx.is_night {
+        let night_factor = if ctx.is_night && ctx.metro.is_none() {
             self.config.night_max_active_multiplier
         } else {
             1.0
@@ -260,16 +267,26 @@ impl Spawner {
         cap.min(hard)
     }
 
-    /// Picks the zombie type id for a single spawn: biome special first, then global special, then table.
-    pub fn pick_spawn_type_id(
-        &mut self,
+    /// Picks the zombie type id for a single spawn: metro profile, else biome special, then global special, then table.
+    pub fn pick_spawn_type_id<'a>(
+        &'a mut self,
         biome_name: Option<&str>,
         is_night: bool,
         in_city: bool,
         in_city_core: bool,
         special_chance: f32,
-    ) -> &str {
-        if let Some(biome) = biome_name
+        metro: Option<&'a MetroSpawnProfile>,
+    ) -> &'a str {
+        if let Some(p) = metro {
+            let chance = special_chance + p.special_chance_bonus;
+            if chance > 0.0 && self.rng.range(0.0, 1.0) < chance {
+                let idx = (self.rng.next_f32() * GLOBAL_SPECIAL_KINDS.len() as f32)
+                    .min(GLOBAL_SPECIAL_KINDS.len() as f32 - 1.0) as usize;
+                GLOBAL_SPECIAL_KINDS[idx]
+            } else {
+                SpawnConfig::pick_from_slice(&mut self.rng, &p.types)
+            }
+        } else if let Some(biome) = biome_name
             && let Some(kind) = self.config.pick_biome_special(&mut self.rng, biome)
         {
             kind
@@ -369,6 +386,7 @@ impl Spawner {
                 ctx.in_city,
                 ctx.in_city_core,
                 ctx.special_chance,
+                ctx.metro.as_ref(),
             );
             return Some(SpawnOrder {
                 type_id: type_id.to_string(),

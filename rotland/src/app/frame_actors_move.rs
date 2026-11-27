@@ -225,11 +225,16 @@ pub(super) fn step_locomotion(
         }
     } else {
         let saved_speed_mul = p.speed_multiplier;
+        let saved_sprint_cost = p.stamina.sprint_cost_per_sec;
         if downed {
             p.speed_multiplier *= actors.downed.crawl_speed_mul();
         }
+        if play.play.as_ref().is_some_and(|ps| ps.boosts.free_sprint()) {
+            p.stamina.sprint_cost_per_sec = 0.0; // new: DECISIONS 2026-11-27
+        }
         p.update(actions, rig.yaw, &world.physics, &actors.mover, dt);
         p.speed_multiplier = saved_speed_mul;
+        p.stamina.sprint_cost_per_sec = saved_sprint_cost;
     }
     if let Some(cue) = play.play.as_mut().and_then(|ps| ps.anim_cue.take())
         && !downed

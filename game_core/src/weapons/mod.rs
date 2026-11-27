@@ -11,8 +11,8 @@ pub use attachments::{
     can_fit, effective_stats, kick_mult,
 };
 pub use wear::{
-    apply_hit_wear, apply_shot_wear, is_broken, jam_chance, jam_roll, melee_damage_mult,
-    spread_mult, WeaponWearEntry, WearConfig, WearLoadError,
+    GUN_PARTS_REPAIR_AMOUNT, apply_hit_wear, apply_shot_wear, is_broken, jam_chance, jam_roll,
+    melee_damage_mult, repair_with_parts, spread_mult, WeaponWearEntry, WearConfig, WearLoadError,
 };
 
 /// Melee weapons swing; guns fire; bows shoot arrows; throwables are thrown. Unknown kinds fail the load so a typo in data is caught early.

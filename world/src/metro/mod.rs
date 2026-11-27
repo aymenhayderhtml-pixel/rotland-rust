@@ -4,7 +4,17 @@ pub mod config;
 pub mod curbs;
 pub mod damage;
 pub mod damage_burnt;
+pub mod herds;
+#[cfg(test)]
+mod herds_tests;
 pub mod layout;
+pub mod life;
+mod life_wires;
+#[cfg(test)]
+mod life_tests;
+pub mod loot;
+#[cfg(test)]
+mod loot_tests;
 pub mod overgrowth;
 pub mod place;
 pub mod styles;
@@ -49,6 +59,14 @@ pub use traces::{
     CampSite, CarWallsConfig, LobbyDressingEntry, TraceConfig, camp_sites, car_wall_sites,
     default_traces, load_traces, lobby_dressing, traces_props_in_chunk,
 };
+pub use herds::{
+    HerdRoute, HerdsConfig, HerdsDistrictCount, herd_routes, herd_routes_avoiding, route_pos,
+};
+pub use life::{
+    CrowPerch, FlapKind, Flapper, LifeConfig, PerchKind, crow_perches_in_chunk, flappers_in_chunk,
+    life_props_in_chunk,
+};
+pub use loot::{MetroLootConfig, metro_loot_in_chunk, metro_loot_in_chunk_with_config};
 
 #[cfg(test)]
 mod towers_tests;

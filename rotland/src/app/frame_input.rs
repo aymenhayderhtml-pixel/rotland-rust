@@ -41,6 +41,74 @@ pub fn apply_hand(
             render.flashlight_on = !render.flashlight_on;
             return;
         }
+        play::HandChange::ToggleNightVision => {
+            if let Some(play_state) = play.play.as_mut() {
+                let on = play_state
+                    .night_vision
+                    .toggle(&mut play_state.inventory, &play_state.boosts_cfg.night_vision);
+                play_state.hotbar.on_inventory_changed(&play_state.inventory);
+                play_state.show_toast(if on {
+                    "Night vision ON".into()
+                } else if play_state.night_vision.charge > 0.0 {
+                    "Night vision OFF".into()
+                } else {
+                    "Night vision: no battery".into()
+                });
+            }
+            return;
+        }
+        play::HandChange::UseAdrenaline => {
+            if let Some(play_state) = play.play.as_mut() {
+                if actors.downed.is_down() {
+                    if play_state.inventory.remove("adrenaline_shot", 1)
+                        && game::adrenaline_revive(&mut actors.downed.machine)
+                    {
+                        if let Some(c) = actors.combat.as_mut() {
+                            c.health.revive(Some(actors.downed.machine.config().revive_health));
+                        }
+                        play_state.hotbar.on_inventory_changed(&play_state.inventory);
+                        play_state.show_toast("Revived with adrenaline!".into());
+                    }
+                } else if play_state.inventory.remove("adrenaline_shot", 1) {
+                    play_state.boosts.start_adrenaline(&play_state.boosts_cfg.adrenaline_shot);
+                    play_state.hotbar.on_inventory_changed(&play_state.inventory);
+                    play_state.show_toast("Adrenaline: free sprint!".into());
+                }
+            }
+            return;
+        }
+        play::HandChange::StartSurgery => {
+            if let Some(play_state) = play.play.as_mut() {
+                let secs = play_state.boosts_cfg.surgery_kit.use_seconds;
+                if play_state.surgery.start(secs) {
+                    play_state.show_toast(format!("Using surgery kit ({secs:.0}s)..."));
+                }
+            }
+            return;
+        }
+        play::HandChange::RepairCarParts => {
+            if let (Some(play_state), Some(cars), Some(p)) = (
+                play.play.as_mut(),
+                actors.cars.as_mut(),
+                actors.player_ctrl.as_ref(),
+            ) && let Some(car) = cars
+                .live_cars()
+                .filter(|c| c.body.position.distance(p.position) < 3.5) // moved: frame_world.rs car prompt distance
+                .min_by(|a, b| {
+                    a.body
+                        .position
+                        .distance(p.position)
+                        .total_cmp(&b.body.position.distance(p.position))
+                })
+            {
+                let car_id = car.id.clone();
+                if cars.repair_with_parts(&car_id, &mut play_state.inventory) {
+                    play_state.hotbar.on_inventory_changed(&play_state.inventory);
+                    play_state.show_toast("Car repaired with parts!".into());
+                }
+            }
+            return;
+        }
         play::HandChange::Tool(id) => {
             // A holdable tool (fishing rod) is shown in hand; it is not a melee or gun weapon
             render.pending_weapon_model = Some(Some(id));
@@ -356,9 +424,9 @@ pub fn process_input(
 
     if !dev_typing
         && !play.build_mode.active
-        && !actors.downed.is_down()
         && !ui.screen_open()
         && let Some(change) = play.play.as_mut().and_then(|p| p.hotbar_keys(input, &keys.slots))
+        && (!actors.downed.is_down() || matches!(change, play::HandChange::UseAdrenaline))
     {
         apply_hand(change, render, play, actors, world);
     }

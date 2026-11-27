@@ -45,8 +45,8 @@ pub use color::Color;
 pub use daynight::{DayNightLook, SkyColors};
 pub use generator::{ChunkGround, GroundTriangle, WorldGenerator};
 pub use metro::{
-    Highway, HighwayHeightField, JamProp, MetroConfig, MetroLayout, MetroLook, MetroSite,
-    MetroWorld, PartKind, StyleDef, TowerKind, TowerPart, TowerSpot, TowerStyle, default_styles,
+    Highway, HighwayHeightField, JamProp, MetroConfig, MetroDistrict, MetroLayout, MetroLook,
+    MetroSite, MetroWorld, PartKind, StyleDef, TowerKind, TowerPart, TowerSpot, TowerStyle, default_styles,
     highway_height_at, jam_props_in_chunk, load_styles, metro_ground_color, place_metro,
     plan_highway, plan_jam, plan_towers, plan_towers_with_styles, style_for, tower_parts,
     tower_parts_with_damage, tower_parts_with_extras, validate_styles,
@@ -56,6 +56,11 @@ pub use metro::{
     default_traces, load_damage, load_overgrowth, load_traces, lobby_dressing,
     overgrowth_props_in_chunk, overgrowth_props_in_chunk_with_config,
     traces_props_in_chunk, validate_damage,
+    // R41: herds, life, loot
+    CrowPerch, FlapKind, Flapper, HerdRoute, HerdsConfig, HerdsDistrictCount, LifeConfig,
+    MetroLootConfig, PerchKind, crow_perches_in_chunk, flappers_in_chunk, herd_routes,
+    herd_routes_avoiding, life_props_in_chunk, metro_loot_in_chunk,
+    metro_loot_in_chunk_with_config, route_pos,
 };
 pub use ground_paint::GroundPaint;
 pub use lake::{

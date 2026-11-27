@@ -52,6 +52,46 @@ The global `hardCap` (60) still applies on top.
 - In the metro, no biome special is ever picked (swamp biome name + metro profile, 2000 picks: no `bloater`).
 
 ## Done when
-The code and tests are written (the lead builds and tests). Fill `## Worker notes` with the lib.rs lines.
+The code and tests are written (the lead builds and tests). Fill `## Worker notes
+- **Files changed:**
+  - `data/spawning.json`: added top-level `"metro"` key with `zones` (`edge`, `midtown`, `core`) and `nightMaxActiveMultiplier` (1.4).
+  - `game_zombie/src/metro_spawn.rs` (NEW): `MetroZone` (`From<world::MetroDistrict>`), `TypeWeight` (`= SpawnTypeEntry`), `ZoneSpawn`, `MetroZones`, `MetroSpawnConfig`, `MetroSpawnProfile`, and `metro_profile(cfg, zone, is_night)`.
+  - `game_zombie/src/spawner_config.rs`: added `#[serde(default)] pub metro: Option<MetroSpawnConfig>` to `SpawnConfig`, and included metro type IDs in `all_type_ids`.
+  - `game_zombie/src/spawner.rs`: added `pub metro: Option<MetroSpawnProfile>` to `SpawnContext` (default `None` in `SpawnContext::new`), added `metro` branches in `calculate_cap` (uses `p.density`, caps `day_cap` at `p.max_active * tier_mult`, skips global `night_max_active_multiplier` since `p.max_active` already includes it, keeps camp factor) and `pick_spawn_type_id` (takes `metro: Option<&'a MetroSpawnProfile>`, skips biome specials, rolls global specials with `special_chance + p.special_chance_bonus`, otherwise picks from `p.types`), and updated the call inside `try_spawn_one`.
+  - `game_zombie/src/metro_spawn_tests.rs` (NEW): 5 unit tests covering `spawning.json` metro zones, cap ordering day/night, runner share day vs night & core night >= 0.75, unchanged non-metro biome & Ashford city behavior, and no biome specials in metro.
+- **Exact `game_zombie/src/lib.rs` lines for the lead:**
+  ```rust
+  pub mod metro_spawn;
+  #[cfg(test)]
+  mod metro_spawn_tests;
+  ```
+  and in `pub use`:
+  ```rust
+  pub use metro_spawn::*;
+  ```
+- **Callers in unowned files that need updating (for lead / R41-09):**
+  - `rotland/src/play.rs:535` (`SpawnContext { ... }` literal) needs `metro: ...` (or `metro: None` before R41-09 wiring).
+  - `game/tests/all/biome_zombies_tests.rs:61` and `80` call `pick_spawn_type_id(..., 0.0)` / `(..., 0.25)` with 5 arguments and need `, None` as the 6th argument (`metro`).
+- **Not run:** Per subagent rules, did not run `cargo`, `tools/gate.sh`, `blender`, or the game.` with the lib.rs lines.
 
 ## Worker notes
+- **Files changed:**
+  - `data/spawning.json`: added top-level `"metro"` key with `zones` (`edge`, `midtown`, `core`) and `nightMaxActiveMultiplier` (1.4).
+  - `game_zombie/src/metro_spawn.rs` (NEW): `MetroZone` (`From<world::MetroDistrict>`), `TypeWeight` (`= SpawnTypeEntry`), `ZoneSpawn`, `MetroZones`, `MetroSpawnConfig`, `MetroSpawnProfile`, and `metro_profile(cfg, zone, is_night)`.
+  - `game_zombie/src/spawner_config.rs`: added `#[serde(default)] pub metro: Option<MetroSpawnConfig>` to `SpawnConfig`, and included metro type IDs in `all_type_ids`.
+  - `game_zombie/src/spawner.rs`: added `pub metro: Option<MetroSpawnProfile>` to `SpawnContext` (default `None` in `SpawnContext::new`), added `metro` branches in `calculate_cap` (uses `p.density`, caps `day_cap` at `p.max_active * tier_mult`, skips global `night_max_active_multiplier` since `p.max_active` already includes it, keeps camp factor) and `pick_spawn_type_id` (takes `metro: Option<&'a MetroSpawnProfile>`, skips biome specials, rolls global specials with `special_chance + p.special_chance_bonus`, otherwise picks from `p.types`), and updated the call inside `try_spawn_one`.
+  - `game_zombie/src/metro_spawn_tests.rs` (NEW): 5 unit tests covering `spawning.json` metro zones, cap ordering day/night, runner share day vs night & core night >= 0.75, unchanged non-metro biome & Ashford city behavior, and no biome specials in metro.
+- **Exact `game_zombie/src/lib.rs` lines for the lead:**
+  ```rust
+  pub mod metro_spawn;
+  #[cfg(test)]
+  mod metro_spawn_tests;
+  ```
+  and in `pub use`:
+  ```rust
+  pub use metro_spawn::*;
+  ```
+- **Callers in unowned files that need updating (for lead / R41-09):**
+  - `rotland/src/play.rs:535` (`SpawnContext { ... }` literal) needs `metro: ...` (or `metro: None` before R41-09 wiring).
+  - `game/tests/all/biome_zombies_tests.rs:61` and `80` call `pick_spawn_type_id(..., 0.0)` / `(..., 0.25)` with 5 arguments and need `, None` as the 6th argument (`metro`).
+- **Not run:** Per subagent rules, did not run `cargo`, `tools/gate.sh`, `blender`, or the game.

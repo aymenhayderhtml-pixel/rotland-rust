@@ -8,13 +8,14 @@ use super::*;
 use crate::metro::config::MetroConfig;
 use crate::metro::damage::{DamageSites, Site};
 use crate::metro::highway::{Highway, HighwayHeightField};
-use crate::metro::layout::MetroDistrict;
+use crate::metro::layout::{MetroDistrict, MetroLayout};
 use crate::metro::paint::MetroLook;
 use crate::metro::place::MetroSite;
 use crate::metro::state::index_towers_by_block;
 use crate::metro::styles::{TowerStyle, default_styles, style_for};
 use crate::metro::towers::TowerSpot;
 use camps::POSTER_MODEL;
+use walls::CAR_WALL_MODEL;
 use crate::metro::tower_parts::{PartKind, tower_parts};
 use crate::metro::towers::plan_towers;
 

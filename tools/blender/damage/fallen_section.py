@@ -24,7 +24,7 @@ from mathutils import Matrix, Vector  # noqa: E402
 import common  # noqa: E402
 import kit  # noqa: E402
 
-BUDGET_LOD0 = 30000  # data: budgets.json buildings
+BUDGET_LOD0 = 16000  # new: DECISIONS 2026-11-27 (R41-10 fallen section <= 16k tris)
 BUDGET_LOD1 = 3000  # new: DECISIONS 2026-11-26 (10% LOD1 budget for fallen section)
 TOWER_SIZE = 24.0  # new: DECISIONS 2026-11-26 (24 m tower width)
 HW = TOWER_SIZE / 2.0
@@ -296,6 +296,7 @@ def _segment(x0, x1, hloc, crown, rng):
     core = hl - END_TRIM
     k.box((-core, -HW, -hz), (core, HW, hz), "limestone")
     k.collider((-core, -HW, -hz), (core, HW, hz), "core")
+    k.collider((-hl, -HW, hz - 1.5), (hl, HW, hz), "top_deck")  # new: DECISIONS 2026-11-27 (full walkable top across broken ends)
     for s in (-1.0, 1.0):
         _broken_end(bag, k, s, hl, hz, rng)
     _floor_bands(k, hl, hz)
@@ -348,10 +349,30 @@ def _ground_debris(bag, rng):
         _rbox(bag, (x, y, 0.15), size, tilt, colour)  # new: DECISIONS 2026-11-26
 
 
+def _gap_steps(bag, x0, z0, x1, z1, y_half=5.5, prefix="gap"):
+    """Broken floor slabs as walkable steps (<= 0.35 m step) bridging between two segment tops."""
+    k = kit.Kit(bag)
+    dz = z1 - z0
+    n = max(4, int(math.ceil(abs(dz) / 0.30)))
+    dx = (x1 - x0) / n
+    for i in range(n):
+        t = (i + 1) / (n + 1) if abs(dz) < 0.1 else (i + 1) / n
+        z_top = z0 + dz * (i + 0.5) / n if dz < 0 else z0 + dz * (i + 1) / n
+        if dz < 0:
+            z_top = z0 + dz * (i + 1) / (n + 1)
+        xa = x0 + i * dx - 0.25
+        xb = x0 + (i + 1) * dx + 0.25
+        col = "concrete_grey" if i % 2 == 0 else "concrete_stain"
+        k.box((xa, -y_half, z_top - 0.38), (xb, y_half, z_top), col)
+        k.collider((xa, -y_half, z_top - 0.45), (xb, y_half, z_top), f"{prefix}_step_{i}")
+
+
 def _world(bag, rng):
-    """Gap ramps, outer-end ramps, gap litter, the crown's street debris and scattered debris."""
+    """Gap ramps, outer-end ramps, gap floor-slab steps, gap litter, crown street debris and scattered debris."""
     for x_base, x_top, rise, half_w, colour in RAMPS:
         _ramp(bag, x_base, x_top, rise, half_w, colour)
+    _gap_steps(bag, -12.0, 18.0, -8.0, 17.0, prefix="gap0")
+    _gap_steps(bag, 12.0, 17.0, 16.0, 18.5, prefix="gap1")
     _gap_litter(bag, -10.0, rng)
     _gap_litter(bag, 14.0, rng)
     _crown_ground(bag)
@@ -386,3 +407,11 @@ def build_all():
     ok1 = common.run_model("tw_fallen_section_lod1", "buildings", BUDGET_LOD1, build_lod1,
                            grip=(0.0, 0.0, 0.0), top_preview=False, view=(1.0, -0.8, 0.65))  # new: DECISIONS 2026-11-26
     return [("tw_fallen_section", ok0), ("tw_fallen_section_lod1", ok1)]
+
+
+if __name__ == "__main__":
+    res = build_all()
+    failed = [n for n, ok in res if not ok]
+    for n, ok in res:
+        print(f"FALLEN: {n} {'OK' if ok else 'FAILED'}")
+    sys.exit(1 if failed else 0)

@@ -236,7 +236,22 @@ impl Zombies {
                     leg_hit: is_leg_hit,
                     player_in_safe_zone,
                 };
-                let o = z.brain.update(&input, elapsed);
+                let mut o = z.brain.update(&input, elapsed);
+                if z.herd_route.is_some()
+                    && !dead
+                    && matches!(
+                        z.brain.state(),
+                        game::zombie::ZombieState::Idle | game::zombie::ZombieState::Wander
+                    )
+                    && let Some(h) = self.hordes.hordes().iter().find(|h| h.contains(z.id))
+                {
+                    let steer = h.steer_member(z.id, z.position, |_| None);
+                    o.velocity = steer;
+                    o.anim = AnimClip::Walk;
+                    if steer.x * steer.x + steer.z * steer.z > 1e-4 {
+                        o.yaw = (-steer.x).atan2(-steer.z);
+                    }
+                }
                 z.last_out = Some(o);
                 o
             };

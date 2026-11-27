@@ -132,6 +132,7 @@ impl Zombies {
             special_sight_timer: 0.0,
             bloater_burst_done: false,
             idle_lock_timer: 0.0,
+            herd_route: None,
         });
     }
 

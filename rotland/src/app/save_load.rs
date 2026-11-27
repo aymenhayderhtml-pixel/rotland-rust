@@ -49,6 +49,9 @@ pub fn save_now(
     if let Some(c) = &actors.cars {
         file.systems.extra.insert("cars".into(), c.to_save());
     }
+    if let Some(v) = play_state.metro_herds.to_save() {
+        file.systems.extra.insert("street_herds".into(), v);
+    }
     // Weapons saving: equipped weapon in hand and loaded magazine rounds
     let equipped = if let Some(gun) = &play_state.gun {
         gun.id.clone()

@@ -59,6 +59,100 @@ Read: tasks/R41-common.md ("Life placement", "Life models"), `world/src/metro/tr
 - `world/tests/golden.rs` is untouched and passes.
 
 ## Done when
-Code + tests written (the lead builds and tests). Fill `## Worker notes`.
+Code + tests written (the lead builds and tests). Fill `## Worker notes
+- **Created files:**
+  - `world/src/metro/life.rs`: `LifeConfig`, `CrowPerchChance`, `load_life`, `default_life`, `FlapKind`, `Flapper`, `PerchKind`, `CrowPerch`, `life_props_in_chunk`, `flappers_in_chunk`, `crow_perches_in_chunk`.
+  - `world/src/metro/life_wires.rs`: power pole and wire span/down placement along `poleAvenueShare` of avenue lines.
+  - `world/src/metro/life_tests.rs`: unit tests covering determinism, sidewalk poles, wire span endpoints & X scale, billboard frame+face pairing, 4–6 m lobby flags, crow perch counts & Edge > Core density, and empty outside New Halden.
+- **Lines for `world/src/metro/mod.rs`:**
+  ```rust
+  pub mod life;
+  mod life_wires;
+  #[cfg(test)]
+  mod life_tests;
+  ```
+  And in `pub use` exports (optional convenience):
+  ```rust
+  pub use life::{
+      CrowPerch, FlapKind, Flapper, LifeConfig, PerchKind, crow_perches_in_chunk,
+      flappers_in_chunk, life_props_in_chunk,
+  };
+  ```
+- **Line for `world/src/generator_contents.rs` (next to `traces_props_in_chunk`):**
+  ```rust
+  props.extend(crate::metro::life_props_in_chunk(metro, chunk, hfn));       // R41-03
+  ```
+- **JSON block for `data/metro.json` (top-level `"life"` key):**
+  ```json
+  "life": {
+    "_why": "R41: silent life. Poles on some avenues; per 64 m block chances below.",
+    "poleSpacingM": 20.0,
+    "poleAvenueShare": 0.35,
+    "poleFallenChance": 0.15,
+    "poleLeaningChance": 0.2,
+    "billboardRoofChance": 0.18,
+    "billboardStreetChance": 0.12,
+    "flagChance": 0.35,
+    "plasticChance": 0.5,
+    "crowPerchChance": { "edge": 0.55, "midtown": 0.45, "core": 0.35 },
+    "crowsPerPerch": [3, 9]
+  }
+  ```
+- **Field for `world/src/metro/config.rs` (`MetroConfig`):**
+  ```rust
+  #[serde(default)]
+  pub life: crate::metro::life::LifeConfig,
+  ```
+- **Notes:**
+  - `billboard_street` places its `billboard_face_*` at `scale = 0.66` per R41-04; roof billboards use `scale = 1.0`.
+  - `power_wire_span` and `power_wire_down` are placed at pole A's XZ with `yaw` pointing `+X` toward pole B and `scale = span_len / 20.0`.
+  - Not compiled/tested yet (subagent rule: did not run `cargo` or `tools/gate.sh`).`.
 
 ## Worker notes
+- **Created files:**
+  - `world/src/metro/life.rs`: `LifeConfig`, `CrowPerchChance`, `load_life`, `default_life`, `FlapKind`, `Flapper`, `PerchKind`, `CrowPerch`, `life_props_in_chunk`, `flappers_in_chunk`, `crow_perches_in_chunk`.
+  - `world/src/metro/life_wires.rs`: power pole and wire span/down placement along `poleAvenueShare` of avenue lines.
+  - `world/src/metro/life_tests.rs`: unit tests covering determinism, sidewalk poles, wire span endpoints & X scale, billboard frame+face pairing, 4–6 m lobby flags, crow perch counts & Edge > Core density, and empty outside New Halden.
+- **Lines for `world/src/metro/mod.rs`:**
+  ```rust
+  pub mod life;
+  mod life_wires;
+  #[cfg(test)]
+  mod life_tests;
+  ```
+  And in `pub use` exports (optional convenience):
+  ```rust
+  pub use life::{
+      CrowPerch, FlapKind, Flapper, LifeConfig, PerchKind, crow_perches_in_chunk,
+      flappers_in_chunk, life_props_in_chunk,
+  };
+  ```
+- **Line for `world/src/generator_contents.rs` (next to `traces_props_in_chunk`):**
+  ```rust
+  props.extend(crate::metro::life_props_in_chunk(metro, chunk, hfn));       // R41-03
+  ```
+- **JSON block for `data/metro.json` (top-level `"life"` key):**
+  ```json
+  "life": {
+    "_why": "R41: silent life. Poles on some avenues; per 64 m block chances below.",
+    "poleSpacingM": 20.0,
+    "poleAvenueShare": 0.35,
+    "poleFallenChance": 0.15,
+    "poleLeaningChance": 0.2,
+    "billboardRoofChance": 0.18,
+    "billboardStreetChance": 0.12,
+    "flagChance": 0.35,
+    "plasticChance": 0.5,
+    "crowPerchChance": { "edge": 0.55, "midtown": 0.45, "core": 0.35 },
+    "crowsPerPerch": [3, 9]
+  }
+  ```
+- **Field for `world/src/metro/config.rs` (`MetroConfig`):**
+  ```rust
+  #[serde(default)]
+  pub life: crate::metro::life::LifeConfig,
+  ```
+- **Notes:**
+  - `billboard_street` places its `billboard_face_*` at `scale = 0.66` per R41-04; roof billboards use `scale = 1.0`.
+  - `power_wire_span` and `power_wire_down` are placed at pole A's XZ with `yaw` pointing `+X` toward pole B and `scale = span_len / 20.0`.
+  - Not compiled/tested yet (subagent rule: did not run `cargo` or `tools/gate.sh`).

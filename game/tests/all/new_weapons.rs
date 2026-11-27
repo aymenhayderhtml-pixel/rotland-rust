@@ -84,10 +84,10 @@ fn new_weapons_loot_tables_placement() {
     assert!(has("barn", "crossbow"));
     assert!(has("barn", "crossbow_bolt"));
 
-    // Grenade must ONLY appear in police and town_station tables, count 1-2
+    // Grenade must ONLY appear in police, town_station, and metro_army tables, count 1-2
     for (name, table) in loot.iter() {
         let entry = table.entries.iter().find(|e| e.id == "grenade");
-        if name == "police" || name == "town_station" {
+        if name == "police" || name == "town_station" || name == "metro_army" {
             let e = entry.unwrap_or_else(|| panic!("grenade missing from {name}"));
             assert_eq!(e.count, [1, 2], "grenade count in {name} must be [1, 2]");
         } else {

@@ -8,11 +8,12 @@ pub mod input;
 pub mod keybinds;
 
 pub use game_core::{
-    damage, dev_panel, difficulty, dir, health, hints, hud_math, items, loot, profile_stats,
-    skills, weapons,
+    armor, damage, dev_panel, difficulty, dir, health, hints, hud_math, items, loot,
+    profile_stats, skills, weapons,
 };
 pub use game_zombie::{
-    director, flowfield, horde, poi_zombies, spawner, spawner_config, zombie, zombie_voices,
+    director, flowfield, horde, metro_spawn, poi_zombies, spawner, spawner_config, street_herds,
+    zombie, zombie_voices,
 };
 pub use game_camp::{
     bounties, building, camp, camp_guards, camp_upgrades, campfire, crafting, economy, farming,
@@ -20,10 +21,11 @@ pub use game_camp::{
 };
 pub use game_player::{
     death_anim, downed, fishing, fp_motion, gun_feel, guns, hit_react, ladders, melee_combo,
-    player, survival, swim_hands, swimming, trees, vault, vehicles,
+    night_vision, player, survival, swim_hands, swimming, trees, vault, vehicles,
 };
-pub use game_world::{animals, dogs, grenade, guns_fire, melee, melee_guard, projectiles};
+pub use game_world::{animals, crows, dogs, grenade, guns_fire, melee, melee_guard, projectiles};
 
+pub use game_core::armor::*;
 pub use game_core::damage::DamageInfo;
 pub use game_core::dev_panel::*;
 pub use game_core::difficulty::*;
@@ -35,8 +37,9 @@ pub use game_core::loot::*;
 pub use game_core::profile_stats::*;
 pub use game_core::skills::*;
 pub use game_core::weapons::{
-    apply_hit_wear, apply_shot_wear, can_fit, effective_stats, is_broken, jam_chance, jam_roll,
-    kick_mult, melee_damage_mult, spread_mult, AttachEffects, AttachSlot, AttachmentDef,
+    GUN_PARTS_REPAIR_AMOUNT, apply_hit_wear, apply_shot_wear, can_fit, effective_stats, is_broken,
+    jam_chance, jam_roll, kick_mult, melee_damage_mult, repair_with_parts, spread_mult,
+    AttachEffects, AttachSlot, AttachmentDef,
     AttachmentLoadError, AttachmentRegistry, WeaponAnim, WeaponDef, WeaponHold, WeaponKind,
     WeaponLoadError, WeaponRegistry, WeaponScope, WeaponWearEntry, WearConfig, WearLoadError,
 };
@@ -44,11 +47,13 @@ pub use game_core::weapons::{
 pub use game_zombie::director::*;
 pub use game_zombie::flowfield::FlowField;
 pub use game_zombie::horde::*;
+pub use game_zombie::metro_spawn::*;
 pub use game_zombie::poi_zombies::*;
 pub use game_zombie::spawner::{
     ActiveZombie, CampDensityRule, SpawnConfig, SpawnConfigData, SpawnContext, SpawnOrder,
     SpawnOrders, SpawnTypeEntry, SpawnTypeTable, Spawner, SpawnerRng,
 };
+pub use game_zombie::street_herds::*;
 pub use game_zombie::zombie_voices::*;
 
 pub use game_camp::bounties::*;
@@ -89,6 +94,7 @@ pub use game_player::gun_feel::{
 pub use game_player::hit_react::{HitInput, HitReactConfig, HitReactState, HitReaction, HitSide, hit_side};
 pub use game_player::ladders::*;
 pub use game_player::melee_combo::{ComboMove, MeleeComboState, MeleeMovesConfig};
+pub use game_player::night_vision::{NightVision, BATTERY_ITEM};
 pub use game_player::player::*;
 pub use game_player::survival::*;
 pub use game_player::swim_hands::{SwimHands, SwimHandsChange};
@@ -101,6 +107,7 @@ pub use game_player::vault::{VaultConfig, VaultKind, VaultPlan, VaultState, find
 pub use game_player::vehicles::*;
 
 pub use game_world::animals::*;
+pub use game_world::crows::*;
 pub use game_world::dogs::*;
 pub use game_world::grenade::*;
 pub use game_world::melee_guard::{GuardConfig, GuardEvent, GuardInput, GuardState, shove_targets};

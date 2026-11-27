@@ -76,4 +76,6 @@ mod warmth_items_tests;
 mod warmth_save_tests;
 mod weapon_wear_tests;
 mod attachments_tests;
+mod city_items;
 mod gunsmith_tests;
+mod street_herds;

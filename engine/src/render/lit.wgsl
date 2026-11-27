@@ -24,6 +24,8 @@ struct Scene {
     moon_dir: vec4<f32>,       // xyz: toward the moon, w: energy
     moon_color: vec4<f32>,
     spots: array<SpotLightUniform, 3>,
+    nvg: vec4<f32>,            // x: strength, y: gain, z: noise, w: time
+    nvg_tint: vec4<f32>,       // rgb: linear tint
 };
 @group(0) @binding(0) var<uniform> scene: Scene;
 
@@ -93,6 +95,20 @@ fn filmic(c: vec3<f32>) -> vec3<f32> {
     return t / wt;
 }
 
+fn apply_nvg(rgb: vec3<f32>, pixel: vec2<f32>, ndc: vec2<f32>) -> vec3<f32> {
+    if (scene.nvg.x <= 0.0) {
+        return rgb;
+    }
+    let luma = dot(rgb, vec3(0.2126, 0.7152, 0.0722)) * scene.nvg.y;
+    var col = scene.nvg_tint.rgb * clamp(luma, 0.0, 1.0);
+    let h = fract(sin(dot(pixel + vec2(scene.nvg.w * 60.0), vec2(12.9898, 78.233))) * 43758.5453);
+    col = col + (h - 0.5) * scene.nvg.z;
+    let r = length(ndc);
+    let vig = 1.0 - smoothstep(0.65, 1.25, r) * 0.65;
+    col = max(col * vig, vec3(0.0));
+    return mix(rgb, col, scene.nvg.x);
+}
+
 fn sky_color(dir: vec3<f32>) -> vec3<f32> {
     let PI = 3.14159265;
     let v_angle = acos(clamp(dir.y, -1.0, 1.0));
@@ -120,7 +136,7 @@ fn sky_vs(@builtin(vertex_index) i: u32) -> SkyOut {
 fn sky_fs(i: SkyOut) -> @location(0) vec4<f32> {
     let far = scene.inv_view_proj * vec4(i.ndc, 0.0001, 1.0);
     let dir = normalize(far.xyz / far.w - scene.camera_pos.xyz);
-    return vec4(filmic(sky_color(dir)), 1.0);
+    return vec4(apply_nvg(filmic(sky_color(dir)), i.pos.xy, i.ndc), 1.0);
 }
 
 // ---- lit coloured meshes
@@ -139,6 +155,7 @@ struct VsOut {
     @location(4) @interpolate(flat) lod_fade: f32,
     // Far items (skyline): fog distance is divided by this (1.0 = normal)
     @location(5) @interpolate(flat) fog_scale: f32,
+    @location(6) clip_xyw: vec3<f32>,
 };
 
 // Per-draw offset (chunk origin), so chunk meshes keep small local coordinates
@@ -148,14 +165,16 @@ struct Draw { offset: vec4<f32> };
 @vertex
 fn mesh_vs(v: VsIn) -> VsOut {
     let world = v.position + draw.offset.xyz;
+    let clip = scene.view_proj * vec4(world, 1.0);
     var o: VsOut;
-    o.pos = scene.view_proj * vec4(world, 1.0);
+    o.pos = clip;
     o.world = world;
     o.normal = v.normal;
     o.albedo = srgb_to_linear(v.color.rgb);
     o.glow = 1.0 - v.color.a;
     o.lod_fade = 1.0;
     o.fog_scale = max(draw.offset.w, 1.0);
+    o.clip_xyw = vec3(clip.x, clip.y, clip.w);
     return o;
 }
 
@@ -177,7 +196,8 @@ fn shade_fragment(i: VsOut) -> vec4<f32> {
     var color = i.albedo * (sun + moon + ambient + spot_lights(i.world, n)) + i.albedo * i.glow * 3.0;
     let fog = smoothstep(scene.fog.x, scene.fog.y, dist / i.fog_scale) * scene.fog.z;
     color = mix(color, scene.fog_color.rgb, fog);
-    return vec4(filmic(color), 1.0);
+    let ndc = i.clip_xyw.xy / max(i.clip_xyw.z, 0.0001);
+    return vec4(apply_nvg(filmic(color), i.pos.xy, ndc), 1.0);
 }
 
 // Normal fragment entry point: NO discard, keeps early depth test (Early-Z) active on Intel integrated GPUs
@@ -234,14 +254,16 @@ fn skinned_vs(v: SkinIn) -> VsOut {
     let model = mat4x4<f32>(v.m0, v.m1, v.m2, v.m3);
     let skin = model * bones[v.bone_base + v.bone.x];
     let world = (skin * vec4(v.position, 1.0)).xyz;
+    let clip = scene.view_proj * vec4(world, 1.0);
     var o: VsOut;
-    o.pos = scene.view_proj * vec4(world, 1.0);
+    o.pos = clip;
     o.world = world;
     o.normal = (skin * vec4(v.normal, 0.0)).xyz;
     o.albedo = srgb_to_linear(v.color.rgb);
     o.glow = 1.0 - v.color.a;
     o.lod_fade = v.lod_fade;
     o.fog_scale = 1.0;
+    o.clip_xyw = vec3(clip.x, clip.y, clip.w);
     return o;
 }
 

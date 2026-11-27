@@ -156,6 +156,15 @@ pub fn draw_details_panel(
                         .color(Color32::from_rgb(143, 194, 74)),
                 );
             }
+            static ARMOR_CFG: std::sync::OnceLock<game::ArmorConfig> = std::sync::OnceLock::new();
+            let armor_cfg = ARMOR_CFG.get_or_init(|| game::ArmorConfig::from_repo().unwrap_or_default());
+            if let Some(armor) = armor_cfg.items.get(&d.id) {
+                ui.label(
+                    RichText::new(format!("Bite damage -{:.0}%", armor.reduce * 100.0)) // new: DECISIONS 2026-11-27
+                        .size(12.0)
+                        .color(Color32::from_rgb(143, 194, 74)),
+                );
+            }
         }
     } else {
         ui.label(RichText::new("Empty slot").size(16.0).color(Color32::GRAY));

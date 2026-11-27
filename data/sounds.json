@@ -122,6 +122,7 @@
     "shotgun": { "shot": "shotgun_shot" },
     "rifle": { "shot": "rifle_shot" },
     "ak47": { "shot": "rifle_shot" },
+    "army_rifle": { "shot": "rifle_shot" },
     "smg": { "shot": "pistol_shot" },
     "crowbar": { "swing": "swing_heavy" },
     "katana": { "swing": "swing_light" },

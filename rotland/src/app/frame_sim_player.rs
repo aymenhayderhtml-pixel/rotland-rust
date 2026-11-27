@@ -22,8 +22,16 @@ pub(super) fn apply_player_bites(
 ) {
     if let Some(c) = combat {
         let was_down = downed.is_down();
+        let reduction = play
+            .play
+            .as_ref()
+            .map_or(0.0, |ps| game::armor_reduction(&ps.inventory, &ps.armor_cfg));
+        let scaled_bites: Vec<f32> = bites
+            .iter()
+            .map(|&d| game::apply_armor_damage(d, reduction))
+            .collect();
         let ev = c.take_damage_with_downed(
-            bites,
+            &scaled_bites,
             &mut downed.machine,
             session.play_time,
             true,

@@ -1,0 +1,19 @@
+{
+  "_why": "R41 silent life: crows startle when the player comes close.",
+  "startleRadius": 12.0,
+  "startleRadiusRunning": 20.0,
+  "gunshotStartleRadius": 60.0,
+  "takeoffSpeed": 4.0,
+  "flySpeed": 9.0,
+  "climbRate": 3.0,
+  "goneHeight": 45.0,
+  "returnAfter": [40.0, 90.0],
+  "flapRate": 9.0,
+  "glideShare": 0.35,
+  "circlers": 6,
+  "circleRadius": [40.0, 90.0],
+  "circleHeight": [60.0, 110.0],
+  "drawRadius": 90.0,
+  "flapperRate": 2.2,
+  "flapperDrawRadius": 70.0
+}

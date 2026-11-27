@@ -72,6 +72,8 @@ pub struct TestFlags {
     pub wear: Option<(String, f32)>,
     /// `--mods=<weapon>:<id,id>`: fit attachments on `<weapon>` in the bag (adding if absent) (R37-08).
     pub mods: Option<(String, Vec<String>)>,
+    /// `--nvg`: start with night vision on and 2 batteries in the bag (R41-09).
+    pub nvg: bool,
 }
 
 impl TestFlags {
@@ -149,6 +151,7 @@ impl TestFlags {
                 .filter(|s| !s.is_empty()),
             wear: args.value("--wear").and_then(parse_wear_flag),
             mods: args.value("--mods").and_then(parse_mods_flag),
+            nvg: args.flag("--nvg"),
         }
     }
 }
@@ -368,7 +371,7 @@ pub fn apply_startup(
         apply_town_tp(gpu, render, world, actors, session, key);
     }
     if let Some(key) = session.test_flags.metro.as_deref() {
-        apply_metro_tp(gpu, render, world, actors, session, key);
+        apply_metro_tp(gpu, render, world, actors, play, session, key);
     }
     if let Some(index) = session.test_flags.trailhead {
         apply_trailhead_tp(gpu, render, world, actors, session, index);
@@ -407,6 +410,15 @@ pub fn apply_startup(
             None,
         ));
         ui.cursor_captured = false;
+    }
+    if session.test_flags.nvg
+        && let Some(play_state) = play.play.as_mut()
+    {
+        play_state.inventory.add(game::BATTERY_ITEM, 2);
+        play_state
+            .night_vision
+            .toggle(&mut play_state.inventory, &play_state.boosts_cfg.night_vision);
+        play_state.hotbar.on_inventory_changed(&play_state.inventory);
     }
     if session.test_flags.map && ui.gunsmith.is_none() && ui.hub.is_none() {
         ui.hub = Some(crate::hub_ui::HubUiState::new(
@@ -564,15 +576,25 @@ fn apply_metro_tp(
     render: &mut RenderState,
     world: &mut WorldState,
     actors: &mut ActorsState,
+    play: &mut PlaySide,
     session: &SessionState,
     key: &str,
 ) {
     let Some(spot) = MetroSpot::parse(key) else {
         log::warn!(
-            "--metro={key}: unknown spot (expected edge|core|highway|town_view|top|lobby|landmark|fallen|leaning|burnt|carwall|camp)"
+            "--metro={key}: unknown spot (expected edge|core|highway|town_view|top|lobby|landmark|fallen|leaning|burnt|carwall|camp|herd|crows|crows_up|army|night)"
         );
         return;
     };
+    if spot == MetroSpot::Herd && !play.clock_frozen {
+        play.hour = 10.0; // new: DECISIONS 2026-11-27
+        play.clock.set_time(10.0);
+        play.clock_frozen = true;
+    } else if spot == MetroSpot::Night && !play.clock_frozen {
+        play.hour = 23.0; // new: DECISIONS 2026-11-27
+        play.clock.set_time(23.0);
+        play.clock_frozen = true;
+    }
     let Some(world_gen) = world.world_gen.clone() else {
         return;
     };

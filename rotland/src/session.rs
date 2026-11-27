@@ -151,6 +151,16 @@ pub fn restore_play(file: &SaveFile, play: &mut PlayState) -> Vec<String> {
     if let Some(v) = file.systems.extra.get("need_thirst") {
         play.thirst.from_save(v);
     }
+    if let Some(v) = file.systems.extra.get("boosts")
+        && let Ok(b) = serde_json::from_value(v.clone())
+    {
+        play.boosts = b;
+    }
+    if let Some(v) = file.systems.extra.get("night_vision")
+        && let Ok(nv) = serde_json::from_value(v.clone())
+    {
+        play.night_vision = nv;
+    }
     // SAVE-002: Restore dropped items into play.world_items
     if let Some(ws) = &file.systems.worldstate {
         play.world_items.clear();
@@ -228,6 +238,12 @@ pub fn capture(base: Option<&SaveFile>, s: &Snapshot) -> SaveFile {
     sys.extra.insert("map".into(), s.play.map.to_save());
     if let Some(h) = &s.play.hints {
         sys.extra.insert("hints".into(), h.to_save());
+    }
+    if let Ok(v) = serde_json::to_value(&s.play.boosts) {
+        sys.extra.insert("boosts".into(), v);
+    }
+    if let Ok(v) = serde_json::to_value(&s.play.night_vision) {
+        sys.extra.insert("night_vision".into(), v);
     }
     // SAVE-001 / ARCH-002: All world state (campfires, looted, fallen trees, visited POIs, dropped) captured in ONE place
     let mut ws = sys.worldstate.clone().unwrap_or_default();

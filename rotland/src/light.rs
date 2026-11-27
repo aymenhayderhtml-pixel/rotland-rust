@@ -112,6 +112,8 @@ pub fn at_hour(hour: f32, spot: Option<SpotLight>) -> Lighting {
         moon_energy: look.moon_energy,
         moon_color: Vec3::from(look.moon_color),
         spots: [spot, None, None],
+        nvg: [0.0; 4],
+        nvg_tint: Vec3::new(0.35, 1.0, 0.45), // data: boosts.json nightVision.tint
     }
 }
 

@@ -60,5 +60,9 @@ New Halden is generated deterministically in `world::metro` from `data/metro.jso
 - **Major Damage (`world::metro::damage`):** One fallen tower section lying across a midtown street with walkable rubble mounds, one leaning core tower, and one burnt-out midtown block with blackened floor overlays, ash patches, and burnt car piles.
 - **Survivor Traces (`world::metro::traces`):** Stacked-car street barricades with a walkable gap, facade spray-painted warnings (`graffiti_*`), missing-person posters (`poster_wall`), rooftop survivor camps, sidewalk bodies under sheets, and lobby interior dressing.
 - **Tower Variety (`world::metro::tower_parts`):** Damaged `_floor_c` modules (`towers.damagedShare = 0.25`, `DamageMode::All` in the burnt block) and rebuilt crowns with NY water tanks, machinery, stair huts, and antennas.
-- **Test Flags:** `--metro=<edge|core|highway|town_view|top|lobby|landmark|fallen|leaning|burnt|carwall|camp>`.
+- **Test Flags:** `--metro=<edge|core|highway|town_view|top|lobby|landmark|fallen|leaning|burnt|carwall|camp|herd|crows|crows_up|army|night>` and `--nvg`.
+- **R41 (Zombies, Loot & Silent Life):**
+  - **Metro Spawner & Herds:** District-scaled zombie density/caps (`edge` < `midtown` < `core`), night runner dominance (`data/spawning.json` `metro`), and slow avenue walker herds (`world::metro::herds` + `game::StreetHerds`) that aggro when noticing the player.
+  - **District Loot:** 7 `metro_*` loot tables (`edge`, `midtown`, `core`, `army`, `medical`, `camp`, `car`) with `army_crate`, `metro_locker`, `med_cabinet`, and `camp_stash` containers plus 12 city-only items (armor, `army_rifle`, `night_vision`, rare meds, repair parts).
+  - **Silent Life:** Power poles with sagging/fallen wires, weathered billboards, flapping torn flags/plastic, and startling crow flocks (`world::metro::life`, `game::crows`).
 - **Perf Rule:** Measured with `tools/perf_scenes.sh --set metro --seconds 20`; pass requires average FPS >= 20 (1% low logged for information only).

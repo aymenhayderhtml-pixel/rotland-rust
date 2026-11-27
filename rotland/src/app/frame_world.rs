@@ -32,6 +32,20 @@ pub fn update_needs(
         if heal > 0.0 {
             c.health.heal(heal);
         }
+        let boost_heal = play_state.boosts.update(dt);
+        if boost_heal > 0.0 && !dead {
+            c.health.heal(boost_heal);
+        }
+        let nvg_cfg = play_state.boosts_cfg.night_vision;
+        play_state.night_vision.update(dt, &mut play_state.inventory, &nvg_cfg);
+        if play_state.surgery.tick(dt)
+            && !dead
+            && play_state.inventory.remove("surgery_kit", 1)
+        {
+            c.health.heal(c.health.max());
+            play_state.hotbar.on_inventory_changed(&play_state.inventory);
+            play_state.show_toast("Surgery complete: full health".into());
+        }
         if damage > 0.0 {
             let now = actors.downed.last_play_time();
             let ev = c.take_damage_with_downed(
@@ -550,6 +564,16 @@ pub fn update_world_interactions(
         let forward = game::yaw_forward(p.yaw);
         let night = !(6.0..20.0).contains(&play.hour);
         play_state.spawn_tick(dt, actors.player, forward, night, z, &world.physics, w);
+        play_state.metro_herds.tick(
+            session.play_time,
+            play.clock.day,
+            actors.player,
+            play_state.spawner_hard_cap(),
+            z,
+            &world.physics,
+            w,
+            session.seed as u64,
+        );
     }
     if !play.clock_frozen {
         let before = play.clock.day as f32 * 24.0 + play.clock.hour;
