@@ -1,6 +1,6 @@
 # STATUS (read this first; keep it under ~80 lines)
 
-Updated: 2026-11-27 by Claude (R43 merged).
+Updated: 2026-11-27 by Claude (R43.5 clean-up merged).
 
 ## Where we are
 - **v1.0 tagged. Now: v1.1 = New Halden**, a big dying city (2 km, towers to ~150 m, overgrown, about 6 km out). Plan: `docs/PLAN_1.1.md` (R38-R47). R38-R43 MERGED (see below). Next: R44 (see docs/PLAN_1.1.md).
@@ -58,8 +58,10 @@ Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zomb
 
 - 2026-11-27: R43 MERGED (Hydrogen lead): climbing. 5 climbable towers (2 Midtown, 2 Core, the tallest landmark) with concrete stairwells (`tw_stair_*`, floor digits, ROOF sign, jammed doors), stop-off floors (office/flat/camp interiors, `data/climb_floors.json`, loot `metro_tower_*`, zombies wake only on their floor: `wakeHeightM`), roof hatch ladder, plank bridges + ladders between roofs (`world/src/metro/rooftops.rs`), 8 brick fire escapes that work (`fire_escapes.rs`), the radio on the mast (`data/radio.json`, `game_world/src/radio.rs`, `rotland/src/metro_radio.rs`, crate unlock, save in `systems.extra["metro_radio"]`). Flags `--metro=climb|climb_stairs|climb_floor|climb_roof|roof_planks|fire_escape|radio`; map labels Radio Mast/Stairs. 598 models (pack 109 MB), 1527 tests. FPS metro 67.9 avg (1% low 31.9). Leftovers: lobby desk stands in front of the stair door; `--metro=fire_escape` camera view is poor; radio "Only static now." after reload only unit-tested; climb.rs 521 / rooftops.rs 368 lines.
 
+- 2026-11-27: R43.5 clean-up (Claude + 3 Haiku helpers): lobby desk moved off the stair door on climb towers (`metro.json climb.lobbyDesk`), herds walk as a loose column (`herds.columnPerZombieM`), `--metro=fire_escape` pose now faces the escape, radio "Only static now." proven after reload (`--save-at=3` then `--load=1`), split test_flags.rs / shooting.rs / play.rs / props.rs into folders (all under ~260 lines). 1527 tests. FPS metro 69.3 avg (1% low 31.2). Note: after merging helper worktrees, a stale build can fail; `touch` the changed file and rebuild.
+
 ## Next
-1. R44 rooftop life (docs/PLAN_1.1.md): rooftop safe house, fast travel, rooftop survivors + trader, rescues. Workers now = Haiku subagents (Hydrogen/DeepSeek limits used up). Leftovers: R43 list above, long files (play.rs, props.rs, climb.rs ...), herds spawn as a tight blob. FPS check = metro only, average >= 20.
+1. R44 rooftop life (docs/PLAN_1.1.md): rooftop safe house, fast travel, rooftop survivors + trader, rescues. Workers now = Haiku subagents (Hydrogen/DeepSeek limits used up). Leftovers: long files (climb.rs 521, camp.rs 717, frame_world/frame_ui/render_frame ~650, gunsmith_play 551, explosion_view 482, metro_flags 479). FPS check = metro only, average >= 20.
 
 ## Workers (who does what: PLAN_0.2.md "AI roles")
 - DeepSeek: `opencode` / `opencode/deepseek-v4.1-flash-free`: free usage ran out on 2026-11-20.
