@@ -66,6 +66,10 @@ The remaining `.py` files in these folders are helpers that the scripts above im
 - `--metro=crows` / `--metro=crows_up` — teleports 15 m from a body perch with pecking crows, or 6 m away inside the startle radius.
 - `--metro=army` — teleports 2 m in front of a Core army cache crate.
 - `--metro=night` — teleports to the Core centre at hour 23 (night runners).
+- `--metro=hospital` / `--metro=hospital_in` — 35 m in front of the hospital ER canopy / inside the reception hall looking toward the ward.
+- `--metro=police` / `--metro=police_in` — front steps of the police station / inside the open office toward the cells.
+- `--metro=fire` / `--metro=fire_in` — fire station forecourt facing the bays / inside the bay hall beside the fire truck.
+- `--metro=armyline` / `--metro=armyline_top` — 30 m outside the army line barrier / 60 m up pitched down over the whole line.
 - `--nvg` — starts with night vision goggles on and 2 batteries in the bag.
 - `--tower-style=<brick|stone|glass|slab|deco>` (with `--metro=core`) — teleports to the street in front of the nearest tower of that style, facing its facade.
 - `--map` — opens the big map hub screen on startup (unless `--gunsmith` or `--metro` UI already took the screen).

@@ -25,6 +25,13 @@ mod loot_helpers;
 mod loot_tests;
 pub mod overgrowth;
 pub mod place;
+pub mod places;
+mod places_data;
+#[cfg(test)]
+mod places_tests;
+pub mod army_line;
+#[cfg(test)]
+mod army_line_tests;
 pub mod styles;
 pub mod tower_parts;
 #[cfg(test)]
@@ -75,6 +82,14 @@ pub use life::{
     life_props_in_chunk,
 };
 pub use loot::{MetroLootConfig, metro_loot_in_chunk, metro_loot_in_chunk_with_config};
+pub use places::{
+    LotRole, PLACE_KINDS, PlaceChunk, PlaceSite, lot_role, place_info, place_site, place_sites,
+    places_in_chunk, places_in_chunk_with,
+};
+pub use army_line::{
+    ARMY_LINE_POI_ID, ArmyLineSite, army_line_blocked_points, army_line_in_chunk, army_line_site,
+    army_line_spawn_offsets,
+};
 
 #[cfg(test)]
 mod towers_tests;

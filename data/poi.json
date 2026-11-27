@@ -19,6 +19,10 @@
     { "id": "warehouse", "lot": [26, 16], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "warehouse", "zombies": [1, 3] },
     { "id": "ruin", "lot": [16, 12], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "ruin", "zombies": [1, 3] },
     { "id": "fish_shack", "lot": [8, 6], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "house", "zombies": [1, 2] },
-    { "id": "boathouse", "lot": [14, 10], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "barn", "zombies": [1, 2] }
+    { "id": "boathouse", "lot": [14, 10], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "barn", "zombies": [1, 2] },
+    { "id": "metro_hospital", "lot": [40, 32], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "metro_hospital", "zombies": [10, 14], "zombieModels": ["zombie_medic", "zombie_03", "zombie_01"] },
+    { "id": "metro_police", "lot": [38, 30], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "metro_police", "zombies": [8, 12], "zombieModels": ["zombie_police", "zombie_police", "zombie_02"] },
+    { "id": "metro_fire_station", "lot": [36, 28], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "metro_fire", "zombies": [6, 10], "zombieModels": ["zombie_firefighter", "zombie_01"] },
+    { "id": "metro_army_line", "lot": [60, 30], "biome": {}, "chancePerChunk": 0.0, "minFlatness": 0.9, "minDistanceFromSpawn": 0, "lootTable": "metro_army", "zombies": [12, 16], "zombieModels": ["zombie_soldier", "zombie_soldier", "zombie_soldier", "zombie_02"] }
   ]
 }

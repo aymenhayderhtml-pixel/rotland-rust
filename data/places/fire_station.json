@@ -1,0 +1,43 @@
+{
+  "_why": "R42: fire station layout. Local game metres; front = local -Z. Main lot = the building's own frame (footprint [34, 26]); yards a/b/c are each in their own lot-local frame (lot centre 0,0, front = local -Z).",
+  "model": "metro_fire_station",
+  "footprint": [36, 28],
+  "floors": 2,
+  "crates": [
+    { "x": -14.5, "y": 0.15, "z": 10.5, "yaw": 0.0, "model": "metro_locker", "table": "metro_fire" },
+    { "x": -12.5, "y": 0.15, "z": 10.5, "yaw": 0.0, "model": "metro_locker", "table": "metro_fire" },
+    { "x": 2.0, "y": 0.15, "z": 10.5, "yaw": 3.1416, "model": "med_cabinet", "table": "metro_medical" }
+  ],
+  "props": [
+    { "x": -8.0, "y": 0.15, "z": -7.5, "yaw": 0.0, "model": "fire_truck", "scale": 1.0 },
+    { "x": -1.5, "y": 0.15, "z": -13.5, "yaw": 0.0, "model": "ladder_truck", "scale": 1.0 },
+    { "x": 5.0, "y": 0.0, "z": -16.0, "yaw": 0.2, "model": "traffic_cone", "scale": 1.0 },
+    { "x": 6.6, "y": 0.0, "z": -16.8, "yaw": 0.5, "model": "traffic_cone", "scale": 1.0 },
+    { "x": -4.8, "y": 0.0, "z": -15.5, "yaw": 0.4, "model": "hose_line", "scale": 1.0 }
+  ],
+  "yards": {
+    "a": [
+      { "x": -6.0, "y": 0.0, "z": -4.0, "yaw": 0.35, "model": "fire_truck_burnt", "scale": 1.0 },
+      { "x": 7.0, "y": 0.0, "z": 5.0, "yaw": 0.5, "model": "rubble_field_m", "scale": 1.0 },
+      { "x": 2.0, "y": 0.0, "z": -9.0, "yaw": -0.3, "model": "bay_door_torn", "scale": 1.0 },
+      { "x": -11.0, "y": 0.0, "z": 6.0, "yaw": 0.8, "model": "hose_line", "scale": 1.0 },
+      { "x": -13.0, "y": 0.0, "z": -10.0, "yaw": 0.0, "model": "traffic_cone", "scale": 1.0 },
+      { "x": -11.5, "y": 0.0, "z": -10.5, "yaw": 0.4, "model": "traffic_cone", "scale": 1.0 }
+    ],
+    "b": [
+      { "x": -6.0, "y": 0.0, "z": -12.0, "yaw": 0.1, "model": "jersey_barrier", "scale": 1.0 },
+      { "x": -2.0, "y": 0.0, "z": -12.0, "yaw": -0.1, "model": "jersey_barrier", "scale": 1.0 },
+      { "x": 7.0, "y": 0.0, "z": -2.0, "yaw": 2.1, "model": "police_car_burnt", "scale": 1.0 },
+      { "x": -8.0, "y": 0.0, "z": 4.0, "yaw": 0.4, "model": "body_bag", "scale": 1.0 },
+      { "x": -6.5, "y": 0.0, "z": 5.2, "yaw": -0.5, "model": "body_bag", "scale": 1.0 }
+    ],
+    "c": []
+  },
+  "yardCrates": {
+    "a": [
+      { "x": 11.0, "y": 0.0, "z": 8.0, "yaw": 1.5708, "model": "metro_locker", "table": "metro_fire" }
+    ],
+    "b": [],
+    "c": []
+  }
+}

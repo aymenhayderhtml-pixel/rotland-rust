@@ -1,0 +1,555 @@
+{
+  "_why": "R42: police station layout. Local game metres; front = local -Z (Blender +Y). x = Blender x, y = up, z = -Blender y. `crates`/`props` are on the main lot (the building and its forecourt); `yards.a/b/c` are the other three lots, each in its own lot-local frame. Every placement stays inside a 52 x 52 m lot.",
+  "model": "metro_police",
+  "footprint": [
+    38,
+    30
+  ],
+  "floors": 3,
+  "crates": [
+    {
+      "x": 16.6,
+      "y": 0.15,
+      "z": 3.4,
+      "yaw": 0.0,
+      "model": "metro_locker",
+      "table": "metro_police"
+    },
+    {
+      "x": 16.6,
+      "y": 0.15,
+      "z": 2.2,
+      "yaw": 0.0,
+      "model": "metro_locker",
+      "table": "metro_police"
+    },
+    {
+      "x": 14.4,
+      "y": 0.15,
+      "z": -1.2,
+      "yaw": 0.6,
+      "model": "metro_locker",
+      "table": "metro_police"
+    },
+    {
+      "x": 13.8,
+      "y": 0.15,
+      "z": 10.9,
+      "yaw": 0.0,
+      "model": "army_crate",
+      "table": "metro_police"
+    },
+    {
+      "x": 15.4,
+      "y": 0.15,
+      "z": 10.9,
+      "yaw": 0.0,
+      "model": "army_crate",
+      "table": "metro_police"
+    }
+  ],
+  "props": [
+    {
+      "x": -12.6,
+      "y": 0.0,
+      "z": -20.0,
+      "yaw": 3.1416,
+      "model": "police_car_wreck",
+      "scale": 1.0
+    },
+    {
+      "x": -15.8,
+      "y": 0.0,
+      "z": -20.0,
+      "yaw": 3.1916,
+      "model": "police_car_wreck",
+      "scale": 1.0
+    },
+    {
+      "x": 11.6,
+      "y": 0.0,
+      "z": -19.4,
+      "yaw": 4.0,
+      "model": "riot_shield_pile",
+      "scale": 1.0
+    },
+    {
+      "x": -3.9,
+      "y": 0.0,
+      "z": -16.6,
+      "yaw": 0.03,
+      "model": "police_barricade",
+      "scale": 1.0
+    },
+    {
+      "x": -1.4,
+      "y": 0.0,
+      "z": -16.6,
+      "yaw": -0.04,
+      "model": "police_barricade",
+      "scale": 1.0
+    },
+    {
+      "x": 1.1,
+      "y": 0.0,
+      "z": -16.6,
+      "yaw": 0.02,
+      "model": "police_barricade",
+      "scale": 1.0
+    }
+  ],
+  "yards": {
+    "a": [
+      {
+        "x": -8.4,
+        "y": 0.0,
+        "z": -9.0,
+        "yaw": 3.1416,
+        "model": "police_car_wreck",
+        "scale": 1.0
+      },
+      {
+        "x": -8.4,
+        "y": 0.0,
+        "z": -2.0,
+        "yaw": 3.1716,
+        "model": "police_car_burnt",
+        "scale": 1.0
+      },
+      {
+        "x": -8.4,
+        "y": 0.0,
+        "z": 5.0,
+        "yaw": 3.1216,
+        "model": "police_car_wreck",
+        "scale": 1.0
+      },
+      {
+        "x": -3.0,
+        "y": 0.0,
+        "z": -9.0,
+        "yaw": 3.1916,
+        "model": "police_car_wreck",
+        "scale": 1.0
+      },
+      {
+        "x": -3.0,
+        "y": 0.0,
+        "z": -2.0,
+        "yaw": 3.1016,
+        "model": "police_car_burnt",
+        "scale": 1.0
+      },
+      {
+        "x": -3.0,
+        "y": 0.0,
+        "z": 5.0,
+        "yaw": 3.1616,
+        "model": "police_car_wreck",
+        "scale": 1.0
+      },
+      {
+        "x": 6.0,
+        "y": 0.0,
+        "z": -10.0,
+        "yaw": 0.0,
+        "model": "jersey_barrier",
+        "scale": 1.0
+      },
+      {
+        "x": 6.0,
+        "y": 0.0,
+        "z": -7.0,
+        "yaw": 0.0,
+        "model": "jersey_barrier",
+        "scale": 1.0
+      },
+      {
+        "x": 6.0,
+        "y": 0.0,
+        "z": -4.0,
+        "yaw": 0.0,
+        "model": "jersey_barrier",
+        "scale": 1.0
+      },
+      {
+        "x": 6.0,
+        "y": 0.0,
+        "z": -1.0,
+        "yaw": 0.0,
+        "model": "jersey_barrier",
+        "scale": 1.0
+      },
+      {
+        "x": 6.0,
+        "y": 0.0,
+        "z": 2.0,
+        "yaw": 0.0,
+        "model": "jersey_barrier",
+        "scale": 1.0
+      },
+      {
+        "x": 6.0,
+        "y": 0.0,
+        "z": 5.0,
+        "yaw": 0.0,
+        "model": "jersey_barrier",
+        "scale": 1.0
+      },
+      {
+        "x": 13.0,
+        "y": 0.0,
+        "z": -5.0,
+        "yaw": 0.55,
+        "model": "holding_cell",
+        "scale": 1.0
+      },
+      {
+        "x": 15.0,
+        "y": 0.0,
+        "z": 7.5,
+        "yaw": 1.2,
+        "model": "riot_shield_pile",
+        "scale": 1.0
+      }
+    ],
+    "b": [
+      {
+        "x": -6.0,
+        "y": 0.0,
+        "z": 0.0,
+        "yaw": 1.5708,
+        "model": "jersey_barrier",
+        "scale": 1.0
+      },
+      {
+        "x": -3.0,
+        "y": 0.0,
+        "z": 0.0,
+        "yaw": 1.5708,
+        "model": "jersey_barrier",
+        "scale": 1.0
+      },
+      {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "yaw": 1.5708,
+        "model": "jersey_barrier",
+        "scale": 1.0
+      },
+      {
+        "x": 3.0,
+        "y": 0.0,
+        "z": 0.0,
+        "yaw": 1.5708,
+        "model": "jersey_barrier",
+        "scale": 1.0
+      },
+      {
+        "x": 6.0,
+        "y": 0.0,
+        "z": 0.0,
+        "yaw": 1.5708,
+        "model": "jersey_barrier",
+        "scale": 1.0
+      },
+      {
+        "x": 9.0,
+        "y": 0.0,
+        "z": 0.0,
+        "yaw": 1.5708,
+        "model": "jersey_barrier",
+        "scale": 1.0
+      },
+      {
+        "x": -7.5,
+        "y": 0.0,
+        "z": -3.4,
+        "yaw": 0.22,
+        "model": "police_barricade",
+        "scale": 1.0
+      },
+      {
+        "x": -3.6,
+        "y": 0.0,
+        "z": -3.6,
+        "yaw": -0.18,
+        "model": "police_barricade",
+        "scale": 1.0
+      },
+      {
+        "x": 0.4,
+        "y": 0.0,
+        "z": -3.5,
+        "yaw": 0.1,
+        "model": "police_barricade",
+        "scale": 1.0
+      },
+      {
+        "x": 4.4,
+        "y": 0.0,
+        "z": -3.6,
+        "yaw": -0.14,
+        "model": "police_barricade",
+        "scale": 1.0
+      },
+      {
+        "x": 8.4,
+        "y": 0.0,
+        "z": -3.4,
+        "yaw": 0.26,
+        "model": "police_barricade",
+        "scale": 1.0
+      },
+      {
+        "x": -5.4,
+        "y": 0.0,
+        "z": 3.4,
+        "yaw": 0.6,
+        "model": "riot_shield_pile",
+        "scale": 1.0
+      },
+      {
+        "x": 2.6,
+        "y": 0.0,
+        "z": 3.6,
+        "yaw": 2.4,
+        "model": "riot_shield_pile",
+        "scale": 1.0
+      },
+      {
+        "x": 8.6,
+        "y": 0.0,
+        "z": 3.2,
+        "yaw": -0.7,
+        "model": "riot_shield_pile",
+        "scale": 1.0
+      },
+      {
+        "x": -2.2,
+        "y": 0.0,
+        "z": -6.6,
+        "yaw": 0.4,
+        "model": "body_bag",
+        "scale": 1.0
+      },
+      {
+        "x": -1.4,
+        "y": 0.0,
+        "z": -7.0,
+        "yaw": 1.1,
+        "model": "body_bag",
+        "scale": 1.0
+      },
+      {
+        "x": 3.0,
+        "y": 0.0,
+        "z": -6.8,
+        "yaw": -0.3,
+        "model": "body_bag",
+        "scale": 1.0
+      },
+      {
+        "x": 6.4,
+        "y": 0.0,
+        "z": -6.4,
+        "yaw": 2.0,
+        "model": "body_bag",
+        "scale": 1.0
+      },
+      {
+        "x": 1.4,
+        "y": 0.0,
+        "z": 7.0,
+        "yaw": 0.0,
+        "model": "ash_patch",
+        "scale": 1.6
+      },
+      {
+        "x": -8.0,
+        "y": 0.0,
+        "z": 7.6,
+        "yaw": 0.5,
+        "model": "ash_patch",
+        "scale": 1.2
+      }
+    ],
+    "c": [
+      {
+        "x": -12.0,
+        "y": 0.0,
+        "z": -6.0,
+        "yaw": 1.5708,
+        "model": "fence_broken",
+        "scale": 1.0
+      },
+      {
+        "x": -12.0,
+        "y": 0.0,
+        "z": -3.0,
+        "yaw": 1.5708,
+        "model": "fence_broken",
+        "scale": 1.0
+      },
+      {
+        "x": -12.0,
+        "y": 0.0,
+        "z": 0.0,
+        "yaw": 1.5708,
+        "model": "fence_broken",
+        "scale": 1.0
+      },
+      {
+        "x": -12.0,
+        "y": 0.0,
+        "z": 3.0,
+        "yaw": 1.5708,
+        "model": "fence_broken",
+        "scale": 1.0
+      },
+      {
+        "x": -12.0,
+        "y": 0.0,
+        "z": 6.0,
+        "yaw": 1.5708,
+        "model": "fence_broken",
+        "scale": 1.0
+      },
+      {
+        "x": -12.0,
+        "y": 0.0,
+        "z": 9.0,
+        "yaw": 1.5708,
+        "model": "fence_broken",
+        "scale": 1.0
+      },
+      {
+        "x": -6.0,
+        "y": 0.0,
+        "z": 11.4,
+        "yaw": 0.0,
+        "model": "fence_broken",
+        "scale": 1.0
+      },
+      {
+        "x": -3.0,
+        "y": 0.0,
+        "z": 11.4,
+        "yaw": 0.0,
+        "model": "fence_broken",
+        "scale": 1.0
+      },
+      {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 11.4,
+        "yaw": 0.0,
+        "model": "fence_broken",
+        "scale": 1.0
+      },
+      {
+        "x": 3.0,
+        "y": 0.0,
+        "z": 11.4,
+        "yaw": 0.0,
+        "model": "fence_broken",
+        "scale": 1.0
+      },
+      {
+        "x": -8.4,
+        "y": 0.0,
+        "z": -3.0,
+        "yaw": 0.0,
+        "model": "car_jam_sedan",
+        "scale": 1.0
+      },
+      {
+        "x": -8.4,
+        "y": 0.0,
+        "z": 2.2,
+        "yaw": 0.0,
+        "model": "car_jam_hatch_burnt",
+        "scale": 1.0
+      },
+      {
+        "x": -8.4,
+        "y": 0.0,
+        "z": 7.2,
+        "yaw": -0.05,
+        "model": "car_jam_van",
+        "scale": 1.0
+      },
+      {
+        "x": -2.6,
+        "y": 0.0,
+        "z": -2.6,
+        "yaw": 0.08,
+        "model": "car_jam_suv",
+        "scale": 1.0
+      },
+      {
+        "x": -2.6,
+        "y": 0.0,
+        "z": 2.6,
+        "yaw": -0.06,
+        "model": "car_jam_pickup",
+        "scale": 1.0
+      },
+      {
+        "x": 3.2,
+        "y": 0.0,
+        "z": -1.8,
+        "yaw": 1.4,
+        "model": "car_jam_sedan_burnt",
+        "scale": 1.0
+      },
+      {
+        "x": 3.6,
+        "y": 0.0,
+        "z": 5.8,
+        "yaw": 0.6,
+        "model": "car_jam_hatch",
+        "scale": 1.0
+      },
+      {
+        "x": 8.0,
+        "y": 0.0,
+        "z": -6.5,
+        "yaw": 0.3,
+        "model": "tire_pile",
+        "scale": 1.0
+      },
+      {
+        "x": 8.6,
+        "y": 0.0,
+        "z": 8.0,
+        "yaw": 0.9,
+        "model": "rubble_pile",
+        "scale": 1.0
+      }
+    ]
+  },
+  "yardCrates": {
+    "a": [
+      {
+        "x": -8.4,
+        "y": 0.55,
+        "z": 5.0,
+        "yaw": 0.0,
+        "model": "",
+        "table": "metro_police"
+      },
+      {
+        "x": -3.0,
+        "y": 0.55,
+        "z": 5.0,
+        "yaw": 0.0,
+        "model": "",
+        "table": "metro_police"
+      }
+    ],
+    "b": [],
+    "c": []
+  }
+}

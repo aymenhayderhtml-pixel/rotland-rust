@@ -229,6 +229,14 @@ impl PlayState {
         self.prompt.as_ref().is_some_and(|p| !p.is_empty())
     }
 
+    pub fn brute_at_army_line(&self) -> bool {
+        self.spawner
+            .config
+            .metro
+            .as_ref()
+            .is_some_and(|m| m.brute_at_army_line())
+    }
+
     /// A message in the middle of the screen for a few seconds.
     /// Notes the POI buildings within reveal range on the map, dimmed once all their crates are looted.
     pub fn note_buildings<'a>(

@@ -1,0 +1,79 @@
+{
+  "_why": "R42-02: the failed army line. One file holds the whole layout so the owner can tweak it. Local frame: x runs along the avenue (-128..+128, the strip centre = 0), z runs across the avenue (0 = the avenue centre line, + = toward the strip lots), y is up off the ground, all in game metres. A prop at yaw 0 points its front up the avenue (local +x); a piece whose long axis is model X (sandbag_wall, concrete_barrier, razor_wire) therefore lies ACROSS the avenue at yaw 0. 'len' is such a piece's length along its long axis; only the barrier coverage test reads it. The avenue band is z -12.5..+12.5 (curbs at z = -10 and z = +10, 2.5 m of sidewalk outside each). barrierX is where the wall stands along the avenue: 20 m, which clears the cross avenue at x = 0 (its sidewalk edge is x = 12.5). The wall seals z -10..+10 and leaves ONE 4 m breach at z -2..+2, filled with rubble and a burnt car pile; a sandbag_corner nest closes each sidewalk end at z = -11.8 and z = +11.8. The strip's usable lot bands are x -122..-70, -58..-12.5, 12.5..58, 70..122 and z 12.5..58.",
+  "barrierX": 20.0,
+  "barrierModels": ["sandbag_wall", "concrete_barrier"],
+  "props": [
+    { "x": 20.0, "y": 0.0, "z": -7.0, "yaw": 0.0, "model": "sandbag_wall", "scale": 1.0, "len": 6.0 },
+    { "x": 20.0, "y": 0.0, "z": -3.0, "yaw": 0.0, "model": "concrete_barrier", "scale": 1.0, "len": 2.0 },
+    { "x": 20.0, "y": 0.0, "z": 3.0, "yaw": 0.0, "model": "concrete_barrier", "scale": 1.0, "len": 2.0 },
+    { "x": 20.0, "y": 0.0, "z": 7.0, "yaw": 0.0, "model": "sandbag_wall", "scale": 1.0, "len": 6.0 },
+    { "x": 21.9, "y": 0.0, "z": -6.5, "yaw": 0.05, "model": "sandbag_wall", "scale": 1.0, "len": 6.0 },
+    { "x": 21.9, "y": 0.0, "z": 6.5, "yaw": -0.05, "model": "sandbag_wall", "scale": 1.0, "len": 6.0 },
+    { "x": 20.6, "y": 0.0, "z": 0.4, "yaw": 0.55, "model": "rubble_field_m", "scale": 1.0 },
+    { "x": 21.8, "y": 0.0, "z": -0.8, "yaw": 1.3, "model": "car_burnt_pile", "scale": 1.0 },
+    { "x": 20.0, "y": 0.0, "z": -11.8, "yaw": 0.0, "model": "sandbag_corner", "scale": 1.0 },
+    { "x": 20.0, "y": 0.0, "z": 11.8, "yaw": 3.1416, "model": "sandbag_corner", "scale": 1.0 },
+
+    { "x": 15.0, "y": 0.0, "z": -5.0, "yaw": 0.0, "model": "razor_wire", "scale": 1.0, "len": 8.0 },
+    { "x": 15.0, "y": 0.0, "z": 5.0, "yaw": 0.0, "model": "razor_wire", "scale": 1.0, "len": 8.0 },
+
+    { "x": 29.0, "y": 0.0, "z": -2.5, "yaw": 0.18, "model": "army_tank", "scale": 1.0 },
+    { "x": 36.0, "y": 0.0, "z": 5.2, "yaw": -0.14, "model": "army_truck_jam", "scale": 1.0 },
+    { "x": 43.0, "y": 0.0, "z": -5.4, "yaw": 0.34, "model": "army_truck_burnt", "scale": 1.0 },
+    { "x": 49.0, "y": 0.0, "z": -1.6, "yaw": -0.22, "model": "army_truck_burnt", "scale": 1.0 },
+    { "x": 55.0, "y": 0.0, "z": -5.8, "yaw": 0.16, "model": "army_truck_burnt", "scale": 1.0 },
+
+    { "x": -32.0, "y": 0.0, "z": 34.0, "yaw": 2.25, "model": "heli_crashed", "scale": 1.0 },
+    { "x": -20.0, "y": 0.0, "z": 26.0, "yaw": 0.9, "model": "heli_rotor_blade", "scale": 1.0 },
+    { "x": -38.0, "y": 0.0, "z": 30.0, "yaw": 0.6, "model": "rubble_field_m", "scale": 1.0 },
+    { "x": -27.0, "y": 0.0, "z": 30.0, "yaw": 0.0, "model": "ash_patch", "scale": 1.0 },
+    { "x": -36.0, "y": 0.0, "z": 43.0, "yaw": 1.5708, "model": "ash_patch", "scale": 1.0 },
+
+    { "x": -96.0, "y": 0.0, "z": 22.0, "yaw": 0.0, "model": "evac_tent", "scale": 1.0 },
+    { "x": -96.0, "y": 0.0, "z": 38.0, "yaw": 0.0, "model": "evac_tent", "scale": 1.0 },
+    { "x": 96.0, "y": 0.0, "z": 22.0, "yaw": 0.0, "model": "evac_tent", "scale": 1.0 },
+    { "x": 96.0, "y": 0.0, "z": 38.0, "yaw": 0.0, "model": "evac_tent", "scale": 1.0 },
+    { "x": 34.0, "y": 0.0, "z": 24.0, "yaw": 0.0, "model": "evac_tent", "scale": 1.0 },
+    { "x": 34.0, "y": 0.0, "z": 40.0, "yaw": 0.0, "model": "evac_tent", "scale": 1.0 },
+    { "x": -96.8, "y": 0.0, "z": 23.0, "yaw": 0.0, "model": "cot", "scale": 1.0 },
+    { "x": -93.2, "y": 0.0, "z": 23.0, "yaw": 0.08, "model": "cot", "scale": 1.0 },
+    { "x": 34.8, "y": 0.0, "z": 25.0, "yaw": 0.04, "model": "cot", "scale": 1.0 },
+    { "x": 95.2, "y": 0.0, "z": 23.0, "yaw": 0.06, "model": "cot", "scale": 1.0 },
+
+    { "x": 44.0, "y": 0.0, "z": 48.0, "yaw": 0.35, "model": "field_kitchen", "scale": 1.0 },
+    { "x": -110.0, "y": 0.0, "z": 44.0, "yaw": 0.4, "model": "flood_light", "scale": 1.0 },
+    { "x": 24.0, "y": 0.0, "z": 50.0, "yaw": -0.3, "model": "flood_light", "scale": 1.0 },
+    { "x": 104.0, "y": 0.0, "z": 44.0, "yaw": 0.1, "model": "flood_light", "scale": 1.0 },
+
+    { "x": -90.0, "y": 0.0, "z": 11.0, "yaw": 0.0, "model": "loudspeaker_pole", "scale": 1.0 },
+    { "x": 27.0, "y": 0.0, "z": 11.0, "yaw": 0.0, "model": "loudspeaker_pole", "scale": 1.0 },
+    { "x": 95.0, "y": 0.0, "z": 11.0, "yaw": 0.0, "model": "loudspeaker_pole", "scale": 1.0 },
+    { "x": 22.0, "y": 0.0, "z": 15.0, "yaw": 0.15, "model": "checkpoint_booth", "scale": 1.0 },
+
+    { "x": -30.0, "y": 0.0, "z": 16.0, "yaw": 0.5, "model": "army_gear_scatter", "scale": 1.0 },
+    { "x": 44.0, "y": 0.0, "z": 16.0, "yaw": -0.4, "model": "army_gear_scatter", "scale": 1.0 },
+    { "x": 25.0, "y": 0.0, "z": -4.0, "yaw": 0.8, "model": "army_gear_scatter", "scale": 1.0 },
+
+    { "x": -100.0, "y": 0.0, "z": 28.0, "yaw": 0.3, "model": "body_bag", "scale": 1.0 },
+    { "x": -98.6, "y": 0.0, "z": 28.4, "yaw": 0.15, "model": "body_bag", "scale": 1.0 },
+    { "x": 88.0, "y": 0.0, "z": 28.0, "yaw": -0.4, "model": "body_bag", "scale": 1.0 },
+    { "x": -104.0, "y": 0.0, "z": 40.0, "yaw": 0.2, "model": "body_bag_pile", "scale": 1.0 },
+
+    { "x": -116.0, "y": 0.0, "z": 13.5, "yaw": 0.0, "model": "sandbag_corner", "scale": 1.0 },
+    { "x": -54.0, "y": 0.0, "z": 16.0, "yaw": 0.0, "model": "sandbag_corner", "scale": 1.0 },
+    { "x": 54.0, "y": 0.0, "z": 16.0, "yaw": 3.1416, "model": "sandbag_corner", "scale": 1.0 },
+    { "x": 116.0, "y": 0.0, "z": 13.5, "yaw": 3.1416, "model": "sandbag_corner", "scale": 1.0 }
+  ],
+  "crates": [
+    { "x": -110.0, "y": 0.0, "z": 42.0, "yaw": 0.1, "model": "army_crate", "table": "metro_army" },
+    { "x": -108.4, "y": 0.0, "z": 42.4, "yaw": -0.2, "model": "army_crate", "table": "metro_army" },
+    { "x": -108.9, "y": 0.0, "z": 43.8, "yaw": 0.4, "model": "army_crate", "table": "metro_army" },
+    { "x": 100.0, "y": 0.0, "z": 42.0, "yaw": 0.0, "model": "army_crate", "table": "metro_army" },
+    { "x": 101.4, "y": 0.0, "z": 42.4, "yaw": 0.3, "model": "army_crate", "table": "metro_army" },
+    { "x": 30.0, "y": 0.0, "z": 46.0, "yaw": -0.3, "model": "army_crate", "table": "metro_army" },
+    { "x": 31.6, "y": 0.0, "z": 46.4, "yaw": 0.2, "model": "army_crate", "table": "metro_army" },
+    { "x": -40.0, "y": 0.0, "z": 48.0, "yaw": 0.5, "model": "army_crate", "table": "metro_army" },
+    { "x": -98.0, "y": 0.0, "z": 39.6, "yaw": 0.0, "model": "med_cabinet", "table": "metro_medical" },
+    { "x": -94.0, "y": 0.0, "z": 39.6, "yaw": 0.0, "model": "med_cabinet", "table": "metro_medical" }
+  ]
+}

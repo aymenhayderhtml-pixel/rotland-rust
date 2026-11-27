@@ -71,6 +71,11 @@ impl Zombies {
         for fb in ["zombie_01", "zombie_02", "zombie_03"] {
             if !look_names.iter().any(|n| n == fb) { look_names.push(fb.to_string()); }
         }
+        // Looks only named by POI buildings (data/poi.json `zombieModels`, e.g. the R42 police/medic
+        // looks) are loaded too, or a chosen model would fall back to the first look.
+        for name in spawning::extra_look_names() {
+            if !look_names.contains(&name) { look_names.push(name); }
+        }
         let looks = look_names.iter().filter_map(|name| {
             let m = pack.find(name)?;
             let skel = m.skeleton.as_ref()?;

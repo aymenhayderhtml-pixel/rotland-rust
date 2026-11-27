@@ -46,6 +46,9 @@ pub struct PoiSpawn {
     pub poi_id: String,
     pub position: Vec3,
     pub kind: String,
+    /// Look to draw instead of the kind's own models, from the building's `zombieModels` (R42).
+    /// // data: poi.json buildings[].zombieModels
+    pub model: Option<String>,
 }
 
 impl PoiSpawn {
@@ -54,6 +57,13 @@ impl PoiSpawn {
             poi_id: poi_id.into(),
             position,
             kind: kind.into(),
+            model: None,
         }
+    }
+
+    /// Same spawn with a chosen look (`spawn_kind_look` draws it, the stats stay the kind's).
+    pub fn with_model(mut self, model: Option<String>) -> Self {
+        self.model = model;
+        self
     }
 }

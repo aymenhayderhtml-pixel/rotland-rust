@@ -126,6 +126,12 @@ impl WorldGenerator {
             props.extend(crate::metro::damage_props_in_chunk(metro, chunk, hfn));     // R40-03
             props.extend(crate::metro::traces_props_in_chunk(metro, chunk, hfn));     // R40-06
             props.extend(crate::metro::life_props_in_chunk(metro, chunk, hfn));       // R41-03
+            let places = crate::metro::places_in_chunk(metro, chunk, hfn);
+            pois.extend(places.pois);
+            props.extend(places.props);
+            let army_line = crate::metro::army_line_in_chunk(metro, chunk, hfn);
+            pois.extend(army_line.pois);
+            props.extend(army_line.props);
         }
 
         (pois, props)
@@ -299,12 +305,16 @@ impl WorldGenerator {
         );
         let mut crates = SettlementGround::remove_crates(&self.settlements, placed, self.config.clear_radius);
         if let Some(metro) = self.metro_world() {
+            let chunk = (coord.x, coord.y);
+            let hfn = &|x: f32, z: f32| self.height(x, z);
             crates.extend(crate::metro::metro_loot_in_chunk(
                 metro,
-                (coord.x, coord.y),
-                &|x, z| self.height(x, z),
+                chunk,
+                hfn,
                 self.seed as u64,
             ));
+            crates.extend(crate::metro::places_in_chunk(metro, chunk, hfn).crates);
+            crates.extend(crate::metro::army_line_in_chunk(metro, chunk, hfn).crates);
         }
         crates
     }

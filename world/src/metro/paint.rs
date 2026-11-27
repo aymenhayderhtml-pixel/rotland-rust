@@ -8,9 +8,15 @@ use serde::Deserialize;
 
 use crate::color::Color;
 use crate::metro::layout::{MetroDistrict, MetroLayout, Reserved};
+use crate::metro::places::{LotRole, lot_role};
 
 // new: DECISIONS 2026-11-26 (byte colour to 0..1 float, same as city/ground.rs)
 const COLOR_SCALE: f32 = 1.0 / 255.0;
+
+/// How deep the darker forecourt reaches in from the avenue edge (the block border), metres.
+const FORECOURT_DEPTH_M: f32 = 24.0; // new: DECISIONS 2026-11-27
+/// How much darker the forecourt is than the sidewalk grey around it.
+const FORECOURT_DARKEN: f32 = 0.78; // new: DECISIONS 2026-11-27
 
 /// Placeholder colours and window grid numbers (`look` in data/metro.json). Colours are sRGB 0-255.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -173,10 +179,31 @@ fn city_surface(p: Vec2, layout: &MetroLayout, look: &MetroLook) -> Option<Color
     if block.reserved == Some(Reserved::Park) {
         return None;
     }
+    if let Some(role) = lot_role(layout, block) {
+        return Some(place_lot_color(role, local, look));
+    }
     Some(match block.district {
         MetroDistrict::Edge => rgb(look.lot_dirt),
         MetroDistrict::Midtown | MetroDistrict::Core => rgb(look.lot_concrete),
     })
+}
+
+/// Ground colour of an R42 place lot: the main lot is a paved plaza (sidewalk grey with a darker
+/// forecourt toward its avenue), its yards are asphalt parking, except the hospital triage yard
+/// (`yards.b`), which stays dirt.
+fn place_lot_color(role: LotRole, local: Vec2, look: &MetroLook) -> Color {
+    let paved = rgb(look.sidewalk);
+    match role {
+        LotRole::Main { front, edge } => {
+            if (edge - local).dot(front) <= FORECOURT_DEPTH_M {
+                return paved.lerp(rgb(look.asphalt), FORECOURT_DARKEN);
+            }
+            paved
+        }
+        // new: DECISIONS 2026-11-27 (the hospital triage yard, yards.b, stays unpaved)
+        LotRole::Yard { kind: Reserved::Hospital, slot: 1 } => rgb(look.lot_dirt),
+        LotRole::Yard { .. } => rgb(look.asphalt),
+    }
 }
 
 #[cfg(test)]
@@ -304,5 +331,39 @@ mod tests {
         let mut look = load_look();
         look.wall_palette.clear();
         assert!(look.validate().is_err());
+    }
+
+    #[test]
+    fn place_lots_are_paved_plazas_and_yards_are_asphalt() {
+        let cfg = load_cfg();
+        let look = load_look();
+        let l = layout(&cfg);
+        let sites = crate::metro::places::place_sites(&l);
+        assert_eq!(sites.len(), 3, "three places");
+        let centre_of = |lot: (i32, i32)| {
+            let b = l.block_at(lot.0, lot.1).expect("place lot");
+            (b.rect.0 + b.rect.1) * 0.5
+        };
+        let forecourt = rgb(look.sidewalk).lerp(rgb(look.asphalt), FORECOURT_DARKEN);
+        for site in &sites {
+            // 20 m in from the avenue is the darker forecourt; the block centre behind it is grey.
+            let front = site.front();
+            let main = centre_of(site.main_lot);
+            let c = metro_ground_color(base(), main.x, main.y, &l, &look);
+            assert_eq!(c, rgb(look.sidewalk), "{:?} main lot paint", site.kind);
+            let in_front = main + front * 12.0;
+            let c = metro_ground_color(base(), in_front.x, in_front.y, &l, &look);
+            assert_eq!(c, forecourt, "{:?} forecourt paint", site.kind);
+            for (slot, lot) in site.yard_lots.iter().enumerate() {
+                let p = centre_of(*lot);
+                let c = metro_ground_color(base(), p.x, p.y, &l, &look);
+                let want = if site.kind == Reserved::Hospital && slot == 1 {
+                    rgb(look.lot_dirt)
+                } else {
+                    rgb(look.asphalt)
+                };
+                assert_eq!(c, want, "{:?} yard {slot} paint", site.kind);
+            }
+        }
     }
 }

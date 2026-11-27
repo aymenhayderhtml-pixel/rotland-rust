@@ -49,6 +49,13 @@
                    "day":   [ { "id": "walker", "weight": 0.7 }, { "id": "runner", "weight": 0.3 } ],
                    "night": [ { "id": "walker", "weight": 0.2 }, { "id": "runner", "weight": 0.8 } ] }
     },
-    "nightMaxActiveMultiplier": 1.4
+    "nightMaxActiveMultiplier": 1.4,
+    "placeDanger": {
+      "_why": "R42: the big places (hospital, police, fire station, army line) are richer and deadlier than the street they stand on.",
+      "radius": 90,
+      "densityMult": 1.6,
+      "specialBonus": 0.08,
+      "bruteAtArmyLine": true
+    }
   }
 }

@@ -66,3 +66,8 @@ New Halden is generated deterministically in `world::metro` from `data/metro.jso
   - **District Loot:** 7 `metro_*` loot tables (`edge`, `midtown`, `core`, `army`, `medical`, `camp`, `car`) with `army_crate`, `metro_locker`, `med_cabinet`, and `camp_stash` containers plus 12 city-only items (armor, `army_rifle`, `night_vision`, rare meds, repair parts).
   - **Silent Life:** Power poles with sagging/fallen wires, weathered billboards, flapping torn flags/plastic, and startling crow flocks (`world::metro::life`, `game::crows`).
 - **Perf Rule:** Measured with `tools/perf_scenes.sh --set metro --seconds 20`; pass requires average FPS >= 20 (1% low logged for information only).
+
+### R42: Big Places & Failed Army Line
+- **Hospital, Police Station, Fire Station:** Placed on their 2x2 reserved block groups (`world/src/metro/places.rs`, `data/places/{hospital,police,fire_station}.json`). Each has a walk-in ground floor building facing an avenue (`metro_hospital`, `metro_police`, `metro_fire_station`) and three themed yards (ambulance bay/triage/parking, police lot/barricade/impound, training/staging/overgrown).
+- **Failed Army Line:** Placed on the `army_line` 4x1 strip and its avenue (`world/src/metro/army_line.rs`, `data/places/army_line.json`): sandbag/concrete barrier with razor wire and a breach, tank, burnt trucks, crashed helicopter, evac tents, loudspeakers, and a once-per-day brute.
+- **Looks & Danger:** Four themed zombie looks (`zombie_soldier`, `zombie_police`, `zombie_medic`, `zombie_firefighter`) assigned per POI building via `zombieModels` and `spawn_kind_look`; `metro.placeDanger` boosts spawn density and special chance within 90 m.

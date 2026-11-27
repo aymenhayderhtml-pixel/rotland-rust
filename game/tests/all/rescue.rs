@@ -26,6 +26,7 @@ fn sample_poi_config() -> PoiConfigData {
             min_distance_from_spawn: 60.0,
             loot_table: String::new(),
             zombies: [1, 3],
+            zombie_models: Vec::new(),
         });
     }
     cfg
