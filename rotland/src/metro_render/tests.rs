@@ -9,7 +9,7 @@ use world::metro::{
     default_styles, plan_towers, style_for,
 };
 
-use crate::props::{FADE, lod_fade, shadow_lod_for_rule};
+use crate::props::lod::{FADE, lod_fade, shadow_lod_for_rule};
 
 use super::boxes::{Detail, spot_seed, tower_mesh};
 use super::hulls::{tower_bases, tower_hulls};
