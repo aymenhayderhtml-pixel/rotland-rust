@@ -1,9 +1,9 @@
 # STATUS (read this first; keep it under ~80 lines)
 
-Updated: 2026-11-27 by Claude (R41 merged).
+Updated: 2026-11-27 by Claude (R42 merged).
 
 ## Where we are
-- **v1.0 tagged. Now: v1.1 = New Halden**, a big dying city (2 km, towers to ~150 m, overgrown, about 6 km out). Plan: `docs/PLAN_1.1.md` (R38-R47). R38-R41 MERGED (see below). Next: R42 (see docs/PLAN_1.1.md).
+- **v1.0 tagged. Now: v1.1 = New Halden**, a big dying city (2 km, towers to ~150 m, overgrown, about 6 km out). Plan: `docs/PLAN_1.1.md` (R38-R47). R38-R42 MERGED (see below). Next: R43 (see docs/PLAN_1.1.md).
 - **New speed rule (2026-11-26): detail first, minimum 20 FPS** (slowest moments, whole game), not 30. No speed passes unless the owner asks.
 - Version 0.1 = Godot parity in Rust, done (R0-R10). History: `docs/archive/RUST_QUEUE.md`.
 - Working on **0.2**. This week: `docs/PLAN_0.2_PUSH.md` (6-day push). Earlier plan: `docs/PLAN_0.2.md`. Locked choices: `docs/DECISIONS.md`.
@@ -54,8 +54,10 @@ Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zomb
 
 - 2026-11-27: R41 MERGED (Hydrogen lead + Claude fixes): zombie danger by district (`spawning.json` `metro`, runners rule the Core at night), slow street herds on avenue loops (`metro.json` `herds`, charge within 35 m), silent life (power poles/wires incl. fallen, billboards with made-up ads, flapping flags/plastic, crows that startle; `data/crows.json`, `rotland/src/metro_life.rs`), 12 city items (army gear + `army_rifle`/`ammo_556`, night vision + battery, antibiotics/surgery kit/adrenaline, gun/car parts; `data/armor.json`, `data/boosts.json`), district loot (7 `metro_*` tables, lockers/med cabinets/army crates/camp stashes), green night-vision look + HUD boosts, fallen tower climbable, R40 long files split. Flags `--metro=herd|crows|crows_up|army|night`, `--nvg`. 1458 tests. Claude fixed: city zombies spawned on tower roofs (now street level only), herds aggroed from 160 m and got stuck. Owner FPS (metro, quiet laptop): 81.8 avg, 1% low 37.9. No infection system (Claude default; ask owner). Leftovers: play.rs 884 / frame_input.rs ~444 / metro_flags.rs 417 lines; herds spawn as a tight blob.
 
+- 2026-11-27: R42 MERGED (Hydrogen lead + Claude fixes): the 4 big places on the reserved plots: hospital (ER canopy, ambulances, triage tents, body bags; walk-in reception/wards/pharmacy), police station (cars, barricades, desks, cells, armoury), fire station (3 bays, fire trucks, gear, pole), failed army line across an avenue (sandbags, T-walls, razor wire with a breach, tank, burnt trucks, crashed helicopter, evac tents, loudspeakers; `data/places/*.json`, `world/src/metro/places.rs`, `army_line.rs`). New zombie looks soldier/police/medic/firefighter (`zombieModels` in poi.json, `spawn_kind_look`), loot tables `metro_hospital/police/fire`, place danger (`spawning.json` `metro.placeDanger`, a brute at the army line), map labels. Flags `--metro=hospital|hospital_in|police|police_in|fire|fire_in|armyline|armyline_top`. 568 models, 1506 tests. Claude fixed: grass through the place floors, army line view too far. Danger (frame 900): hospital 14 zombies, army line 18, core 2. FPS metro 67.1 avg (1% low 23.5). maxActiveZombies stays 16. Note: `assets/models.pack` is not in git: re-bake after pulling (97 MB now).
+
 ## Next
-1. R42 from `docs/PLAN_1.1.md` (hospital, police, fire station, failed army line), plus the R41 leftovers above. FPS check = metro scene only, average >= 20.
+1. R43 from `docs/PLAN_1.1.md` (climbing: tower stairwells, stop-off floors, rooftop planks/ladders/fire escapes, radio on the tallest tower), plus leftovers: long files (play.rs 894, props.rs 761, test_flags.rs, render_frame.rs, frame_ui.rs, frame_world.rs, metro_flags.rs 450), herds spawn as a tight blob. FPS check = metro scene only, average >= 20.
 
 ## Workers (who does what: PLAN_0.2.md "AI roles")
 - DeepSeek: `opencode` / `opencode/deepseek-v4.1-flash-free`: free usage ran out on 2026-11-20.
