@@ -57,6 +57,10 @@ pub struct PoiBuildingDef {
     /// // data: poi.json buildings[].zombieModels
     #[serde(default)]
     pub zombie_models: Vec<String>,
+    /// Maximum vertical distance (metres) between player feet and POI floor to wake; 0 = off (R43).
+    /// // data: poi.json buildings[].wakeHeightM
+    #[serde(default)]
+    pub wake_height_m: f32,
 }
 
 impl PoiBuildingDef {
@@ -316,5 +320,14 @@ mod tests {
             .expect("zombieModels must parse");
         let def = cfg.get("metro_police").expect("building entry");
         assert_eq!(def.zombie_models, vec!["zombie_police", "zombie_soldier"]);
+        assert_eq!(def.wake_height_m, 0.0, "missing wakeHeightM defaults to 0.0");
+    }
+
+    #[test]
+    fn building_def_parses_wake_height() {
+        let cfg = PoiConfig::from_json(&json(r#", "wakeHeightM": 3.0"#))
+            .expect("wakeHeightM must parse");
+        let def = cfg.get("metro_police").expect("building entry");
+        assert_eq!(def.wake_height_m, 3.0);
     }
 }

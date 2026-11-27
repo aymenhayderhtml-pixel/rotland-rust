@@ -37,6 +37,7 @@ pub fn base_model_id(spot: &TowerSpot) -> String {
 /// Collects every `TowerPart` for all towers whose centre stands in chunk `coord`.
 /// Replaced towers (fallen / leaning set pieces) are skipped.
 /// Pure and deterministic for the same inputs.
+#[cfg(test)]
 pub fn chunk_tower_parts(
     towers: &[TowerSpot],
     coord: IVec2,
@@ -44,6 +45,19 @@ pub fn chunk_tower_parts(
     styles: &[StyleDef],
     cfg: &MetroConfig,
     damage: &DamageSites,
+) -> Vec<TowerPart> {
+    chunk_tower_parts_with_climb(towers, coord, ground_y, styles, cfg, damage, &[])
+}
+
+/// Same as `chunk_tower_parts`, dropping `lobby_elevators` on climbable towers.
+pub fn chunk_tower_parts_with_climb(
+    towers: &[TowerSpot],
+    coord: IVec2,
+    ground_y: f32,
+    styles: &[StyleDef],
+    cfg: &MetroConfig,
+    damage: &DamageSites,
+    climb_indices: &[usize],
 ) -> Vec<TowerPart> {
     let tallest_idx = tallest_landmark_index(towers);
     let mut out = Vec::new();
@@ -53,28 +67,58 @@ pub fn chunk_tower_parts(
             Some((pos_idx, t))
         })
     {
-        if damage.tower_is_replaced(idx) {
-            continue; // R40-08: replaced by fallen/leaning set piece
+        let mut parts = parts_for_tower(t, idx, tallest_idx, ground_y, styles, cfg, damage);
+        if climb_indices.contains(&idx) {
+            parts.retain(|p| p.model != "lobby_elevators");
         }
-        let Some(style) = style_for(styles, t.style).or_else(|| styles.first()) else {
-            continue;
-        };
-        let parts = if damage.tower_is_burnt(t.block) {
-            tower_parts_with_damage(t, style, ground_y, u64::from(spot_seed(t)), DamageMode::All)
-        } else {
-            tower_parts_with_extras(
-                t,
-                style,
-                ground_y,
-                u64::from(spot_seed(t)),
-                &cfg.towers.setbacks,
-                &cfg.towers.lobby_props,
-                tallest_idx == Some(idx),
-            )
-        };
         out.extend(parts);
     }
     out
+}
+
+/// Builds the `TowerPart` list for a single tower index (used for fire-escape colliders/markers).
+pub fn tower_parts_for_index(
+    towers: &[TowerSpot],
+    idx: usize,
+    ground_y: f32,
+    styles: &[StyleDef],
+    cfg: &MetroConfig,
+    damage: &DamageSites,
+) -> Vec<TowerPart> {
+    let Some(t) = towers.get(idx) else {
+        return Vec::new();
+    };
+    parts_for_tower(t, idx, tallest_landmark_index(towers), ground_y, styles, cfg, damage)
+}
+
+fn parts_for_tower(
+    t: &TowerSpot,
+    idx: usize,
+    tallest_idx: Option<usize>,
+    ground_y: f32,
+    styles: &[StyleDef],
+    cfg: &MetroConfig,
+    damage: &DamageSites,
+) -> Vec<TowerPart> {
+    if damage.tower_is_replaced(idx) {
+        return Vec::new(); // R40-08: replaced by fallen/leaning set piece
+    }
+    let Some(style) = style_for(styles, t.style).or_else(|| styles.first()) else {
+        return Vec::new();
+    };
+    if damage.tower_is_burnt(t.block) {
+        tower_parts_with_damage(t, style, ground_y, u64::from(spot_seed(t)), DamageMode::All)
+    } else {
+        tower_parts_with_extras(
+            t,
+            style,
+            ground_y,
+            u64::from(spot_seed(t)),
+            &cfg.towers.setbacks,
+            &cfg.towers.lobby_props,
+            tallest_idx == Some(idx),
+        )
+    }
 }
 
 #[cfg(test)]

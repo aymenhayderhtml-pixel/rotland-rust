@@ -161,7 +161,13 @@ impl PoiZombies {
                 continue;
             }
 
-            let (min_z, max_z) = if let Some(def) = self.config.get(&site.building_id) {
+            let def = self.config.get(&site.building_id);
+            let wake_height_m = def.map_or(0.0, |d| d.wake_height_m);
+            if wake_height_m > 0.0 && (player.y - site.position.y).abs() > wake_height_m {
+                continue;
+            }
+
+            let (min_z, max_z) = if let Some(def) = def {
                 (def.zombies[0], def.zombies[1])
             } else {
                 let n = site.spawn_points.len() as i32;
@@ -201,7 +207,7 @@ impl PoiZombies {
             for i in 0..count {
                 let marker = site.spawn_points[i % site.spawn_points.len()];
                 let pos = site.position + rot * marker;
-                let kind = self.pick_kind();
+                let kind = self.pick_kind_for(&site.building_id);
                 let model = self.pick_model(&models);
                 spawns.push(PoiSpawn::new(&site.poi_id, pos, kind).with_model(model));
             }
@@ -271,6 +277,18 @@ impl PoiZombies {
         } else {
             "walker".to_string()
         }
+    }
+
+    /// Picks a zombie kind for a specific building (stairwells get crawlers/walkers by day, no runners).
+    fn pick_kind_for(&mut self, building_id: &str) -> String {
+        if building_id == "tw_stair_flight_z" && !self.is_night {
+            // new: DECISIONS 2026-11-27 (stairwell landings: mostly crawlers/walkers, no runners by day)
+            if self.spawner_rng.next_f32() < 0.6 {
+                return "crawler".to_string();
+            }
+            return "walker".to_string();
+        }
+        self.pick_kind()
     }
 
     /// Picks one look from a building's `zombieModels`, or None if it names none.
@@ -365,5 +383,89 @@ mod tests {
         let spawns = manager.update(Vec3::new(0.0, 0.0, 5.0), &[site("p2", "plain_house", Vec3::ZERO)], 0);
         assert_eq!(spawns.len(), 4);
         assert!(spawns.iter().all(|s| s.model.is_none()), "no zombieModels means None (the kind's own look)");
+    }
+
+    fn config_with_wake_height() -> PoiConfigData {
+        PoiConfig::from_json(
+            r#"{ "buildings": [
+                { "id": "floor_20", "lot": [24.0, 24.0], "chancePerChunk": 0.0,
+                  "minFlatness": 0.9, "minDistanceFromSpawn": 0.0, "zombies": [3, 3],
+                  "wakeHeightM": 3.0 },
+                { "id": "flat_only", "lot": [24.0, 24.0], "chancePerChunk": 0.0,
+                  "minFlatness": 0.9, "minDistanceFromSpawn": 0.0, "zombies": [2, 2] },
+                { "id": "tw_stair_flight_z", "lot": [5.0, 7.0], "chancePerChunk": 0.0,
+                  "minFlatness": 0.9, "minDistanceFromSpawn": 0.0, "zombies": [2, 2],
+                  "wakeHeightM": 3.0 }
+            ] }"#,
+        )
+        .expect("wakeHeightM test config must parse")
+    }
+
+    #[test]
+    fn wake_height_blocks_player_below_and_wakes_on_same_floor() {
+        let mut manager = PoiZombies::with_config(11, config_with_wake_height());
+        let floor = site("tower_f20", "floor_20", Vec3::new(0.0, 30.0, 0.0));
+
+        let below = manager.update(Vec3::new(0.0, 0.0, 5.0), std::slice::from_ref(&floor), 0);
+        assert!(below.is_empty(), "player 30 m below must not wake a floor with wakeHeightM 3.0");
+        assert!(!manager.is_visited("tower_f20"));
+
+        let on_floor = manager.update(Vec3::new(0.0, 30.0, 5.0), &[floor], 0);
+        assert_eq!(on_floor.len(), 3, "player on the same floor must wake it");
+        assert!(manager.is_visited("tower_f20"));
+    }
+
+    #[test]
+    fn zero_wake_height_keeps_flat_only_behaviour() {
+        let mut manager = PoiZombies::with_config(11, config_with_wake_height());
+        let flat_site = site("old_poi", "flat_only", Vec3::new(0.0, 30.0, 0.0));
+
+        let spawns = manager.update(Vec3::new(0.0, 0.0, 5.0), &[flat_site], 0);
+        assert_eq!(spawns.len(), 2, "wake_height_m == 0.0 must keep flat-only wake behaviour");
+    }
+
+    #[test]
+    fn floor_20_zombies_do_not_despawn_from_lobby_and_killed_stay_dead() {
+        let mut manager = PoiZombies::with_config(11, config_with_wake_height());
+        let floor = site("tower_f20", "floor_20", Vec3::new(0.0, 80.0, 0.0));
+
+        let spawns = manager.update(Vec3::new(0.0, 80.0, 5.0), std::slice::from_ref(&floor), 0);
+        assert_eq!(spawns.len(), 3);
+        for (i, _) in spawns.iter().enumerate() {
+            manager.on_zombie_spawned("tower_f20", 100 + i as u64);
+        }
+
+        // Player returns to the lobby 80 m below: flat distance is < despawn_dist, so none despawn.
+        let tracked = vec![
+            (100, Vec3::new(1.0, 80.0, 0.0)),
+            (101, Vec3::new(-1.0, 80.0, 0.0)),
+            (102, Vec3::new(0.0, 80.0, 1.0)),
+        ];
+        assert!(
+            manager.check_despawns(Vec3::new(0.0, 0.0, 5.0), &tracked).is_empty(),
+            "zombies on floor 20 must not despawn when player is in the lobby below"
+        );
+
+        // Kill one zombie and re-check wake: building stays visited and does not respawn.
+        manager.on_zombie_died(100);
+        assert_eq!(manager.remaining_zombies("tower_f20"), 2);
+        assert!(manager.update(Vec3::new(0.0, 80.0, 5.0), &[floor], 2).is_empty());
+    }
+
+    #[test]
+    fn stairwell_spawns_only_crawlers_or_walkers_by_day() {
+        let mut manager = PoiZombies::with_config(19, config_with_wake_height());
+        manager.is_night = false;
+        let stair = site("stair_z", "tw_stair_flight_z", Vec3::new(0.0, 10.0, 0.0));
+
+        let spawns = manager.update(Vec3::new(0.0, 10.0, 2.0), &[stair], 0);
+        assert_eq!(spawns.len(), 2);
+        for s in &spawns {
+            assert!(
+                s.kind == "crawler" || s.kind == "walker",
+                "stairwell daytime spawn must be crawler or walker, got {}",
+                s.kind
+            );
+        }
     }
 }

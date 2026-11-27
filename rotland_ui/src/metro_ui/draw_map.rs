@@ -3,7 +3,7 @@
 
 use engine::egui::{self, Align2, Color32, FontId, Pos2, Rect, Stroke, pos2, vec2};
 use glam::Vec2;
-use world::metro::{MetroLayout, Reserved, army_line_site, place_sites};
+use world::metro::{ClimbKind, MetroLayout, MetroWorld, Reserved, army_line_site, climb_towers, place_sites};
 
 use crate::map_ui::MapUiState;
 
@@ -90,11 +90,13 @@ fn parse_hex(v: &serde_json::Value) -> Option<Color32> {
 }
 
 /// Draws New Halden on the big map: outline, explored streets and the label, once discovered.
+#[allow(clippy::too_many_arguments)]
 pub fn draw_metro_map(
     painter: &egui::Painter,
     state: &MapUiState,
     explore: &game::MapExplore,
     layout: &MetroLayout,
+    metro: Option<&MetroWorld>,
     cfg: &MetroMapConfig,
     rect: Rect,
     view_size: Vec2,
@@ -153,6 +155,19 @@ pub fn draw_metro_map(
         let p = to_screen(line.origin);
         if rect.contains(p) {
             draw_small_label(painter, p, "Army Line", cfg);
+        }
+    }
+    if let Some(m) = metro {
+        for plan in climb_towers(m) {
+            let label = if plan.kind == ClimbKind::Landmark {
+                "Radio Mast"
+            } else {
+                "Stairs"
+            };
+            let p = to_screen(m.towers[plan.tower].pos);
+            if rect.contains(p) {
+                draw_small_label(painter, p, label, cfg);
+            }
         }
     }
 }

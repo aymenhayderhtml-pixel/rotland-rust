@@ -46,6 +46,44 @@ Read: tasks/R43-common.md, `game_zombie/src/poi_zombies/manager.rs` (wake check:
   - The 7 POI entries parse with `wakeHeightM` and `zombieModels`; the old entries parse with 0.
 
 ## Done when
-Data + code + tests written. Fill `## Worker notes`.
+Data + code + tests written. Fill `## Worker notes
+
+### Files changed
+- `world/src/poi.rs`: added `#[serde(default)] pub wake_height_m: f32` (`wakeHeightM`) to `PoiBuildingDef`, plus `building_def_parses_wake_height` unit test.
+- `game_zombie/src/poi_zombies/manager.rs`:
+  - Added vertical wake check in `PoiZombies::update`: when `def.wake_height_m > 0.0`, requires `(player.y - site.position.y).abs() <= wake_height_m`. `0.0` preserves flat-only wake behaviour.
+  - Added `pick_kind_for(&mut self, building_id: &str)`: for `tw_stair_flight_z` during daytime (`!self.is_night`), picks `"crawler"` (60%) or `"walker"` (40%) so no runners spawn in stairwells by day.
+  - Checked `check_despawns`: it already measures flat XZ distance (`dx*dx + dz*dz`) against `despawn_dist` (120 m), so zombies on floor 20 do not despawn when the player stands in the lobby below, and killed/despawned ones stay dead (`visited` is kept). Added unit tests for wake height, floor-20 non-despawn, and stairwell kind selection.
+- `data/poi.json`: added the 7 entries (`tw_interior_office_{24,32}`, `tw_interior_flat_{24,32}`, `tw_interior_camp_{24,32}`, `tw_stair_flight_z`) with `wakeHeightM: 3.0`, `chancePerChunk: 0.0`, `biome: {}`.
+- `data/loot_tables.json`: added `metro_tower_office`, `metro_tower_flat`, `metro_tower_camp`, and `metro_radio` using only existing `data/items.json` ids (skipped `painkillers` as it is not in `items.json`; each gun has its matching ammo from `data/weapons.json`).
+- `game/tests/all/climb_loot.rs`: new integration test verifying item ids, gun+ammo pairing, 2000-crate drop rates (`metro_radio` >= 70% weapon, `metro_tower_camp` > `metro_tower_flat`), and `data/poi.json` parsing for the 7 new entries and old entries defaulting `wake_height_m` to `0.0`.
+
+### Shared-file lines for the lead
+- `game/tests/all/main.rs`: add `mod climb_loot;`
+
+### How to see it / test
+- Run `cargo test` (or `tools/gate.sh`) after adding `mod climb_loot;` to `game/tests/all/main.rs`.
+
+### Unsure / notes
+- `cargo` was not run by this subagent (per lead rules).`.
 
 ## Worker notes
+
+### Files changed
+- `world/src/poi.rs`: added `#[serde(default)] pub wake_height_m: f32` (`wakeHeightM`) to `PoiBuildingDef`, plus `building_def_parses_wake_height` unit test.
+- `game_zombie/src/poi_zombies/manager.rs`:
+  - Added vertical wake check in `PoiZombies::update`: when `def.wake_height_m > 0.0`, requires `(player.y - site.position.y).abs() <= wake_height_m`. `0.0` preserves flat-only wake behaviour.
+  - Added `pick_kind_for(&mut self, building_id: &str)`: for `tw_stair_flight_z` during daytime (`!self.is_night`), picks `"crawler"` (60%) or `"walker"` (40%) so no runners spawn in stairwells by day.
+  - Checked `check_despawns`: it already measures flat XZ distance (`dx*dx + dz*dz`) against `despawn_dist` (120 m), so zombies on floor 20 do not despawn when the player stands in the lobby below, and killed/despawned ones stay dead (`visited` is kept). Added unit tests for wake height, floor-20 non-despawn, and stairwell kind selection.
+- `data/poi.json`: added the 7 entries (`tw_interior_office_{24,32}`, `tw_interior_flat_{24,32}`, `tw_interior_camp_{24,32}`, `tw_stair_flight_z`) with `wakeHeightM: 3.0`, `chancePerChunk: 0.0`, `biome: {}`.
+- `data/loot_tables.json`: added `metro_tower_office`, `metro_tower_flat`, `metro_tower_camp`, and `metro_radio` using only existing `data/items.json` ids (skipped `painkillers` as it is not in `items.json`; each gun has its matching ammo from `data/weapons.json`).
+- `game/tests/all/climb_loot.rs`: new integration test verifying item ids, gun+ammo pairing, 2000-crate drop rates (`metro_radio` >= 70% weapon, `metro_tower_camp` > `metro_tower_flat`), and `data/poi.json` parsing for the 7 new entries and old entries defaulting `wake_height_m` to `0.0`.
+
+### Shared-file lines for the lead
+- `game/tests/all/main.rs`: add `mod climb_loot;`
+
+### How to see it / test
+- Run `cargo test` (or `tools/gate.sh`) after adding `mod climb_loot;` to `game/tests/all/main.rs`.
+
+### Unsure / notes
+- `cargo` was not run by this subagent (per lead rules).

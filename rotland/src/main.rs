@@ -33,6 +33,7 @@ mod light;
 mod metro_haze;
 mod metro_life;
 mod metro_play;
+mod metro_radio;
 mod metro_render;
 mod play;
 mod play_metro;

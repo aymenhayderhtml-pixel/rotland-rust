@@ -37,6 +37,7 @@ mod keybinds_tests;
 mod ladders_tests;
 mod loot_tests;
 mod places_loot;
+mod climb_loot;
 mod map_buildings_tests;
 mod map_city_tests;
 mod map_lake_tests;

@@ -23,7 +23,7 @@ pub use game_player::{
     death_anim, downed, fishing, fp_motion, gun_feel, guns, hit_react, ladders, melee_combo,
     night_vision, player, survival, swim_hands, swimming, trees, vault, vehicles,
 };
-pub use game_world::{animals, crows, dogs, grenade, guns_fire, melee, melee_guard, projectiles};
+pub use game_world::{animals, crows, dogs, grenade, guns_fire, melee, melee_guard, projectiles, radio};
 
 pub use game_core::armor::*;
 pub use game_core::damage::DamageInfo;
@@ -112,6 +112,7 @@ pub use game_world::dogs::*;
 pub use game_world::grenade::*;
 pub use game_world::melee_guard::{GuardConfig, GuardEvent, GuardInput, GuardState, shove_targets};
 pub use game_world::projectiles::*;
+pub use game_world::radio::*;
 
 pub use camera_rig::*;
 pub use input::{actions_from_input, Actions, InputBindings};

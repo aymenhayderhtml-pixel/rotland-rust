@@ -27,6 +27,7 @@ fn sample_poi_config() -> PoiConfigData {
             loot_table: String::new(),
             zombies: [1, 3],
             zombie_models: Vec::new(),
+            wake_height_m: 0.0,
         });
     }
     cfg

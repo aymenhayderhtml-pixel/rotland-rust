@@ -53,3 +53,19 @@ For each model: a top-down cut-away (ceiling hidden) and one eye-level shot from
 6 models + data + previews. Fill `## Worker notes`: tris per model, `spawn_` count, `lod1` decision.
 
 ## Worker notes
+- **Files added:**
+  - `tools/blender/towers/interiors.py` (exports `build_all()`, returns `[(name, ok), ...]`)
+  - `tools/blender/towers/interior_props.py` (furniture, barricade, and clutter builders)
+  - `data/climb_floors.json` (4 crates per 24m model, 5 crates per 32m model)
+  - `assets/models/buildings/tw_interior_{office,flat,camp}_{24,32}.glb`
+- **Tri counts (all within 30k / 45k budgets):**
+  - `tw_interior_office_24`: 27,300 tris (budget 30,000)
+  - `tw_interior_office_32`: 42,936 tris (budget 45,000)
+  - `tw_interior_flat_24`: 12,588 tris (budget 30,000)
+  - `tw_interior_flat_32`: 14,724 tris (budget 45,000)
+  - `tw_interior_camp_24`: 10,504 tris (budget 30,000)
+  - `tw_interior_camp_32`: 12,640 tris (budget 45,000)
+- **`spawn_` counts:** 5 (`spawn_1..spawn_5`) on all 24 m models; 6 (`spawn_1..spawn_6`) on all 32 m models.
+- **`_lod1` decision:** Not needed. Checked `rotland/src/props.rs` (`load_model` and `load_tower_model`): `_lod1` is optional, and interiors are only visible from inside or through nearby windows.
+- **Shaft & hatch:** Shaft rect `(0, 0.25*size)` 4.4 x 6.4 m is completely empty (no floor, ceiling, colliders, furniture, crates, or spawns). Hatch spot `(3.4, 0.25*size)` 2 x 2 m is kept clear of furniture, colliders, crates, and spawns.
+- **Previews inspected:** `assets/models/_previews/tw_interior_{office,flat,camp}_{24,32}{_top,_eye}.png` (all 12 verified via `read_file`).

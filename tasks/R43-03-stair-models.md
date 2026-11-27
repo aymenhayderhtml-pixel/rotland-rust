@@ -57,3 +57,29 @@ All share one builder with options. 3.8 m tall, outer 4.4 x 6.4 m, walls 0.2 m.
 The models with good previews (look at them!); the build script runs clean for your part. Fill `## Worker notes`: model list, tris per model, the base floor height offset the lobby module must use.
 
 ## Worker notes
+- **Files created:**
+  - `tools/blender/towers/stairs.py`: builds all 5 stairwell variants + cut-away previews + 3-module stack preview (`stack_tw_stair_flight.png`).
+  - `tools/blender/towers/stair_extras.py`: builds `stair_digit_0..9`, `stair_sign_roof`, `stair_arrow_spray`, `roof_ladder_seg`, `roof_hatch`.
+  - `tools/blender/build_r43_models.py`: imports and calls `stairs.build_all()`, `stair_extras.build_all()`, `interiors.build_all()`, `rooftop_kit.build_all()`, and `brick.build_all()`, printing `R43 BUILD OK` on success.
+- **Model list & tri counts:**
+  - `assets/models/buildings/tw_stair_flight.glb`: 1188 tris (budget 9000)
+  - `assets/models/buildings/tw_stair_flight_b.glb`: 1320 tris (budget 9000)
+  - `assets/models/buildings/tw_stair_flight_z.glb`: 1396 tris (budget 9000); has `spawn_1` at `(0.0, 2.2, 0.1)` and `spawn_2` at `(0.4, -2.3, 2.0)` in Blender coords
+  - `assets/models/buildings/tw_stair_open.glb`: 1170 tris (budget 9000)
+  - `assets/models/buildings/tw_stair_top.glb`: 538 tris (budget 9000)
+  - `assets/models/props/stair_digit_0..9.glb`: 16–22 tris each (budget 100), no collider
+  - `assets/models/props/stair_sign_roof.glb`: 86 tris (budget 1500)
+  - `assets/models/props/stair_arrow_spray.glb`: 18 tris (budget 200), no collider
+  - `assets/models/props/roof_ladder_seg.glb`: 108 tris (budget 1000), no collider
+  - `assets/models/props/roof_hatch.glb`: 144 tris (budget 2500), colliders on 4 curb sides only (inner 1.2 x 1.2 m free)
+- **Base floor height offset:** `0.1` m (`shell.FLOOR_T = kit.FLOOR_TOP = 0.1` in `tools/blender/towers/shell.py`).
+- **LOD1 note (`rotland/src/props.rs`):** Checked `PropLibrary::get` -> `load_model`: `lod1` is optional (`lods` has 1 entry when no `_lod1` is in the pack, `ends = vec![BUILDING]`), so `tw_stair_flight_z` does not need a `_lod1` model.
+- **Materials:** Uses only Sheet A + Sheet C palette colors (2 materials max: `palette`, `palette_c`).
+- **Previews inspected:**
+  - `assets/models/_previews/tw_stair_flight_cutaway.png`
+  - `assets/models/_previews/tw_stair_flight_b_cutaway.png`
+  - `assets/models/_previews/tw_stair_flight_z_cutaway.png`
+  - `assets/models/_previews/tw_stair_open_cutaway.png`
+  - `assets/models/_previews/tw_stair_top_cutaway.png`
+  - `assets/models/_previews/stack_tw_stair_flight.png` (verified standpipe, handrails, and flight B -> next floor landing alignment)
+  - `assets/models/_previews/stair_sign_roof.png`, `stair_arrow_spray.png`, `stair_digit_3.png`, `roof_ladder_seg.png`, `roof_hatch.png`

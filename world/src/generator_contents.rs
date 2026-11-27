@@ -1,6 +1,10 @@
+use std::collections::HashMap;
+use std::sync::OnceLock;
+
 use glam::{IVec2, Vec2, Vec3};
 
 use crate::generator::WorldGenerator;
+use crate::metro::{ClimbBox, ClimbLadder, FloorCrateEntry};
 use crate::poi::{PoiGeometry, PoiInstance, PoiPlacer};
 use crate::roads::RoadKind;
 use crate::scatter::{PropInstance, ScatterPlacer};
@@ -132,9 +136,31 @@ impl WorldGenerator {
             let army_line = crate::metro::army_line_in_chunk(metro, chunk, hfn);
             pois.extend(army_line.pois);
             props.extend(army_line.props);
+            let climb = crate::metro::climb_in_chunk_with(metro, chunk, hfn, &floor_crates_for);
+            pois.extend(climb.pois);
+            props.extend(climb.props);
+            let rooftops = crate::metro::rooftops_in_chunk(metro, chunk);
+            pois.extend(rooftops.pois);
+            props.extend(rooftops.props);
         }
 
         (pois, props)
+    }
+
+    /// Extra ladders and box colliders for New Halden's climbable towers and rooftop bridges.
+    pub fn metro_climb_extras(&self, coord: IVec2) -> (Vec<ClimbLadder>, Vec<ClimbBox>) {
+        let Some(metro) = self.metro_world() else {
+            return (Vec::new(), Vec::new());
+        };
+        let chunk = (coord.x, coord.y);
+        let hfn = &|x: f32, z: f32| self.height(x, z);
+        let climb = crate::metro::climb_in_chunk(metro, chunk, hfn);
+        let rooftops = crate::metro::rooftops_in_chunk(metro, chunk);
+        let mut ladders = climb.ladders;
+        ladders.extend(rooftops.ladders);
+        let mut boxes = climb.boxes;
+        boxes.extend(rooftops.boxes);
+        (ladders, boxes)
     }
 
     fn keep_scattered_prop(&self, prop: &PropInstance) -> bool {
@@ -317,7 +343,27 @@ impl WorldGenerator {
             ));
             crates.extend(crate::metro::places_in_chunk(metro, chunk, hfn).crates);
             crates.extend(crate::metro::army_line_in_chunk(metro, chunk, hfn).crates);
+            crates.extend(crate::metro::climb_in_chunk_with(metro, chunk, hfn, &floor_crates_for).crates);
+            crates.extend(crate::metro::rooftops_in_chunk(metro, chunk).crates);
         }
         crates
     }
+}
+
+fn floor_crates_for(model: &str) -> &'static [FloorCrateEntry] {
+    static CACHE: OnceLock<HashMap<String, Vec<FloorCrateEntry>>> = OnceLock::new();
+    let map = CACHE.get_or_init(|| {
+        let path = paths::repo_path("data/climb_floors.json");
+        let Ok(raw) = std::fs::read_to_string(&path) else {
+            return HashMap::new();
+        };
+        let Ok(obj) = serde_json::from_str::<HashMap<String, serde_json::Value>>(&raw) else {
+            return HashMap::new();
+        };
+        obj.into_iter()
+            .filter(|(_, v)| v.is_array())
+            .filter_map(|(k, v)| serde_json::from_value::<Vec<FloorCrateEntry>>(v).ok().map(|list| (k, list)))
+            .collect()
+    });
+    map.get(model).map_or(&[], Vec::as_slice)
 }

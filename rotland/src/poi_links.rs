@@ -58,6 +58,7 @@ mod tests {
             loot_table: "cabin".to_string(),
             zombies: [1, 3],
             zombie_models: Vec::new(),
+            wake_height_m: 0.0,
         };
         PoiConfigData {
             buildings: vec![cabin],

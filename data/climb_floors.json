@@ -1,0 +1,42 @@
+{
+  "_why": "R43-04: loot boxes per stop-off floor interior. Interior-local game metres (x, y, z = Blender x, z, -y), front = -Z.",
+  "tw_interior_office_24": [
+    { "x": -9.5, "y": 0.0, "z": -9.8, "yaw": 0.0, "model": "metro_locker", "table": "metro_tower_office" },
+    { "x": 10.2, "y": 0.0, "z": -4.5, "yaw": -1.5708, "model": "metro_locker", "table": "metro_tower_office" },
+    { "x": 7.2, "y": 0.0, "z": 8.5, "yaw": 3.1416, "model": "med_cabinet", "table": "metro_tower_office" },
+    { "x": -9.8, "y": 0.0, "z": 9.8, "yaw": 0.7854, "model": "army_crate", "table": "metro_tower_office" }
+  ],
+  "tw_interior_office_32": [
+    { "x": -13.5, "y": 0.0, "z": -13.5, "yaw": 0.0, "model": "metro_locker", "table": "metro_tower_office" },
+    { "x": 14.0, "y": 0.0, "z": -4.0, "yaw": -1.5708, "model": "metro_locker", "table": "metro_tower_office" },
+    { "x": 9.0, "y": 0.0, "z": 12.5, "yaw": 3.1416, "model": "med_cabinet", "table": "metro_tower_office" },
+    { "x": -13.5, "y": 0.0, "z": 13.5, "yaw": 0.7854, "model": "army_crate", "table": "metro_tower_office" },
+    { "x": 14.0, "y": 0.0, "z": -13.5, "yaw": 0.0, "model": "metro_locker", "table": "metro_tower_office" }
+  ],
+  "tw_interior_flat_24": [
+    { "x": -8.5, "y": 0.0, "z": -9.5, "yaw": 0.0, "model": "metro_locker", "table": "metro_tower_flat" },
+    { "x": -9.5, "y": 0.0, "z": 6.5, "yaw": 1.5708, "model": "med_cabinet", "table": "metro_tower_flat" },
+    { "x": 9.8, "y": 0.0, "z": -9.2, "yaw": -1.5708, "model": "camp_stash", "table": "metro_tower_flat" },
+    { "x": 9.5, "y": 0.0, "z": 6.5, "yaw": -1.5708, "model": "metro_locker", "table": "metro_tower_flat" }
+  ],
+  "tw_interior_flat_32": [
+    { "x": -12.0, "y": 0.0, "z": -12.5, "yaw": 0.0, "model": "metro_locker", "table": "metro_tower_flat" },
+    { "x": -12.5, "y": 0.0, "z": 8.0, "yaw": 1.5708, "model": "med_cabinet", "table": "metro_tower_flat" },
+    { "x": 12.5, "y": 0.0, "z": -12.5, "yaw": -1.5708, "model": "camp_stash", "table": "metro_tower_flat" },
+    { "x": 12.5, "y": 0.0, "z": 8.0, "yaw": -1.5708, "model": "metro_locker", "table": "metro_tower_flat" },
+    { "x": 0.0, "y": 0.0, "z": -13.5, "yaw": 0.0, "model": "med_cabinet", "table": "metro_tower_flat" }
+  ],
+  "tw_interior_camp_24": [
+    { "x": -9.5, "y": 0.0, "z": -8.5, "yaw": 0.5, "model": "camp_stash", "table": "metro_tower_camp" },
+    { "x": 4.5, "y": 0.0, "z": -8.8, "yaw": 0.0, "model": "army_crate", "table": "metro_tower_camp" },
+    { "x": -9.8, "y": 0.0, "z": 8.5, "yaw": 1.5708, "model": "med_cabinet", "table": "metro_tower_camp" },
+    { "x": 9.5, "y": 0.0, "z": 8.5, "yaw": 3.1416, "model": "army_crate", "table": "metro_tower_camp" }
+  ],
+  "tw_interior_camp_32": [
+    { "x": -12.5, "y": 0.0, "z": -11.5, "yaw": 0.5, "model": "camp_stash", "table": "metro_tower_camp" },
+    { "x": 5.5, "y": 0.0, "z": -12.5, "yaw": 0.0, "model": "army_crate", "table": "metro_tower_camp" },
+    { "x": -12.5, "y": 0.0, "z": 11.5, "yaw": 1.5708, "model": "med_cabinet", "table": "metro_tower_camp" },
+    { "x": 12.5, "y": 0.0, "z": 11.5, "yaw": 3.1416, "model": "army_crate", "table": "metro_tower_camp" },
+    { "x": 12.5, "y": 0.0, "z": -11.5, "yaw": -1.5708, "model": "camp_stash", "table": "metro_tower_camp" }
+  ]
+}

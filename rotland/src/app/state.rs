@@ -264,6 +264,8 @@ pub struct PlaySide {
     pub sky: Option<crate::sky_play::SkyPlay>,
     /// New Halden's skyline and haze; None in a world without the metro city.
     pub metro: Option<crate::metro_play::MetroPlay>,
+    /// Tallest-landmark radio goal runtime (R43-07).
+    pub metro_radio: crate::metro_radio::MetroRadioRuntime,
 }
 
 impl Default for PlaySide {
@@ -294,6 +296,7 @@ impl Default for PlaySide {
             temperature: None,
             sky: None,
             metro: None,
+            metro_radio: crate::metro_radio::MetroRadioRuntime::default(),
         }
     }
 }
