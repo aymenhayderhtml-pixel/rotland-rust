@@ -10,6 +10,9 @@ use world::metro::{car_wall_sites, herd_routes_avoiding};
 
 use crate::zombies::Zombies;
 
+/// A herd member farther than this from the player has not noticed them, whatever its state.
+const HERD_NOTICE_M: f32 = 35.0; // new: DECISIONS 2026-11-27
+
 /// Normal horde chase speed when a street herd aggros on the player.
 const CHASE_HORDE_SPEED: f32 = 2.2; // data: director.json speed
 
@@ -24,6 +27,22 @@ pub fn metro_profile_at(
     let district = layout.district_at(Vec2::new(player.x, player.z))?;
     Some(metro_profile(cfg, district.into(), night))
 }
+
+/// Spawn ground check inside New Halden: never on a tower (the physics ray from above hits the
+/// tower roof, so zombies used to spawn on roofs and never reached the player), only near the
+/// street level. Outside the city it is the normal physics check.
+pub fn metro_spawn_ground(world_gen: &WorldGenerator, physics: &PhysicsWorld, point: Vec3) -> Option<Vec3> {
+    let feet = game::spawner::try_ground_physics(physics, point)?;
+    let Some(metro) = world_gen.metro_world() else { return Some(feet) };
+    if metro.in_tower_footprint(Vec2::new(point.x, point.z)) {
+        return None;
+    }
+    let ground = world_gen.height(point.x, point.z);
+    (feet.y <= ground + MAX_SPAWN_ABOVE_GROUND_M).then_some(feet)
+}
+
+/// A spawn more than this above the terrain is on a roof, a car or a set piece: skipped.
+const MAX_SPAWN_ABOVE_GROUND_M: f32 = 1.5; // new: DECISIONS 2026-11-27
 
 /// Manages New Halden's avenue zombie herds, syncing them with `Zombies` and `HordeSet`.
 #[derive(Default)]
@@ -164,9 +183,12 @@ impl MetroHerdRuntime {
         let active_routes: Vec<(u32, u64)> =
             self.route_leader.iter().map(|(&r, &l)| (r, l)).collect();
         for (route, leader) in active_routes {
+            // A member noticed the player only when it is close and hunting (horde followers can
+            // be in the chase state just from following the leader).
             let any_noticed = zombies.list.iter().any(|z| {
                 z.herd_route == Some(route)
                     && !z.health.is_dead()
+                    && z.position.distance(player) <= HERD_NOTICE_M
                     && !matches!(
                         z.brain.state(),
                         game::zombie::ZombieState::Idle | game::zombie::ZombieState::Wander

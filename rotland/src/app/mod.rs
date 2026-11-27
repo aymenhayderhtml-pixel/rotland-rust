@@ -28,6 +28,7 @@ mod frame_team_view;
 pub mod frame_ui;
 pub mod frame_warmth;
 mod metro_flags;
+mod metro_flags_r41;
 pub mod frame_world;
 pub mod render_frame;
 pub mod save_load;

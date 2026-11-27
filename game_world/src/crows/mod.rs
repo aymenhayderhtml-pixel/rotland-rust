@@ -1,6 +1,7 @@
 //! Pure crow flock simulation and flapper animation timing (R41-05).
 
 pub mod flock;
+mod circlers;
 #[cfg(test)]
 mod tests;
 

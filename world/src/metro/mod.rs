@@ -5,14 +5,22 @@ pub mod curbs;
 pub mod damage;
 pub mod damage_burnt;
 pub mod herds;
+mod herds_grid;
+mod herds_route;
 #[cfg(test)]
 mod herds_tests;
 pub mod layout;
 pub mod life;
+mod life_billboards;
+mod life_config;
+mod life_flags;
+mod life_helpers;
+mod life_perches;
 mod life_wires;
 #[cfg(test)]
 mod life_tests;
 pub mod loot;
+mod loot_helpers;
 #[cfg(test)]
 mod loot_tests;
 pub mod overgrowth;

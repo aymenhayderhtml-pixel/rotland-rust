@@ -607,6 +607,8 @@ impl PlayState {
         let metro = self.spawner.config.metro.as_ref().and_then(|cfg| {
             crate::play_metro::metro_profile_at(world_gen, player, night, cfg)
         });
+        let metro_ground = |p: Vec3| crate::play_metro::metro_spawn_ground(world_gen, physics, p);
+        let in_metro = metro.is_some();
         let ctx = SpawnContext {
             player_position: player,
             player_forward: forward,
@@ -615,7 +617,7 @@ impl PlayState {
             settlements: world_gen.settlements(),
             settlement_config: Some(world_gen.config()),
             physics,
-            ground_check: None,
+            ground_check: if in_metro { Some(&metro_ground) } else { None },
             zombie_amount: 1.0,
             biome_name: Some(world_gen.biome(player.x, player.z).key()),
             tier_mult,
@@ -633,8 +635,11 @@ impl PlayState {
             zombies.spawn_kind(&order.type_id, order.position);
         }
 
+        // Street herds steer themselves (play_metro.rs); only director hordes hunt the player here.
+        let herd_ids: std::collections::HashSet<u64> =
+            zombies.list.iter().filter(|z| z.herd_route.is_some()).map(|z| z.id).collect();
         for horde in zombies.hordes.hordes_mut() {
-            if horde.target_pos.is_some() {
+            if horde.target_pos.is_some() && !herd_ids.contains(&horde.leader) {
                 let near_camp = world_gen.settlements().iter().any(|s| {
                     horde.target_pos.is_some_and(|t| (t - s.center).length_squared() < 900.0)
                 });
