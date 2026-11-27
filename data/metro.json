@@ -426,5 +426,45 @@
     "armyCaches": { "midtown": 2, "core": 5 },
     "campStash": 1.0,
     "carTrunkChance": 0.08
+  },
+  "climb": {
+    "_why": "R43: climbable towers. Counts per district + the tallest landmark; floors counted from 0 above the lobby.",
+    "towers": { "midtown": 2, "core": 2 },
+    "minSize": 24,
+    "minSpacingBlocks": 3,
+    "stopFloors": { "midtown": 2, "core": 3, "landmark": 4 },
+    "stopKinds": [
+      { "kind": "office", "weight": 0.45 },
+      { "kind": "flat", "weight": 0.35 },
+      { "kind": "camp", "weight": 0.2 }
+    ],
+    "stairBChance": 0.3,
+    "stairZombieChance": 0.12,
+    "shaftCentreZShare": 0.25,
+    "shaftSize": [4.4, 6.4],
+    "hatch": [3.4, 0.0],
+    "mast": {
+      "platformY": 18.0,
+      "platformHalf": 3.0,
+      "ladderFoot": [0.0, 3.2],
+      "ladderTop": [0.0, 2.6]
+    }
+  },
+  "rooftops": {
+    "_why": "R43: plank bridges from climbable / fire-escape roofs to nearby roofs.",
+    "maxGapM": 12.0,
+    "minOverlapM": 3.0,
+    "maxDropM": 8.0,
+    "flatStepM": 0.6,
+    "linksPerTower": 2,
+    "plankLengths": [4, 8, 12],
+    "parapetTop": { "brick": 1.1, "stone": 1.85, "glass": 0.0, "slab": 0.8, "deco": 0.6 }
+  },
+  "fireEscapes": {
+    "_why": "R43: brick towers whose drawn fire escapes become walkable.",
+    "count": 8,
+    "districts": ["edge", "midtown"],
+    "maxFloors": 12,
+    "minSpacingBlocks": 2
   }
 }

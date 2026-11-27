@@ -189,6 +189,7 @@ pub fn start_world(
             &mut world.physics,
         );
     }
+    play.metro_radio = crate::metro_radio::MetroRadioRuntime::default();
     // A saved game: the player where they were, the clock, the backpack and the emptied crates
     if let Some(file) = &save_file {
         if let (Some(r), Some(p), Some(rig)) = (
@@ -229,6 +230,9 @@ pub fn start_world(
         if let Some(play_state) = play.play.as_mut() {
             if let Some(v) = file.systems.extra.get("street_herds") {
                 play_state.metro_herds.restore_save(v);
+            }
+            if let Some(v) = file.systems.extra.get("metro_radio") {
+                play.metro_radio.restore_save(v);
             }
             let warnings = crate::session::restore_play(file, play_state);
             for w in warnings {

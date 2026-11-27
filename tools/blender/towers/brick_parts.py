@@ -150,3 +150,43 @@ def add_fire_escape_floor(k, face_coord, axis, sign, u_center, z0, z1,
     rail_bm = common.make_box(rail_size, color="metal")
     common.transform(rail_bm, rot=rail_rot, loc=rail_loc)
     k.model.add(rail_bm, roof=roof)
+
+    # Walkable fire-escape colliders (landing slab, outer/end guard walls, <= 45 deg ramp)
+    add_fire_escape_colliders(k, face_coord, axis, sign, u_center, z0, z1, zig_dir=zig_dir)
+
+
+def add_fire_escape_colliders(k, face_coord, axis, sign, u_center, z0, z1=None, zig_dir=1):
+    """Colliders for one fire-escape landing (+ optional zig-zag ramp <= 43 deg) and railings."""
+    u = 1 - axis
+    half_len = 2.4
+    depth = 1.15
+
+    def col_rel(u0, u1, bz0, bz1, d0, d1, base="fe"):
+        lo = [0.0, 0.0, bz0]
+        hi = [0.0, 0.0, bz1]
+        lo[u], hi[u] = u0, u1
+        a, b = face_coord + sign * d0, face_coord + sign * d1
+        lo[axis], hi[axis] = (min(a, b), max(a, b))
+        k.collider(tuple(lo), tuple(hi), base)
+
+    # Landing slab + outer/end railing walls
+    col_rel(u_center - half_len, u_center + half_len, z0, z0 + 0.07, 0.0, depth, "fe_land")
+    col_rel(u_center - half_len, u_center + half_len, z0 + 0.07, z0 + 0.95, depth - 0.08, depth, "fe_rail")
+    for eu in (u_center - half_len, u_center + half_len):
+        col_rel(eu - 0.04, eu + 0.04, z0 + 0.07, z0 + 0.95, 0.0, depth, "fe_rail")
+
+    if z1 is None:
+        return
+    # Ramp from current landing top (z0 + 0.07) to next module's landing top (z1 + 0.12)
+    # Run 4.10 m, rise 3.80 m -> ~42.82 deg (under 46 deg player slope limit).
+    half_run = 2.05 * zig_dir
+    d_mid = face_coord + sign * (depth * 0.52)
+    if axis == 1:
+        a = (u_center - half_run, d_mid, z0 + 0.07)
+        b = (u_center + half_run, d_mid, z1 + 0.12)
+        span_vec = (0.0, 1.0, 0.0)
+    else:
+        a = (d_mid, u_center - half_run, z0 + 0.07)
+        b = (d_mid, u_center + half_run, z1 + 0.12)
+        span_vec = (1.0, 0.0, 0.0)
+    k.model.add_collider(k._label("fe_ramp"), kit._plane_bm(a, b, span_vec, 0.52, 0.10, "white"))

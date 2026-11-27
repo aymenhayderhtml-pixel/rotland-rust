@@ -63,6 +63,70 @@ Fill `parapetTop` (metres above each style's deck) from the crown scripts.
 - **No change elsewhere:** no other tower changes.
 
 ## Done when
-Code + data + tests written. Fill `## Worker notes` (the parapet values and where you read them).
+Code + data + tests written. Fill `## Worker notes
+- **Files changed:**
+  - `data/metro.json`: added `rooftops` and `fireEscapes` keys.
+  - `world/src/metro/config.rs`: added `ParapetTopConfig`, `RooftopsConfig`, `FireEscapesConfig` and `#[serde(default)]` fields `rooftops`, `fire_escapes` on `MetroConfig`.
+  - `world/src/metro/fire_escapes.rs` (new): `fire_escape_towers(metro)` (memoised per site/yaw/tower count) and `fire_escape_ladders(metro, idx)` (drop ladder + roof ladder).
+  - `world/src/metro/rooftops.rs` (new): `RoofLink`, `roof_links(metro)`, `rooftops_in_chunk(metro, chunk)`, and `obb_overlaps_square`.
+  - `world/src/metro/rooftops_tests.rs` (new): tests for link geometry/counts/determinism, plank hull-box non-overlap & parapet height, ladders on `dh > flatStepM`, and fire escape selection + ladders.
+- **Parapet top heights above deck (`rooftops.parapetTop`):**
+  - `brick`: `1.1` m (`tools/blender/towers/brick.py`: `CROWN_H = 3.5` limestone coping top minus `roofDeckHeight = 2.4`).
+  - `stone`: `1.85` m (`tools/blender/towers/stone.py` + `stone_parts.py`: `add_balustrade(..., 3.2, 4.8)` top rail `4.8` minus `roofDeckHeight = 2.95`).
+  - `glass`: `0.0` m (`tools/blender/towers/glass.py`: penthouse roof at `3.33` = `roofDeckHeight`, no parapet above it).
+  - `slab`: `0.8` m (`tools/blender/towers/slab.py`: perimeter rail posts top at `1.10` minus `roofDeckHeight = 0.3`; concrete parapet is `0.60`).
+  - `deco`: `0.6` m (`tools/blender/towers/deco.py` + `roof_parts.py` `roof_deck`: `parapet_top = top + 0.60 = 1.60` minus `roofDeckHeight = 1.0`).
+- **Fire escape geometry used (`brick.py` & `brick_parts.py`):**
+  - Front face (`+Y` in Blender = `-Z` in game `lz = -half`), `fe_u = -2.0` (16 m) / `-4.0` (24 m).
+  - Drop ladder: `lx = fe_u - 2.075` (mid of `-2.3..-1.85`), `foot` at `ground_y` (`lz = -(h + 1.15)`), `deck` at `ground_y + 3.92` (`z0 = 3.85 + 0.07` slab, `lz = -(h + 0.55)`).
+  - Roof ladder: `lx = fe_u`, `foot` at `crown_y` (`lz = -(h + 0.6)`), `deck` at `roof_deck_y` (`lz = -(h - 1.0)`).
+  - Note: R43-05 `Worker notes` was empty when this task ran; if R43-05 puts the roof ladder on `+X` (`u = 0.0`) instead of `-Z`, update `fire_escape_ladders` to match.
+- **Shared-file lines for the lead:**
+  - In `world/src/metro/mod.rs`:
+    ```rust
+    pub mod fire_escapes;
+    pub mod rooftops;
+    #[cfg(test)]
+    mod rooftops_tests;
+    ```
+    and `pub use`:
+    ```rust
+    pub use fire_escapes::{fire_escape_ladders, fire_escape_towers};
+    pub use rooftops::{RoofLink, roof_links, rooftops_in_chunk};
+    ```
+  - In `world/src/generator_contents.rs` (R43-08): call `rooftops_in_chunk(metro, chunk)` and merge its `props` / `ladders` alongside `climb_in_chunk`, plus `fire_escape_ladders(metro, idx)` for each `idx` in `fire_escape_towers(metro)`.
+- **Not run:** Per subagent rules, did not run `cargo`, `tools/gate.sh`, `blender`, or the game.` (the parapet values and where you read them).
 
 ## Worker notes
+- **Files changed:**
+  - `data/metro.json`: added `rooftops` and `fireEscapes` keys.
+  - `world/src/metro/config.rs`: added `ParapetTopConfig`, `RooftopsConfig`, `FireEscapesConfig` and `#[serde(default)]` fields `rooftops`, `fire_escapes` on `MetroConfig`.
+  - `world/src/metro/fire_escapes.rs` (new): `fire_escape_towers(metro)` (memoised per site/yaw/tower count) and `fire_escape_ladders(metro, idx)` (drop ladder + roof ladder).
+  - `world/src/metro/rooftops.rs` (new): `RoofLink`, `roof_links(metro)`, `rooftops_in_chunk(metro, chunk)`, and `obb_overlaps_square`.
+  - `world/src/metro/rooftops_tests.rs` (new): tests for link geometry/counts/determinism, plank hull-box non-overlap & parapet height, ladders on `dh > flatStepM`, and fire escape selection + ladders.
+- **Parapet top heights above deck (`rooftops.parapetTop`):**
+  - `brick`: `1.1` m (`tools/blender/towers/brick.py`: `CROWN_H = 3.5` limestone coping top minus `roofDeckHeight = 2.4`).
+  - `stone`: `1.85` m (`tools/blender/towers/stone.py` + `stone_parts.py`: `add_balustrade(..., 3.2, 4.8)` top rail `4.8` minus `roofDeckHeight = 2.95`).
+  - `glass`: `0.0` m (`tools/blender/towers/glass.py`: penthouse roof at `3.33` = `roofDeckHeight`, no parapet above it).
+  - `slab`: `0.8` m (`tools/blender/towers/slab.py`: perimeter rail posts top at `1.10` minus `roofDeckHeight = 0.3`; concrete parapet is `0.60`).
+  - `deco`: `0.6` m (`tools/blender/towers/deco.py` + `roof_parts.py` `roof_deck`: `parapet_top = top + 0.60 = 1.60` minus `roofDeckHeight = 1.0`).
+- **Fire escape geometry used (`brick.py` & `brick_parts.py`):**
+  - Front face (`+Y` in Blender = `-Z` in game `lz = -half`), `fe_u = -2.0` (16 m) / `-4.0` (24 m).
+  - Drop ladder: `lx = fe_u - 2.075` (mid of `-2.3..-1.85`), `foot` at `ground_y` (`lz = -(h + 1.15)`), `deck` at `ground_y + 3.92` (`z0 = 3.85 + 0.07` slab, `lz = -(h + 0.55)`).
+  - Roof ladder: `lx = fe_u`, `foot` at `crown_y` (`lz = -(h + 0.6)`), `deck` at `roof_deck_y` (`lz = -(h - 1.0)`).
+  - Note: R43-05 `Worker notes` was empty when this task ran; if R43-05 puts the roof ladder on `+X` (`u = 0.0`) instead of `-Z`, update `fire_escape_ladders` to match.
+- **Shared-file lines for the lead:**
+  - In `world/src/metro/mod.rs`:
+    ```rust
+    pub mod fire_escapes;
+    pub mod rooftops;
+    #[cfg(test)]
+    mod rooftops_tests;
+    ```
+    and `pub use`:
+    ```rust
+    pub use fire_escapes::{fire_escape_ladders, fire_escape_towers};
+    pub use rooftops::{RoofLink, roof_links, rooftops_in_chunk};
+    ```
+  - In `world/src/generator_contents.rs` (R43-08): call `rooftops_in_chunk(metro, chunk)` and merge its `props` / `ladders` alongside `climb_in_chunk`, plus `fire_escape_ladders(metro, idx)` for each `idx` in `fire_escape_towers(metro)`.
+- **Not run:** Per subagent rules, did not run `cargo`, `tools/gate.sh`, `blender`, or the game.

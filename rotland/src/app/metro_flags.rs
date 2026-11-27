@@ -10,6 +10,7 @@ use world::metro::{
 
 use super::metro_flags_r41::{army_pose, crows_pose, herd_pose};
 use super::metro_flags_r42::r42_pose;
+use super::metro_flags_r43::r43_pose;
 
 /// Edge spot: metres inside the first avenue entrance. // new: DECISIONS 2026-11-26
 const EDGE_INSET_M: f32 = 10.0;
@@ -93,6 +94,20 @@ pub enum MetroSpot {
     Armyline,
     /// 60 m up pitched down over the whole army line.
     ArmylineTop,
+    /// Inside a climbable tower lobby, 6 m in front of the open stair door.
+    Climb,
+    /// Mid-tower inside the stairwell, on flight A looking up.
+    ClimbStairs,
+    /// On the first stop-off floor, 3 m in from the shaft door.
+    ClimbFloor,
+    /// On the roof deck of the tallest non-landmark climb tower, looking toward the landmarks.
+    ClimbRoof,
+    /// On a roof with a plank bridge, 4 m back from the plank looking along it.
+    RoofPlanks,
+    /// On the street 14 m in front of a working brick fire escape.
+    FireEscape,
+    /// On the mast platform, 2 m from the radio console facing the hut.
+    Radio,
 }
 
 impl MetroSpot {
@@ -124,6 +139,13 @@ impl MetroSpot {
             "fire_in" => Some(Self::FireIn),
             "armyline" => Some(Self::Armyline),
             "armyline_top" => Some(Self::ArmylineTop),
+            "climb" => Some(Self::Climb),
+            "climb_stairs" => Some(Self::ClimbStairs),
+            "climb_floor" => Some(Self::ClimbFloor),
+            "climb_roof" => Some(Self::ClimbRoof),
+            "roof_planks" => Some(Self::RoofPlanks),
+            "fire_escape" => Some(Self::FireEscape),
+            "radio" => Some(Self::Radio),
             _ => None,
         }
     }
@@ -442,6 +464,13 @@ pub fn metro_pose(
         | MetroSpot::FireIn
         | MetroSpot::Armyline
         | MetroSpot::ArmylineTop => r42_pose(spot, metro, eye_height),
+        MetroSpot::Climb
+        | MetroSpot::ClimbStairs
+        | MetroSpot::ClimbFloor
+        | MetroSpot::ClimbRoof
+        | MetroSpot::RoofPlanks
+        | MetroSpot::FireEscape
+        | MetroSpot::Radio => r43_pose(spot, metro),
     }
 }
 

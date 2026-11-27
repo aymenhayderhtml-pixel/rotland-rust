@@ -109,6 +109,60 @@ Tower-local boxes, frame and origin as `box_points` (the base centre on the grou
 - **No change elsewhere:** a non-climb tower is unchanged. `world/tests/golden.rs` untouched.
 
 ## Done when
-Code + data + tests written (the lead builds and tests). Fill `## Worker notes`.
+Code + data + tests written (the lead builds and tests). Fill `## Worker notes
+- **Files changed:**
+  - `world/src/metro/climb.rs` (NEW): `ClimbKind`, `StopKind`, `ClimbTower`, `ClimbLadder`, `ClimbBox`, `ClimbChunk`, `FloorCrateEntry`, `ClimbConfig`, `roof_deck_y`, `climb_towers`, `climb_in_chunk`, `climb_in_chunk_with`.
+  - `world/src/metro/climb_hulls.rs` (NEW): `climb_hull_boxes` (tower-local boxes from `baseHeight` to `roof_deck_y`, hollow shaft, stop-floor slab + 4 walls, roof hatch hole, landmark setbacks).
+  - `world/src/metro/climb_tests.rs` (NEW): unit tests for picking, stop floors, modules, ladders, mast, hull boxes, and shaft fit.
+  - `data/metro.json`: added `climb` key.
+  - `world/src/metro/config.rs`: added `#[serde(default)] pub climb: crate::metro::climb::ClimbConfig` to `MetroConfig`.
+- **Mast ladder note:** In `tools/blender/towers/landmarks.py`, the 4 mast legs taper inward from `+-5.5` at `z=0.2` to `+-2.2` at `z=18.0` and the 6x6 m platform (`-3.0..+3.0`) overhangs them, so no leg face fits a vertical ladder to the platform edge; and `(0.0, 0.0)` is occupied by `radio_hut` and the upper mast. Placed `mast.ladderFoot` at `[0.0, 3.2]` and `mast.ladderTop` at `[0.0, 2.6]` (clear `+Z` platform edge, with a matching gap in the `+Z` rail collider).
+- **Lines for `world/src/metro/mod.rs`:**
+  ```rust
+  pub mod climb;
+  mod climb_hulls;
+  #[cfg(test)]
+  mod climb_tests;
+  ```
+  and `pub use`:
+  ```rust
+  pub use climb::{
+      ClimbBox, ClimbChunk, ClimbConfig, ClimbKind, ClimbLadder, ClimbTower, FloorCrateEntry,
+      StopKind, climb_hull_boxes, climb_in_chunk, climb_in_chunk_with, climb_towers, roof_deck_y,
+  };
+  ```
+- **Lines for `world/src/generator_contents.rs`** (inside `if let Some(metro) = self.metro_world()`, alongside `places_in_chunk` / `army_line_in_chunk`):
+  ```rust
+  let climb = crate::metro::climb_in_chunk(metro, chunk, hfn);
+  pois.extend(climb.pois);
+  props.extend(climb.props);
+  ````.
 
 ## Worker notes
+- **Files changed:**
+  - `world/src/metro/climb.rs` (NEW): `ClimbKind`, `StopKind`, `ClimbTower`, `ClimbLadder`, `ClimbBox`, `ClimbChunk`, `FloorCrateEntry`, `ClimbConfig`, `roof_deck_y`, `climb_towers`, `climb_in_chunk`, `climb_in_chunk_with`.
+  - `world/src/metro/climb_hulls.rs` (NEW): `climb_hull_boxes` (tower-local boxes from `baseHeight` to `roof_deck_y`, hollow shaft, stop-floor slab + 4 walls, roof hatch hole, landmark setbacks).
+  - `world/src/metro/climb_tests.rs` (NEW): unit tests for picking, stop floors, modules, ladders, mast, hull boxes, and shaft fit.
+  - `data/metro.json`: added `climb` key.
+  - `world/src/metro/config.rs`: added `#[serde(default)] pub climb: crate::metro::climb::ClimbConfig` to `MetroConfig`.
+- **Mast ladder note:** In `tools/blender/towers/landmarks.py`, the 4 mast legs taper inward from `+-5.5` at `z=0.2` to `+-2.2` at `z=18.0` and the 6x6 m platform (`-3.0..+3.0`) overhangs them, so no leg face fits a vertical ladder to the platform edge; and `(0.0, 0.0)` is occupied by `radio_hut` and the upper mast. Placed `mast.ladderFoot` at `[0.0, 3.2]` and `mast.ladderTop` at `[0.0, 2.6]` (clear `+Z` platform edge, with a matching gap in the `+Z` rail collider).
+- **Lines for `world/src/metro/mod.rs`:**
+  ```rust
+  pub mod climb;
+  mod climb_hulls;
+  #[cfg(test)]
+  mod climb_tests;
+  ```
+  and `pub use`:
+  ```rust
+  pub use climb::{
+      ClimbBox, ClimbChunk, ClimbConfig, ClimbKind, ClimbLadder, ClimbTower, FloorCrateEntry,
+      StopKind, climb_hull_boxes, climb_in_chunk, climb_in_chunk_with, climb_towers, roof_deck_y,
+  };
+  ```
+- **Lines for `world/src/generator_contents.rs`** (inside `if let Some(metro) = self.metro_world()`, alongside `places_in_chunk` / `army_line_in_chunk`):
+  ```rust
+  let climb = crate::metro::climb_in_chunk(metro, chunk, hfn);
+  pois.extend(climb.pois);
+  props.extend(climb.props);
+  ```

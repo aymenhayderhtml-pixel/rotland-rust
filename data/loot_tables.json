@@ -602,5 +602,71 @@
       { "id": "scrap_metal", "weight": 32, "count": [1, 3] },
       { "id": "cloth", "weight": 28, "count": [1, 3] }
     ]
+  },
+  "metro_tower_office": {
+    "rolls": [2, 4],
+    "cash": { "chance": 0.6, "min": 10, "max": 40 },
+    "entries": [
+      { "id": "battery", "weight": 16, "count": [1, 2] },
+      { "id": "flashlight", "weight": 12, "count": [1, 1] },
+      { "id": "bandage", "weight": 14, "count": [1, 2] },
+      { "id": "water_bottle", "weight": 18, "count": [1, 2] },
+      { "id": "soda", "weight": 12, "count": [1, 2] },
+      { "id": "canned_beans", "weight": 14, "count": [1, 2] },
+      { "id": "cloth", "weight": 12, "count": [1, 2] },
+      { "id": "scrap_metal", "weight": 12, "count": [1, 2] },
+      { "id": "pistol", "weight": 3, "count": [1, 1] },
+      { "id": "pistol_ammo", "weight": 7, "count": [4, 10] }
+    ]
+  },
+  "metro_tower_flat": {
+    "rolls": [2, 4],
+    "cash": { "chance": 0.45, "min": 5, "max": 20 },
+    "entries": [
+      { "id": "canned_beans", "weight": 24, "count": [1, 2] },
+      { "id": "water_bottle", "weight": 22, "count": [1, 2] },
+      { "id": "soda", "weight": 14, "count": [1, 2] },
+      { "id": "bread", "weight": 14, "count": [1, 2] },
+      { "id": "apple", "weight": 12, "count": [1, 3] },
+      { "id": "bandage", "weight": 16, "count": [1, 2] },
+      { "id": "medkit", "weight": 4, "count": [1, 1] },
+      { "id": "cloth", "weight": 14, "count": [1, 3] },
+      { "id": "warm_jacket", "weight": 5, "count": [1, 1] },
+      { "id": "wool_hat", "weight": 6, "count": [1, 1] },
+      { "id": "battery", "weight": 8, "count": [1, 2] },
+      { "id": "revolver", "weight": 2, "count": [1, 1] },
+      { "id": "revolver_ammo", "weight": 5, "count": [3, 8] }
+    ]
+  },
+  "metro_tower_camp": {
+    "rolls": [3, 5],
+    "cash": { "chance": 0.4, "min": 8, "max": 30 },
+    "entries": [
+      { "id": "canned_beans", "weight": 14, "count": [1, 2] },
+      { "id": "army_ration", "weight": 10, "count": [1, 2] },
+      { "id": "water_bottle", "weight": 14, "count": [1, 2] },
+      { "id": "medkit", "weight": 12, "count": [1, 1] },
+      { "id": "antibiotics", "weight": 10, "count": [1, 2] },
+      { "id": "battery", "weight": 10, "count": [1, 2] },
+      { "id": "army_helmet", "weight": 6, "count": [1, 1] },
+      { "id": "night_vision", "weight": 4, "count": [1, 1] },
+      { "id": "shotgun", "weight": 5, "count": [1, 1] },
+      { "id": "shells_12g", "weight": 6, "count": [4, 10] },
+      { "id": "hunting_rifle", "weight": 4, "count": [1, 1] },
+      { "id": "rifle_rounds", "weight": 5, "count": [4, 10] }
+    ]
+  },
+  "metro_radio": {
+    "rolls": [4, 6],
+    "cash": { "chance": 0.5, "min": 20, "max": 60 },
+    "entries": [
+      { "id": "army_rifle", "weight": 30, "count": [1, 1] },
+      { "id": "ammo_556", "weight": 24, "count": [12, 30] },
+      { "id": "body_armor", "weight": 10, "count": [1, 1] },
+      { "id": "night_vision", "weight": 8, "count": [1, 1] },
+      { "id": "surgery_kit", "weight": 9, "count": [1, 1] },
+      { "id": "adrenaline_shot", "weight": 9, "count": [1, 2] },
+      { "id": "medkit", "weight": 10, "count": [1, 2] }
+    ]
   }
 }

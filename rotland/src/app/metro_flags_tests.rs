@@ -36,6 +36,13 @@ fn spot_names_parse_any_case_and_reject_unknown() {
     assert_eq!(MetroSpot::parse("fire_in"), Some(MetroSpot::FireIn));
     assert_eq!(MetroSpot::parse("armyline"), Some(MetroSpot::Armyline));
     assert_eq!(MetroSpot::parse("armyline_top"), Some(MetroSpot::ArmylineTop));
+    assert_eq!(MetroSpot::parse("climb"), Some(MetroSpot::Climb));
+    assert_eq!(MetroSpot::parse("climb_stairs"), Some(MetroSpot::ClimbStairs));
+    assert_eq!(MetroSpot::parse("climb_floor"), Some(MetroSpot::ClimbFloor));
+    assert_eq!(MetroSpot::parse("climb_roof"), Some(MetroSpot::ClimbRoof));
+    assert_eq!(MetroSpot::parse("roof_planks"), Some(MetroSpot::RoofPlanks));
+    assert_eq!(MetroSpot::parse("fire_escape"), Some(MetroSpot::FireEscape));
+    assert_eq!(MetroSpot::parse("radio"), Some(MetroSpot::Radio));
     assert_eq!(MetroSpot::parse("roof"), None);
     assert_eq!(MetroSpot::parse(""), None);
 }
@@ -186,4 +193,111 @@ fn style_pose_picks_requested_style_and_faces_tower() {
     let pose = style_pose(picked);
     let to_tower = (picked.pos - pose.pos).normalize();
     assert!(forward_of(pose.yaw).dot(to_tower) > 0.99);
+}
+
+fn test_metro_world() -> MetroWorld {
+    let cfg = world::metro::MetroConfig::load_from_file(paths::repo_path("data/metro.json"))
+        .expect("data/metro.json must load");
+    let ground_y = 10.0;
+    let site = world::metro::MetroSite {
+        key: cfg.key.clone(),
+        name: cfg.name.clone(),
+        center: Vec2::new(6000.0, 0.0),
+        yaw: 0.3,
+        half_size: (cfg.size_blocks as f32 * cfg.block_size) * 0.5,
+        ground_y,
+    };
+    let layout = world::metro::MetroLayout::generate(site.clone(), &cfg);
+    let towers = world::metro::plan_towers(&layout, &cfg);
+    let entrance = site.to_world(Vec2::new(0.0, site.half_size));
+    let out = (entrance - site.center).normalize();
+    let highway = world::metro::Highway {
+        from_town: "blackwater".into(),
+        points: vec![entrance + out * 500.0, entrance],
+        width: cfg.highway.highway_width,
+    };
+    let highway_field = world::metro::HighwayHeightField::build(&highway, ground_y, &|_x, _z| ground_y, &cfg);
+    let jam = world::metro::plan_jam(&highway, &layout, &cfg);
+    let towers_by_block = world::metro::state::index_towers_by_block(&towers);
+    let damage = world::metro::damage_sites(&layout, &towers, world::metro::default_damage());
+    let look = world::metro::MetroLook::load_from_file(paths::repo_path("data/metro.json")).expect("look");
+    MetroWorld { config: cfg, layout, towers, highway, highway_field, jam, look, towers_by_block, damage }
+}
+
+#[test]
+fn r43_poses_stand_at_right_height_and_face_targets() {
+    use world::metro::{
+        ClimbKind, climb_towers, default_styles, fire_escape_towers, roof_deck_y, roof_links,
+        style_for,
+    };
+
+    let metro = test_metro_world();
+    let ground_y = metro.layout.site.ground_y;
+    let styles = default_styles();
+    let plans = climb_towers(&metro);
+    assert!(!plans.is_empty());
+
+    let first_t = &metro.towers[plans[0].tower];
+    let first_style = style_for(styles, first_t.style).unwrap();
+
+    // 1. climb: lobby floor height, facing local +Z (yaw = t.yaw + PI)
+    let climb = metro_pose(MetroSpot::Climb, &metro, None, 25.0, EYE).expect("climb");
+    assert!(close(climb.y.unwrap(), ground_y + 0.15));
+    let local_plus_z = Vec2::new(first_t.yaw.sin(), first_t.yaw.cos());
+    assert!(forward_of(climb.yaw).dot(local_plus_z) > 0.999);
+
+    // 2. climb_stairs: mid-storey flight A height, facing up flight A (local +Z)
+    let stairs = metro_pose(MetroSpot::ClimbStairs, &metro, None, 25.0, EYE).expect("climb_stairs");
+    let mid_floor = (first_t.floors / 2).min(first_t.floors.saturating_sub(2));
+    let expected_stairs_y = ground_y + first_style.base_height + mid_floor as f32 * first_style.floor_height + 1.0;
+    assert!(close(stairs.y.unwrap(), expected_stairs_y));
+    assert!(forward_of(stairs.yaw).dot(local_plus_z) > 0.999);
+
+    // 3. climb_floor: first stop floor slab + 0.05, facing local -Z (t.yaw)
+    let floor = metro_pose(MetroSpot::ClimbFloor, &metro, None, 25.0, EYE).expect("climb_floor");
+    let fi = plans[0].stop_floors[0];
+    let expected_floor_y = ground_y + first_style.base_height + fi as f32 * first_style.floor_height + 0.35;
+    assert!(close(floor.y.unwrap(), expected_floor_y));
+    assert!(forward_of(floor.yaw).dot(tower_front_dir(first_t.yaw)) > 0.999);
+
+    // 4. climb_roof: tallest non-landmark climb tower deck, facing tallest landmark
+    let roof = metro_pose(MetroSpot::ClimbRoof, &metro, None, 25.0, EYE).expect("climb_roof");
+    let non_lm = plans
+        .iter()
+        .filter(|p| p.kind != ClimbKind::Landmark)
+        .max_by(|a, b| metro.towers[a.tower].height.total_cmp(&metro.towers[b.tower].height))
+        .unwrap();
+    let non_lm_t = &metro.towers[non_lm.tower];
+    let non_lm_style = style_for(styles, non_lm_t.style).unwrap();
+    assert!(close(roof.y.unwrap(), roof_deck_y(non_lm_t, non_lm_style, ground_y) + 0.1));
+    let lm_t = &metro.towers[plans.iter().find(|p| p.kind == ClimbKind::Landmark).unwrap().tower];
+    assert!(forward_of(roof.yaw).dot((lm_t.pos - roof.pos).normalize()) > 0.999);
+
+    // 5. roof_planks: on from_tower deck, 4 m back from plank, facing along plank
+    let planks = metro_pose(MetroSpot::RoofPlanks, &metro, None, 25.0, EYE).expect("roof_planks");
+    let link = roof_links(&metro).into_iter().next().unwrap();
+    let link_t = &metro.towers[link.from_tower];
+    let link_style = style_for(styles, link_t.style).unwrap();
+    assert!(close(planks.y.unwrap(), roof_deck_y(link_t, link_style, ground_y) + 0.1));
+    let plank_dir = Vec2::new(link.plank_yaw.sin(), link.plank_yaw.cos());
+    assert!(forward_of(planks.yaw).dot(plank_dir) > 0.999);
+
+    // 6. fire_escape: on street 14 m from first fire-escape tower, facing it
+    let fe = metro_pose(MetroSpot::FireEscape, &metro, None, 25.0, EYE).expect("fire_escape");
+    assert!(fe.y.is_none());
+    let fe_t = &metro.towers[fire_escape_towers(&metro)[0]];
+    assert!(close(fe.pos.distance(fe_t.pos), fe_t.half.y + 14.0));
+    assert!(forward_of(fe.yaw).dot((fe_t.pos - fe.pos).normalize()) > 0.999);
+
+    // 7. radio: on mast platform (+18.22 m above crown), 2 m from console, facing hut
+    let radio = metro_pose(MetroSpot::Radio, &metro, None, 25.0, EYE).expect("radio");
+    let lm_style = style_for(styles, lm_t.style).unwrap();
+    let crown_y = lm_style.base_height + lm_t.floors as f32 * lm_style.floor_height;
+    let expected_radio_y = ground_y + crown_y + metro.config.climb.mast.platform_y + 0.22 + 0.05;
+    assert!(close(radio.y.unwrap(), expected_radio_y));
+    let (s, c) = lm_t.yaw.sin_cos();
+    let console_xz = Vec2::new(lm_t.pos.x + (-0.2) * c + (-2.1) * s, lm_t.pos.y - (-0.2) * s + (-2.1) * c);
+    assert!(close(radio.pos.distance(console_xz), 1.5));
+    let hut_xz = Vec2::new(lm_t.pos.x + (-1.1) * c + (-0.6) * s, lm_t.pos.y - (-1.1) * s + (-0.6) * c);
+    assert!(forward_of(radio.yaw).dot((hut_xz - radio.pos).normalize()) > 0.999);
 }

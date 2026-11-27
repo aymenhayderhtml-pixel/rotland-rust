@@ -209,6 +209,9 @@ pub fn update_world_interactions(
                 }
             }
         }
+        world
+            .near_crates_scratch
+            .retain(|s| play.metro_radio.can_open_crate(&s.crate_id));
         // E talks to the camp person in front (trader, banker, bounty board) before crates and items
         let npc = actors
             .camp_npcs
@@ -219,7 +222,9 @@ pub fn update_world_interactions(
             .gunsmith_world
             .facing_shopkeeper(p.position, facing, interact_range)
             .map(|(k, d)| (k.town_key.clone(), k.position, d));
-        let pressed = input.pressed(ui.keys.interact) && !ui.screen_open() && !ui.e_used;
+        let pressed = (input.pressed(ui.keys.interact) || session.test_flags.hold_e)
+            && !ui.screen_open()
+            && !ui.e_used;
         play_state.camp.player_at = p.position;
 
         // A car within reach: E drives it; with a fuel can, F pours it in (Godot CarDriver / CarFuel)
@@ -376,6 +381,21 @@ pub fn update_world_interactions(
             ui.e_used = true;
         }
         let free_world = free && rescue_interact.is_none();
+        let console_pos = world
+            .world_gen
+            .as_deref()
+            .and_then(|wg| metro_radio_console_pos(wg, p.position));
+        let radio_interact = if free_world {
+            play.metro_radio
+                .interact_tick(dt, p.position, console_pos, play_state, pressed)
+        } else {
+            play.metro_radio.advance_playback(dt, play_state);
+            None
+        };
+        if radio_interact.as_ref().is_some_and(|r| r.consumed_press) {
+            ui.e_used = true;
+        }
+        let free_world = free_world && radio_interact.is_none();
 
         // A bed in front comes before crates; tilling with a hoe only when nothing else is offered
         let bed = free_world && play_state.camp.bed_in_front(p.position, facing).is_some();
@@ -418,6 +438,12 @@ pub fn update_world_interactions(
             play_state.set_prompt(text);
         }
         if let Some(r) = &rescue_interact {
+            if let Some(text) = &r.prompt {
+                play_state.set_prompt(text.clone());
+            }
+            other_dist = other_dist.min(r.distance);
+        }
+        if let Some(r) = &radio_interact {
             if let Some(text) = &r.prompt {
                 play_state.set_prompt(text.clone());
             }
@@ -602,4 +628,24 @@ pub fn update_world_interactions(
         rv.update(dt);
     }
     actors.gunsmith_world.update(dt);
+}
+
+fn metro_radio_console_pos(world_gen: &world::WorldGenerator, player_pos: Vec3) -> Option<Vec3> {
+    let metro = world_gen.metro_world()?;
+    let plan = world::metro::climb_towers(metro)
+        .into_iter()
+        .find(|p| p.kind == world::metro::ClimbKind::Landmark)?;
+    let t = metro.towers.get(plan.tower)?;
+    if (player_pos.x - t.pos.x).abs() > 40.0 || (player_pos.z - t.pos.y).abs() > 40.0 {
+        return None;
+    }
+    let chunk = (
+        (t.pos.x / world::WorldGenerator::CHUNK_SIZE).floor() as i32,
+        (t.pos.y / world::WorldGenerator::CHUNK_SIZE).floor() as i32,
+    );
+    world::metro::climb_in_chunk(metro, chunk, &|x, z| world_gen.height(x, z))
+        .props
+        .into_iter()
+        .find(|p| p.model == "radio_console")
+        .map(|p| p.position)
 }

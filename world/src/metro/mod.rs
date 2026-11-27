@@ -33,6 +33,14 @@ mod places_tests;
 pub mod army_line;
 #[cfg(test)]
 mod army_line_tests;
+pub mod climb;
+mod climb_hulls;
+#[cfg(test)]
+mod climb_tests;
+pub mod fire_escapes;
+pub mod rooftops;
+#[cfg(test)]
+mod rooftops_tests;
 pub mod styles;
 pub mod tower_parts;
 #[cfg(test)]
@@ -91,6 +99,12 @@ pub use army_line::{
     ARMY_LINE_POI_ID, ArmyLineSite, army_line_blocked_points, army_line_in_chunk, army_line_site,
     army_line_spawn_offsets,
 };
+pub use climb::{
+    ClimbBox, ClimbChunk, ClimbConfig, ClimbKind, ClimbLadder, ClimbTower, FloorCrateEntry,
+    StopKind, climb_hull_boxes, climb_in_chunk, climb_in_chunk_with, climb_towers, roof_deck_y,
+};
+pub use fire_escapes::{fire_escape_ladders, fire_escape_towers};
+pub use rooftops::{RoofLink, roof_links, rooftops_in_chunk};
 
 #[cfg(test)]
 mod towers_tests;

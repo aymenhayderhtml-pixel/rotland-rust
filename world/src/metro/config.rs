@@ -176,10 +176,104 @@ pub struct MetroConfig {
     pub life: crate::metro::life::LifeConfig,
     #[serde(default)]
     pub loot: crate::metro::loot::MetroLootConfig,
+    #[serde(default)]
+    pub climb: crate::metro::climb::ClimbConfig,
+    // R43-02: rooftops & fireEscapes
+    #[serde(default)]
+    pub rooftops: RooftopsConfig,
+    #[serde(default)]
+    pub fire_escapes: FireEscapesConfig,
     /// Camp-to-Ashford direction the sector angles turn from. Set by the lead after
     /// `WorldLayout::reference_dir()` is known; not stored in the JSON.
     #[serde(skip, default = "default_reference_dir")]
     pub reference_dir: Vec2,
+}
+
+// R43-02: rooftops & fireEscapes config structs
+
+/// Parapet top heights above each style's roof deck (`rooftops.parapetTop` in `data/metro.json`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ParapetTopConfig {
+    pub brick: f32,
+    pub stone: f32,
+    pub glass: f32,
+    pub slab: f32,
+    pub deco: f32,
+}
+
+impl Default for ParapetTopConfig {
+    fn default() -> Self {
+        Self {
+            brick: 1.1,  // data: metro.json parapetTop
+            stone: 1.85, // data: metro.json parapetTop
+            glass: 0.0,  // data: metro.json parapetTop
+            slab: 0.8,   // data: metro.json parapetTop
+            deco: 0.6,   // data: metro.json parapetTop
+        }
+    }
+}
+
+impl ParapetTopConfig {
+    /// Parapet height above the roof deck for `style`.
+    pub fn for_style(&self, style: crate::metro::styles::TowerStyle) -> f32 {
+        use crate::metro::styles::TowerStyle;
+        match style {
+            TowerStyle::Brick => self.brick,
+            TowerStyle::Stone => self.stone,
+            TowerStyle::Glass => self.glass,
+            TowerStyle::Slab => self.slab,
+            TowerStyle::Deco => self.deco,
+        }
+    }
+}
+
+/// Settings for rooftop plank bridges and ladders (`rooftops` in `data/metro.json`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct RooftopsConfig {
+    pub max_gap_m: f32,
+    pub min_overlap_m: f32,
+    pub max_drop_m: f32,
+    pub flat_step_m: f32,
+    pub links_per_tower: usize,
+    pub plank_lengths: Vec<u32>,
+    pub parapet_top: ParapetTopConfig,
+}
+
+impl Default for RooftopsConfig {
+    fn default() -> Self {
+        Self {
+            max_gap_m: 12.0,               // data: metro.json maxGapM
+            min_overlap_m: 3.0,            // data: metro.json minOverlapM
+            max_drop_m: 8.0,               // data: metro.json maxDropM
+            flat_step_m: 0.6,              // data: metro.json flatStepM
+            links_per_tower: 2,            // data: metro.json linksPerTower
+            plank_lengths: vec![4, 8, 12], // data: metro.json plankLengths
+            parapet_top: ParapetTopConfig::default(),
+        }
+    }
+}
+
+/// Settings for walkable brick fire escapes (`fireEscapes` in `data/metro.json`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct FireEscapesConfig {
+    pub count: usize,
+    pub districts: Vec<String>,
+    pub max_floors: u32,
+    pub min_spacing_blocks: i32,
+}
+
+impl Default for FireEscapesConfig {
+    fn default() -> Self {
+        Self {
+            count: 8,                                         // data: metro.json fireEscapes
+            districts: vec!["edge".into(), "midtown".into()], // data: metro.json fireEscapes
+            max_floors: 12,                                   // data: metro.json maxFloors
+            min_spacing_blocks: 2,                            // data: metro.json minSpacingBlocks
+        }
+    }
 }
 
 impl MetroConfig {

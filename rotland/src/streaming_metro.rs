@@ -6,8 +6,9 @@ use world::WorldGenerator;
 
 use crate::metro_render::{
     curb_mesh::curb_chunk_mesh,
-    hulls::{tower_bases, tower_hulls},
-    near::place_chunk_towers,
+    hulls::{aabb_points, tower_bases, tower_hulls_with_climb},
+    near::{place_chunk_towers, tower_chunk},
+    parts::tower_parts_for_index,
 };
 use crate::props::{Placed, PropLibrary};
 
@@ -126,7 +127,16 @@ impl Streamer {
                 colliders.push(h);
             }
         }
-        let curbs = self.load_metro_chunk(device, pack, library, physics, b.coord, &mut placed, &mut colliders);
+        let curbs = self.load_metro_chunk(
+            device,
+            pack,
+            library,
+            physics,
+            b.coord,
+            &mut placed,
+            &mut colliders,
+            &mut ladders,
+        );
         let origin = Vec3::new(b.coord.x as f32, 0.0, b.coord.y as f32) * WorldGenerator::CHUNK_SIZE;
         LoadedChunk {
             ground: engine::render::GpuMesh::new(device, "ground", &b.ground),
@@ -152,6 +162,7 @@ impl Streamer {
         coord: IVec2,
         placed: &mut Vec<Placed>,
         colliders: &mut Vec<ColliderHandle>,
+        ladders: &mut Vec<game::LadderRail>,
     ) -> Option<engine::render::GpuMesh> {
         let metro_data = self.world_gen.metro_world().map(|m| {
             let ground_y = m.layout.site.ground_y;
@@ -159,14 +170,50 @@ impl Streamer {
             let curbs = curb_chunk_mesh(device, &m.layout, &m.look, coord);
             let tower_placed = place_chunk_towers(device, pack, library, m, coord, styles);
             let bases = tower_bases(&m.towers, coord, ground_y, &m.damage);
-            let hulls = tower_hulls(&m.towers, coord, ground_y, styles, &m.damage);
-            (curbs, tower_placed, bases, hulls)
+            let climb_plans = world::metro::climb_towers(m);
+            let hulls = tower_hulls_with_climb(&m.towers, coord, ground_y, styles, &m.damage, &climb_plans);
+            let mut fe_parts = Vec::new();
+            for idx in world::metro::fire_escape_towers(m) {
+                if m.towers.get(idx).is_some_and(|t| tower_chunk(t.pos) == coord) {
+                    fe_parts.extend(tower_parts_for_index(
+                        &m.towers,
+                        idx,
+                        ground_y,
+                        styles,
+                        &m.config,
+                        &m.damage,
+                    ));
+                }
+            }
+            (curbs, tower_placed, bases, hulls, fe_parts)
         });
-        let (curbs, tower_placed, bases, hulls) = metro_data?;
+        let (curbs, tower_placed, bases, hulls, fe_parts) = metro_data?;
         placed.extend(tower_placed);
         for (id, _, _) in &bases {
             self.shapes_of(pack, id);
         }
+        for part in &fe_parts {
+            if matches!(part.kind, world::metro::PartKind::Base | world::metro::PartKind::Crown)
+                && let Some(model) = pack.find(&part.model)
+                && !model.markers.is_empty()
+            {
+                let matrix = glam::Mat4::from_translation(part.pos) * glam::Mat4::from_rotation_y(part.yaw);
+                ladders.extend(game::ladders_from_markers(&model.markers, matrix));
+            }
+            if part.kind != world::metro::PartKind::Base {
+                self.shapes_of(pack, &part.model);
+            }
+        }
+        let (climb_ladders, climb_boxes) = self.world_gen.metro_climb_extras(coord);
+        for cl in climb_ladders {
+            ladders.push(game::LadderRail::new(cl.foot, cl.deck, cl.id));
+        }
+        type BoxShapeEntry = (Vec<Vec<[f32; 3]>>, Vec3, f32);
+        let climb_box_shapes: Vec<BoxShapeEntry> = climb_boxes
+            .into_iter()
+            .map(|b| (vec![aabb_points(-b.half, b.half)], b.centre, b.yaw))
+            .collect();
+
         let base_items = bases.iter().filter_map(|(id, pos, yaw)| {
             self.shapes
                 .get(id.as_str())
@@ -176,7 +223,25 @@ impl Streamer {
         let hull_items = hulls
             .iter()
             .map(|(p, yaw, pts)| (std::slice::from_ref(pts), *p, *yaw, 1.0));
-        let h = physics.add_static_compound_deferred(base_items.chain(hull_items));
+        let fe_items = fe_parts
+            .iter()
+            .filter(|p| p.kind != world::metro::PartKind::Base)
+            .filter_map(|p| {
+                self.shapes
+                    .get(p.model.as_str())
+                    .filter(|s| !s.is_empty())
+                    .map(|s| (s.as_slice(), p.pos, p.yaw, 1.0))
+            });
+        let climb_box_items = climb_box_shapes
+            .iter()
+            .map(|(shapes, centre, yaw)| (shapes.as_slice(), *centre, *yaw, 1.0));
+
+        let h = physics.add_static_compound_deferred(
+            base_items
+                .chain(hull_items)
+                .chain(fe_items)
+                .chain(climb_box_items),
+        );
         if h != ColliderHandle::invalid() {
             colliders.push(h);
         }
@@ -195,6 +260,10 @@ fn is_no_collider_prop(id: &str) -> bool {
         "grass_tall_patch",
         "roof_bush",
         "roof_tree",
+        "stair_digit_",
+        "roof_ladder_seg",
+        "stair_sign_",
+        "stair_arrow_",
     ]
     .iter()
     .any(|p| id.starts_with(p))

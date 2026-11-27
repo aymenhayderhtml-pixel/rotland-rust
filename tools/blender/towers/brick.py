@@ -1,5 +1,6 @@
 """Brick (brownstone & tenement) tower kit: 16 m and 24 m footprints."""
 import os
+import math
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -138,6 +139,8 @@ def build_base(model, size):
     k.box((fe_u - 1.9, h + 0.8, 1.9), (fe_u - 1.85, h + 0.85, 3.85), "rust_dark")
     for rz in (2.1, 2.5, 2.9, 3.3, 3.7):
         k.box((fe_u - 2.3, h + 0.8, rz), (fe_u - 1.85, h + 0.85, rz + 0.04), "rust_dark")
+    k.empty("ladder_bottom_fe", (fe_u - 2.075, h + 1.25, 0.0), rot_z=math.pi)
+    k.empty("ladder_top_fe", (fe_u - 2.075, h + 0.45, 3.92))
 
 
 def build_crown(model, size):
@@ -183,6 +186,20 @@ def build_crown(model, size):
         roof_parts.ac_unit(k, 6.2, 0.6, 2.40)
         roof_parts.ac_unit(k, 2.6, 6.4, 2.40)
         roof_parts.vent_stack(k, -1.8, 0.2, 2.40, 1.5)
+
+    # Top fire-escape landing colliders + gooseneck ladder over the parapet onto the roof deck
+    fe_u = -2.0 if size == 16 else -4.0
+    brick_parts.add_fire_escape_colliders(k, h, 1, 1, fe_u, 0.05)
+    for rx in (fe_u - 0.22, fe_u + 0.22):
+        k.box((rx - 0.025, h + 0.60, 0.12), (rx + 0.025, h + 0.65, 3.82), "rust_dark")
+        k.box((rx - 0.025, h - 0.42, 3.77), (rx + 0.025, h + 0.65, 3.82), "rust_dark")
+        k.box((rx - 0.025, h - 0.42, 2.40), (rx + 0.025, h - 0.37, 3.82), "rust_dark")
+    for rz in (0.45, 0.85, 1.25, 1.65, 2.05, 2.45, 2.85, 3.25, 3.60):
+        k.box((fe_u - 0.22, h + 0.60, rz), (fe_u + 0.22, h + 0.65, rz + 0.04), "rust_dark")
+    for rz in (2.75, 3.25):
+        k.box((fe_u - 0.22, h - 0.42, rz), (fe_u + 0.22, h - 0.37, rz + 0.04), "rust_dark")
+    k.empty("ladder_bottom_fer", (fe_u, h + 0.95, 0.12), rot_z=math.pi)
+    k.empty("ladder_top_fer", (fe_u, h - 1.32, 2.40))
 
 
 def build_floor_lod1(model, size):

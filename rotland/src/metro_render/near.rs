@@ -7,7 +7,7 @@ use world::metro::{MetroWorld, StyleDef, TowerSpot};
 
 use crate::props::{Placed, PropLibrary};
 
-use super::parts::{chunk_tower_parts, tower_load_ring_range};
+use super::parts::{chunk_tower_parts_with_climb, tower_load_ring_range};
 
 /// The chunk a world XZ point stands in (same rule as `terrain::chunk_of`).
 pub fn tower_chunk(pos: Vec2) -> IVec2 {
@@ -31,13 +31,18 @@ pub fn place_chunk_towers(
     coord: IVec2,
     styles: &[StyleDef],
 ) -> Vec<Placed> {
-    let parts = chunk_tower_parts(
+    let climb_indices: Vec<usize> = world::metro::climb_towers(metro)
+        .into_iter()
+        .map(|c| c.tower)
+        .collect();
+    let parts = chunk_tower_parts_with_climb(
         &metro.towers,
         coord,
         metro.layout.site.ground_y,
         styles,
         &metro.config,
         &metro.damage,
+        &climb_indices,
     );
     let lod0 = metro.config.towers.lod0_distance;
     let range = tower_load_ring_range();

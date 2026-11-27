@@ -141,7 +141,16 @@ pub fn draw_map(
         draw_city_and_road(&painter, state, view, rect, view_size);
         // New Halden draws over the Ashford streets (outline and streets once discovered)
         if let Some(layout) = view.generator.and_then(|g| g.metro_layout()) {
-            draw_metro_map(&painter, state, &view.map_state.explore, layout, &state.metro_cfg, rect, view_size);
+            draw_metro_map(
+                &painter,
+                state,
+                &view.map_state.explore,
+                layout,
+                view.generator.and_then(|g| g.metro_world()),
+                &state.metro_cfg,
+                rect,
+                view_size,
+            );
         }
 
         // Draw lake water, shore outline, docks, village lots, fishing spots, and label

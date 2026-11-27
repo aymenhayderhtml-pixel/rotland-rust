@@ -1,0 +1,16 @@
+{
+  "_why": "R43: the radio on the tallest tower. Text is shown in order, one line every few seconds.",
+  "useRadiusM": 2.0,
+  "prompt": "[E] Use the radio",
+  "usedPrompt": "Only static now.",
+  "lineSeconds": 4.0,
+  "lines": [
+    "...static...",
+    "\"...anyone? Anyone on this channel?\"",
+    "\"We're on the rooftops. The streets are theirs, the roofs are ours.\"",
+    "\"Look for the green smoke. Come up, don't come down.\"",
+    "...static..."
+  ],
+  "crateId": "metro_radio_crate",
+  "mapLabel": "Radio Mast"
+}
