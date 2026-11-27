@@ -31,6 +31,10 @@ pub struct Lighting {
     pub moon_color: Vec3,
     /// Up to 3 spot lights (e.g. index 0: flashlight, indices 1..2: vehicle headlights).
     pub spots: [Option<SpotLight>; 3],
+    /// Night-vision parameters: (strength 0..1, gain, noise, time).
+    pub nvg: [f32; 4],
+    /// Night-vision tint (linear RGB).
+    pub nvg_tint: Vec3,
 }
 
 /// A cone of light from a point, like Godot's SpotLight3D. Colour is sRGB.
@@ -80,6 +84,8 @@ struct SceneUniforms {
     moon_dir: [f32; 4],
     moon_color: [f32; 4],
     spots: [SpotLightUniform; 3],
+    nvg: [f32; 4],
+    nvg_tint: [f32; 4],
 }
 
 /// Dynamic uniform offsets must be 256-byte aligned.
@@ -438,6 +444,8 @@ impl LitRenderer {
             moon_dir: v4(light.moon_toward.normalize_or_zero(), light.moon_energy),
             moon_color: v4(lin(light.moon_color), 1.0),
             spots,
+            nvg: light.nvg,
+            nvg_tint: v4(light.nvg_tint, 1.0),
         };
         gpu.queue.write_buffer(&self.scene_buf, 0, bytemuck::bytes_of(&scene));
     }
@@ -456,7 +464,7 @@ mod tests {
         assert_eq!(std::mem::size_of::<SpotLightUniform>(), 48);
         assert_eq!(std::mem::size_of::<SpotLightUniform>() % 16, 0);
 
-        assert_eq!(std::mem::size_of::<SceneUniforms>(), 528);
+        assert_eq!(std::mem::size_of::<SceneUniforms>(), 560);
         assert_eq!(std::mem::size_of::<SceneUniforms>() % 16, 0);
 
         assert_eq!(std::mem::offset_of!(SceneUniforms, spots), 384);

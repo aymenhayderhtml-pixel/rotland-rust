@@ -84,6 +84,108 @@ Keep the JSON field names exactly as the existing items use them. Colours: army 
 - Gun parts cap at 100. Car parts revive a wrecked car and use exactly 1 part.
 
 ## Done when
-Code + tests written (the lead builds and tests). Fill `## Worker notes`: the lib/mod lines and the list of things R41-09 must wire (hotbar use per item, armour in bites, boosts update + HUD, night vision render input).
+Code + tests written (the lead builds and tests). Fill `## Worker notes
+
+### Files changed / added
+- `data/items.json`: added the 12 city-only items (`body_armor`, `army_helmet`, `army_rifle`, `ammo_556`, `army_ration`, `night_vision`, `battery`, `antibiotics`, `surgery_kit`, `adrenaline_shot`, `gun_parts`, `car_parts`).
+- `data/weapons.json`: added `army_rifle` (`auto: true`, `ammoItem: "ammo_556"`, `magazineSize: 30`, `damage: 32`, `fireInterval: 0.085`, `spreadAimDeg: 0.35`, `noiseRadius: 70`).
+- `data/gun_feel.json`: added `army_rifle` (`kickDeg: 1.1`, `climb: true`, `maxClimbDeg: 7.5`).
+- `data/weapon_mounts.json`: added `army_rifle` mount points (`optic`, `muzzle`, `magazine`, `grip`, `stock`) — R41-07's Blender model should use these empty names (`optic`, `muzzle`, `magazine`, `grip`, `stock`) or update the coordinates once baked.
+- `data/vehicles.json`: added `"partsRepairHp": 150`.
+- `data/armor.json` (NEW): `{ "maxReduce": 0.5, "items": { "body_armor": { "slot": "body", "reduce": 0.35 }, "army_helmet": { "slot": "head", "reduce": 0.15 } } }`.
+- `data/boosts.json` (NEW): `antibiotics`, `adrenaline_shot`, `surgery_kit`, and `nightVision` configs.
+- `game_core/src/armor.rs` (NEW): `ArmorConfig`, `ArmorItemDef`, `armor_reduction`, `apply_armor_damage` + unit test.
+- `game_player/src/survival/boosts.rs` (NEW): `BoostsConfig`, `Boosts` (`start_antibiotics`, `start_adrenaline`, `update`, `free_sprint`, serde save/load), `adrenaline_revive(&mut Downed) -> bool` + unit tests.
+- `game_player/src/night_vision.rs` (NEW): `NightVision` (`toggle`, `update`, `strength`, serde save/load), `BATTERY_ITEM` + unit test.
+- `game_core/src/weapons/wear.rs`: added `GUN_PARTS_REPAIR_AMOUNT` (`0.5`) and `repair_with_parts(&mut ItemStack, f32) -> bool` + unit test.
+- `game_player/src/vehicles/manager.rs`: added `Cars::repair_with_parts(&mut self, car_id: &str, inventory: &mut Inventory) -> bool` next to `repair`.
+- `game/tests/all/city_items.rs` (NEW): integration tests covering all 12 items, `army_rifle`, armor reduction, antibiotics stacking, adrenaline revive, night vision battery drain, gun parts, and car parts.
+
+### Shared-file lines for the lead
+- `game_core/src/lib.rs`:
+  - `pub mod armor;`
+  - `pub use armor::*;` (or `pub use armor::{armor_reduction, apply_armor_damage, ArmorConfig, ArmorItemDef};`)
+- `game_player/src/survival/mod.rs`:
+  - `pub mod boosts;`
+  - `pub use boosts::{adrenaline_revive, AdrenalineConfig, AntibioticsConfig, Boosts, BoostsConfig, NightVisionConfig, SurgeryKitConfig};`
+- `game_player/src/lib.rs`:
+  - `pub mod night_vision;`
+  - `pub use night_vision::{NightVision, BATTERY_ITEM};`
+- `game/src/lib.rs`:
+  - `armor,` in `pub use game_core::{ ... };` and `pub use game_core::armor::*;`
+  - `night_vision,` in `pub use game_player::{ ... };` and `pub use game_player::night_vision::{NightVision, BATTERY_ITEM};` (note: `pub use game_player::survival::*;` already re-exports `boosts` symbols)
+- `game/tests/all/main.rs`:
+  - `mod city_items;`
+
+### Note for the lead / data integrity
+- `game/tests/all/data_integrity.rs` (`weapon_wear_json_covers_all_weapons`) checks that every gun in `data/weapons.json` has a `wearPerShot > 0` entry in `data/weapon_wear.json` (which this task does not own). Please add `"army_rifle": { "wearPerShot": 0.00167 }` to `data/weapon_wear.json` (or similar).
+- `data_integrity.rs` also checks that every gun's `ammoItem` (`ammo_556`) is obtainable (R41-08 adds it to `metro_army`/`metro_core` loot tables).
+
+### Wiring items for R41-09
+1. **Hotbar / item use (`rotland/src/play.rs` or item-use handler):**
+   - `antibiotics`: consume 1, call `boosts.start_antibiotics(&boosts_cfg.antibiotics)`.
+   - `adrenaline_shot`: if downed (`downed.is_down()`), consume 1 and call `adrenaline_revive(&mut downed)` (and restore player health via the existing revive health rule); if standing, consume 1 and call `boosts.start_adrenaline(&boosts_cfg.adrenaline_shot)`.
+   - `surgery_kit`: timed use (`boosts_cfg.surgery_kit.use_seconds` = 6 s), then consume 1 and heal player to full health.
+   - `night_vision`: call `night_vision.toggle(&mut inventory, &boosts_cfg.night_vision)`.
+   - `gun_parts`: if holding a gun with `condition() < 1.0` (or jammed), call `repair_with_parts(held_stack, GUN_PARTS_REPAIR_AMOUNT)`, clear runtime gun jam flag, and consume 1 `gun_parts`.
+   - `car_parts`: when near a damaged/wrecked car, call `cars.repair_with_parts(&car_id, &mut inventory)`.
+   - `army_ration`: already uses standard `effects` (`hunger: 70, thirst: 15, health: 10`).
+2. **Armour in zombie bites (`rotland/src/combat_damage.rs`):**
+   - Compute `let reduction = armor_reduction(&inventory, &armor_cfg);` and scale bite damage with `apply_armor_damage(damage, reduction)`.
+3. **Boosts & Night Vision per-frame update + HUD + save/load:**
+   - Each frame: `let heal = boosts.update(dt);` -> add `heal` to player health; while `boosts.free_sprint()` is true, skip stamina drain on sprint.
+   - Each frame: `night_vision.update(dt, &mut inventory, &boosts_cfg.night_vision);` and pass `night_vision.strength()`, `boosts_cfg.night_vision.gain`, `tint`, `noise` to the renderer/shader, plus battery/charge to the HUD.
+   - Show active `boosts` (antibiotics / adrenaline timers) on the HUD and persist `Boosts` and `NightVision` in save/load.`: the lib/mod lines and the list of things R41-09 must wire (hotbar use per item, armour in bites, boosts update + HUD, night vision render input).
 
 ## Worker notes
+
+### Files changed / added
+- `data/items.json`: added the 12 city-only items (`body_armor`, `army_helmet`, `army_rifle`, `ammo_556`, `army_ration`, `night_vision`, `battery`, `antibiotics`, `surgery_kit`, `adrenaline_shot`, `gun_parts`, `car_parts`).
+- `data/weapons.json`: added `army_rifle` (`auto: true`, `ammoItem: "ammo_556"`, `magazineSize: 30`, `damage: 32`, `fireInterval: 0.085`, `spreadAimDeg: 0.35`, `noiseRadius: 70`).
+- `data/gun_feel.json`: added `army_rifle` (`kickDeg: 1.1`, `climb: true`, `maxClimbDeg: 7.5`).
+- `data/weapon_mounts.json`: added `army_rifle` mount points (`optic`, `muzzle`, `magazine`, `grip`, `stock`) — R41-07's Blender model should use these empty names (`optic`, `muzzle`, `magazine`, `grip`, `stock`) or update the coordinates once baked.
+- `data/vehicles.json`: added `"partsRepairHp": 150`.
+- `data/armor.json` (NEW): `{ "maxReduce": 0.5, "items": { "body_armor": { "slot": "body", "reduce": 0.35 }, "army_helmet": { "slot": "head", "reduce": 0.15 } } }`.
+- `data/boosts.json` (NEW): `antibiotics`, `adrenaline_shot`, `surgery_kit`, and `nightVision` configs.
+- `game_core/src/armor.rs` (NEW): `ArmorConfig`, `ArmorItemDef`, `armor_reduction`, `apply_armor_damage` + unit test.
+- `game_player/src/survival/boosts.rs` (NEW): `BoostsConfig`, `Boosts` (`start_antibiotics`, `start_adrenaline`, `update`, `free_sprint`, serde save/load), `adrenaline_revive(&mut Downed) -> bool` + unit tests.
+- `game_player/src/night_vision.rs` (NEW): `NightVision` (`toggle`, `update`, `strength`, serde save/load), `BATTERY_ITEM` + unit test.
+- `game_core/src/weapons/wear.rs`: added `GUN_PARTS_REPAIR_AMOUNT` (`0.5`) and `repair_with_parts(&mut ItemStack, f32) -> bool` + unit test.
+- `game_player/src/vehicles/manager.rs`: added `Cars::repair_with_parts(&mut self, car_id: &str, inventory: &mut Inventory) -> bool` next to `repair`.
+- `game/tests/all/city_items.rs` (NEW): integration tests covering all 12 items, `army_rifle`, armor reduction, antibiotics stacking, adrenaline revive, night vision battery drain, gun parts, and car parts.
+
+### Shared-file lines for the lead
+- `game_core/src/lib.rs`:
+  - `pub mod armor;`
+  - `pub use armor::*;` (or `pub use armor::{armor_reduction, apply_armor_damage, ArmorConfig, ArmorItemDef};`)
+- `game_player/src/survival/mod.rs`:
+  - `pub mod boosts;`
+  - `pub use boosts::{adrenaline_revive, AdrenalineConfig, AntibioticsConfig, Boosts, BoostsConfig, NightVisionConfig, SurgeryKitConfig};`
+- `game_player/src/lib.rs`:
+  - `pub mod night_vision;`
+  - `pub use night_vision::{NightVision, BATTERY_ITEM};`
+- `game/src/lib.rs`:
+  - `armor,` in `pub use game_core::{ ... };` and `pub use game_core::armor::*;`
+  - `night_vision,` in `pub use game_player::{ ... };` and `pub use game_player::night_vision::{NightVision, BATTERY_ITEM};` (note: `pub use game_player::survival::*;` already re-exports `boosts` symbols)
+- `game/tests/all/main.rs`:
+  - `mod city_items;`
+
+### Note for the lead / data integrity
+- `game/tests/all/data_integrity.rs` (`weapon_wear_json_covers_all_weapons`) checks that every gun in `data/weapons.json` has a `wearPerShot > 0` entry in `data/weapon_wear.json` (which this task does not own). Please add `"army_rifle": { "wearPerShot": 0.00167 }` to `data/weapon_wear.json` (or similar).
+- `data_integrity.rs` also checks that every gun's `ammoItem` (`ammo_556`) is obtainable (R41-08 adds it to `metro_army`/`metro_core` loot tables).
+
+### Wiring items for R41-09
+1. **Hotbar / item use (`rotland/src/play.rs` or item-use handler):**
+   - `antibiotics`: consume 1, call `boosts.start_antibiotics(&boosts_cfg.antibiotics)`.
+   - `adrenaline_shot`: if downed (`downed.is_down()`), consume 1 and call `adrenaline_revive(&mut downed)` (and restore player health via the existing revive health rule); if standing, consume 1 and call `boosts.start_adrenaline(&boosts_cfg.adrenaline_shot)`.
+   - `surgery_kit`: timed use (`boosts_cfg.surgery_kit.use_seconds` = 6 s), then consume 1 and heal player to full health.
+   - `night_vision`: call `night_vision.toggle(&mut inventory, &boosts_cfg.night_vision)`.
+   - `gun_parts`: if holding a gun with `condition() < 1.0` (or jammed), call `repair_with_parts(held_stack, GUN_PARTS_REPAIR_AMOUNT)`, clear runtime gun jam flag, and consume 1 `gun_parts`.
+   - `car_parts`: when near a damaged/wrecked car, call `cars.repair_with_parts(&car_id, &mut inventory)`.
+   - `army_ration`: already uses standard `effects` (`hunger: 70, thirst: 15, health: 10`).
+2. **Armour in zombie bites (`rotland/src/combat_damage.rs`):**
+   - Compute `let reduction = armor_reduction(&inventory, &armor_cfg);` and scale bite damage with `apply_armor_damage(damage, reduction)`.
+3. **Boosts & Night Vision per-frame update + HUD + save/load:**
+   - Each frame: `let heal = boosts.update(dt);` -> add `heal` to player health; while `boosts.free_sprint()` is true, skip stamina drain on sprint.
+   - Each frame: `night_vision.update(dt, &mut inventory, &boosts_cfg.night_vision);` and pass `night_vision.strength()`, `boosts_cfg.night_vision.gain`, `tint`, `noise` to the renderer/shader, plus battery/charge to the HUD.
+   - Show active `boosts` (antibiotics / adrenaline timers) on the HUD and persist `Boosts` and `NightVision` in save/load.

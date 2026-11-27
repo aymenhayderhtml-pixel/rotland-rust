@@ -43,6 +43,56 @@ Read: tasks/R41-common.md ("Life models": the exact names), the `blender-art` sk
 - Fix and run again until they look right.
 
 ## Done when
-All listed models exist within budget, the previews look right, and `build_r41_models.py` ends with `R41 BUILD OK`. Fill `## Worker notes` (the face scale for the street billboard, the pivots).
+All listed models exist within budget, the previews look right, and `build_r41_models.py` ends with `R41 BUILD OK`. Fill `## Worker notes
+- **Files created:**
+  - `tools/blender/life/life.py`, `poles.py`, `billboards.py`, `flappers.py`, `crows.py`
+  - `tools/blender/build_r41_models.py` (guards `items_r41` import until R41-07 lands; prints `R41 BUILD OK`)
+  - 34 `.glb` files in `assets/models/props/` + 6 `.glb` files in `assets/models/animals/` + 40 PNGs in `assets/models/_previews/`
+- **Street billboard face scale:** `0.66` around `(0, 0, 0)` (place `billboard_face_a..d` at the exact same transform as `billboard_street` with uniform scale `0.66`; roof billboards `billboard_roof_a/b` use scale `1.0`).
+- **Pivots & alignment:**
+  - `power_pole`, `power_pole_leaning` (12° toward `+Y`), `power_pole_fallen` (snapped stump at origin, trunk along `+Y`): bottom center `(0, 0, 0)`. Cross-arm runs along `Y` with 3 insulators at `y = -0.90, 0.0, +0.90, z = 8.50`.
+  - `power_wire_span` (`x = 0..20, z = 8.50`, 1.2 m sag, 14 segs) & `power_wire_down` (`x = 0..20, z = 0.02`, S-curves, 14 segs): pivot `(0, 0, 0)` so placing `power_wire_span` at a `power_pole`'s origin meets its 3 insulators at `y = -0.90, 0.0, +0.90, z = 8.50`.
+  - `billboard_roof_a/b`, `billboard_street`, `billboard_face_a..d`: pivot `(0, 0, 0)` at bottom center. Roof backing at `y = 0.20`, face at `y = 0.24` (4 cm in front); street backing at `y = 0.122`, scaled face at `y = 0.1584` (~3.6 cm in front).
+  - `flag_pole_wall`: pivot `(0, 0, 0)` at wall bracket; pole extends 2.5 m at 45° toward `+Y/+Z`, tip at `(0, 1.768, 1.768)`.
+  - `flag_torn_f0..f3`: pivot `(0, 0, 0)` at pole tip, hangs along `+X` (`x = 0..1.5, z = -1.0..0.0`).
+  - `plastic_flap_f0..f3`: pivot `(0, 0, 0)` at top centre (`x = -0.6..0.6, z = -1.6..0.0`).
+  - `crow_perched`, `crow_peck`: pivot `(0, 0, 0)` at feet (`z = 0`).
+  - `crow_fly_f0..f3`: pivot `(0, 0, 0)` at body centre (0.45 m long, 0.90 m wingspan).
+- **Tri counts (all within budget):**
+  - `power_pole` / `power_pole_leaning`: 464 (budget 1500), `_lod1`: 64 (budget 150)
+  - `power_pole_fallen`: 240 (budget 1500), `_lod1`: 44 (budget 150)
+  - `power_wire_span` / `power_wire_down`: 348 (budget 600), `_lod1`: 60 (budget 60)
+  - `billboard_roof_a`: 516 (budget 4000), `_lod1`: 72 (budget 400)
+  - `billboard_roof_b`: 432 (budget 4000), `_lod1`: 60 (budget 400)
+  - `billboard_street`: 268 (budget 4000), `_lod1`: 44 (budget 400)
+  - `billboard_face_a..d`: 94, 56, 54, 74 (budget 400), `_lod1`: 4 each (budget 40)
+  - `flag_pole_wall`: 60 (budget 300), `_lod1`: 24 (budget 30)
+  - `flag_torn_f0..f3`: 92 each (budget 300); `plastic_flap_f0..f3`: 76 each (budget 300)
+  - `crow_perched`, `crow_peck`, `crow_fly_f0..f3`: 140 each (budget 400)` (the face scale for the street billboard, the pivots).
 
 ## Worker notes
+- **Files created:**
+  - `tools/blender/life/life.py`, `poles.py`, `billboards.py`, `flappers.py`, `crows.py`
+  - `tools/blender/build_r41_models.py` (guards `items_r41` import until R41-07 lands; prints `R41 BUILD OK`)
+  - 34 `.glb` files in `assets/models/props/` + 6 `.glb` files in `assets/models/animals/` + 40 PNGs in `assets/models/_previews/`
+- **Street billboard face scale:** `0.66` around `(0, 0, 0)` (place `billboard_face_a..d` at the exact same transform as `billboard_street` with uniform scale `0.66`; roof billboards `billboard_roof_a/b` use scale `1.0`).
+- **Pivots & alignment:**
+  - `power_pole`, `power_pole_leaning` (12° toward `+Y`), `power_pole_fallen` (snapped stump at origin, trunk along `+Y`): bottom center `(0, 0, 0)`. Cross-arm runs along `Y` with 3 insulators at `y = -0.90, 0.0, +0.90, z = 8.50`.
+  - `power_wire_span` (`x = 0..20, z = 8.50`, 1.2 m sag, 14 segs) & `power_wire_down` (`x = 0..20, z = 0.02`, S-curves, 14 segs): pivot `(0, 0, 0)` so placing `power_wire_span` at a `power_pole`'s origin meets its 3 insulators at `y = -0.90, 0.0, +0.90, z = 8.50`.
+  - `billboard_roof_a/b`, `billboard_street`, `billboard_face_a..d`: pivot `(0, 0, 0)` at bottom center. Roof backing at `y = 0.20`, face at `y = 0.24` (4 cm in front); street backing at `y = 0.122`, scaled face at `y = 0.1584` (~3.6 cm in front).
+  - `flag_pole_wall`: pivot `(0, 0, 0)` at wall bracket; pole extends 2.5 m at 45° toward `+Y/+Z`, tip at `(0, 1.768, 1.768)`.
+  - `flag_torn_f0..f3`: pivot `(0, 0, 0)` at pole tip, hangs along `+X` (`x = 0..1.5, z = -1.0..0.0`).
+  - `plastic_flap_f0..f3`: pivot `(0, 0, 0)` at top centre (`x = -0.6..0.6, z = -1.6..0.0`).
+  - `crow_perched`, `crow_peck`: pivot `(0, 0, 0)` at feet (`z = 0`).
+  - `crow_fly_f0..f3`: pivot `(0, 0, 0)` at body centre (0.45 m long, 0.90 m wingspan).
+- **Tri counts (all within budget):**
+  - `power_pole` / `power_pole_leaning`: 464 (budget 1500), `_lod1`: 64 (budget 150)
+  - `power_pole_fallen`: 240 (budget 1500), `_lod1`: 44 (budget 150)
+  - `power_wire_span` / `power_wire_down`: 348 (budget 600), `_lod1`: 60 (budget 60)
+  - `billboard_roof_a`: 516 (budget 4000), `_lod1`: 72 (budget 400)
+  - `billboard_roof_b`: 432 (budget 4000), `_lod1`: 60 (budget 400)
+  - `billboard_street`: 268 (budget 4000), `_lod1`: 44 (budget 400)
+  - `billboard_face_a..d`: 94, 56, 54, 74 (budget 400), `_lod1`: 4 each (budget 40)
+  - `flag_pole_wall`: 60 (budget 300), `_lod1`: 24 (budget 30)
+  - `flag_torn_f0..f3`: 92 each (budget 300); `plastic_flap_f0..f3`: 76 each (budget 300)
+  - `crow_perched`, `crow_peck`, `crow_fly_f0..f3`: 140 each (budget 400)

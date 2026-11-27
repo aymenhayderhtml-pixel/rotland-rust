@@ -43,5 +43,6 @@
   "zombieHitReach": 1.5,
   "carHalfWidth": 0.8,
   "carHalfHeight": 1.2,
-  "carHalfLength": 1.9
+  "carHalfLength": 1.9,
+  "partsRepairHp": 150
 }

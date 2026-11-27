@@ -1,0 +1,19 @@
+{
+  "antibiotics": {
+    "healTotal": 60.0,
+    "seconds": 60.0
+  },
+  "adrenaline_shot": {
+    "freeSprintSeconds": 20.0
+  },
+  "surgery_kit": {
+    "useSeconds": 6.0
+  },
+  "nightVision": {
+    "secondsPerBattery": 300.0,
+    "maxCharge": 300.0,
+    "gain": 6.0,
+    "tint": [0.35, 1.0, 0.45],
+    "noise": 0.035
+  }
+}

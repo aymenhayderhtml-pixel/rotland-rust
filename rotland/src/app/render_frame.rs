@@ -603,6 +603,18 @@ pub fn render_frame(
     render.gun_feel.init(&gpu.device);
     render.gun_feel.draw_flash(&mut main);
     render.explosion_view.draw(&gpu.device, &mut main);
+    if let Some(pack) = render.pack.as_ref() {
+        render.metro_life.pose(&gpu.device, pack, actors.player, session.time, &mut main);
+    }
+    if let Some(play_state) = play.play.as_ref() {
+        let nvg_strength = play_state.night_vision.strength();
+        if nvg_strength > 0.0 {
+            let cfg = &play_state.boosts_cfg.night_vision;
+            lighting.nvg = [nvg_strength, cfg.gain, cfg.noise, session.time];
+            lighting.nvg_tint = Vec3::from(cfg.tint);
+            lighting.ambient_energy = lighting.ambient_energy.max(0.08); // new: DECISIONS 2026-11-27
+        }
+    }
     renderer.draw(
         gpu,
         target,

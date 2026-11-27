@@ -68,6 +68,56 @@ Read: tasks/R41-common.md, the Worker notes of R41-01 to R41-08 and R41-10 (thei
 - Each flag gets a line in `tools/README_TOOLS.md`.
 
 ## Done when
-Everything is wired, the gate passes, the checks in R41-round.md are done. Fill `## Worker notes`.
+Everything is wired, the gate passes, the checks in R41-round.md are done. Fill `## Worker notes
+- **Files created / changed:**
+  - `rotland/src/play_metro.rs` (NEW): `metro_profile_at`, `MetroHerdRuntime` (`ensure_init`, `tick`, `to_save`, `from_save`), and `SurgeryUse` (6 s timed use).
+  - `rotland/src/play.rs`: added `armor_cfg`, `boosts_cfg`, `boosts`, `night_vision`, `metro_herds`, `surgery` on `PlayState`; `HandChange::{ToggleNightVision, UseAdrenaline, StartSurgery, RepairCarParts}`; `use_item` / `bag_action` arms; `spawner_hard_cap()`; `spawn_tick` metro profile + non-herd alive filter.
+  - `rotland/src/app/frame_input.rs`: `apply_hand` arms for night vision, adrenaline (revives when downed, free sprint when standing), surgery kit, and car parts; allows `adrenaline_shot` hotbar key while downed.
+  - `rotland/src/app/frame_sim_player.rs`: applies `game::armor_reduction` and `game::apply_armor_damage` to zombie bites in `apply_player_bites`.
+  - `rotland/src/app/frame_actors_move.rs`: skips sprint stamina drain while `boosts.free_sprint()` is true.
+  - `rotland/src/app/frame_world.rs`: ticks `boosts` (heal over time), `night_vision` (battery drain), `surgery` (6 s full heal), and `metro_herds.tick(...)`.
+  - `rotland/src/app/frame_sim.rs` & `rotland/src/app/render_frame.rs`: updates and poses `render.metro_life` (with gunshot startle from `noises_scratch`), and passes night vision parameters (`nvg`, `nvg_tint`, lifted `ambient_energy`) to `Lighting`.
+  - `rotland/src/app/frame_ui.rs`: populates `state.boosts` for the HUD.
+  - `rotland/src/session.rs`, `rotland/src/app/save_load.rs`, `rotland/src/app/start_world.rs`: saves/loads `boosts`, `night_vision`, and `street_herds` in `systems.extra`.
+  - `game_zombie/src/zombie/brain.rs`, `rotland/src/zombies/{types.rs, spawning.rs, mod.rs}`: added `set_wander_speed` on `ZombieBrain`, `herd_route: Option<u32>` on `Zombie`, and slow `Horde` steering while idle/wandering.
+  - `engine/src/render/{lit.rs, lit.wgsl}` & `rotland/src/light.rs`: added `nvg: [f32; 4]` and `nvg_tint: Vec3` to `Lighting` / `SceneUniforms` / `Scene` and `apply_nvg` post-filmic pass (luminance * gain, green tint, screen-space noise, vignette).
+  - `rotland_ui/src/hud/{boosts.rs (NEW), state.rs, draw.rs}` & `rotland_ui/src/hub_ui/draw_bag_details.rs`: added `BoostsHudInfo` + `draw_boosts` (heal timer, adrenaline timer, NVG battery bar) and `"Bite damage -X%"` tooltip in bag details.
+  - `rotland/src/app/{metro_flags.rs, test_flags.rs}`, `docs/WORLD.md`, `tools/README_TOOLS.md`: added `--metro=herd|crows|crows_up|army|night` and `--nvg`.
+- **Shared-file lines for the Lead:**
+  - `rotland/src/main.rs`:
+    ```rust
+    mod play_metro;
+    ```
+  - `rotland_ui/src/hud/mod.rs`:
+    ```rust
+    pub mod boosts;
+    pub use boosts::BoostsHudInfo;
+    ```
+- **Not run:** Per subagent rules, did not run `cargo`, `tools/gate.sh`, `blender`, or the game.`.
 
 ## Worker notes
+- **Files created / changed:**
+  - `rotland/src/play_metro.rs` (NEW): `metro_profile_at`, `MetroHerdRuntime` (`ensure_init`, `tick`, `to_save`, `from_save`), and `SurgeryUse` (6 s timed use).
+  - `rotland/src/play.rs`: added `armor_cfg`, `boosts_cfg`, `boosts`, `night_vision`, `metro_herds`, `surgery` on `PlayState`; `HandChange::{ToggleNightVision, UseAdrenaline, StartSurgery, RepairCarParts}`; `use_item` / `bag_action` arms; `spawner_hard_cap()`; `spawn_tick` metro profile + non-herd alive filter.
+  - `rotland/src/app/frame_input.rs`: `apply_hand` arms for night vision, adrenaline (revives when downed, free sprint when standing), surgery kit, and car parts; allows `adrenaline_shot` hotbar key while downed.
+  - `rotland/src/app/frame_sim_player.rs`: applies `game::armor_reduction` and `game::apply_armor_damage` to zombie bites in `apply_player_bites`.
+  - `rotland/src/app/frame_actors_move.rs`: skips sprint stamina drain while `boosts.free_sprint()` is true.
+  - `rotland/src/app/frame_world.rs`: ticks `boosts` (heal over time), `night_vision` (battery drain), `surgery` (6 s full heal), and `metro_herds.tick(...)`.
+  - `rotland/src/app/frame_sim.rs` & `rotland/src/app/render_frame.rs`: updates and poses `render.metro_life` (with gunshot startle from `noises_scratch`), and passes night vision parameters (`nvg`, `nvg_tint`, lifted `ambient_energy`) to `Lighting`.
+  - `rotland/src/app/frame_ui.rs`: populates `state.boosts` for the HUD.
+  - `rotland/src/session.rs`, `rotland/src/app/save_load.rs`, `rotland/src/app/start_world.rs`: saves/loads `boosts`, `night_vision`, and `street_herds` in `systems.extra`.
+  - `game_zombie/src/zombie/brain.rs`, `rotland/src/zombies/{types.rs, spawning.rs, mod.rs}`: added `set_wander_speed` on `ZombieBrain`, `herd_route: Option<u32>` on `Zombie`, and slow `Horde` steering while idle/wandering.
+  - `engine/src/render/{lit.rs, lit.wgsl}` & `rotland/src/light.rs`: added `nvg: [f32; 4]` and `nvg_tint: Vec3` to `Lighting` / `SceneUniforms` / `Scene` and `apply_nvg` post-filmic pass (luminance * gain, green tint, screen-space noise, vignette).
+  - `rotland_ui/src/hud/{boosts.rs (NEW), state.rs, draw.rs}` & `rotland_ui/src/hub_ui/draw_bag_details.rs`: added `BoostsHudInfo` + `draw_boosts` (heal timer, adrenaline timer, NVG battery bar) and `"Bite damage -X%"` tooltip in bag details.
+  - `rotland/src/app/{metro_flags.rs, test_flags.rs}`, `docs/WORLD.md`, `tools/README_TOOLS.md`: added `--metro=herd|crows|crows_up|army|night` and `--nvg`.
+- **Shared-file lines for the Lead:**
+  - `rotland/src/main.rs`:
+    ```rust
+    mod play_metro;
+    ```
+  - `rotland_ui/src/hud/mod.rs`:
+    ```rust
+    pub mod boosts;
+    pub use boosts::BoostsHudInfo;
+    ```
+- **Not run:** Per subagent rules, did not run `cargo`, `tools/gate.sh`, `blender`, or the game.

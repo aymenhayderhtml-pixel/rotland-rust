@@ -61,6 +61,114 @@ Read: tasks/R41-common.md, `world/src/metro/layout.rs` (`MetroLayout`, `MetroStr
   - The save round-trips.
 
 ## Done when
-Code + tests written (the lead builds and tests). Fill `## Worker notes`.
+Code + tests written (the lead builds and tests). Fill `## Worker notes
+
+### Files created
+- `world/src/metro/herds.rs`: `HerdsDistrictCount`, `HerdsConfig` (with `Default` + `validate`), `HerdRoute`, `herd_routes`, `herd_routes_avoiding`, and `route_pos` (Godot yaw convention). Generates deterministic closed-loop street-centre routes per district, preferring avenues, turning at crossings, and avoiding reserved blocks, perimeter street ends, and any caller-supplied blocked street points.
+- `world/src/metro/herds_tests.rs`: unit tests for determinism, district counts, street/reserved/closed-loop invariants, `herd_routes_avoiding`, and `route_pos` speed + Godot yaw.
+- `game_zombie/src/street_herds.rs`: `StreetHerds`, `StreetHerdOrders`, `StreetHerdsSaveState` (`update`, `update_with_day`, `leader_target`, `on_noticed`, `is_chasing`, `is_whole_herd_aggro`, `to_save_state`, `from_save_state`).
+- `game/tests/all/street_herds.rs`: integration tests for spawn/despawn radii, `spreadM` bounds, killed-on-day respawn gating, and save round-trip.
+
+### Shared-file lines for the Lead
+1. `data/metro.json` (add top-level key `"herds"`):
+```json
+  "herds": {
+    "_why": "R41: slow herds along the avenues; a herd only becomes zombies near the player.",
+    "count": { "edge": 2, "midtown": 4, "core": 4 },
+    "size": [12, 30],
+    "speed": 0.55,
+    "routeLegs": [4, 9],
+    "activeRadius": 170,
+    "despawnRadius": 210,
+    "spreadM": 7.0,
+    "aggroShare": 0.6
+  }
+```
+2. `world/src/metro/config.rs` (re-export `HerdsConfig` and add optional field on `MetroConfig`):
+```rust
+pub use crate::metro::herds::{HerdsConfig, HerdsDistrictCount};
+// inside pub struct MetroConfig:
+    #[serde(default)]
+    pub herds: HerdsConfig,
+```
+3. `world/src/metro/mod.rs`:
+```rust
+pub mod herds;
+#[cfg(test)]
+mod herds_tests;
+pub use herds::{HerdRoute, HerdsConfig, HerdsDistrictCount, herd_routes, herd_routes_avoiding, route_pos};
+```
+4. `world/src/lib.rs` (optional convenience re-exports inside `pub use metro::{ ... };`):
+```rust
+    HerdRoute, HerdsConfig, HerdsDistrictCount, herd_routes, herd_routes_avoiding, route_pos,
+```
+5. `game_zombie/src/lib.rs`:
+```rust
+pub mod street_herds;
+pub use street_herds::*;
+```
+6. `game/tests/all/main.rs`:
+```rust
+mod street_herds;
+```
+
+### Wiring notes for R41-09
+- To avoid the fallen-tower blocked street, car-wall street ends, and highway entrance avenue's first block, call `herd_routes_avoiding(&metro.layout, &metro.config.herds, &blocked_world_pts, seed)` with `metro.damage.fallen.pos`, `car_wall_sites(&metro)` positions, and the midpoint of the entrance avenue's first block.
+- `StreetHerds::on_noticed(route)` marks the herd as chasing (preventing despawn) and increments the noticed count; `is_whole_herd_aggro(route)` turns `true` once `aggroShare` of the herd has noticed the player.
+`.
 
 ## Worker notes
+
+### Files created
+- `world/src/metro/herds.rs`: `HerdsDistrictCount`, `HerdsConfig` (with `Default` + `validate`), `HerdRoute`, `herd_routes`, `herd_routes_avoiding`, and `route_pos` (Godot yaw convention). Generates deterministic closed-loop street-centre routes per district, preferring avenues, turning at crossings, and avoiding reserved blocks, perimeter street ends, and any caller-supplied blocked street points.
+- `world/src/metro/herds_tests.rs`: unit tests for determinism, district counts, street/reserved/closed-loop invariants, `herd_routes_avoiding`, and `route_pos` speed + Godot yaw.
+- `game_zombie/src/street_herds.rs`: `StreetHerds`, `StreetHerdOrders`, `StreetHerdsSaveState` (`update`, `update_with_day`, `leader_target`, `on_noticed`, `is_chasing`, `is_whole_herd_aggro`, `to_save_state`, `from_save_state`).
+- `game/tests/all/street_herds.rs`: integration tests for spawn/despawn radii, `spreadM` bounds, killed-on-day respawn gating, and save round-trip.
+
+### Shared-file lines for the Lead
+1. `data/metro.json` (add top-level key `"herds"`):
+```json
+  "herds": {
+    "_why": "R41: slow herds along the avenues; a herd only becomes zombies near the player.",
+    "count": { "edge": 2, "midtown": 4, "core": 4 },
+    "size": [12, 30],
+    "speed": 0.55,
+    "routeLegs": [4, 9],
+    "activeRadius": 170,
+    "despawnRadius": 210,
+    "spreadM": 7.0,
+    "aggroShare": 0.6
+  }
+```
+2. `world/src/metro/config.rs` (re-export `HerdsConfig` and add optional field on `MetroConfig`):
+```rust
+pub use crate::metro::herds::{HerdsConfig, HerdsDistrictCount};
+// inside pub struct MetroConfig:
+    #[serde(default)]
+    pub herds: HerdsConfig,
+```
+3. `world/src/metro/mod.rs`:
+```rust
+pub mod herds;
+#[cfg(test)]
+mod herds_tests;
+pub use herds::{HerdRoute, HerdsConfig, HerdsDistrictCount, herd_routes, herd_routes_avoiding, route_pos};
+```
+4. `world/src/lib.rs` (optional convenience re-exports inside `pub use metro::{ ... };`):
+```rust
+    HerdRoute, HerdsConfig, HerdsDistrictCount, herd_routes, herd_routes_avoiding, route_pos,
+```
+5. `game_zombie/src/lib.rs`:
+```rust
+pub mod street_herds;
+pub use street_herds::*;
+```
+6. `game/tests/all/main.rs`:
+```rust
+mod street_herds;
+```
+
+### Wiring notes for R41-09
+- To avoid the fallen-tower blocked street, car-wall street ends, and highway entrance avenue's first block, call `herd_routes_avoiding(&metro.layout, &metro.config.herds, &blocked_world_pts, seed)` with `metro.damage.fallen.pos`, `car_wall_sites(&metro)` positions, and the midpoint of the entrance avenue's first block.
+- `StreetHerds::on_noticed(route)` marks the herd as chasing (preventing despawn) and increments the noticed count; `is_whole_herd_aggro(route)` turns `true` once `aggroShare` of the herd has noticed the player.
+

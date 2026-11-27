@@ -62,6 +62,11 @@ The remaining `.py` files in these folders are helpers that the scripts above im
 - `--metro=lobby` — teleports inside the ground-floor lobby of the tower nearest the Core centre, facing its street door.
 - `--metro=landmark` — teleports onto the nearest avenue ~60 m from the tallest landmark tower, looking up at its crown.
 - `--metro=<fallen|leaning|burnt|carwall|camp>` — teleports to the fallen tower section, leaning tower, burnt-out block, first street-end car wall, or first rooftop camp.
+- `--metro=herd` — teleports 25 m ahead of an active street herd at hour 10.
+- `--metro=crows` / `--metro=crows_up` — teleports 15 m from a body perch with pecking crows, or 6 m away inside the startle radius.
+- `--metro=army` — teleports 2 m in front of a Core army cache crate.
+- `--metro=night` — teleports to the Core centre at hour 23 (night runners).
+- `--nvg` — starts with night vision goggles on and 2 batteries in the bag.
 - `--tower-style=<brick|stone|glass|slab|deco>` (with `--metro=core`) — teleports to the street in front of the nearest tower of that style, facing its facade.
 - `--map` — opens the big map hub screen on startup (unless `--gunsmith` or `--metro` UI already took the screen).
 - `--trailhead=<n>` — teleports the player 25 m before trailhead `n`, facing outward along the road.

@@ -201,6 +201,13 @@ pub fn draw_ui(
         if let Some(d) = actors.dogs.as_ref().and_then(|d| d.sim.dog()).filter(|d| !d.is_dead()) {
             state.dog = Some(hud::DogHudInfo::new(d.name().to_string(), d.health().current(), d.health().max()));
         }
+        let max_charge = play_state.boosts_cfg.night_vision.max_charge.max(1.0);
+        state.boosts = Some(hud::BoostsHudInfo {
+            heal_seconds: play_state.boosts.heal_seconds_remaining(),
+            adrenaline_seconds: play_state.boosts.free_sprint_seconds_remaining(),
+            nvg_on: play_state.night_vision.on,
+            nvg_charge_frac: (play_state.night_vision.charge / max_charge).clamp(0.0, 1.0),
+        });
         // Driving dashboard: shown bottom-right while a car is driven
         if let Some(car) = actors.cars.as_ref().and_then(|c| c.driven_car()) {
             let is_empty = car.tank.is_empty();

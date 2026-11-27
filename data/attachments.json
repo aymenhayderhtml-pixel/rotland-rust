@@ -2,7 +2,7 @@
   "scope_2x": {
     "name": "2x Scope",
     "slot": "optic",
-    "fits": ["smg", "ak47", "rifle", "hunting_rifle", "crossbow"],
+    "fits": ["smg", "ak47", "rifle", "hunting_rifle", "crossbow", "army_rifle"],
     "model": "res://assets/models/attachments/scope_2x.glb",
     "priceScrap": 25,
     "effects": {
@@ -13,7 +13,7 @@
   "scope_4x": {
     "name": "4x Scope",
     "slot": "optic",
-    "fits": ["ak47", "rifle", "hunting_rifle", "crossbow"],
+    "fits": ["ak47", "rifle", "hunting_rifle", "crossbow", "army_rifle"],
     "model": "res://assets/models/attachments/scope_4x.glb",
     "priceScrap": 50,
     "effects": {
@@ -24,7 +24,7 @@
   "red_dot": {
     "name": "Red Dot Sight",
     "slot": "optic",
-    "fits": ["pistol", "revolver", "smg", "ak47"],
+    "fits": ["pistol", "revolver", "smg", "ak47", "army_rifle"],
     "model": "res://assets/models/attachments/red_dot.glb",
     "priceScrap": 20,
     "effects": {
@@ -34,7 +34,7 @@
   "suppressor": {
     "name": "Suppressor",
     "slot": "muzzle",
-    "fits": ["pistol", "smg", "ak47", "rifle", "hunting_rifle"],
+    "fits": ["pistol", "smg", "ak47", "rifle", "hunting_rifle", "army_rifle"],
     "model": "res://assets/models/attachments/suppressor.glb",
     "priceScrap": 35,
     "effects": {
@@ -44,7 +44,7 @@
   "ext_mag": {
     "name": "Extended Magazine",
     "slot": "magazine",
-    "fits": ["pistol", "smg", "ak47"],
+    "fits": ["pistol", "smg", "ak47", "army_rifle"],
     "model": "res://assets/models/attachments/ext_mag.glb",
     "priceScrap": 25,
     "effects": {
@@ -54,7 +54,7 @@
   "drum_mag": {
     "name": "Drum Magazine",
     "slot": "magazine",
-    "fits": ["ak47", "smg"],
+    "fits": ["ak47", "smg", "army_rifle"],
     "model": "res://assets/models/attachments/drum_mag.glb",
     "priceScrap": 55,
     "effects": {
@@ -65,7 +65,7 @@
   "foregrip": {
     "name": "Foregrip",
     "slot": "grip",
-    "fits": ["ak47", "smg", "shotgun"],
+    "fits": ["ak47", "smg", "shotgun", "army_rifle"],
     "model": "res://assets/models/attachments/foregrip.glb",
     "priceScrap": 22,
     "effects": {
@@ -75,7 +75,7 @@
   "stock_pad": {
     "name": "Recoil Stock Pad",
     "slot": "stock",
-    "fits": ["rifle", "hunting_rifle", "shotgun", "ak47"],
+    "fits": ["rifle", "hunting_rifle", "shotgun", "ak47", "army_rifle"],
     "model": "res://assets/models/attachments/stock_pad.glb",
     "priceScrap": 18,
     "effects": {

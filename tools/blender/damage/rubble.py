@@ -20,7 +20,14 @@ import common  # noqa: E402
 
 BUDGET_L = 8000  # data: budgets.json props (rubble_field_l <= 8000)
 BUDGET_M = 4000  # new: DECISIONS 2026-11-26 (rubble_field_m <= 4000)
+BUDGET_RAMP = 8000  # new: DECISIONS 2026-11-27 (rubble_ramp <= 8000)
 STEP_HEIGHT_M = 0.24  # new: DECISIONS 2026-11-26 (walkable step <= 0.30 m, mover max 0.35 m)
+RAMP_X0 = -38.0  # new: DECISIONS 2026-11-27 (street-level start of fallen-tower ramp)
+RAMP_X1 = -12.0  # new: DECISIONS 2026-11-27 (top of ramp meeting seg0)
+RAMP_LAND_X1 = -9.5  # new: DECISIONS 2026-11-27 (landing overlapping seg0)
+RAMP_Y0 = -18.5  # new: DECISIONS 2026-11-27 (outer -Y edge of ramp)
+RAMP_Y1 = -11.5  # new: DECISIONS 2026-11-27 (inner -Y edge against seg0)
+RAMP_TOP_Z = 16.6  # new: DECISIONS 2026-11-27 (matches seg0 -Y top edge ~16.54 m; slope 32.56 deg <= 35 deg)
 
 
 def _angled_part(bm_list, a, b, r_or_w, color, cyl=True):
@@ -204,9 +211,84 @@ def build_m(model):
     _build_mound(model, length=8.0, width=7.8, height=1.8, seed=42, detail_scale=0.72)  # new: DECISIONS 2026-11-26
 
 
+def build_ramp(model):
+    """Long rubble ramp along -Y of seg0 from street (x=-38, z=0) up to seg0 top edge (x=-12, z=16.6)."""
+    rng = random.Random(43)
+    parts = []
+    yc = (RAMP_Y0 + RAMP_Y1) * 0.5
+    hw = (RAMP_Y1 - RAMP_Y0) * 0.5
+    # Core sloped rubble bank
+    slope_bm = _convex_wedge([
+        (RAMP_X0, RAMP_Y0, -0.3), (RAMP_X0, RAMP_Y1, -0.3),
+        (RAMP_X1, RAMP_Y0, -0.3), (RAMP_X1, RAMP_Y1, -0.3),
+        (RAMP_X1, RAMP_Y0 + 0.5, RAMP_TOP_Z), (RAMP_X1, RAMP_Y1 - 0.5, RAMP_TOP_Z),
+    ])
+    common.paint(slope_bm, "concrete_stain")
+    parts.append(slope_bm)
+    land_bm = common.make_box(
+        (RAMP_LAND_X1 - RAMP_X1 + 0.4, 8.7, RAMP_TOP_Z + 0.3),
+        loc=((RAMP_X1 + RAMP_LAND_X1) * 0.5 - 0.1, -13.85, (RAMP_TOP_Z - 0.3) * 0.5),
+        color="concrete_grey",
+    )
+    parts.append(land_bm)
+    # Stepped concrete slabs up the ramp surface (step <= 0.24 m)
+    slab_colors = ("concrete_grey", "concrete_stain", "limestone_dark", "limestone")
+    n_steps = 36
+    run = RAMP_X1 - RAMP_X0
+    slope_ang = math.atan2(RAMP_TOP_Z, run)
+    for i in range(n_steps):
+        t = (i + 0.5) / n_steps
+        sx = RAMP_X0 + run * t
+        sz = RAMP_TOP_Z * t
+        for j in range(3):
+            sy = yc + (j - 1) * (hw * 0.55) + rng.uniform(-0.3, 0.3)
+            slab = common.make_box((1.35, 2.3, 0.24), color=rng.choice(slab_colors))
+            common.transform(
+                slab,
+                rot=(rng.uniform(-0.06, 0.06), -slope_ang * 0.75 + rng.uniform(-0.05, 0.05), rng.uniform(-0.2, 0.2)),
+                loc=(sx, sy, sz - 0.06),
+            )
+            parts.append(slab)
+    # Landing slabs bridging onto seg0
+    for j in range(4):
+        sy = -17.5 + j * 2.4
+        slab = common.make_box((2.6, 2.3, 0.24), color=rng.choice(slab_colors))
+        common.transform(slab, loc=(-10.8, sy, RAMP_TOP_Z - 0.10))
+        parts.append(slab)
+    # Rebar along outer edge for silhouette
+    for i in range(10):
+        t = (i + 0.5) / 10.0
+        rx = RAMP_X0 + run * t
+        rz = RAMP_TOP_Z * t
+        _angled_part(parts, (rx, RAMP_Y0 + 0.4, rz - 0.1), (rx + 0.5, RAMP_Y0 - 0.3, rz + 0.5), 0.03, "rust_dark")
+    model.add(common.combine(parts))
+    col_slope = _convex_wedge([
+        (RAMP_X0, RAMP_Y0 + 0.3, -0.3), (RAMP_X0, RAMP_Y1 - 0.3, -0.3),
+        (RAMP_X1, RAMP_Y0 + 0.3, -0.3), (RAMP_X1, RAMP_Y1 - 0.3, -0.3),
+        (RAMP_X1, RAMP_Y0 + 0.3, RAMP_TOP_Z), (RAMP_X1, RAMP_Y1 - 0.3, RAMP_TOP_Z),
+    ])
+    col_land = common.make_box(
+        (RAMP_LAND_X1 - RAMP_X1 + 0.4, 8.7, 1.6),
+        loc=((RAMP_X1 + RAMP_LAND_X1) * 0.5 - 0.1, -13.85, RAMP_TOP_Z - 0.8),
+        color="white",
+    )
+    model.add_collider("ramp_slope", col_slope)
+    model.add_collider("ramp_landing", col_land)
+
+
 def build_all():
     ok_l = common.run_model("rubble_field_l", "props", BUDGET_L, build_l,
                             grip=(0.0, 0.0, 0.0), view=(1.0, -1.0, 0.7))
     ok_m = common.run_model("rubble_field_m", "props", BUDGET_M, build_m,
                             grip=(0.0, 0.0, 0.0), view=(1.0, -1.0, 0.7))
-    return [("rubble_field_l", ok_l), ("rubble_field_m", ok_m)]
+    ok_r = common.run_model("rubble_ramp", "props", BUDGET_RAMP, build_ramp,
+                            grip=(0.0, 0.0, 0.0), view=(1.0, -1.0, 0.7))
+    return [("rubble_field_l", ok_l), ("rubble_field_m", ok_m), ("rubble_ramp", ok_r)]
+
+
+if __name__ == "__main__":
+    res = build_all()
+    failed = [n for n, ok in res if not ok]
+    for n, ok in res:
+        print(f"RUBBLE: {n} {'OK' if ok else 'FAILED'}")
+    sys.exit(1 if failed else 0)

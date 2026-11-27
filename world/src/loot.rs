@@ -17,6 +17,12 @@ pub struct LootSpot {
     /// Danger tier at this crate (0 in the core, 1..=5 outside).
     #[serde(default)]
     pub tier: u8,
+    /// Optional loot table override (falls back to the biome table when `None`).
+    #[serde(default)]
+    pub table: Option<String>,
+    /// Optional model override (`None` draws `crate_loot`, `Some("")` draws no model).
+    #[serde(default)]
+    pub model: Option<String>,
 }
 
 impl LootSpot {
@@ -37,6 +43,8 @@ impl LootSpot {
             yaw,
             biome,
             tier,
+            table: None,
+            model: None,
         }
     }
 }

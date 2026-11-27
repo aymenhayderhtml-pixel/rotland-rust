@@ -16,6 +16,7 @@
     "hunting_rifle": { "kickDeg": 7.0 },
     "shotgun": { "kickDeg": 8.0 },
     "ak47": { "kickDeg": 1.4, "climb": true, "maxClimbDeg": 9.0 },
+    "army_rifle": { "kickDeg": 1.1, "climb": true, "maxClimbDeg": 7.5 },
     "smg": { "kickDeg": 0.9, "climb": true, "maxClimbDeg": 7.0 },
     "bow": { "kickDeg": 0.6, "noFlash": true },
     "crossbow": { "kickDeg": 1.5, "noFlash": true }

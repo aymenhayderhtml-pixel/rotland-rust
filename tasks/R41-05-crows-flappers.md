@@ -64,3 +64,49 @@ Read: tasks/R41-common.md ("Crows + flappers runtime", the model names), `rotlan
 Code + tests written (the lead builds and tests). Fill `## Worker notes` with the exact wiring lines for R41-09.
 
 ## Worker notes
+- **Created files:**
+  - `data/crows.json`
+  - `game_world/src/crows/mod.rs` (`CrowsConfig`, `flap_frame`, re-exports)
+  - `game_world/src/crows/flock.rs` (`CrowFlock`, `Circlers`, `CrowModel`, `CrowPose`, `FlockState`)
+  - `game_world/src/crows/tests.rs` (5 unit tests)
+  - `rotland/src/metro_life.rs` (`MetroLife` with `update` and `pose`)
+
+- **Shared-file lines for the lead:**
+  1. `game_world/src/lib.rs`:
+     - Add `pub mod crows;`
+     - Add `pub use crows::*;`
+  2. `game/src/lib.rs`:
+     - In `pub use game_world::{...};`, add `crows`: `pub use game_world::{animals, crows, dogs, grenade, guns_fire, melee, melee_guard, projectiles};`
+     - Add `pub use game_world::crows::*;`
+  3. `rotland/src/main.rs`:
+     - Add `mod metro_life;`
+  4. `rotland/src/app/state.rs` (in `RenderState`):
+     - Add `pub metro_life: crate::metro_life::MetroLife,` (implements `Default`)
+
+- **Exact R41-09 call sites:**
+  1. `rotland/src/app/frame_sim.rs` (inside `update_sim`, after `noises_scratch` is filled from `combat.noises`):
+     ```rust
+     let player_running = actors.player_ctrl.as_ref().is_some_and(|p| p.is_sprinting);
+     let gunshot_at = noises_scratch
+         .iter()
+         .filter(|(_, r)| *r >= 20.0)
+         .map(|(p, _)| *p)
+         .next();
+     render.metro_life.update(
+         dt,
+         actors.player,
+         player_running,
+         gunshot_at,
+         world.streamer.as_ref(),
+         world.world_gen.as_deref(),
+     );
+     ```
+  2. `rotland/src/app/render_frame.rs` (before `renderer.draw(...)`, alongside `zombies`/`animals` pushed into `main` only, since crows and flappers cast no shadow):
+     ```rust
+     if let Some(pack) = render.pack.as_ref() {
+         render.metro_life.pose(&gpu.device, pack, actors.player, session.time, &mut main);
+     }
+     ```
+
+- **Note on `world/src/metro/mod.rs`:** `rotland/src/metro_life.rs` imports `world::metro::life::{CrowPerch, FlapKind, Flapper, crow_perches_in_chunk, flappers_in_chunk}`, so `world/src/metro/mod.rs` must have `pub mod life;` (from R41-03).
+- **Tests:** `cargo test` in `game_world` runs `crows::tests::*` (not run here per subagent rules).

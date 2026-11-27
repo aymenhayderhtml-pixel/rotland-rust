@@ -114,6 +114,8 @@ pub struct RenderState {
     pub gun_feel: crate::gun_feel_view::GunFeelView,
     /// Weapon attachment meshes and mount-point offsets (R37-08).
     pub attachment_view: Option<crate::attachment_view::AttachmentView>,
+    /// Crows and flapping flags/plastic in New Halden (R41-05).
+    pub metro_life: crate::metro_life::MetroLife,
 }
 
 /// Terrain, streaming chunks, static physics, trees, and POI markers.

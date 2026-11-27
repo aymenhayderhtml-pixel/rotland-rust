@@ -91,6 +91,8 @@ pub struct HudState {
     pub horde_indicators: Option<Vec<HordeIndicator>>,
     /// Knocked-down bleed-out and revive indicator; `None` while standing.
     pub downed: Option<DownedHudInfo>,
+    /// Active medical boosts and night-vision battery (R41-09).
+    pub boosts: Option<super::boosts::BoostsHudInfo>,
 }
 
 impl Default for HudState {
@@ -129,6 +131,7 @@ impl Default for HudState {
             player_pos: None,
             horde_indicators: None,
             downed: None,
+            boosts: None,
         }
     }
 }

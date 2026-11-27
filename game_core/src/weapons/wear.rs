@@ -150,3 +150,38 @@ pub fn melee_damage_mult(cond: f32, cfg: &WearConfig) -> f32 {
     let min_mult = cfg.melee_damage_mult_at_zero.clamp(0.0, 1.0);
     min_mult + cond * (1.0 - min_mult)
 }
+
+/// Default condition restored by one `gun_parts` item (50 points out of 100).
+// new: DECISIONS 2026-11-27
+pub const GUN_PARTS_REPAIR_AMOUNT: f32 = 0.5;
+
+/// Raises a weapon stack's condition by `amount` (e.g. `0.5` for `gun_parts`), capped at full (`1.0`).
+/// Returns `true` if any repair was applied, `false` if already at full condition.
+pub fn repair_with_parts(stack: &mut ItemStack, amount: f32) -> bool {
+    let cur = stack.condition();
+    if cur >= 1.0 || amount <= 0.0 {
+        return false;
+    }
+    let next = (cur + amount).clamp(0.0, 1.0);
+    stack.wear = if next >= 1.0 { None } else { Some(next) };
+    true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn repair_with_parts_raises_and_caps_at_full() {
+        let mut gun = ItemStack::new("army_rifle", 1);
+        assert!(!repair_with_parts(&mut gun, GUN_PARTS_REPAIR_AMOUNT));
+
+        gun.wear = Some(0.2);
+        assert!(repair_with_parts(&mut gun, GUN_PARTS_REPAIR_AMOUNT));
+        assert!((gun.condition() - 0.7).abs() < 1e-6);
+
+        assert!(repair_with_parts(&mut gun, GUN_PARTS_REPAIR_AMOUNT));
+        assert_eq!(gun.condition(), 1.0);
+        assert_eq!(gun.wear, None);
+    }
+}

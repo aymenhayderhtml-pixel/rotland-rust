@@ -46,6 +46,66 @@ One icon per item (12, every id in R41-06's table), rendered exactly like the ex
   - the crates read as containers
 
 ## Done when
-All models + icons exist within budget and look right. Fill `## Worker notes` (the rifle mount empties, any scale notes).
+All models + icons exist within budget and look right. Fill `## Worker notes
+- **Scripts created** (`tools/blender/gear/`):
+  - `tools/blender/gear/items_r41.py` (`build_all()` + standalone `__main__`)
+  - `tools/blender/gear/army_gear.py` (`army_rifle`, `body_armor`, `army_helmet`, `ammo_556`, `army_ration`, `night_vision`, `battery`)
+  - `tools/blender/gear/meds_parts.py` (`antibiotics`, `surgery_kit`, `adrenaline_shot`, `gun_parts`, `car_parts`)
+  - `tools/blender/gear/crates_r41.py` (`army_crate`, `metro_locker`, `med_cabinet`, `camp_stash`)
+- **Generated assets**:
+  - Weapon: `assets/models/weapons/army_rifle.glb` (704 tris, budget 3000/6000)
+  - Items (11): `assets/models/gear/{body_armor,army_helmet,ammo_556,army_ration,night_vision,battery,antibiotics,surgery_kit,adrenaline_shot,gun_parts,car_parts}.glb` (96-362 tris each, budget 1500)
+  - Crates (4): `assets/models/props/{army_crate,metro_locker,med_cabinet,camp_stash}.glb` (84-180 tris each, budget 3000; origin at bottom center, front `+Y`, includes `box` collider)
+  - Previews: 16 PNGs in `assets/models/_previews/`
+  - Icons: 12 PNGs in `assets/icons/{army_rifle,body_armor,army_helmet,ammo_556,army_ration,night_vision,battery,antibiotics,surgery_kit,adrenaline_shot,gun_parts,car_parts}.png`
+- **`army_rifle` mount empties & `weapon_mounts.json` coordinates**:
+  - `GRIP = (0.0, 0.0, 0.0)` (pistol grip origin, same convention as `ak47.py` / `smg.py`; `mag` exported as separate node for reload).
+  - Blender build coordinates (`+Y` forward, `+Z` up):
+    - `grip_L`: `(0.0, 0.27, 0.015)`
+    - `mount_optic`: `(0.0, 0.09, 0.120)`
+    - `mount_muzzle`: `(0.0, 0.560, 0.074)`
+    - `mount_magazine`: `(0.0, 0.115, -0.100)`
+    - `mount_grip`: `(0.0, 0.275, 0.036)`
+    - `mount_stock`: `(0.0, -0.356, 0.042)`
+  - Godot / `data/weapon_mounts.json` coordinates (`(x, z, -y)` matching `ak47` / `smg` entries):
+    - `"optic": [0.0, 0.120, -0.09]`
+    - `"muzzle": [0.0, 0.074, -0.560]`
+    - `"magazine": [0.0, -0.100, -0.115]`
+    - `"grip": [0.0, 0.036, -0.275]`
+    - `"stock": [0.0, 0.042, 0.356]`
+- **Scale notes**:
+  - `army_rifle` is ~0.92 m overall length (buttpad `-0.356` to muzzle `+0.560`), matching `ak47` (~1.02 m) and `smg` (~0.60 m) in first-person and world scale.
+  - `med_cabinet` is 1.40 m tall (0.70 x 0.30 x 1.40 m).
+  - All 16 previews and 12 icons were visually inspected via `read_file`.` (the rifle mount empties, any scale notes).
 
 ## Worker notes
+- **Scripts created** (`tools/blender/gear/`):
+  - `tools/blender/gear/items_r41.py` (`build_all()` + standalone `__main__`)
+  - `tools/blender/gear/army_gear.py` (`army_rifle`, `body_armor`, `army_helmet`, `ammo_556`, `army_ration`, `night_vision`, `battery`)
+  - `tools/blender/gear/meds_parts.py` (`antibiotics`, `surgery_kit`, `adrenaline_shot`, `gun_parts`, `car_parts`)
+  - `tools/blender/gear/crates_r41.py` (`army_crate`, `metro_locker`, `med_cabinet`, `camp_stash`)
+- **Generated assets**:
+  - Weapon: `assets/models/weapons/army_rifle.glb` (704 tris, budget 3000/6000)
+  - Items (11): `assets/models/gear/{body_armor,army_helmet,ammo_556,army_ration,night_vision,battery,antibiotics,surgery_kit,adrenaline_shot,gun_parts,car_parts}.glb` (96-362 tris each, budget 1500)
+  - Crates (4): `assets/models/props/{army_crate,metro_locker,med_cabinet,camp_stash}.glb` (84-180 tris each, budget 3000; origin at bottom center, front `+Y`, includes `box` collider)
+  - Previews: 16 PNGs in `assets/models/_previews/`
+  - Icons: 12 PNGs in `assets/icons/{army_rifle,body_armor,army_helmet,ammo_556,army_ration,night_vision,battery,antibiotics,surgery_kit,adrenaline_shot,gun_parts,car_parts}.png`
+- **`army_rifle` mount empties & `weapon_mounts.json` coordinates**:
+  - `GRIP = (0.0, 0.0, 0.0)` (pistol grip origin, same convention as `ak47.py` / `smg.py`; `mag` exported as separate node for reload).
+  - Blender build coordinates (`+Y` forward, `+Z` up):
+    - `grip_L`: `(0.0, 0.27, 0.015)`
+    - `mount_optic`: `(0.0, 0.09, 0.120)`
+    - `mount_muzzle`: `(0.0, 0.560, 0.074)`
+    - `mount_magazine`: `(0.0, 0.115, -0.100)`
+    - `mount_grip`: `(0.0, 0.275, 0.036)`
+    - `mount_stock`: `(0.0, -0.356, 0.042)`
+  - Godot / `data/weapon_mounts.json` coordinates (`(x, z, -y)` matching `ak47` / `smg` entries):
+    - `"optic": [0.0, 0.120, -0.09]`
+    - `"muzzle": [0.0, 0.074, -0.560]`
+    - `"magazine": [0.0, -0.100, -0.115]`
+    - `"grip": [0.0, 0.036, -0.275]`
+    - `"stock": [0.0, 0.042, 0.356]`
+- **Scale notes**:
+  - `army_rifle` is ~0.92 m overall length (buttpad `-0.356` to muzzle `+0.560`), matching `ak47` (~1.02 m) and `smg` (~0.60 m) in first-person and world scale.
+  - `med_cabinet` is 1.40 m tall (0.70 x 0.30 x 1.40 m).
+  - All 16 previews and 12 icons were visually inspected via `read_file`.

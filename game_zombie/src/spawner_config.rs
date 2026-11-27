@@ -8,6 +8,8 @@ use glam::Vec3;
 use serde::{Deserialize, Serialize};
 use world::BiomeId;
 
+use crate::metro_spawn::MetroSpawnConfig;
+
 fn default_hard_cap() -> usize {
     60 // data: spawning.json hardCap
 }
@@ -39,6 +41,8 @@ pub struct SpawnConfig {
     pub city: Option<CitySpawnConfig>,
     #[serde(default = "default_town_density")]
     pub town_density: f32,
+    #[serde(default)]
+    pub metro: Option<MetroSpawnConfig>,
 }
 
 /// One biome-specific special spawn share entry in `data/spawning.json` `biomeSpecials`.
@@ -158,6 +162,15 @@ impl SpawnConfig {
             for entry in &city.core_night_types {
                 if !ids.contains(&entry.id) {
                     ids.push(entry.id.clone());
+                }
+            }
+        }
+        if let Some(metro) = &self.metro {
+            for z in [&metro.zones.edge, &metro.zones.midtown, &metro.zones.core] {
+                for entry in z.day.iter().chain(z.night.iter()) {
+                    if !ids.contains(&entry.id) {
+                        ids.push(entry.id.clone());
+                    }
                 }
             }
         }

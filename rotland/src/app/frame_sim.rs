@@ -224,6 +224,20 @@ pub fn update_sim(
         );
         // Guild task hooks: explore places, clear and ready checks, tracker rows (R24-N6)
         super::frame_guild::update(play, world, actors.player, dt, &mut ui.hud);
+        let player_running = actors.player_ctrl.as_ref().is_some_and(|p| p.is_sprinting);
+        let gunshot_at = noises_scratch
+            .iter()
+            .filter(|(_, r)| *r >= 20.0) // new: DECISIONS 2026-11-27
+            .map(|(p, _)| *p)
+            .next();
+        render.metro_life.update(
+            dt,
+            actors.player,
+            player_running,
+            gunshot_at,
+            world.streamer.as_ref(),
+            world.world_gen.as_deref(),
+        );
         actors.zombie_status_scratch = zombie_status;
         actors.noises_scratch = noises_scratch;
 

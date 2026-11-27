@@ -248,6 +248,7 @@
     "revolver": "pistol",
     "rifle": "rifle",
     "ak47": "rifle",
+    "army_rifle": "rifle",
     "smg": "rifle",
     "hunting_rifle": "rifle",
     "crossbow": "rifle",

@@ -394,5 +394,37 @@
         "yaw": 0.5
       }
     ]
+  },
+  "herds": {
+    "_why": "R41: slow herds along the avenues; a herd only becomes zombies near the player.",
+    "count": { "edge": 2, "midtown": 4, "core": 4 },
+    "size": [12, 30],
+    "speed": 0.55,
+    "routeLegs": [4, 9],
+    "activeRadius": 170,
+    "despawnRadius": 210,
+    "spreadM": 7.0,
+    "aggroShare": 0.6
+  },
+  "life": {
+    "_why": "R41: silent life. Poles on some avenues; per 64 m block chances below.",
+    "poleSpacingM": 20.0,
+    "poleAvenueShare": 0.35,
+    "poleFallenChance": 0.15,
+    "poleLeaningChance": 0.2,
+    "billboardRoofChance": 0.18,
+    "billboardStreetChance": 0.12,
+    "flagChance": 0.35,
+    "plasticChance": 0.5,
+    "crowPerchChance": { "edge": 0.55, "midtown": 0.45, "core": 0.35 },
+    "crowsPerPerch": [3, 9]
+  },
+  "loot": {
+    "_why": "R41: loot by district. Chances per tower lobby / camp / jam car.",
+    "lobbyChance": { "edge": 0.35, "midtown": 0.45, "core": 0.55 },
+    "medicalChance": { "edge": 0.05, "midtown": 0.08, "core": 0.12 },
+    "armyCaches": { "midtown": 2, "core": 5 },
+    "campStash": 1.0,
+    "carTrunkChance": 0.08
   }
 }

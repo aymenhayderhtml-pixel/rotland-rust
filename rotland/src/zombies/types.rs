@@ -77,6 +77,8 @@ pub struct Zombie {
     pub bloater_burst_done: bool,
     /// Countdown (seconds) during which this zombie stays idle (used by `--spawn-zombie`).
     pub idle_lock_timer: f32,
+    /// Street herd route id when spawned as part of a New Halden avenue herd (R41-09).
+    pub herd_route: Option<u32>,
 }
 
 /// A toxic cloud burst emitted when a bloater dies or is hit by fire.

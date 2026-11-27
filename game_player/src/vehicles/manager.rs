@@ -273,6 +273,24 @@ impl Cars {
         }
     }
 
+    /// Repairs a car with one `car_parts` from the bag (+150 HP); revives wrecked cars.
+    pub fn repair_with_parts(&mut self, car_id: &str, inventory: &mut Inventory) -> bool {
+        // data: vehicles.json partsRepairHp
+        const PARTS_REPAIR_HP: f32 = 150.0;
+        let Some(car) = self.live.get_mut(car_id) else {
+            return false;
+        };
+        if car.condition.fraction() >= 1.0 {
+            return false;
+        }
+        if inventory.remove("car_parts", 1) {
+            car.condition.repair(PARTS_REPAIR_HP);
+            true
+        } else {
+            false
+        }
+    }
+
     /// Returns damage bounding boxes for all live cars.
     pub fn damage_boxes(&self) -> Vec<CarDamageBox> {
         self.live

@@ -58,7 +58,7 @@ fn snow_spawns_frozen_about_35_percent_and_plains_zero() {
     let mut snow_spawner = Spawner::new(cfg.clone(), 42);
     let mut snow_frozen = 0usize;
     for _ in 0..SAMPLE_COUNT {
-        let kind = snow_spawner.pick_spawn_type_id(Some("snow"), false, false, false, 0.0);
+        let kind = snow_spawner.pick_spawn_type_id(Some("snow"), false, false, false, 0.0, None);
         if kind == "frozen" {
             snow_frozen += 1;
         }
@@ -77,7 +77,7 @@ fn snow_spawns_frozen_about_35_percent_and_plains_zero() {
     let mut plains_spawner = Spawner::new(cfg, 42);
     let mut plains_frozen = 0usize;
     for _ in 0..SAMPLE_COUNT {
-        let kind = plains_spawner.pick_spawn_type_id(Some("plains"), true, false, false, 0.25);
+        let kind = plains_spawner.pick_spawn_type_id(Some("plains"), true, false, false, 0.25, None);
         if kind == "frozen" {
             plains_frozen += 1;
         }

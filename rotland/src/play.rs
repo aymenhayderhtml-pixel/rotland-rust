@@ -100,6 +100,12 @@ pub struct PlayState {
     /// Events emitted for HUD and camp defense.
     pub pending_horde_events: Vec<HordeEvent>,
     horde_test_spawned: bool,
+    pub armor_cfg: game::ArmorConfig,
+    pub boosts_cfg: game::BoostsConfig,
+    pub boosts: game::Boosts,
+    pub night_vision: game::NightVision,
+    pub metro_herds: crate::play_metro::MetroHerdRuntime,
+    pub surgery: crate::play_metro::SurgeryUse,
 }
 
 /// What changed in hand this frame.
@@ -115,6 +121,10 @@ pub enum HandChange {
     PlaceCampfire,
     /// A holdable tool (such as the fishing rod) was taken out; the value is its model id.
     Tool(String),
+    ToggleNightVision,
+    UseAdrenaline,
+    StartSurgery,
+    RepairCarParts,
 }
 
 impl PlayState {
@@ -178,6 +188,12 @@ impl PlayState {
             last_total_kills: 0,
             pending_horde_events: Vec::new(),
             horde_test_spawned: false,
+            armor_cfg: game::ArmorConfig::from_repo().unwrap_or_default(),
+            boosts_cfg: game::BoostsConfig::from_repo().unwrap_or_default(),
+            boosts: game::Boosts::new(),
+            night_vision: game::NightVision::new(),
+            metro_herds: crate::play_metro::MetroHerdRuntime::default(),
+            surgery: crate::play_metro::SurgeryUse::default(),
         })
     }
 
@@ -199,6 +215,14 @@ impl PlayState {
     /// True while the gun in hand is reloading.
     pub fn gun_reloading(&self) -> bool {
         self.shooting.is_reloading()
+    }
+
+    pub fn spawner_hard_cap(&self) -> usize {
+        if self.spawner.config.hard_cap > 0 {
+            self.spawner.config.hard_cap
+        } else {
+            60 // data: spawning.json hardCap
+        }
     }
 
     pub fn has_prompt(&self) -> bool {
@@ -248,6 +272,39 @@ impl PlayState {
 
     /// Eats, drinks or uses a bandage: one item is used up (Godot ItemUse.TryUse).
     fn use_item(&mut self, item_id: &str) -> Option<HandChange> {
+        match item_id {
+            "night_vision" => return Some(HandChange::ToggleNightVision),
+            "adrenaline_shot" => return Some(HandChange::UseAdrenaline),
+            "surgery_kit" => {
+                return (!self.health_full && self.inventory.has("surgery_kit", 1))
+                    .then_some(HandChange::StartSurgery);
+            }
+            "car_parts" => return Some(HandChange::RepairCarParts),
+            "antibiotics" => {
+                if self.use_cooldown <= 0.0 && self.inventory.remove("antibiotics", 1) {
+                    self.boosts.start_antibiotics(&self.boosts_cfg.antibiotics);
+                    self.hotbar.on_inventory_changed(&self.inventory);
+                    self.use_cooldown = USE_COOLDOWN;
+                    self.show_toast("Antibiotics taken".into());
+                }
+                return None;
+            }
+            "gun_parts" => {
+                let has_gun = self.gun.is_some();
+                let has_parts = self.inventory.has("gun_parts", 1);
+                if has_gun && has_parts && let Some(stack) = self.equipped_stack_mut()
+                    && stack.condition() < 1.0
+                    && game::repair_with_parts(stack, game::GUN_PARTS_REPAIR_AMOUNT)
+                {
+                    self.inventory.remove("gun_parts", 1);
+                    self.inventory.set_changed();
+                    self.hotbar.on_inventory_changed(&self.inventory);
+                    self.show_toast("Gun repaired (+50%)".into());
+                }
+                return None;
+            }
+            _ => {}
+        }
         if item_id == "hand_warmer" {
             // Tool, not food: the warmth system starts its timer and removes the item (R32-05).
             if self.use_cooldown <= 0.0 && self.inventory.count(item_id) > 0 {
@@ -299,6 +356,8 @@ impl PlayState {
                 let label = name(self, *slot);
                 if id == "flashlight" {
                     (Some(HandChange::ToggleFlashlight), None)
+                } else if id == "night_vision" {
+                    (Some(HandChange::ToggleNightVision), None)
                 } else if id == "campfire_kit" {
                     (Some(HandChange::PlaceCampfire), None)
                 } else if self.items.get(&id).is_some_and(|d| d.holdable) {
@@ -508,6 +567,19 @@ impl PlayState {
         }
 
         let alive = zombies.active();
+        let alive_non_herd: Vec<_> = zombies
+            .list
+            .iter()
+            .filter(|z| !z.health.is_dead() && z.herd_route.is_none())
+            .map(|z| {
+                let mut a = game::spawner_config::ActiveZombie::new(z.id, z.position);
+                a.is_chasing = matches!(
+                    z.brain.state(),
+                    game::zombie::ZombieState::Chase | game::zombie::ZombieState::Attack
+                );
+                a
+            })
+            .collect();
         let p = Vec2::new(player.x, player.z);
         let in_city = world_gen.city().is_some_and(|c| c.contains(p));
         let in_city_core = world_gen.city().is_some_and(|c| c.district_at(p) == Some(world::District::Core));
@@ -532,15 +604,20 @@ impl PlayState {
         let tier = world_gen.tier(player.x, player.z);
         let tier_mult = self.tier_zombie_mult(tier);
         let in_town = world_gen.town_at(player.x, player.z).is_some();
+        let metro = self.spawner.config.metro.as_ref().and_then(|cfg| {
+            crate::play_metro::metro_profile_at(world_gen, player, night, cfg)
+        });
+        let metro_ground = |p: Vec3| crate::play_metro::metro_spawn_ground(world_gen, physics, p);
+        let in_metro = metro.is_some();
         let ctx = SpawnContext {
             player_position: player,
             player_forward: forward,
             is_night: night,
-            alive_zombies: &alive,
+            alive_zombies: &alive_non_herd,
             settlements: world_gen.settlements(),
             settlement_config: Some(world_gen.config()),
             physics,
-            ground_check: None,
+            ground_check: if in_metro { Some(&metro_ground) } else { None },
             zombie_amount: 1.0,
             biome_name: Some(world_gen.biome(player.x, player.z).key()),
             tier_mult,
@@ -550,6 +627,7 @@ impl PlayState {
             spawn_rate_multiplier: dir_out.spawn_rate_multiplier,
             max_active_multiplier: dir_out.max_active_multiplier,
             special_chance: dir_out.special_chance,
+            metro,
         };
         let orders = self.spawner.update(dt, &ctx);
         zombies.despawn(&orders.despawns);
@@ -557,8 +635,11 @@ impl PlayState {
             zombies.spawn_kind(&order.type_id, order.position);
         }
 
+        // Street herds steer themselves (play_metro.rs); only director hordes hunt the player here.
+        let herd_ids: std::collections::HashSet<u64> =
+            zombies.list.iter().filter(|z| z.herd_route.is_some()).map(|z| z.id).collect();
         for horde in zombies.hordes.hordes_mut() {
-            if horde.target_pos.is_some() {
+            if horde.target_pos.is_some() && !herd_ids.contains(&horde.leader) {
                 let near_camp = world_gen.settlements().iter().any(|s| {
                     horde.target_pos.is_some_and(|t| (t - s.center).length_squared() < 900.0)
                 });

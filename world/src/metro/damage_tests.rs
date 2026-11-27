@@ -2,14 +2,16 @@
 
 use std::collections::HashSet;
 
-use glam::Vec2;
+use glam::{Vec2, Vec3};
 
 use super::*;
 use crate::metro::config::MetroConfig;
 use crate::metro::highway::{Highway, HighwayHeightField};
 use crate::metro::paint::MetroLook;
 use crate::metro::place::MetroSite;
+use crate::metro::state::MetroWorld;
 use crate::metro::towers::plan_towers;
+use crate::scatter::PropInstance;
 
 fn cfg() -> MetroConfig {
     MetroConfig::load_from_file(paths::repo_path("data/metro.json")).expect("metro.json loads")
@@ -289,4 +291,132 @@ fn damage_config_parses_and_rejects_reversed_range() {
 
     let bad_cars = r#"{ "damage": { "burntCarCount": [5, 3] } }"#;
     assert!(load_damage(bad_cars).is_err(), "min > max burntCarCount must fail");
+}
+
+fn read_glb_colliders(rel_path: &str) -> Vec<(String, Vec<glam::Vec3>)> {
+    let bytes = std::fs::read(paths::repo_path(rel_path)).expect("read glb");
+    assert_eq!(&bytes[0..4], b"glTF");
+    let json_len = u32::from_le_bytes(bytes[12..16].try_into().unwrap()) as usize;
+    assert_eq!(&bytes[16..20], b"JSON");
+    let json_end = 20 + json_len;
+    let doc: serde_json::Value = serde_json::from_slice(&bytes[20..json_end]).expect("glb json");
+    let bin_off = json_end + 8;
+    let bin = &bytes[bin_off..];
+
+    let accessors = doc["accessors"].as_array().expect("accessors");
+    let views = doc["bufferViews"].as_array().expect("bufferViews");
+    let meshes = doc["meshes"].as_array().expect("meshes");
+    let mut out = Vec::new();
+    for node in doc["nodes"].as_array().expect("nodes") {
+        let name = node["name"].as_str().unwrap_or("");
+        if !name.contains("convcolonly") && !name.starts_with("COL_") {
+            continue;
+        }
+        let Some(mi) = node["mesh"].as_u64() else { continue };
+        let acc_i = meshes[mi as usize]["primitives"][0]["attributes"]["POSITION"].as_u64().unwrap() as usize;
+        let acc = &accessors[acc_i];
+        let count = acc["count"].as_u64().unwrap() as usize;
+        let bv = &views[acc["bufferView"].as_u64().unwrap() as usize];
+        let offset = bv["byteOffset"].as_u64().unwrap_or(0) as usize + acc["byteOffset"].as_u64().unwrap_or(0) as usize;
+        let stride = bv["byteStride"].as_u64().unwrap_or(12) as usize;
+        let t = node["translation"].as_array().map_or(glam::Vec3::ZERO, |a| {
+            glam::Vec3::new(a[0].as_f64().unwrap() as f32, a[1].as_f64().unwrap() as f32, a[2].as_f64().unwrap() as f32)
+        });
+        let r = node["rotation"].as_array().map_or(glam::Quat::IDENTITY, |a| {
+            glam::Quat::from_xyzw(a[0].as_f64().unwrap() as f32, a[1].as_f64().unwrap() as f32, a[2].as_f64().unwrap() as f32, a[3].as_f64().unwrap() as f32)
+        });
+        let s = node["scale"].as_array().map_or(glam::Vec3::ONE, |a| {
+            glam::Vec3::new(a[0].as_f64().unwrap() as f32, a[1].as_f64().unwrap() as f32, a[2].as_f64().unwrap() as f32)
+        });
+        let mut pts = Vec::with_capacity(count);
+        for i in 0..count {
+            let p = offset + i * stride;
+            let v = glam::Vec3::new(
+                f32::from_le_bytes(bin[p..p + 4].try_into().unwrap()),
+                f32::from_le_bytes(bin[p + 4..p + 8].try_into().unwrap()),
+                f32::from_le_bytes(bin[p + 8..p + 12].try_into().unwrap()),
+            );
+            pts.push(r * (v * s) + t);
+        }
+        out.push((name.to_string(), pts));
+    }
+    out
+}
+
+#[test]
+fn fallen_site_collider_chain_is_climbable_from_street_to_top() {
+    let (_, dcfg, world) = setup_world();
+    let props = plan_damage_props(&world, &dcfg);
+    let fallen = &world.damage.fallen;
+    assert!(props.iter().any(|p| p.model == "tw_fallen_section" && p.pos == fallen.pos && p.yaw == fallen.yaw));
+    assert!(props.iter().any(|p| p.model == "rubble_ramp" && p.pos == fallen.pos && p.yaw == fallen.yaw));
+
+    let mut cols = read_glb_colliders("assets/models/props/rubble_ramp.glb");
+    cols.extend(read_glb_colliders("assets/models/buildings/tw_fallen_section.glb"));
+    let find = |needle: &str| -> &Vec<glam::Vec3> {
+        &cols.iter().find(|(n, _)| n.contains(needle)).unwrap_or_else(|| panic!("missing collider {needle}")).1
+    };
+    let bounds_x = |pts: &[glam::Vec3]| (
+        pts.iter().map(|p| p.x).fold(f32::INFINITY, f32::min),
+        pts.iter().map(|p| p.x).fold(f32::NEG_INFINITY, f32::max),
+    );
+    let top_y_in_z = |pts: &[glam::Vec3], z_lo: f32, z_hi: f32| -> f32 {
+        pts.iter()
+            .filter(|p| p.z >= z_lo && p.z <= z_hi)
+            .map(|p| p.y)
+            .fold(f32::NEG_INFINITY, f32::max)
+    };
+    let z_bounds = |pts: &[glam::Vec3]| (
+        pts.iter().map(|p| p.z).fold(f32::INFINITY, f32::min),
+        pts.iter().map(|p| p.z).fold(f32::NEG_INFINITY, f32::max),
+    );
+
+    // 1. Rubble ramp: street height (<= 0.05 m) up to landing (>= 16.4 m) at <= 35 deg.
+    let ramp = find("ramp_slope");
+    let (rx0, rx1) = bounds_x(ramp);
+    let ramp_lo_y = ramp.iter().filter(|p| p.x <= rx0 + 0.1).map(|p| p.y).fold(f32::NEG_INFINITY, f32::max);
+    let ramp_hi_y = ramp.iter().filter(|p| p.x >= rx1 - 0.1).map(|p| p.y).fold(f32::NEG_INFINITY, f32::max);
+    assert!(ramp_lo_y <= 0.05, "ramp start must be at street height, got {ramp_lo_y}");
+    assert!(ramp_hi_y >= 16.4, "ramp top must reach seg0 edge, got {ramp_hi_y}");
+    let slope_deg = (ramp_hi_y - ramp_lo_y).atan2(rx1 - rx0).to_degrees();
+    assert!(slope_deg <= 35.0, "ramp slope {slope_deg:.2} deg exceeds 35 deg");
+
+    // 2. Chain from ramp landing -> seg0 -> gap0 steps -> seg1 -> gap1 steps -> seg2.
+    let chain_names = [
+        "ramp_landing",
+        "seg0_top_deck",
+        "gap0_step_0", "gap0_step_1", "gap0_step_2", "gap0_step_3",
+        "seg1_top_deck",
+        "gap1_step_0", "gap1_step_1", "gap1_step_2", "gap1_step_3", "gap1_step_4",
+        "seg2_top_deck",
+    ];
+    let mut prev_x1 = rx1;
+    let mut prev_z = z_bounds(ramp);
+    let mut prev_y = ramp_hi_y;
+    for name in chain_names {
+        let pts = find(name);
+        let (x0, x1) = bounds_x(pts);
+        assert!(x0 <= prev_x1 + 0.1, "{name} has horizontal gap after previous piece ({x0} > {prev_x1})");
+        let (z0, z1) = z_bounds(pts);
+        let y_at_z0 = top_y_in_z(pts, z0, z0 + 0.5);
+        let y_at_z1 = top_y_in_z(pts, z1 - 0.5, z1);
+        let overlap_lo = prev_z.0.max(z0) - 0.1;
+        let overlap_hi = prev_z.1.min(z1) + 0.1;
+        let entry_y = if name.contains("top_deck") {
+            let z_mid = ((overlap_lo + overlap_hi) * 0.5).clamp(z0, z1);
+            let t = if (z1 - z0).abs() > 1e-4 { (z_mid - z0) / (z1 - z0) } else { 0.5 };
+            y_at_z0 + t * (y_at_z1 - y_at_z0)
+        } else {
+            top_y_in_z(pts, overlap_lo, overlap_hi)
+        };
+        let step = (entry_y - prev_y).abs();
+        assert!(step <= 0.5, "{name} step {step:.2} m exceeds 0.5 m (from {prev_y:.2} to {entry_y:.2})");
+        // For tilted decks (<= 8 deg roll), check lateral slope across Z is <= 35 deg.
+        let deck_slope = (y_at_z1 - y_at_z0).abs().atan2((z1 - z0).max(1.0)).to_degrees();
+        assert!(deck_slope <= 35.0, "{name} lateral slope {deck_slope:.2} deg exceeds 35 deg");
+        prev_x1 = x1;
+        prev_z = if name.contains("top_deck") { (-5.5, 5.5) } else { (z0, z1) };
+        prev_y = if name.contains("top_deck") { (y_at_z0 + y_at_z1) * 0.5 } else { entry_y };
+    }
+    assert!(prev_y >= 18.0, "highest segment top must be >= 18 m, got {prev_y}");
 }

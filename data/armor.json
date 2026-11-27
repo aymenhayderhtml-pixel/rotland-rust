@@ -1,0 +1,7 @@
+{
+  "maxReduce": 0.5,
+  "items": {
+    "body_armor": { "slot": "body", "reduce": 0.35 },
+    "army_helmet": { "slot": "head", "reduce": 0.15 }
+  }
+}

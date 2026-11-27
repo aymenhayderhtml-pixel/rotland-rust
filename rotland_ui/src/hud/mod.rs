@@ -14,6 +14,7 @@
 //! - GitHub issues #2, #4, #18 (UI-001, UI-002)
 
 pub mod ammo;
+pub mod boosts;
 pub mod clock;
 pub mod compass;
 pub mod config;
@@ -42,6 +43,7 @@ pub mod warmth;
 #[path = "../icons.rs"]
 pub mod icons;
 
+pub use boosts::BoostsHudInfo;
 pub use compass::{CampHudInfo, WaypointHudInfo};
 pub use config::HudConfig;
 pub use damage::DamageIndicator;

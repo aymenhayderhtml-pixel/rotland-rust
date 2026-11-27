@@ -7,6 +7,7 @@ use glam::Vec2;
 use serde::Deserialize;
 
 use crate::metro::layout::Reserved;
+pub use crate::metro::herds::{HerdsConfig, HerdsDistrictCount};
 
 fn default_reference_dir() -> Vec2 {
     Vec2::X
@@ -169,6 +170,12 @@ pub struct MetroConfig {
     pub highway: HighwayConfig,
     pub jam: JamConfig,
     pub skyline: SkylineConfig,
+    #[serde(default)]
+    pub herds: HerdsConfig,
+    #[serde(default)]
+    pub life: crate::metro::life::LifeConfig,
+    #[serde(default)]
+    pub loot: crate::metro::loot::MetroLootConfig,
     /// Camp-to-Ashford direction the sector angles turn from. Set by the lead after
     /// `WorldLayout::reference_dir()` is known; not stored in the JSON.
     #[serde(skip, default = "default_reference_dir")]

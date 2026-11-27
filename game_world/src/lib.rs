@@ -3,6 +3,7 @@
 //! World entities and combat simulations: animals, dogs, guns firing, melee, melee guard, and projectiles.
 
 pub mod animals;
+pub mod crows;
 pub mod dogs;
 pub mod grenade;
 pub mod guns_fire;
@@ -11,6 +12,7 @@ pub mod melee_guard;
 pub mod projectiles;
 
 pub use animals::*;
+pub use crows::*;
 pub use dogs::*;
 pub use grenade::*;
 pub use guns_fire::*;

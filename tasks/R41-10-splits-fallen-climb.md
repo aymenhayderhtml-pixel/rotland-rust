@@ -29,6 +29,28 @@ Read: tasks/R41-common.md, tasks/R40-round.md ("Claude review fixes", leftovers)
 - Test in `damage_tests.rs`: the chain of walkable collider pieces at the fallen site goes from street height to the top of the highest segment with no step taller than 0.5 m and no slope over 35 degrees (check the data the collider is built from).
 
 ## Done when
-Every touched file is under ~300 lines, the moved code keeps the same public names, the climb test is written, and the models are rebuilt and look right. Fill `## Worker notes`.
+Every touched file is under ~300 lines, the moved code keeps the same public names, the climb test is written, and the models are rebuilt and look right. Fill `## Worker notes
+- **Splits (all files <= ~300 lines, all `pub` names and signatures re-exported from original modules):**
+  - `world/src/metro/traces.rs` (162 lines) + `world/src/metro/traces_config.rs` (186 lines) + `world/src/metro/traces_walls.rs` (110 lines).
+  - `world/src/metro/damage.rs` (273 lines) + `world/src/metro/damage_props.rs` (149 lines).
+  - `rotland/src/streaming.rs` (244 lines) + `rotland/src/streaming_metro.rs` (273 lines).
+  - **Shared-file `mod` lines:** None needed in `world/src/metro/mod.rs` or `rotland/src/main.rs` because `#[path = "..."] mod ...;` is used inside `traces.rs`, `damage.rs`, and `streaming.rs` (matching the existing `traces_camps.rs` pattern).
+- **Fallen tower climbable:**
+  - `tools/blender/damage/rubble.py`: added `rubble_ramp` (1564 tris <= 8000) along `-Y` of `seg0` from street (`x=-38, z=0`) to `seg0` top edge (`x=-12, z=16.6`, slope `32.56 deg <= 35 deg`) with a landing (`x=-12..-9.5, z=16.6`) and convex colliders `ramp_slope` and `ramp_landing`. Also added `if __name__ == "__main__"` guard.
+  - `tools/blender/damage/fallen_section.py`: lowered `BUDGET_LOD0` to `16000` (`tw_fallen_section` built at 13264 tris, `tw_fallen_section_lod1` at 68 tris); added full-length `top_deck` colliders on all three segments (covering the 3.5 m broken ends) and `_gap_steps` broken floor slab steps + colliders across both gaps (`gap0_step_0..3` from `18.0 m` to `17.0 m`, `gap1_step_0..4` from `17.0 m` to `18.5 m`, each step `<= 0.30 m`). Also added `if __name__ == "__main__"` guard.
+  - `world/src/metro/damage_props.rs`: emits `rubble_ramp` at `fallen.pos` with `fallen.yaw`.
+  - `world/src/metro/damage_tests.rs`: added `fallen_site_collider_chain_is_climbable_from_street_to_top`, reading `COL_*` vertices directly from `rubble_ramp.glb` and `tw_fallen_section.glb` to verify street-to-top continuity, step height `<= 0.5 m`, and slope `<= 35 deg`.
+- **Not run (per subagent rules):** `cargo` / `tools/gate.sh` / `baker` / game were not run; lead should run `cargo run --release -p baker` (or bake models) and `tools/gate.sh` to verify Rust compilation, clippy, and tests. Previews `rubble_ramp.png`, `tw_fallen_section.png`, and `tw_fallen_section_top.png` were inspected.`.
 
 ## Worker notes
+- **Splits (all files <= ~300 lines, all `pub` names and signatures re-exported from original modules):**
+  - `world/src/metro/traces.rs` (162 lines) + `world/src/metro/traces_config.rs` (186 lines) + `world/src/metro/traces_walls.rs` (110 lines).
+  - `world/src/metro/damage.rs` (273 lines) + `world/src/metro/damage_props.rs` (149 lines).
+  - `rotland/src/streaming.rs` (244 lines) + `rotland/src/streaming_metro.rs` (273 lines).
+  - **Shared-file `mod` lines:** None needed in `world/src/metro/mod.rs` or `rotland/src/main.rs` because `#[path = "..."] mod ...;` is used inside `traces.rs`, `damage.rs`, and `streaming.rs` (matching the existing `traces_camps.rs` pattern).
+- **Fallen tower climbable:**
+  - `tools/blender/damage/rubble.py`: added `rubble_ramp` (1564 tris <= 8000) along `-Y` of `seg0` from street (`x=-38, z=0`) to `seg0` top edge (`x=-12, z=16.6`, slope `32.56 deg <= 35 deg`) with a landing (`x=-12..-9.5, z=16.6`) and convex colliders `ramp_slope` and `ramp_landing`. Also added `if __name__ == "__main__"` guard.
+  - `tools/blender/damage/fallen_section.py`: lowered `BUDGET_LOD0` to `16000` (`tw_fallen_section` built at 13264 tris, `tw_fallen_section_lod1` at 68 tris); added full-length `top_deck` colliders on all three segments (covering the 3.5 m broken ends) and `_gap_steps` broken floor slab steps + colliders across both gaps (`gap0_step_0..3` from `18.0 m` to `17.0 m`, `gap1_step_0..4` from `17.0 m` to `18.5 m`, each step `<= 0.30 m`). Also added `if __name__ == "__main__"` guard.
+  - `world/src/metro/damage_props.rs`: emits `rubble_ramp` at `fallen.pos` with `fallen.yaw`.
+  - `world/src/metro/damage_tests.rs`: added `fallen_site_collider_chain_is_climbable_from_street_to_top`, reading `COL_*` vertices directly from `rubble_ramp.glb` and `tw_fallen_section.glb` to verify street-to-top continuity, step height `<= 0.5 m`, and slope `<= 35 deg`.
+- **Not run (per subagent rules):** `cargo` / `tools/gate.sh` / `baker` / game were not run; lead should run `cargo run --release -p baker` (or bake models) and `tools/gate.sh` to verify Rust compilation, clippy, and tests. Previews `rubble_ramp.png`, `tw_fallen_section.png`, and `tw_fallen_section_top.png` were inspected.

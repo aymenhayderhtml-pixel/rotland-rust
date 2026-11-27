@@ -14,6 +14,23 @@ use game::{
 /// The model name for loot crates in the asset pack.
 pub const CRATE_MODEL: &str = "crate_loot";
 
+/// Model id to draw for `spot`: `spot.model` when set, `CRATE_MODEL` when `None`, or `None` when `Some("")`.
+pub fn crate_model(spot: &LootSpot) -> Option<&str> {
+    match spot.model.as_deref() {
+        Some("") => None,
+        Some(m) => Some(m),
+        None => Some(CRATE_MODEL),
+    }
+}
+
+/// Loot table to roll for `spot`: `spot.table` when set and present, else the biome table.
+pub fn crate_table<'a>(spot: &LootSpot, loot_tables: &'a LootTableRegistry) -> &'a game::LootTableData {
+    spot.table
+        .as_deref()
+        .and_then(|name| loot_tables.get(name))
+        .unwrap_or_else(|| loot_tables.for_biome(spot.biome))
+}
+
 /// Maximum reach distance in meters from player to interactable (scripts/Player/PlayerInteractor.cs:16).
 pub const INTERACT_RANGE: f32 = 2.5;
 
@@ -194,7 +211,7 @@ pub fn interact(
             }
             loot_state.mark_looted(&spot.crate_id);
 
-            let table = loot_tables.for_biome(spot.biome);
+            let table = crate_table(&spot, loot_tables);
             let rolled = LootRoller::roll(table, world_seed, &spot.crate_id, loot_multiplier);
             let dollars = LootRoller::roll_cash(table, world_seed, &spot.crate_id);
 
@@ -264,5 +281,26 @@ pub fn interact(
                 toast,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use world::BiomeId;
+
+    #[test]
+    fn crate_model_and_table_respect_overrides() {
+        let mut spot = LootSpot::new("c1", Vec3::ZERO, 0.0, BiomeId::Plains);
+        assert_eq!(crate_model(&spot), Some(CRATE_MODEL));
+        spot.model = Some("army_crate".into());
+        assert_eq!(crate_model(&spot), Some("army_crate"));
+        spot.model = Some(String::new());
+        assert_eq!(crate_model(&spot), None);
+
+        let reg = LootTableRegistry::from_repo().expect("loot_tables.json must load");
+        assert_eq!(crate_table(&spot, &reg), reg.for_biome(BiomeId::Plains));
+        spot.table = Some("metro_army".into());
+        assert_eq!(crate_table(&spot, &reg), reg.get("metro_army").unwrap());
     }
 }

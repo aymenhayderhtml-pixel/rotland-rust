@@ -259,6 +259,11 @@ impl ZombieBrain {
         self.stagger_timer = self.stagger_timer.max(seconds);
     }
 
+    /// Overrides the wander speed (used by slow avenue herds).
+    pub fn set_wander_speed(&mut self, speed: f32) {
+        self.numbers.wander_speed = speed;
+    }
+
     pub fn update(&mut self, ctx: &BrainInput<'_>, dt: f32) -> BrainOutput {
         self.just_screamed = false;
         if ctx.is_dead || self.state == ZombieState::Dead {
