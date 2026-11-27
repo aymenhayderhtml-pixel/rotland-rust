@@ -1,9 +1,9 @@
 # STATUS (read this first; keep it under ~80 lines)
 
-Updated: 2026-11-27 by Claude (R42 merged).
+Updated: 2026-11-27 by Claude (R43 merged).
 
 ## Where we are
-- **v1.0 tagged. Now: v1.1 = New Halden**, a big dying city (2 km, towers to ~150 m, overgrown, about 6 km out). Plan: `docs/PLAN_1.1.md` (R38-R47). R38-R42 MERGED (see below). Next: R43 (see docs/PLAN_1.1.md).
+- **v1.0 tagged. Now: v1.1 = New Halden**, a big dying city (2 km, towers to ~150 m, overgrown, about 6 km out). Plan: `docs/PLAN_1.1.md` (R38-R47). R38-R43 MERGED (see below). Next: R44 (see docs/PLAN_1.1.md).
 - **New speed rule (2026-11-26): detail first, minimum 20 FPS** (slowest moments, whole game), not 30. No speed passes unless the owner asks.
 - Version 0.1 = Godot parity in Rust, done (R0-R10). History: `docs/archive/RUST_QUEUE.md`.
 - Working on **0.2**. This week: `docs/PLAN_0.2_PUSH.md` (6-day push). Earlier plan: `docs/PLAN_0.2.md`. Locked choices: `docs/DECISIONS.md`.
@@ -56,8 +56,10 @@ Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zomb
 
 - 2026-11-27: R42 MERGED (Hydrogen lead + Claude fixes): the 4 big places on the reserved plots: hospital (ER canopy, ambulances, triage tents, body bags; walk-in reception/wards/pharmacy), police station (cars, barricades, desks, cells, armoury), fire station (3 bays, fire trucks, gear, pole), failed army line across an avenue (sandbags, T-walls, razor wire with a breach, tank, burnt trucks, crashed helicopter, evac tents, loudspeakers; `data/places/*.json`, `world/src/metro/places.rs`, `army_line.rs`). New zombie looks soldier/police/medic/firefighter (`zombieModels` in poi.json, `spawn_kind_look`), loot tables `metro_hospital/police/fire`, place danger (`spawning.json` `metro.placeDanger`, a brute at the army line), map labels. Flags `--metro=hospital|hospital_in|police|police_in|fire|fire_in|armyline|armyline_top`. 568 models, 1506 tests. Claude fixed: grass through the place floors, army line view too far. Danger (frame 900): hospital 14 zombies, army line 18, core 2. FPS metro 67.1 avg (1% low 23.5). maxActiveZombies stays 16. Note: `assets/models.pack` is not in git: re-bake after pulling (97 MB now).
 
+- 2026-11-27: R43 MERGED (Hydrogen lead): climbing. 5 climbable towers (2 Midtown, 2 Core, the tallest landmark) with concrete stairwells (`tw_stair_*`, floor digits, ROOF sign, jammed doors), stop-off floors (office/flat/camp interiors, `data/climb_floors.json`, loot `metro_tower_*`, zombies wake only on their floor: `wakeHeightM`), roof hatch ladder, plank bridges + ladders between roofs (`world/src/metro/rooftops.rs`), 8 brick fire escapes that work (`fire_escapes.rs`), the radio on the mast (`data/radio.json`, `game_world/src/radio.rs`, `rotland/src/metro_radio.rs`, crate unlock, save in `systems.extra["metro_radio"]`). Flags `--metro=climb|climb_stairs|climb_floor|climb_roof|roof_planks|fire_escape|radio`; map labels Radio Mast/Stairs. 598 models (pack 109 MB), 1527 tests. FPS metro 67.9 avg (1% low 31.9). Leftovers: lobby desk stands in front of the stair door; `--metro=fire_escape` camera view is poor; radio "Only static now." after reload only unit-tested; climb.rs 521 / rooftops.rs 368 lines.
+
 ## Next
-1. R43 from `docs/PLAN_1.1.md` (climbing: tower stairwells, stop-off floors, rooftop planks/ladders/fire escapes, radio on the tallest tower), plus leftovers: long files (play.rs 894, props.rs 761, test_flags.rs, render_frame.rs, frame_ui.rs, frame_world.rs, metro_flags.rs 450), herds spawn as a tight blob. FPS check = metro scene only, average >= 20.
+1. R44 rooftop life (docs/PLAN_1.1.md): rooftop safe house, fast travel, rooftop survivors + trader, rescues. Workers now = Haiku subagents (Hydrogen/DeepSeek limits used up). Leftovers: R43 list above, long files (play.rs, props.rs, climb.rs ...), herds spawn as a tight blob. FPS check = metro only, average >= 20.
 
 ## Workers (who does what: PLAN_0.2.md "AI roles")
 - DeepSeek: `opencode` / `opencode/deepseek-v4.1-flash-free`: free usage ran out on 2026-11-20.
