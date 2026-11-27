@@ -11,7 +11,6 @@ use world::metro::herds::{HerdRoute, HerdsConfig, route_pos};
 const SECONDS_PER_GAME_DAY: f64 = 1440.0; // data: Clock default 24 min/day
 /// Lookahead time in seconds for `leader_target` along the herd's route.
 const LEADER_LOOKAHEAD_S: f64 = 2.0; // new: DECISIONS 2026-11-27
-const SPREAD_CLAMP_SHARE: f32 = 0.95; // new: DECISIONS 2026-11-27 (keep blob strictly within spreadM)
 
 /// Orders emitted by `StreetHerds::update` for `rotland/` to spawn or despawn horde zombies.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -98,7 +97,7 @@ impl StreetHerds {
                 }
                 HerdState::Dormant => {
                     if dist <= self.cfg.active_radius {
-                        let positions = spawn_blob(route, pos, yaw, self.cfg.spread_m, ground);
+                        let positions = spawn_blob(route, pos, yaw, &self.cfg, ground);
                         orders.spawn.push((route.id, positions));
                         self.states[idx] = HerdState::Active { chasing: false, noticed_count: 0 };
                     }
@@ -173,26 +172,30 @@ fn spawn_blob(
     route: &HerdRoute,
     leader: Vec2,
     yaw: f32,
-    spread_m: f32,
+    cfg: &HerdsConfig,
     ground: &dyn Fn(f32, f32) -> f32,
 ) -> Vec<Vec3> {
     let fwd = Vec2::new(-yaw.sin(), -yaw.cos());
     let right = Vec2::new(-fwd.y, fwd.x);
     let mut rng = DotnetRandom::new(route.id as i32);
-    let max_offset = spread_m * SPREAD_CLAMP_SHARE;
+    let column = herd_column_m(cfg, route.size);
     let mut out = Vec::with_capacity(route.size as usize);
 
     for i in 0..route.size {
         let offset = if i == 0 {
             Vec2::ZERO
         } else {
-            let back = rng.next_double() as f32 * max_offset;
-            let lat = (rng.next_double() as f32 - 0.5) * spread_m;
-            let v = -fwd * back + right * lat;
-            if v.length() > max_offset { v.normalize() * max_offset } else { v }
+            let back = rng.next_double() as f32 * column;
+            let lat = (rng.next_double() as f32 - 0.5) * cfg.spread_m;
+            -fwd * back + right * lat
         };
         let p = leader + offset;
         out.push(Vec3::new(p.x, ground(p.x, p.y), p.y));
     }
     out
+}
+
+/// Length of a herd's walking column: `columnPerZombieM` per zombie, at least `spreadM`.
+pub fn herd_column_m(cfg: &HerdsConfig, size: u32) -> f32 {
+    (cfg.column_per_zombie_m * size as f32).max(cfg.spread_m)
 }

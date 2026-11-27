@@ -403,7 +403,8 @@
     "routeLegs": [4, 9],
     "activeRadius": 170,
     "despawnRadius": 210,
-    "spreadM": 7.0,
+    "spreadM": 9.0,
+    "columnPerZombieM": 1.0,
     "aggroShare": 0.6
   },
   "life": {
@@ -443,6 +444,7 @@
     "shaftCentreZShare": 0.25,
     "shaftSize": [4.4, 6.4],
     "hatch": [3.4, 0.0],
+    "lobbyDesk": [0.18, -0.30],
     "mast": {
       "platformY": 18.0,
       "platformHalf": 3.0,

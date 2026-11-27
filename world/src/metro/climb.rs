@@ -148,6 +148,8 @@ pub struct ClimbConfig {
     pub shaft_centre_z_share: f32,
     pub shaft_size: [f32; 2],
     pub hatch: [f32; 2],
+    /// Lobby desk spot on climb towers (x, z shares of the tower size), clear of the stair door.
+    pub lobby_desk: [f32; 2],
     pub mast: MastConfig,
 }
 
@@ -168,6 +170,7 @@ impl Default for ClimbConfig {
             shaft_centre_z_share: 0.25,                       // data: metro.json shaftCentreZShare
             shaft_size: [4.4, 6.4],                           // data: metro.json shaftSize
             hatch: [3.4, 0.0],                                // data: metro.json hatch
+            lobby_desk: [0.18, -0.30],                        // data: metro.json lobbyDesk
             mast: MastConfig {
                 platform_y: 18.0,                             // data: metro.json mast
                 platform_half: 3.0,                           // data: metro.json platformHalf

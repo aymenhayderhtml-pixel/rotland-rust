@@ -45,6 +45,8 @@ pub struct HerdsConfig {
     pub active_radius: f32,
     pub despawn_radius: f32,
     pub spread_m: f32,
+    /// Herd column length per zombie (m): a herd walks as a loose column, not a tight blob.
+    pub column_per_zombie_m: f32,
     pub aggro_share: f32,
 }
 
@@ -57,7 +59,8 @@ impl Default for HerdsConfig {
             route_legs: [4, 9],    // data: metro.json routeLegs
             active_radius: 170.0,  // data: metro.json activeRadius
             despawn_radius: 210.0, // data: metro.json despawnRadius
-            spread_m: 7.0,         // data: metro.json spreadM
+            spread_m: 9.0,         // data: metro.json spreadM
+            column_per_zombie_m: 1.0, // data: metro.json columnPerZombieM
             aggro_share: 0.6,      // data: metro.json aggroShare
         }
     }

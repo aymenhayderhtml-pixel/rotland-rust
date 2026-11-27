@@ -1,7 +1,7 @@
 //! Integration tests for New Halden runtime street herds (`StreetHerds`).
 
 use glam::{Vec2, Vec3};
-use game::street_herds::StreetHerds;
+use game::street_herds::{StreetHerds, herd_column_m};
 use world::metro::herds::{HerdRoute, HerdsConfig, route_pos};
 use world::metro::MetroDistrict;
 
@@ -45,7 +45,8 @@ fn player_far_gives_no_spawn_walking_in_spawns_and_walking_out_despawns() {
     for p in positions {
         assert!((p.y - 10.0).abs() < 1e-4);
         let d = Vec2::new(p.x, p.z).distance(leader_xz);
-        assert!(d <= cfg.spread_m, "spawn pos {p:?} is {d} m from route (> {})", cfg.spread_m);
+        let max_d = herd_column_m(&cfg, 16) + cfg.spread_m * 0.5;
+        assert!(d <= max_d, "spawn pos {p:?} is {d} m from route (> {max_d})");
     }
 
     // Walk beyond despawnRadius (210 m) while zombies are alive and not chasing -> despawn.

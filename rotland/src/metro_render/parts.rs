@@ -70,10 +70,22 @@ pub fn chunk_tower_parts_with_climb(
         let mut parts = parts_for_tower(t, idx, tallest_idx, ground_y, styles, cfg, damage);
         if climb_indices.contains(&idx) {
             parts.retain(|p| p.model != "lobby_elevators");
+            move_lobby_desk(&mut parts, t, cfg.climb.lobby_desk);
         }
         out.extend(parts);
     }
     out
+}
+
+/// Moves the lobby desk of a climb tower off the stair door line to `desk` (shares of the size).
+fn move_lobby_desk(parts: &mut [TowerPart], t: &TowerSpot, desk: [f32; 2]) {
+    let size = t.size as f32;
+    let (lx, lz) = (desk[0] * size, desk[1] * size);
+    let (sin_y, cos_y) = t.yaw.sin_cos();
+    for p in parts.iter_mut().filter(|p| p.model == "lobby_desk") {
+        p.pos.x = t.pos.x + lx * cos_y + lz * sin_y;
+        p.pos.z = t.pos.y - lx * sin_y + lz * cos_y;
+    }
 }
 
 /// Builds the `TowerPart` list for a single tower index (used for fire-escape colliders/markers).
