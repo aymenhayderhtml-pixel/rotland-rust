@@ -8,6 +8,7 @@ mod metro_tp;
 mod parse;
 mod pose;
 mod recruits;
+mod safehouse;
 mod tick;
 mod tp;
 #[cfg(test)]

@@ -72,6 +72,11 @@ The remaining `.py` files in these folders are helpers that the scripts above im
 - `--metro=armyline` / `--metro=armyline_top` — 30 m outside the army line barrier / 60 m up pitched down over the whole line.
 - `--metro=climb` / `--metro=climb_stairs` / `--metro=climb_floor` / `--metro=climb_roof` — climbable tower lobby facing the open stair door / mid-tower on flight A / first stop-off floor / tallest non-landmark climb roof looking toward landmarks.
 - `--metro=roof_planks` / `--metro=fire_escape` / `--metro=radio` — on a roof 4 m back from a plank bridge / street 14 m from a working brick fire escape / mast platform at the radio console.
+- `--metro=safehouse` — safe house roof at the travel point, facing the shack sign (unclaimed, hour 10).
+- `--metro=safehouse_claimed` — safe house roof edge by the rope ladder deck, claimed with the ladder down (hour 10).
+- `--metro=rooftop_camp` — rooftop camp roof, 6 m from the trader stall, facing the tents (hour 10).
+- `--metro=rooftop_trader` — beside the rooftop trader, claimed, with the rooftop Shop screen already open (hour 10).
+- `--metro=rescue_floor` — first R44 rescue seed on a stop floor, 3 m in from the shaft door, facing the door (hour 10).
 - `--nvg` — starts with night vision goggles on and 2 batteries in the bag.
 - `--tower-style=<brick|stone|glass|slab|deco>` (with `--metro=core`) — teleports to the street in front of the nearest tower of that style, facing its facade.
 - `--map` — opens the big map hub screen on startup (unless `--gunsmith` or `--metro` UI already took the screen).

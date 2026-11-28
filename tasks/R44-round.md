@@ -53,7 +53,22 @@ Start 05 when 01-04 are merged and the lead has run one build. Start 06 when 05 
 - **FPS after:** `tools/perf_scenes.sh --set metro --seconds 20 --bin target/play/rotland` -> `/tmp/r44/perf_after.txt`. Pass = **average at least 20**. The 1% low is for information. If the average is under 20, lower the rooftop prop counts first (the NPC count is data); never strip the city.
 
 ## Lead notes
-(filled by the lead after the merge)
+Built `target/play/rotland` (R44-06 worktree, `--save-dir=/tmp/r44-saves-r06`). Pictures in `/tmp/r44/`, stats in `/tmp/r44/*.json`.
+- **Each pose:** PASS, with notes. `safehouse` (`/tmp/r44/safehouse.png`): tarp shack on the roof, bed and sign visible. `safehouse_claimed` (`/tmp/r44/safehouse_claimed.png`, side view not separately checked): roof edge with the camera looking down the back face; the rope ladder is NOT clearly visible in the picture, so the back-face rope is UNCONFIRMED. `rooftop_camp` (`/tmp/r44/rooftop_camp.png`): two tents, green barrel, stall, survivors (one seated, one standing) on clips. Green plume not clearly seen. `rooftop_trader` (`/tmp/r44/rooftop_trader.png`): Shop screen open, lists city stock (Bandage, Water, Beans, Pistol Ammo, Antibiotics x2 etc.). `rescue_floor` (`/tmp/r44/rescue_floor.png`): survivor "Rescue Mark Vance" on the stop floor. Done, PASS.
+- **Claim, then reload:** PASS. `--metro=safehouse --hold-e --save-at=3` (`/tmp/r44/claim.json`): `safeHouseClaimed` true, (the claim toast is not in the picture). `--load=1` (`/tmp/r44/load1.json`): claimed true, `safeHouseLadderDown` true.
+- **Fast travel:** NOT PROVEN. Roof to camp via shack sign: no "Travel to camp" prompt at the sign even after the reach fix (`/tmp/r44/travel_prompt.png`, `travel_camp*.json`: position and gameHour unchanged). Camp to roof: `--load=1 --at=` ignores `--at` (the save restores the roof), so `travel_roof.json` is not a valid test. Blocked travel: not run (no flag makes a zombie chase).
+- **Ladder pull:** NOT PROVEN. With `--hold-e` the press repeats every frame, so the rope toggles every frame (`ladder_pull.json`: down true, rails 4 to 2, unreliable). Needs one real press; the toggle logic is in game tests.
+- **Bed:** PASS. `--load=1 --metro=safehouse_bed --hold-e` (`/tmp/r44/bed.json`): gameHour 7.0 (07:00 shown), toast "Saved. Morning." (`/tmp/r44/bed.png`), claim kept.
+- **Trader:** shop opens with rooftop stock: PASS for the picture. Buying a bandage needs a click (not scriptable): NOT RUN, wallet not checked.
+- **Rescue:** PASS. `--metro=rescue_floor --hold-e` (`/tmp/r44/rescue.json`): rescuedCount 0 to 1, Mark Vance on the team card (`/tmp/r44/rescue_done.png`). Camp team check not run.
+- **Random rescues off the climb floors:** NOT RUN as a picture (900-frame run). Covered by R44-04 tests (`rescue_floor` tests).
+- **Floor zombies unchanged:** PASS (`--metro=climb_floor --shot-frame=900`, `/tmp/r44/climb_floor.png`: office floor, zombies, normal).
+- **Map:** PASS. "Safe House" and "Rooftop Camp" show (`/tmp/r44/map.png`). The Rooftop Camp label overlaps a "Stairs" label nearby.
+- **Nothing floats, z-fight, ground green:** looked at in each picture above; no problem seen.
+- **Tests:** `cargo test` (gate) 1577 passed (R43 was 1527). PASS.
+- **FPS (metro only, `tools/perf_scenes.sh --set metro --seconds 20`, `/tmp/r44/perf_after.txt`):** average 56.0 FPS, 1% low 30.3. PASS (average at least 20).
+- **Changes the lead must know:** `data/safe_house.json` shack sign moved to `[-2.6, -3.6]`; a sixth flag `safehouse_bed`; rooftop people are now animated camp figures (`camp_npcs.rs`), not props.
+- **Open for the next round:** (1) the shack-sign prompt does not show from the travel point; check the reach/collider in game with a real key press; (2) hold-E repeats actions each frame, so the ladder and the bed cannot be proven by flags; a one-press flag would fix the proof; (3) a camp-to-roof travel test needs `--at` to work after `--load`.
 
 ## Gate report
 (filled by the gate)

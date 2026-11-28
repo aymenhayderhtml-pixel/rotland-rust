@@ -173,7 +173,8 @@ pub fn start_world(
     if let (Some(pack), true) = (&render.pack, session.scene == "play") {
         match game::CampLifeDirector::from_data_dir(camp.clone(), paths::repo_path("data")) {
             Ok(director) => {
-                actors.camp_npcs = Some(camp_npcs::CampNpcs::new(&gpu.device, pack, director))
+                let roof = crate::rooftop_npcs::rooftop_people(&world_gen);
+                actors.camp_npcs = Some(camp_npcs::CampNpcs::new(&gpu.device, pack, director, roof))
             }
             Err(e) => log::warn!("camp life not loaded: {e}"),
         }

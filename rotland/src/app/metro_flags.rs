@@ -11,6 +11,7 @@ use world::metro::{
 use super::metro_flags_r41::{army_pose, crows_pose, herd_pose};
 use super::metro_flags_r42::r42_pose;
 use super::metro_flags_r43::r43_pose;
+use super::metro_flags_r44::r44_pose;
 
 /// Edge spot: metres inside the first avenue entrance. // new: DECISIONS 2026-11-26
 const EDGE_INSET_M: f32 = 10.0;
@@ -108,6 +109,18 @@ pub enum MetroSpot {
     FireEscape,
     /// On the mast platform, 2 m from the radio console facing the hut.
     Radio,
+    /// On the safe house roof at the travel point, facing the shack sign (unclaimed).
+    SafeHouse,
+    /// On the safe house roof beside the bed, facing it (claimed; the bed saves and rests).
+    SafeHouseBed,
+    /// On the safe house roof at the roof edge by the rope ladder deck (claimed, ladder down).
+    SafeHouseClaimed,
+    /// On the rooftop camp roof, 6 m from the trader stall, facing the tents.
+    RooftopCamp,
+    /// Beside the rooftop trader (the rooftop Shop is opened by the test flag).
+    RooftopTrader,
+    /// On the stop floor of the first R44 rescue seed, facing the shaft door.
+    RescueFloor,
 }
 
 impl MetroSpot {
@@ -146,6 +159,12 @@ impl MetroSpot {
             "roof_planks" => Some(Self::RoofPlanks),
             "fire_escape" => Some(Self::FireEscape),
             "radio" => Some(Self::Radio),
+            "safehouse" => Some(Self::SafeHouse),
+            "safehouse_bed" => Some(Self::SafeHouseBed),
+            "safehouse_claimed" => Some(Self::SafeHouseClaimed),
+            "rooftop_camp" => Some(Self::RooftopCamp),
+            "rooftop_trader" => Some(Self::RooftopTrader),
+            "rescue_floor" => Some(Self::RescueFloor),
             _ => None,
         }
     }
@@ -471,6 +490,12 @@ pub fn metro_pose(
         | MetroSpot::RoofPlanks
         | MetroSpot::FireEscape
         | MetroSpot::Radio => r43_pose(spot, metro),
+        MetroSpot::SafeHouse
+        | MetroSpot::SafeHouseClaimed
+        | MetroSpot::SafeHouseBed
+        | MetroSpot::RooftopCamp
+        | MetroSpot::RooftopTrader
+        | MetroSpot::RescueFloor => r44_pose(spot, metro),
     }
 }
 
