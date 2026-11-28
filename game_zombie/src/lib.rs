@@ -15,6 +15,7 @@ pub mod spawner_config;
 pub mod street_herds;
 pub mod zombie;
 pub mod zombie_voices;
+pub mod chasing;
 
 pub use director::*;
 pub use flowfield::FlowField;

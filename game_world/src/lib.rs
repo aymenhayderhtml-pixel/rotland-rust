@@ -11,6 +11,7 @@ pub mod melee;
 pub mod melee_guard;
 pub mod projectiles;
 pub mod radio;
+pub mod safe_house;
 
 pub use animals::*;
 pub use crows::*;

@@ -37,6 +37,9 @@ pub mod climb;
 mod climb_hulls;
 #[cfg(test)]
 mod climb_tests;
+pub mod safehouse;
+#[cfg(test)]
+mod safehouse_tests;
 pub mod fire_escapes;
 pub mod rooftops;
 #[cfg(test)]

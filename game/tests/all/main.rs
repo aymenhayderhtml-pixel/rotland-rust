@@ -81,3 +81,6 @@ mod attachments_tests;
 mod city_items;
 mod gunsmith_tests;
 mod street_herds;
+mod safe_house;
+mod rescue_floor;
+mod rooftop_trade;

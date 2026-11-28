@@ -2,6 +2,7 @@ mod bank;
 mod config;
 mod rules;
 mod trader;
+mod rooftop_stock;
 mod wallet;
 
 pub use bank::{Bank, BANK_MAX_WEIGHT, BANK_SAVE_ID, DEFAULT_BANK_SLOTS};
@@ -11,3 +12,4 @@ pub use rules::{
 };
 pub use trader::{TraderStock, TRADER_SAVE_ID};
 pub use wallet::{Wallet, WALLET_SAVE_ID};
+pub use rooftop_stock::RooftopTraderConfig;

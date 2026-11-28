@@ -17,7 +17,7 @@ pub use game_zombie::{
 };
 pub use game_camp::{
     bounties, building, camp, camp_guards, camp_upgrades, campfire, crafting, economy, farming,
-    guild, gunsmith, map, rescue, rescue_place, team_anim,
+    guild, gunsmith, map, rescue, rescue_floor, rescue_place, team_anim,
 };
 pub use game_player::{
     death_anim, downed, fishing, fp_motion, gun_feel, guns, hit_react, ladders, melee_combo,

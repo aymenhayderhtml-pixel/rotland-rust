@@ -65,10 +65,26 @@ No Rust numbers except `0`, `1`, `2` counts, the R43 `FLOOR_IN_DIST_M = 3.0` (ta
 - `world/tests/golden.rs` is NOT edited and still passes.
 
 ## Done when
-The files above exist; the tests pass in the gate (`tools/gate.sh --task tasks/R44-03-safehouse-placement.md`). Fill `## Worker notes` with:
+The files above exist; the tests pass in the gate (`tools/gate.sh --task tasks/R44-03-safehouse-placement.md`). Fill `## Worker notes
+- Files: `world/src/metro/safehouse.rs` (~330 lines), `safehouse_tests.rs` (12 tests); lead added the mod lines.
+- `rooftop_camp_in_chunk(metro, layout, chunk)` has no height argument (all on the roof).
+- JSON yaw values are treated as tower-relative.
+- Stop-floor building name: `tw_interior_<office|flat|camp>_<size>` (same as `climb_in_chunk_with`).
+- Rescue seed y = site ground + floor height + 0.3 slab + 0.05 clearance.
+- Open: rope leans out over the street per data; R44-05 to check in a picture.` with:
 - Files changed.
 - The `mod` line for the lead (`#[cfg(test)] mod safehouse_tests;` and `pub mod safehouse; pub use ...` for `world/src/metro/mod.rs`).
 - Any function signature you changed from the common file, and why.
 - The name of the stop-floor interior building you used, and the rope segment count for the repo's safe house tower (if you can compute it in a test).
 
 ## Worker notes
+
+## Gate report
+- date: 2026-11-28
+- base: main
+- files changed (3): world/src/metro/mod.rs, world/src/metro/safehouse.rs, world/src/metro/safehouse_tests.rs
+- tests passed: 1539
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS

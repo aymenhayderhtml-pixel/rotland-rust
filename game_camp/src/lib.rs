@@ -16,6 +16,7 @@ pub mod gunsmith;
 pub mod map;
 pub mod rescue;
 pub mod rescue_place;
+pub mod rescue_floor;
 pub mod team_anim;
 
 pub use bounties::*;

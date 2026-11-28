@@ -41,9 +41,29 @@ Every number in Rust must come from `data/safe_house.json` (read it, do not hard
 - `count_chasing_near`: a chaser inside the radius counts; a chaser outside does not; a non-chaser inside does not; a chaser exactly on the radius counts (`<=`); a height difference does not matter (flat distance only).
 
 ## Done when
-The files above exist, `data/safe_house.json` matches `R44-common.md`, the tests above exist and pass in the gate. Fill `## Worker notes` with:
+The files above exist, `data/safe_house.json` matches `R44-common.md`, the tests above exist and pass in the gate. Fill `The files above exist, `data/safe_house.json` matches `R44-common.md`, the tests above exist and pass in the gate. Fill `## Worker notes` with:
 - Files changed.
 - The `pub mod` lines for `game_world/src/lib.rs` and `game_zombie/src/lib.rs`, and the `pub use` lines for `game/src/lib.rs` if you add any.
 - Any name you had to change from the common file, and why.
 
 ## Worker notes
+
+## Gate report
+- date: 2026-11-28
+- base: main
+- files changed (9): data/safe_house.json, game/tests/all/main.rs, game/tests/all/safe_house.rs, game_world/src/lib.rs, game_world/src/safe_house.rs, game_zombie/src/chasing.rs, game_zombie/src/lib.rs, tasks/R44-01-safehouse-logic.md, tasks/R44-common.md
+- tests passed: 1542
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS
+
+- **Files changed:** `game_world/src/safe_house.rs` (NEW), `game_zombie/src/chasing.rs` (NEW), `data/safe_house.json` (NEW), `game/tests/all/safe_house.rs` (NEW, 12 tests).
+- **Shared-file lines for the lead (not committed by this worker):**
+  - `game_world/src/lib.rs`: `pub mod safe_house;` (after `pub mod radio;`). Optional `pub use safe_house::*;` if wanted.
+  - `game_zombie/src/lib.rs`: `pub mod chasing;` (before `pub mod poi_zombies;`).
+  - `game/tests/all/main.rs`: `mod safe_house;`.
+  - Tests import `game_world::safe_house` and `game_zombie::chasing` directly, so `game/src/lib.rs` needs no change.
+- **Gate:** run with those three lines added temporarily, then reverted. Result: clippy PASS, test PASS (1542 passed), numbers PASS, GATE: PASS.
+- **Names:** same as R44-common. `SafeHouseConfig` also has `prompts: SafeHousePrompts` with `#[serde(default)]`. `SafeHouseState::from_json` reads the keys by hand (not serde) so `"junk"` and `{}` give the default.
+- **Note:** the R44 task files were not in the worktree (only in the main checkout's `tasks/`), so I copied them in untracked. They are not committed.
