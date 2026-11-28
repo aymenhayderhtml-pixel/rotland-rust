@@ -66,3 +66,25 @@ Everything above is wired; the gate passes (`tools/gate.sh --task tasks/R44-05-w
 - Any premise in `R44-common.md` that did not hold in the code.
 
 ## Worker notes
+- **Files changed:** new `rotland/src/safe_house_play.rs` (SafeHousePlay: load, interact_tick with claim/bed/chest/ladder/travel, rooftop buy, rope sync), new `rotland/src/safe_house_travel.rs` (travel_decision + stream_to), new `rotland/src/rooftop_npcs.rs` (trader_position). Edited: `world/src/generator_contents.rs` (metro_safehouse_extras, home_sign_pos, set_safehouse_ladder_down, merged into chunk_contents), `rotland/src/streaming.rs` (extra_ladders, reload_chunks, stale colliders kept until the new chunk is built, so no fall through the roof), `rotland/src/streaming_metro.rs` and `rotland/src/props/rules.rs` (rope_ladder_ and green_smoke_ skipped for colliders and shadows), `rotland/src/rescue_play.rs` (floor rescue spots merged), `rotland/src/app/frame_world.rs`, `frame_ui.rs` (rooftop stock + buy), `frame_actors.rs` (pending bed save), `render_frame.rs` (rope sync, fast travel placement), `save_load.rs`, `start_world.rs`, `state.rs`, `stats.rs`.
+- **Shared-file lines I had to add (lead: keep them):** `rotland/src/main.rs`: `mod rooftop_npcs; mod safe_house_play; mod safe_house_travel;`. `game/src/lib.rs`: `pub use game_zombie::chasing;` and `safe_house` added to the game_world re-export list.
+- **Home camp sign:** NO prop. A `travel_sign` prop at the camp broke the existing test `city_camp_chunk_matches_without_city` (it compares the camp chunk with and without the metro). The home travel point is the camp respawn point (`WorldGenerator::home_sign_pos`), with the same 2 m use radius. Lead may want a real sign later (needs a test change).
+- **Rope swap:** `SafeHousePlay::sync_rope` runs each frame before streaming. Down = one `LadderRail` in `streamer.extra_ladders` plus `rope_ladder_seg` props; up = `rope_ladder_coil`. On a change the 3x3 chunks around the shack are dropped and rebuilt. The old colliders stay solid until the new chunk is built, so the player does not fall. The chunk flag is a static set by `WorldGenerator::set_safehouse_ladder_down`.
+- **Rooftop shop:** `shop_on_roof` picks the stock. `frame_ui` gives `CampView.trader_stock` the rooftop `TraderStock` and sends Buy to `SafeHousePlay::buy_on_roof`. Sell and the camp trader are unchanged. Opening the camp trader resets the flag.
+- **Rooftop NPCs:** drawn as bind-pose props (`npc_survivor`, `npc_trader`), NOT posed or animated (no clip code yet). The trader's [E] uses their position from `rooftop_npcs::trader_position`.
+- **Travel:** claimed and not chased (`count_chasing_near` over `ZombieState` Chase/Attack via `actors.zombies.active()`): the clock advances `travelHours`, and `render_frame` streams the target (blocking, like the test teleports) and stands the player on the ground there. Blocked = toast, no time.
+- **Bed:** `set_time(restHour)`, fills the rooftop stock, sets `pending_save`; `check_scripted_timers` calls `save_now` the same frame. Saves `metro_safehouse` and `rooftop_trader` in `systems.extra`.
+- **Stats added:** `gameHour`, `safeHouseClaimed`, `safeHouseLadderDown`, `rescuedCount`, `chasingZombies`.
+- **Logic not verified in game:** I could NOT run the roof proof. No existing flag puts the player on the roof (`--tp=` does not exist; `--at=x,z` is ground only), and claiming needs the roof. So no two rope pictures, no travel or save-reload stats. Smoke run OK: `--metro=core --frames=60 --stats=...` (save dir /tmp/r44-saves), no panic, all new keys present. Safe house tower 489, shack at (5790.35, 55.12, -3280.38), deck y 55.12 (from the log line).
+- **Premises from R44-common that did not hold:** none new. The `metro_safehouse_extras` returns props + people; the people also go in as props.
+- **Open:** rooftop ladder-down prop chunk and the rescue floor spot placement not seen in a picture; the chunk rebuild after a toggle can use a chunk built with the old flag if it was already in flight (rare).
+
+## Gate report
+- date: 2026-11-28
+- base: main
+- files changed (19): game/src/lib.rs, rotland/src/app/frame_actors.rs, rotland/src/app/frame_ui.rs, rotland/src/app/frame_world.rs, rotland/src/app/render_frame.rs, rotland/src/app/save_load.rs, rotland/src/app/start_world.rs, rotland/src/app/state.rs, rotland/src/app/stats.rs, rotland/src/main.rs, rotland/src/props/rules.rs, rotland/src/rescue_play.rs, rotland/src/rooftop_npcs.rs, rotland/src/safe_house_play.rs, rotland/src/safe_house_travel.rs, rotland/src/streaming_metro.rs, rotland/src/streaming.rs, tasks/R44-05-wiring.md, world/src/generator_contents.rs
+- tests passed: 1568
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS

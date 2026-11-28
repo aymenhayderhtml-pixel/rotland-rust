@@ -274,4 +274,8 @@ pub fn check_scripted_timers(
         save_now(session, world, actors, play);
         engine::timing::count_save_written();
     }
+    // A rest at the safe house bed saves the game (R44-05)
+    if std::mem::take(&mut play.safe_house.pending_save) {
+        save_now(session, world, actors, play);
+    }
 }

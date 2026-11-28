@@ -55,6 +55,7 @@ pub fn save_now(
     if let Some(v) = play.metro_radio.to_save() {
         file.systems.extra.insert("metro_radio".into(), v);
     }
+    play.safe_house.save_into(&mut file.systems.extra);
     // Weapons saving: equipped weapon in hand and loaded magazine rounds
     let equipped = if let Some(gun) = &play_state.gun {
         gun.id.clone()

@@ -68,6 +68,8 @@ fn is_no_shadow_metro_prop(id: &str) -> bool {
         "stair_sign_",
         "stair_arrow_",
         "roof_ladder_seg",
+        "rope_ladder_", // new: R44 rope ladder (no shadow)
+        "green_smoke_", // new: R44 green smoke (no shadow)
     ]
     .iter()
     .any(|p| id.starts_with(p))

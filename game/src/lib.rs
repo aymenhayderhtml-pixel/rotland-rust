@@ -15,6 +15,7 @@ pub use game_zombie::{
     director, flowfield, horde, metro_spawn, poi_zombies, spawner, spawner_config, street_herds,
     zombie, zombie_voices,
 };
+pub use game_zombie::chasing; // new: R44 safe house travel check
 pub use game_camp::{
     bounties, building, camp, camp_guards, camp_upgrades, campfire, crafting, economy, farming,
     guild, gunsmith, map, rescue, rescue_floor, rescue_place, team_anim,
@@ -23,7 +24,7 @@ pub use game_player::{
     death_anim, downed, fishing, fp_motion, gun_feel, guns, hit_react, ladders, melee_combo,
     night_vision, player, survival, swim_hands, swimming, trees, vault, vehicles,
 };
-pub use game_world::{animals, crows, dogs, grenade, guns_fire, melee, melee_guard, projectiles, radio};
+pub use game_world::{animals, crows, dogs, grenade, guns_fire, melee, melee_guard, projectiles, radio, safe_house};
 
 pub use game_core::armor::*;
 pub use game_core::damage::DamageInfo;

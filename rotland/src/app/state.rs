@@ -266,6 +266,8 @@ pub struct PlaySide {
     pub metro: Option<crate::metro_play::MetroPlay>,
     /// Tallest-landmark radio goal runtime (R43-07).
     pub metro_radio: crate::metro_radio::MetroRadioRuntime,
+    /// Rooftop safe house: claim, bed, rope ladder, fast travel, rooftop trader (R44-05).
+    pub safe_house: crate::safe_house_play::SafeHousePlay,
 }
 
 impl Default for PlaySide {
@@ -297,6 +299,7 @@ impl Default for PlaySide {
             sky: None,
             metro: None,
             metro_radio: crate::metro_radio::MetroRadioRuntime::default(),
+            safe_house: crate::safe_house_play::SafeHousePlay::default(),
         }
     }
 }

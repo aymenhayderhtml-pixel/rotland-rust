@@ -262,6 +262,8 @@ fn is_no_collider_prop(id: &str) -> bool {
         "roof_tree",
         "stair_digit_",
         "roof_ladder_seg",
+        "rope_ladder_", // new: R44 rope ladder (no collider)
+        "green_smoke_", // new: R44 green smoke (no collider)
         "stair_sign_",
         "stair_arrow_",
     ]

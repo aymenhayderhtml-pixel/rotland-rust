@@ -190,6 +190,7 @@ pub fn start_world(
         );
     }
     play.metro_radio = crate::metro_radio::MetroRadioRuntime::default();
+    play.safe_house = crate::safe_house_play::SafeHousePlay::load(&world_gen, save_file.as_ref());
     // A saved game: the player where they were, the clock, the backpack and the emptied crates
     if let Some(file) = &save_file {
         if let (Some(r), Some(p), Some(rig)) = (

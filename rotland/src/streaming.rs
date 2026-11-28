@@ -78,6 +78,11 @@ pub struct Streamer {
     pub dog_sites: Vec<DogPoiSite>,
     /// Cached ladders across all loaded chunks, rebuilt only on chunk load/unload.
     pub ladders: Vec<LadderRail>,
+    /// Ladders not tied to a chunk (the safe house rope while it is down, R44). Kept by `rebuild_ladders`.
+    pub extra_ladders: Vec<LadderRail>,
+    /// Colliders of chunks dropped by `reload_chunks`. They stay solid until the new chunk is built
+    /// (so the player never falls through), then they are removed.
+    stale: Vec<(IVec2, Vec<ColliderHandle>)>,
     /// Monotonic counter incremented whenever chunks load or unload.
     pub generation: u64,
     far_scratch: Vec<IVec2>,
@@ -103,6 +108,8 @@ impl Streamer {
             felled: HashSet::new(),
             dog_sites: Vec::new(),
             ladders: Vec::new(),
+            extra_ladders: Vec::new(),
+            stale: Vec::new(),
             generation: 0,
             far_scratch: Vec::new(),
             missing_scratch: Vec::new(),
@@ -127,6 +134,23 @@ impl Streamer {
         for chunk in self.chunks.values() {
             self.ladders.extend(chunk.ladders.iter().cloned());
         }
+        self.ladders.extend(self.extra_ladders.iter().cloned());
+    }
+
+    /// Drops the loaded chunks in `coords` so they are built again on the next update (R44 rope ladder).
+    pub fn reload_chunks(&mut self, coords: &[IVec2]) {
+        for c in coords {
+            if let Some(chunk) = self.chunks.remove(c) {
+                let handles: Vec<ColliderHandle> = chunk
+                    .colliders
+                    .into_iter()
+                    .chain(chunk.trees.into_iter().filter_map(|t| t.collider))
+                    .collect();
+                self.stale.push((*c, handles));
+            }
+        }
+        self.generation = self.generation.wrapping_add(1);
+        self.rebuild_ladders();
     }
 
     /// True when every chunk within the load radius of `at` is on the GPU.
@@ -172,6 +196,16 @@ impl Streamer {
                 }
             }
         }
+        // Stale colliders of chunks the player has left go too (see reload_chunks)
+        self.stale.retain(|(c, handles)| {
+            if (c.x - center.x).abs().max((c.y - center.y).abs()) <= UNLOAD_RADIUS {
+                return true;
+            }
+            for h in handles {
+                physics.remove_deferred(*h);
+            }
+            false
+        });
 
         // Ask for the missing chunks, nearest first
         self.missing_scratch.clear();
@@ -217,6 +251,7 @@ impl Streamer {
             }
             let chunk = self.upload(device, pack, library, physics, built);
             self.chunks.insert(c, chunk);
+            self.drop_stale(c, physics);
             applied = true;
         }
         self.rx_scratch = rx_scratch;
@@ -227,6 +262,19 @@ impl Streamer {
             // Queries (ground height, the player's mover) must see the new shapes this frame
             physics.update_broad_phase();
         }
+    }
+
+    /// Removes the old colliders of a chunk that has been built again.
+    fn drop_stale(&mut self, coord: IVec2, physics: &mut PhysicsWorld) {
+        self.stale.retain(|(c, handles)| {
+            if *c != coord {
+                return true;
+            }
+            for h in handles {
+                physics.remove_deferred(*h);
+            }
+            false
+        });
     }
 
     /// A tree has been felled: it stops being solid and stays out when its chunk loads again.

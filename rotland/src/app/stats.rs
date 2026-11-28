@@ -214,5 +214,19 @@ pub fn get_stats(
             format!("{:.1}", p.stamina.current).into(),
         );
     }
+    // R44 safe house: game hour, claim and ladder state, rescues, zombies chasing (travel check)
+    s.insert("gameHour".into(), play.hour.into());
+    s.insert("safeHouseClaimed".into(), play.safe_house.state.claimed.into());
+    s.insert("safeHouseLadderDown".into(), play.safe_house.state.ladder_down.into());
+    let rescued = play.rescue.as_ref().map_or(0, |r| r.rescued_ids_sorted().len());
+    s.insert("rescuedCount".into(), rescued.into());
+    let chasing = actors.zombies.as_ref().map_or(0, |z| {
+        game::chasing::count_chasing_near(
+            z.active().iter().map(|a| (a.position, a.is_chasing)),
+            actors.player,
+            play.safe_house.chase_radius_m(),
+        )
+    });
+    s.insert("chasingZombies".into(), chasing.into());
     s
 }

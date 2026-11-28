@@ -3,6 +3,7 @@
 use game::guild::GuildConfig;
 use game::guild::companion::CompanionSquad;
 use game::rescue::{RescueBlocker, RescueConfig, RescueSave, RescueState};
+use game::rescue_floor::{FloorRescueSeed, floor_rescue_spots};
 use game::rescue_place::place_survivors_in_world;
 use game::{PoiSpawn, PoiZombieSite, PoiZombies};
 use glam::Vec3;
@@ -38,7 +39,15 @@ pub fn load_state(world_gen: &WorldGenerator, save_file: Option<&save::SaveFile>
             Vec::new()
         }
     };
-    let spots = place_survivors_in_world(world_gen, &cfg, &recruits);
+    let mut spots = place_survivors_in_world(world_gen, &cfg, &recruits);
+    // R44-04: survivors on the stop floors of the climb towers (the random pass skips those POIs)
+    if let Some(metro) = world_gen.metro_world() {
+        let seeds: Vec<FloorRescueSeed> = world::metro::safehouse::rescue_floor_seeds(metro)
+            .into_iter()
+            .map(|s| FloorRescueSeed { poi_id: s.poi_id, building_id: s.building_id, position: s.position, yaw: s.yaw })
+            .collect();
+        spots.extend(floor_rescue_spots(&seeds, &cfg, &recruits));
+    }
     let mut state = RescueState::new(cfg, spots);
     if let Some(guild_val) = save_file.and_then(|f| f.systems.extra.get("guild"))
         && let Ok(gs) = serde_json::from_value::<RescueSave>(guild_val.clone())

@@ -286,6 +286,9 @@ pub fn draw_ui(
     }
 
     // Camp screens over the game (not over the main menu)
+    // The rooftop shop (R44-05) shows and sells from its own stock
+    let roof_shop = play.safe_house.shop_on_roof;
+    let roof_stock = play.safe_house.rooftop_stock.as_ref().filter(|_| roof_shop);
     if let (Some(play_state), false) = (play.play.as_mut(), on_main) {
         let dead = actors.combat.as_ref().is_some_and(|c| c.is_dead());
         let action = {
@@ -293,7 +296,7 @@ pub fn draw_ui(
                 wallet: Some(&play_state.camp.wallet),
                 inventory: Some(&play_state.inventory),
                 bank: Some(&play_state.camp.bank),
-                trader_stock: Some(&play_state.camp.trader),
+                trader_stock: Some(roof_stock.unwrap_or(&play_state.camp.trader)),
                 crafting: Some(&play_state.camp.crafting),
                 recipe_registry: Some(&play_state.camp.recipes),
                 bounty_manager: Some(&play_state.camp.bounties),
@@ -381,7 +384,23 @@ pub fn draw_ui(
                 };
                 let is_turn_in = matches!(&a, camp_ui::CampAction::TurnIn { .. });
                 let items = play_state.items.clone();
-                let status = play_state.camp.apply(a, &mut play_state.inventory, &items, dead);
+                let roof_buy = match &a {
+                    camp_ui::CampAction::Buy { item, count } if roof_shop => Some((item.clone(), *count)),
+                    _ => None,
+                };
+                let status = if let Some((item, count)) = roof_buy {
+                    let buy_rate = play_state.camp.economy.buy_rate;
+                    play.safe_house.buy_on_roof(
+                        &mut play_state.camp.wallet,
+                        &mut play_state.inventory,
+                        &item,
+                        count,
+                        buy_rate,
+                        &items,
+                    )
+                } else {
+                    play_state.camp.apply(a, &mut play_state.inventory, &items, dead)
+                };
                 play_state.hotbar.on_inventory_changed(&play_state.inventory);
                 if let Some(s) = &status {
                     if is_turn_in && s.starts_with("Bounty completed:") {
