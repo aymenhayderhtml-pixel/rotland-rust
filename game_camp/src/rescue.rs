@@ -20,6 +20,9 @@ pub struct RescueConfig {
     pub talk_range: f32,
     pub min_zombies_near: usize,
     pub per_town: [usize; 2],
+    /// Survivors placed on climb-tower stop floors (R44). Missing key = 0.
+    #[serde(default)]
+    pub floor_survivors: usize,
 }
 
 impl Default for RescueConfig {
@@ -32,6 +35,7 @@ impl Default for RescueConfig {
             talk_range: 2.5,         // data: rescue.json talkRange
             min_zombies_near: 3,     // data: rescue.json minZombiesNear
             per_town: [1, 2],        // data: rescue.json perTown
+            floor_survivors: 3,      // data: rescue.json floorSurvivors
         }
     }
 }

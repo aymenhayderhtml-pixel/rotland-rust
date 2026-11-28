@@ -84,3 +84,24 @@ The files above exist; `data/rescue.json` still parses; the tests pass in the ga
 - Whether `RecruitDef` / `RescueSpot` fields differ from the common file.
 
 ## Worker notes
+- **Files changed (mine):** `data/rooftop_trader.json` (new, 11 stock lines: the 7 listed + `antibiotics` 2, `surgery_kit` 1, `adrenaline_shot` 2, `night_vision` 1), `data/rescue.json` (`floorSurvivors: 3`, `_floorWhy`), `game_camp/src/rescue.rs` (`floor_survivors` field with field-level `#[serde(default)]`, so a missing key gives 0; `Default` impl has 3), `game_camp/src/rescue_place.rs` (`place_survivors_in_world` filters POIs with `is_climb_floor_poi`; plus one `use` line), `game_camp/src/rescue_floor.rs` (new), `game_camp/src/economy/rooftop_stock.rs` (new), `game/tests/all/rooftop_trade.rs` and `game/tests/all/rescue_floor.rs` (new, 13 tests).
+- **Shared-file lines the lead must add (not committed by me):**
+  - `game_camp/src/lib.rs`: `pub mod rescue_floor;` (after `pub mod rescue_place;`).
+  - `game_camp/src/economy/mod.rs`: `mod rooftop_stock;` and `pub use rooftop_stock::RooftopTraderConfig;`.
+  - `game/src/lib.rs`: add `rescue_floor` to the `pub use game_camp::{ ... rescue, rescue_place, ... }` list (the facade does not re-export it otherwise).
+  - `game/tests/all/main.rs`: `mod rescue_floor;` and `mod rooftop_trade;`.
+- **Gate:** without the four lines above, the gate FAILS in clippy (`unresolved import crate::rescue_floor`). I added the four lines temporarily, ran the gate (GATE: PASS, 1540 tests), then reverted them, so the commit holds only my files. The lead must add them or the round will not build.
+- **Item ids:** economy list ids are all validated by the new test. Extra ids checked in `data/items.json`: `antibiotics`, `surgery_kit`, `adrenaline_shot`, `night_vision` (exist).
+- **Deviation:** the fallback recruit template in `floor_rescue_spots` is copied from `place_survivors` (that function is not to be changed). Names are unique while templates last, then they are reused from the start.
+- `RecruitDef` and `RescueSpot` fields match the common file. No differences.
+- No open questions.
+
+## Gate report
+- date: 2026-11-28
+- base: main
+- files changed (13): data/rescue.json, data/rooftop_trader.json, game_camp/src/economy/mod.rs, game_camp/src/economy/rooftop_stock.rs, game_camp/src/lib.rs, game_camp/src/rescue_floor.rs, game_camp/src/rescue_place.rs, game_camp/src/rescue.rs, game/src/lib.rs, game/tests/all/main.rs, game/tests/all/rescue_floor.rs, game/tests/all/rooftop_trade.rs, tasks/R44-04-trader-rescue-data.md
+- tests passed: 1540
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS
