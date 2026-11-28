@@ -115,6 +115,10 @@ pub enum MetroSpot {
     SafeHouseBed,
     /// On the safe house roof at the roof edge by the rope ladder deck (claimed, ladder down).
     SafeHouseClaimed,
+    /// On the street at the rope ladder foot, camera looking up the back face (R44 fix).
+    SafeHouseStreet,
+    /// On the safe house roof beside the rope deck, camera looking down at the coil (R44 fix).
+    SafeHouseEdge,
     /// On the rooftop camp roof, 6 m from the trader stall, facing the tents.
     RooftopCamp,
     /// Beside the rooftop trader (the rooftop Shop is opened by the test flag).
@@ -162,6 +166,8 @@ impl MetroSpot {
             "safehouse" => Some(Self::SafeHouse),
             "safehouse_bed" => Some(Self::SafeHouseBed),
             "safehouse_claimed" => Some(Self::SafeHouseClaimed),
+            "safehouse_street" => Some(Self::SafeHouseStreet),
+            "safehouse_edge" => Some(Self::SafeHouseEdge),
             "rooftop_camp" => Some(Self::RooftopCamp),
             "rooftop_trader" => Some(Self::RooftopTrader),
             "rescue_floor" => Some(Self::RescueFloor),
@@ -492,6 +498,8 @@ pub fn metro_pose(
         | MetroSpot::Radio => r43_pose(spot, metro),
         MetroSpot::SafeHouse
         | MetroSpot::SafeHouseClaimed
+        | MetroSpot::SafeHouseStreet
+        | MetroSpot::SafeHouseEdge
         | MetroSpot::SafeHouseBed
         | MetroSpot::RooftopCamp
         | MetroSpot::RooftopTrader

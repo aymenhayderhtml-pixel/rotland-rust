@@ -200,7 +200,13 @@ pub fn draw_metro_map(
         }
     }
     if let Some(m) = metro {
+        let safe = safe_house_tower(m);
+        let camp = rooftop_camp_tower(m);
         for plan in climb_towers(m) {
+            // The rooftop camp tower shows its own label, not "Stairs" (R44 fix)
+            if Some(plan.tower) == camp {
+                continue;
+            }
             let label = if plan.kind == ClimbKind::Landmark {
                 "Radio Mast"
             } else {
@@ -211,8 +217,6 @@ pub fn draw_metro_map(
                 draw_small_label(painter, p, label, cfg);
             }
         }
-        let safe = safe_house_tower(m);
-        let camp = rooftop_camp_tower(m);
         for idx in [safe, camp].into_iter().flatten() {
             let Some(label) = rooftop_label_for(idx, safe, camp, &cfg.rooftop) else {
                 continue;

@@ -1,7 +1,7 @@
 """R42-06 the army line camp: `evac_tent`, `field_kitchen`, `loudspeaker_pole`, `checkpoint_booth`,
 `army_gear_scatter`, `flood_light` (+ `_lod1` where they are seen from far).
 
-Everything is olive/khaki army kit with the stencilled word "EVACUATION" on the tent and plain painted
+Everything is olive/khaki army kit with the stencilled word "EVACUATION" (once) on the tent and plain painted
 marks elsewhere: no insignia, no stars.
 """
 import math
@@ -51,7 +51,7 @@ def _panel_loft(rings, color):
 
 # --- evac_tent ---------------------------------------------------------------------------------
 def _build_evac_tent(model, lod=False):
-    """8 x 5 m white/olive frame tent: gable roof, open flap at the front, "EVACUATION" on the long side."""
+    """8 x 5 m white/olive frame tent: gable roof, open flap at the front, "EVACUATION" once on the back end."""
     hx, hy = TENT_HALF_X, TENT_HALF_Y
     parts = []
     if lod:
@@ -107,10 +107,9 @@ def _build_evac_tent(model, lod=False):
     parts.append(flap)
     for x in (-hx + 0.55, -hx + 1.65):
         parts.append(box((x - 0.07, hy - 0.28, TENT_EAVE - 0.62), (x + 0.07, hy - 0.12, TENT_EAVE - 0.12), KHAKI))
-    # "EVACUATION" stencilled down both long sides (plain lettering, no insignia)
-    for side, out in ((-1, -1), (1, 1)):
-        parts.append(stencil_on_side("EVACUATION", 0.30, 0.42, side * (hx + 0.008), 1.24, 0.0, "soot",
-                                     outward=out))
+    # "EVACUATION" stencilled ONCE on the closed back end (+X). A second copy on the open flap end
+    # showed through the tent and read as "EVACUACUATION" (R44 fix). Plain lettering, no insignia.
+    parts.append(stencil_on_side("EVACUATION", 0.30, 0.42, hx + 0.008, 1.24, 0.0, "soot", outward=1))
     parts.append(stencil_on_side("A-1", 0.2, 0.26, -(hx + 0.008), 1.95, 2.6, "soot", outward=-1))
     # guy ropes, stakes and a sandbag ring holding the skirt down
     for side in (-1, 1):

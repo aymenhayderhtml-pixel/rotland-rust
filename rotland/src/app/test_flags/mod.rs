@@ -31,6 +31,8 @@ pub struct TestFlags {
     pub team: usize,
     pub tp_rescue: bool,
     pub hold_e: bool,
+    /// `--travel=safehouse|camp`: one fast travel after a short delay, skipping the sign reach (R44 fix).
+    pub travel: Option<String>,
     pub biome: Option<BiomeId>,
     pub weather: Option<WeatherKind>,
     /// `--spawn-zombie=<kind>`: one zombie of that kind in front of the player (R32-07).
@@ -104,6 +106,10 @@ impl TestFlags {
                 .unwrap_or(0),
             tp_rescue: args.flag("--tp-rescue"),
             hold_e: args.flag("--hold-e"),
+            travel: args
+                .value("--travel")
+                .map(|s| s.trim().to_ascii_lowercase())
+                .filter(|s| s == "safehouse" || s == "camp"),
             biome,
             weather,
             spawn_zombie: args

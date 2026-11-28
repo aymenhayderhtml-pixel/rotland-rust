@@ -15,6 +15,13 @@ const SAFE_STAND_TO_SHACK_M: f32 = 0.5; // new: DECISIONS 2026-11-28 (0.5 m off 
 const BED_SIDE_DIST_M: f32 = 1.0; // new: DECISIONS 2026-11-28 (beside the bed on the side away from the chest, inside useRadiusM)
 const CLAIMED_PITCH_DEG: f32 = 35.0; // new: DECISIONS 2026-11-28 (camera looks down the back face to the rope)
 const CLAIMED_SPRING_M: f32 = 6.0; // new: DECISIONS 2026-11-28 (camera spring behind the player)
+const STREET_AIM_SHARE: f32 = 0.6; // new: DECISIONS 2026-11-28 (camera aims at 60% of the roof height)
+const STREET_EYE_M: f32 = 1.6; // new: DECISIONS 2026-11-28 (eye height for the street look-up)
+const STREET_STAND_OUT_M: f32 = 2.5; // new: DECISIONS 2026-11-28 (street camera stands 2.5 m out from the rope foot)
+const EDGE_STAND_IN_M: f32 = 1.6; // new: DECISIONS 2026-11-28 (edge pose stands 1.6 m in from the coil, inside useRadiusM 2.0)
+const EDGE_PITCH_DEG: f32 = 35.0; // new: DECISIONS 2026-11-28 (camera looks down at the coil)
+const EDGE_SPRING_M: f32 = 4.0; // new: DECISIONS 2026-11-28 (camera spring behind the edge pose)
+const STREET_SPRING_M: f32 = 4.0; // new: DECISIONS 2026-11-28 (camera spring behind the street pose)
 const CAMP_PITCH_DEG: f32 = 30.0; // new: DECISIONS 2026-11-28 (camera looks down over the tents)
 const CAMP_SPRING_M: f32 = 8.0; // new: DECISIONS 2026-11-28 (camera spring over the stall)
 
@@ -47,7 +54,7 @@ pub(super) fn r44_pose(spot: MetroSpot, metro: &MetroWorld) -> Option<MetroPose>
     let layout = safe_house_layout()?;
     let ground_y = metro.layout.site.ground_y;
     match spot {
-        MetroSpot::SafeHouse | MetroSpot::SafeHouseClaimed | MetroSpot::SafeHouseBed => {
+        MetroSpot::SafeHouse | MetroSpot::SafeHouseClaimed | MetroSpot::SafeHouseBed | MetroSpot::SafeHouseStreet | MetroSpot::SafeHouseEdge => {
             // The height closure only feeds the ladder foot; the poses use the roof plane and XZ.
             let spots = safe_house_spots(metro, layout, &|_, _| ground_y)?;
             let y = Some(spots.deck_y + ROOF_STAND_CLEAR_M);
@@ -60,6 +67,33 @@ pub(super) fn r44_pose(spot: MetroSpot, metro: &MetroWorld) -> Option<MetroPose>
                 let bed = safe_house_bed_local(layout);
                 let pos = tower_local_xz(&metro.towers[spots.tower], bed[0] - BED_SIDE_DIST_M, bed[1]);
                 Some(MetroPose { pos, yaw: yaw_facing(spots.bed.xz() - pos), top: None, y })
+            } else if spot == MetroSpot::SafeHouseEdge {
+                // Roof: beside the deck, looking down at the coil (the body stays clear of it)
+                let deck = spots.ladder_deck.xz();
+                let inward = (spots.shack.xz() - deck).normalize_or(Vec2::NEG_Y);
+                let side = Vec2::new(-inward.y, inward.x);
+                let pos = deck + inward * EDGE_STAND_IN_M;
+                // Faces along the parapet, so the coil is off to the side of the view, not behind the body
+                Some(MetroPose {
+                    pos,
+                    yaw: yaw_facing(side),
+                    top: Some(look_down(EDGE_PITCH_DEG, EDGE_SPRING_M)),
+                    y,
+                })
+            } else if spot == MetroSpot::SafeHouseStreet {
+                // Street: the ladder foot, 4 m out from the back face; the camera looks up at the rope.
+                let aim = spots.ladder_deck.xz();
+                // 2.5 m out from the foot, away from the wall, so the player does not stand on the rope
+                let away = (spots.ladder_foot.xz() - aim).normalize_or(Vec2::Y);
+                let foot = spots.ladder_foot.xz() + away * STREET_STAND_OUT_M;
+                let horiz = foot.distance(aim).max(1.0);
+                let pitch = ((spots.deck_y * STREET_AIM_SHARE - STREET_EYE_M) / horiz).atan();
+                Some(MetroPose {
+                    pos: foot,
+                    yaw: yaw_facing(aim - foot),
+                    top: Some(TopView { pitch, spring: STREET_SPRING_M }),
+                    y: None, // the street ground under the foot (the closure above does not know it)
+                })
             } else {
                 let pos = spots.ladder_deck.xz();
                 let top = Some(look_down(CLAIMED_PITCH_DEG, CLAIMED_SPRING_M));

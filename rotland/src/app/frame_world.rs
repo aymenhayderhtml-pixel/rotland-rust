@@ -222,7 +222,14 @@ pub fn update_world_interactions(
             .gunsmith_world
             .facing_shopkeeper(p.position, facing, interact_range)
             .map(|(k, d)| (k.town_key.clone(), k.position, d));
-        let pressed = (input.pressed(ui.keys.interact) || session.test_flags.hold_e)
+        // --hold-e (dev) is one press per run, like a real key press (R44 fix)
+        let hold_press = session.test_flags.hold_e
+            && !play.safe_house.test_press_spent
+            && session.play_time >= crate::safe_house_play::TEST_ACTION_DELAY_S;
+        if hold_press {
+            play.safe_house.test_press_spent = true;
+        }
+        let pressed = (input.pressed(ui.keys.interact) || hold_press)
             && !ui.screen_open()
             && !ui.e_used;
         play_state.camp.player_at = p.position;
@@ -399,15 +406,19 @@ pub fn update_world_interactions(
 
         // R44-05 safe house: claim, bed, storage, rope ladder, fast travel signs
         let home_sign = world.world_gen.as_deref().and_then(|wg| wg.home_sign_pos());
-        let safe_interact = if free_world {
-            let at = p.position;
-            let chase_r = play.safe_house.chase_radius_m();
-            let zombies = actors.zombies.as_ref();
-            let chasing = || {
-                zombies.map_or(0, |z| {
-                    game::chasing::count_chasing_near(z.active().iter().map(|a| (a.position, a.is_chasing)), at, chase_r)
-                })
-            };
+        let at = p.position;
+        let chase_r = play.safe_house.chase_radius_m();
+        let zombies = actors.zombies.as_ref();
+        let chasing = || {
+            zombies.map_or(0, |z| {
+                game::chasing::count_chasing_near(z.active().iter().map(|a| (a.position, a.is_chasing)), at, chase_r)
+            })
+        };
+        let safe_interact = if let Some(test) =
+            play.safe_house.test_travel(session.test_flags.travel.as_deref(), session.play_time, home_sign, &chasing)
+        {
+            Some(test)
+        } else if free_world {
             play.safe_house.interact_tick(at, pressed, home_sign, &chasing)
         } else {
             None
@@ -436,9 +447,8 @@ pub fn update_world_interactions(
             }
         }
         if let Some(r) = &safe_interact
-            && let Some(text) = &r.prompt
+            && r.prompt.is_some()
         {
-            play_state.set_prompt(text.clone());
             other_dist = other_dist.min(r.distance);
         }
         let free_world = free_world && safe_interact.is_none();
@@ -465,6 +475,12 @@ pub fn update_world_interactions(
         // A bed in front comes before crates; tilling with a hoe only when nothing else is offered
         let bed = free_world && play_state.camp.bed_in_front(p.position, facing).is_some();
         play_state.interact_tick(dt, pressed && free_world && !bed, p.position, facing, &world.near_crates_scratch);
+        // The safe house prompt (R44 fix) goes after the crate prompt, which overwrites the prompt each frame
+        if let Some(r) = &safe_interact
+            && let Some(text) = &r.prompt
+        {
+            play_state.set_prompt(text.clone());
+        }
         if play_state.has_prompt()
             && let Some(target) = crate::crates::find_target(p.position, facing, &world.near_crates_scratch, &play_state.world_items)
         {
