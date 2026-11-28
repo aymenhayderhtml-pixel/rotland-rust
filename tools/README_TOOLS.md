@@ -77,6 +77,10 @@ The remaining `.py` files in these folders are helpers that the scripts above im
 - `--metro=rooftop_camp` — rooftop camp roof, 6 m from the trader stall, facing the tents (hour 10).
 - `--metro=rooftop_trader` — beside the rooftop trader, claimed, with the rooftop Shop screen already open (hour 10).
 - `--metro=rescue_floor` — first R44 rescue seed on a stop floor, 3 m in from the shaft door, facing the door (hour 10).
+- `--metro=safehouse_street` — on the street below the safe house, looking up the rope ladder face (R44 fix pass).
+- `--metro=safehouse_edge` — safe house roof edge facing the rope coil; add `--hold-e` to pull the ladder up once.
+- `--travel=safehouse|camp` — after a short delay, fast-travels once (needs a claimed safe house; moves the game hour by `travelHours`).
+- `--hold-e` — presses [E] once for world actions (since R44; was every frame).
 - `--nvg` — starts with night vision goggles on and 2 batteries in the bag.
 - `--tower-style=<brick|stone|glass|slab|deco>` (with `--metro=core`) — teleports to the street in front of the nearest tower of that style, facing its facade.
 - `--map` — opens the big map hub screen on startup (unless `--gunsmith` or `--metro` UI already took the screen).

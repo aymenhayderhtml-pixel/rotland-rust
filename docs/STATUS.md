@@ -1,9 +1,9 @@
 # STATUS (read this first; keep it under ~80 lines)
 
-Updated: 2026-11-27 by Claude (R43.5 clean-up merged).
+Updated: 2026-11-28 by Claude (R44 merged).
 
 ## Where we are
-- **v1.0 tagged. Now: v1.1 = New Halden**, a big dying city (2 km, towers to ~150 m, overgrown, about 6 km out). Plan: `docs/PLAN_1.1.md` (R38-R47). R38-R43 MERGED (see below). Next: R44 (see docs/PLAN_1.1.md).
+- **v1.0 tagged. Now: v1.1 = New Halden**, a big dying city (2 km, towers to ~150 m, overgrown, about 6 km out). Plan: `docs/PLAN_1.1.md` (R38-R47). R38-R44 MERGED (see below). Next: R45 (see docs/PLAN_1.1.md).
 - **New speed rule (2026-11-26): detail first, minimum 20 FPS** (slowest moments, whole game), not 30. No speed passes unless the owner asks.
 - Version 0.1 = Godot parity in Rust, done (R0-R10). History: `docs/archive/RUST_QUEUE.md`.
 - Working on **0.2**. This week: `docs/PLAN_0.2_PUSH.md` (6-day push). Earlier plan: `docs/PLAN_0.2.md`. Locked choices: `docs/DECISIONS.md`.
@@ -60,8 +60,10 @@ Camp: avg 114 FPS, worst 1% 68. Ashford core (`--at=-384,1792`, seed 42, 18 zomb
 
 - 2026-11-27: R43.5 clean-up (Claude + 3 Haiku helpers): lobby desk moved off the stair door on climb towers (`metro.json climb.lobbyDesk`), herds walk as a loose column (`herds.columnPerZombieM`), `--metro=fire_escape` pose now faces the escape, radio "Only static now." proven after reload (`--save-at=3` then `--load=1`), split test_flags.rs / shooting.rs / play.rs / props.rs into folders (all under ~260 lines). 1527 tests. FPS metro 69.3 avg (1% low 31.2). Note: after merging helper worktrees, a stale build can fail; `touch` the changed file and rebuild.
 
+- 2026-11-28: R44 MERGED (first all-Haiku round: Haiku wrote the task files, 4+2+1 Haiku workers, Claude reviewed): rooftop safe house on the brick fire-escape tower nearest the centre (tarp shack, bed = save + skip to 07:00, chest = the bank storage, rope ladder pulled up/down = coil or segments + rail), fast travel camp <-> safe house (3 game hours, no item cost, blocked while chased; `data/safe_house.json`, `game_world/src/safe_house.rs`, `rotland/src/safe_house_*.rs`), rooftop survivor camp with green smoke + animated survivors + a trader (`data/rooftop_trader.json`), 3 floor rescues (`game_camp/src/rescue_floor.rs`), map labels Safe House / Rooftop Camp. Flags `--metro=safehouse|safehouse_claimed|safehouse_bed|safehouse_street|safehouse_edge|rooftop_camp|rooftop_trader|rescue_floor`, `--travel=`, `--hold-e` now one press. Evac tent banner fixed. 608 models, 1579 tests. FPS metro 47 avg (1% low 21): dropped from 69, cause not looked at yet.
+
 ## Next
-1. R44 rooftop life (docs/PLAN_1.1.md): rooftop safe house, fast travel, rooftop survivors + trader, rescues. Workers now = Haiku subagents (Hydrogen/DeepSeek limits used up). Leftovers: long files (climb.rs 521, camp.rs 717, frame_world/frame_ui/render_frame ~650, gunsmith_play 551, explosion_view 482, metro_flags 479). FPS check = metro only, average >= 20.
+1. R45 wild park + stadium (docs/PLAN_1.1.md). Workers = Haiku subagents (Haiku also reads code and writes task files). Check first (owner's call): metro FPS fell 69 -> 47 in R44. Leftovers: long files (climb.rs 521, camp.rs 717, frame_world/frame_ui/render_frame ~650). FPS check = metro only, average >= 20.
 
 ## Workers (who does what: PLAN_0.2.md "AI roles")
 - DeepSeek: `opencode` / `opencode/deepseek-v4.1-flash-free`: free usage ran out on 2026-11-20.
