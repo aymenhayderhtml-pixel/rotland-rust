@@ -58,3 +58,24 @@ The flags parse and pose as above; the labels draw; the docs are short; the gate
 - Any pose where the spot is not on the right surface, and what you did.
 
 ## Worker notes
+- **Files changed:** `rotland/src/app/metro_flags_r44.rs` (new, poses), `rotland/src/app/metro_flags_r44_tests.rs` (new, 6 tests), `rotland/src/app/metro_flags.rs` (6 variants incl. `safehouse_bed`, parse arms, dispatch), `rotland/src/app/mod.rs`, `rotland/src/app/test_flags/safehouse.rs` (new), `rotland/src/app/test_flags/apply.rs`, `rotland/src/app/test_flags/mod.rs`, `rotland_ui/src/metro_ui/draw_map.rs` (labels, `RooftopMapLabels`, `label_for` test), `docs/WORLD.md`, `tools/README_TOOLS.md`.
+- **Extra (lead asked, rooftop people):** `rotland/src/camp_npcs.rs` (rooftop people animated as camp figures: `sit_ground` when seated, else `idle`), `rotland/src/rooftop_npcs.rs` (`rooftop_people`, `RooftopFigure`), `rotland/src/app/start_world.rs` (passes them to `CampNpcs::new`), `world/src/generator_contents.rs` (the people are no longer props).
+- **Mod lines:** `rotland/src/app/mod.rs` has `mod metro_flags_r44;` and `#[cfg(test)] #[path = "metro_flags_r44_tests.rs"] mod metro_flags_r44_tests;` (kept out of `metro_flags.rs` so the tests can use `super::metro_flags`). `test_flags/mod.rs`: `mod safehouse;`. `apply.rs`: one call after `apply_metro_tp`.
+- **Deviations (please review):**
+  1. `safehouse_bed` is a sixth flag (not in the table), needed to prove the bed. It stands 1.0 m west of the bed, claimed.
+  2. `safehouse` stands 0.5 m off `travel_point` toward the shack. The shack collider pushes the player out to about 1.9 m from the shack centre, and the sign was 2.06 m from the travel point (use radius 2.0), so the sign was not reachable.
+  3. `data/safe_house.json` `shack.signLocal` changed `[-2.2, -4.0]` to `[-2.6, -3.6]` for the same reason (1.5 m from the travel point). This is a data change to R44-03 geometry; the lead should confirm.
+  4. `safehouse_claimed` and `rooftop_camp` use a looking-down camera (`TopView`, 35 deg / 30 deg) so the rope and the camp are visible. Pose positions are as specified.
+- **Surface checks:** the claimed pose stands on `ladder.deck` (test within 0.5 m), at the deck y. The rescue pose is the seed position, facing the shaft door, at the seed y.
+- **Numbers:** `TRADER_SIDE_DIST_M` 1.2 m, `CAMP_VIEW_DIST_M` 6.0 m, `BED_SIDE_DIST_M` 1.0 m and the camera values are tagged `// new: DECISIONS 2026-11-28`. The 0.5 m test tolerance is tagged. The test uses `2.0` for the use radius (= `safe_house.json` useRadiusM) without a tag.
+- **Not done / open:** see Lead notes in `tasks/R44-round.md` (shack sign travel and ladder pull not proven in game).
+
+## Gate report
+- date: 2026-11-28
+- base: main
+- files changed (16): data/safe_house.json, docs/WORLD.md, rotland/src/app/metro_flags_r44.rs, rotland/src/app/metro_flags_r44_tests.rs, rotland/src/app/metro_flags.rs, rotland/src/app/mod.rs, rotland/src/app/start_world.rs, rotland/src/app/test_flags/apply.rs, rotland/src/app/test_flags/mod.rs, rotland/src/app/test_flags/safehouse.rs, rotland/src/camp_npcs.rs, rotland/src/rooftop_npcs.rs, rotland_ui/src/metro_ui/draw_map.rs, tasks/R44-06-flags-map-docs.md, tools/README_TOOLS.md, world/src/generator_contents.rs
+- tests passed: 1577
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS

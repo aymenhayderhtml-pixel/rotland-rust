@@ -31,6 +31,10 @@ mod metro_flags;
 mod metro_flags_r41;
 mod metro_flags_r42;
 mod metro_flags_r43;
+mod metro_flags_r44;
+#[cfg(test)]
+#[path = "metro_flags_r44_tests.rs"]
+mod metro_flags_r44_tests;
 pub mod frame_world;
 pub mod render_frame;
 pub mod save_load;

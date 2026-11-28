@@ -9,6 +9,8 @@ use engine::render::{GpuMesh, SkinInstance, SkinnedBatch};
 use game::CampLifeDirector;
 use glam::{Mat4, Vec3};
 
+use crate::rooftop_npcs::RooftopFigure;
+
 /// One person model: mesh, skeleton and clips.
 struct Look {
     mesh: GpuMesh,
@@ -24,6 +26,8 @@ pub struct CampNpcs {
     look_index: HashMap<String, usize>,
     /// Per person: the clip playing and how long it has played.
     clocks: HashMap<String, (String, f32)>,
+    /// The rooftop camp's people (R44), animated like the camp's own.
+    rooftop: Vec<RooftopFigure>,
 }
 
 /// Something to draw this frame.
@@ -38,14 +42,20 @@ struct Figure {
 }
 
 impl CampNpcs {
-    pub fn new(device: &wgpu::Device, pack: &pack::ModelPack, director: CampLifeDirector) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        pack: &pack::ModelPack,
+        director: CampLifeDirector,
+        rooftop: Vec<RooftopFigure>,
+    ) -> Self {
         let mut looks = Vec::new();
         let mut look_index = HashMap::new();
         let names = director
             .fixed_npcs()
             .iter()
             .map(|n| n.model_id.clone())
-            .chain(director.residents().iter().map(|r| r.render_output(false).model_name));
+            .chain(director.residents().iter().map(|r| r.render_output(false).model_name))
+            .chain(rooftop.iter().map(|r| r.model.clone()));
         for name in names {
             if look_index.contains_key(&name) {
                 continue;
@@ -59,7 +69,7 @@ impl CampNpcs {
             look_index.insert(name.clone(), looks.len());
             looks.push(Look { mesh: GpuMesh::new(device, &name, &m.vertices), rig: Rig::new(skel), clips: m.clips.clone() });
         }
-        Self { director, aim: HashMap::new(), looks, look_index, clocks: HashMap::new() }
+        Self { director, aim: HashMap::new(), looks, look_index, clocks: HashMap::new(), rooftop }
     }
 
     /// Runs the camp's routine and advances every person's animation clock.
@@ -91,7 +101,15 @@ impl CampNpcs {
             yaw: o.yaw,
             clip: o.animation,
         });
-        fixed.chain(residents).collect()
+        let rooftop = self.rooftop.iter().map(|r| Figure {
+            phase: (r.id.len() as f32 * 0.21) % 1.0,
+            id: r.id.clone(),
+            model: r.model.clone(),
+            position: r.position,
+            yaw: r.yaw,
+            clip: r.clip.clone(),
+        });
+        fixed.chain(residents).chain(rooftop).collect()
     }
 
     /// Adds every person's skin matrices to `bones` and returns one batch per model.

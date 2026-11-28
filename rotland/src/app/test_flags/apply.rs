@@ -30,6 +30,7 @@ pub fn apply_startup(
     if let Some(key) = session.test_flags.metro.as_deref() {
         apply_metro_tp(gpu, render, world, actors, play, session, key);
     }
+    super::safehouse::apply_safehouse_flags(play, ui, session);
     if let Some(index) = session.test_flags.trailhead {
         apply_trailhead_tp(gpu, render, world, actors, session, index);
     }

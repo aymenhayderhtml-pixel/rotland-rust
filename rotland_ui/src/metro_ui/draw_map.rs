@@ -3,6 +3,7 @@
 
 use engine::egui::{self, Align2, Color32, FontId, Pos2, Rect, Stroke, pos2, vec2};
 use glam::Vec2;
+use world::metro::safehouse::{rooftop_camp_tower, safe_house_tower};
 use world::metro::{ClimbKind, MetroLayout, MetroWorld, Reserved, army_line_site, climb_towers, place_sites};
 
 use crate::map_ui::MapUiState;
@@ -28,6 +29,15 @@ pub struct MetroMapConfig {
     pub street_color: Color32,
     pub label_size: f32,
     pub label_color: Color32,
+    /// Map labels for the R44 safe house tower and rooftop camp tower (empty = no label).
+    pub rooftop: RooftopMapLabels,
+}
+
+/// Labels for the two R44 rooftop towers, from `data/safe_house.json` (`mapLabel`).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct RooftopMapLabels {
+    pub safe_house: String,
+    pub rooftop_camp: String,
 }
 
 impl Default for MetroMapConfig {
@@ -37,8 +47,38 @@ impl Default for MetroMapConfig {
             street_color: Color32::from_rgb(69, 69, 74),     // data: map.json metro_street_color
             label_size: 16.0,                                // data: map.json metro_label_size
             label_color: Color32::from_rgb(245, 240, 225),   // data: map.json metro_label_color
+            rooftop: RooftopMapLabels::default(),
         }
     }
+}
+
+/// The rooftop tower labels from the safe house data (the `mapLabel` keys). Missing data = no label.
+fn rooftop_labels_from_repo() -> RooftopMapLabels {
+    RooftopMapLabels {
+        safe_house: game::safe_house::SafeHouseConfig::from_repo()
+            .map(|c| c.map_label)
+            .unwrap_or_default(),
+        rooftop_camp: world::metro::safehouse::safe_house_layout()
+            .map(|l| l.rooftop_camp.map_label.clone())
+            .unwrap_or_default(),
+    }
+}
+
+/// The label for `tower`, when it is the safe house tower or the rooftop camp tower.
+pub fn rooftop_label_for(
+    tower: usize,
+    safe: Option<usize>,
+    camp: Option<usize>,
+    labels: &RooftopMapLabels,
+) -> Option<&str> {
+    let text = if safe == Some(tower) {
+        labels.safe_house.as_str()
+    } else if camp == Some(tower) {
+        labels.rooftop_camp.as_str()
+    } else {
+        ""
+    };
+    (!text.is_empty()).then_some(text)
 }
 
 impl MetroMapConfig {
@@ -68,10 +108,12 @@ impl MetroMapConfig {
 
     /// Reads `data/map.json` from the repo; a missing file gives the defaults.
     pub fn load_default() -> Self {
-        match std::fs::read_to_string(paths::repo_path("data/map.json")) {
+        let mut cfg = match std::fs::read_to_string(paths::repo_path("data/map.json")) {
             Ok(text) => Self::load(&text),
             Err(_) => Self::default(),
-        }
+        };
+        cfg.rooftop = rooftop_labels_from_repo();
+        cfg
     }
 }
 
@@ -169,6 +211,17 @@ pub fn draw_metro_map(
                 draw_small_label(painter, p, label, cfg);
             }
         }
+        let safe = safe_house_tower(m);
+        let camp = rooftop_camp_tower(m);
+        for idx in [safe, camp].into_iter().flatten() {
+            let Some(label) = rooftop_label_for(idx, safe, camp, &cfg.rooftop) else {
+                continue;
+            };
+            let p = to_screen(m.towers[idx].pos);
+            if rect.contains(p) {
+                draw_small_label(painter, p, label, cfg);
+            }
+        }
     }
 }
 
@@ -194,4 +247,25 @@ fn draw_label(painter: &egui::Painter, at: Pos2, text: &str, cfg: &MetroMapConfi
         Color32::from_black_alpha(SHADOW_ALPHA),
     );
     painter.text(at, Align2::CENTER_CENTER, text, font, cfg.label_color);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rooftop_label_is_only_for_the_right_towers() {
+        let labels = RooftopMapLabels { safe_house: "Safe House".into(), rooftop_camp: "Rooftop Camp".into() };
+        assert_eq!(rooftop_label_for(3, Some(3), Some(9), &labels), Some("Safe House"));
+        assert_eq!(rooftop_label_for(9, Some(3), Some(9), &labels), Some("Rooftop Camp"));
+        assert_eq!(rooftop_label_for(4, Some(3), Some(9), &labels), None);
+        assert_eq!(rooftop_label_for(3, None, None, &labels), None);
+    }
+
+    #[test]
+    fn empty_label_text_draws_nothing() {
+        let labels = RooftopMapLabels { safe_house: String::new(), rooftop_camp: "Rooftop Camp".into() };
+        assert_eq!(rooftop_label_for(3, Some(3), Some(9), &labels), None);
+        assert_eq!(rooftop_label_for(9, Some(3), Some(9), &labels), Some("Rooftop Camp"));
+    }
 }

@@ -174,9 +174,7 @@ impl WorldGenerator {
         let mut props = crate::metro::safehouse::safehouse_in_chunk(metro, layout, chunk, hfn, down).props;
         let (camp, npcs) = crate::metro::safehouse::rooftop_camp_in_chunk(metro, layout, chunk);
         props.extend(camp.props);
-        for n in &npcs {
-            props.push(PropInstance::new(n.model.clone(), n.position, n.yaw, 1.0));
-        }
+        // The rooftop people are not props: the play side draws them as animated figures (camp_npcs).
         (props, npcs)
     }
 

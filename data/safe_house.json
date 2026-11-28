@@ -18,7 +18,7 @@
     "claimedToast": "Safe house claimed. The ladder is down.",
     "rested": "Saved. Morning."
   },
-  "shack": { "centreLocal": [-4.0, -5.0], "bedLocal": [-4.6, -5.6], "chestLocal": [-3.2, -5.9], "signLocal": [-2.2, -4.0], "travelPointLocal": [-4.0, -3.0] },
+  "shack": { "centreLocal": [-4.0, -5.0], "bedLocal": [-4.6, -5.6], "chestLocal": [-3.2, -5.9], "signLocal": [-2.6, -3.6], "travelPointLocal": [-4.0, -3.0] },
   "ladder": { "footOutM": 4.0, "deckInsetM": 0.6, "centreX": 0.0, "segmentM": 1.0 },
   "rooftopCamp": {
     "mapLabel": "Rooftop Camp",
