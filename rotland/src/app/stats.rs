@@ -220,6 +220,9 @@ pub fn get_stats(
     s.insert("safeHouseLadderDown".into(), play.safe_house.state.ladder_down.into());
     let rescued = play.rescue.as_ref().map_or(0, |r| r.rescued_ids_sorted().len());
     s.insert("rescuedCount".into(), rescued.into());
+    // Rope rail count: 1 with the ladder down, 0 up (the rail the streamer adds around the roof)
+    let rails = world.streamer.as_ref().map_or(0, |st| st.extra_ladders.len());
+    s.insert("safeHouseRails".into(), rails.into());
     let chasing = actors.zombies.as_ref().map_or(0, |z| {
         game::chasing::count_chasing_near(
             z.active().iter().map(|a| (a.position, a.is_chasing)),

@@ -64,7 +64,14 @@ pub struct SafeHousePlay {
     pub pending_travel: Option<Vec3>,
     /// The frame saves the game at its end (set by the bed).
     pub pending_save: bool,
+    /// `--hold-e` (dev): the one test press has been used (hold-E is an edge, not a repeat).
+    pub test_press_spent: bool,
+    /// `--travel=` (dev): the one test travel has been used.
+    pub test_travel_spent: bool,
 }
+
+/// Seconds into a run before the dev test press or travel fires (the pose has settled). // new: DECISIONS 2026-11-28
+pub const TEST_ACTION_DELAY_S: f64 = 1.0;
 
 impl SafeHousePlay {
     /// Loads config, the tower spots and the rooftop stock; restores the saved state.
@@ -144,7 +151,6 @@ impl SafeHousePlay {
         let pr = &cfg.prompts;
         let reach = cfg.use_radius_m;
         let rest_hour = cfg.rest_hour;
-        let travel_hours = cfg.travel_hours;
         let claimed = self.state.claimed;
         let mut options: Vec<(Vec3, Spot, String)> = Vec::new();
         if claimed {
@@ -183,18 +189,43 @@ impl SafeHousePlay {
             }
             Spot::Chest => SafeHouseEffect::OpenBank,
             Spot::Ladder => SafeHouseEffect::ToggleLadder { down: self.state.toggle_ladder() },
-            Spot::SignCamp | Spot::HomeSign => {
-                let to_roof = spot == Spot::HomeSign;
-                match travel_decision(claimed, chasing()) {
-                    TravelDecision::Go => {
-                        self.pending_travel = if to_roof { Some(spots.travel_point) } else { home_sign };
-                        SafeHouseEffect::Travel { to_roof, hours: travel_hours }
-                    }
-                    TravelDecision::Blocked => SafeHouseEffect::TravelBlocked,
-                }
-            }
+            Spot::SignCamp | Spot::HomeSign => self.travel_now(spot == Spot::HomeSign, home_sign, chasing()),
         };
         Some(SafeHouseInteract { prompt: None, distance: dist, consumed_press: true, effect: Some(effect) })
+    }
+
+    /// The travel itself: needs a claim and no chasers (`travel_decision`). Moves the pending placement.
+    pub fn travel_now(&mut self, to_roof: bool, home_sign: Option<Vec3>, chasing: usize) -> SafeHouseEffect {
+        let hours = self.config.as_ref().map_or(0.0, |c| c.travel_hours);
+        let travel_point = self.spots.as_ref().map(|s| s.travel_point);
+        match (travel_decision(self.state.claimed, chasing), travel_point) {
+            (TravelDecision::Go, Some(point)) => {
+                self.pending_travel = if to_roof { Some(point) } else { home_sign };
+                SafeHouseEffect::Travel { to_roof, hours }
+            }
+            _ => SafeHouseEffect::TravelBlocked,
+        }
+    }
+
+    /// Dev `--travel=safehouse|camp`: travels once, after `TEST_ACTION_DELAY_S`, without the sign reach.
+    pub fn test_travel(
+        &mut self,
+        want: Option<&str>,
+        play_time: f64,
+        home_sign: Option<Vec3>,
+        chasing: &dyn Fn() -> usize,
+    ) -> Option<SafeHouseInteract> {
+        if self.test_travel_spent || play_time < TEST_ACTION_DELAY_S {
+            return None;
+        }
+        let to_roof = match want? {
+            "safehouse" => true,
+            "camp" => false,
+            _ => return None,
+        };
+        self.test_travel_spent = true;
+        let effect = self.travel_now(to_roof, home_sign, chasing());
+        Some(SafeHouseInteract { prompt: None, distance: 0.0, consumed_press: false, effect: Some(effect) })
     }
 
     /// Buys one item from the rooftop stock (the rooftop shop's Buy button).

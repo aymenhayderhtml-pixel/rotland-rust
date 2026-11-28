@@ -53,6 +53,8 @@ fn r44_spot_names_parse_and_unknown_is_none() {
     assert_eq!(MetroSpot::parse("rooftop_camp"), Some(MetroSpot::RooftopCamp));
     assert_eq!(MetroSpot::parse("rooftop_trader"), Some(MetroSpot::RooftopTrader));
     assert_eq!(MetroSpot::parse("rescue_floor"), Some(MetroSpot::RescueFloor));
+    assert_eq!(MetroSpot::parse("safehouse_street"), Some(MetroSpot::SafeHouseStreet));
+    assert_eq!(MetroSpot::parse("safehouse_edge"), Some(MetroSpot::SafeHouseEdge));
     assert_eq!(MetroSpot::parse("safe_house"), None);
     assert_eq!(MetroSpot::parse("rooftop"), None);
 }
@@ -67,11 +69,14 @@ fn r44_poses_are_inside_the_city_and_exist() {
         MetroSpot::RooftopCamp,
         MetroSpot::RooftopTrader,
         MetroSpot::RescueFloor,
+        MetroSpot::SafeHouseStreet,
+        MetroSpot::SafeHouseEdge,
     ] {
         let pose = metro_pose(spot, &metro, None, 25.0, 1.6)
             .unwrap_or_else(|| panic!("{spot:?} has no pose"));
         assert!(inside_city(&metro, pose.pos), "{spot:?} at {:?} is outside the city", pose.pos);
-        assert!(pose.y.is_some(), "{spot:?} needs a height");
+        // The street pose drops onto the ground (no height); the others need the roof or floor height
+        assert!(pose.y.is_some() || spot == MetroSpot::SafeHouseStreet, "{spot:?} needs a height");
     }
 }
 
@@ -132,4 +137,27 @@ fn safehouse_bed_pose_is_within_reach_of_the_bed_only() {
     assert!(pose.pos.distance(spots.bed.xz()) <= reach);
     assert!(pose.pos.distance(spots.chest.xz()) > reach, "the chest must not be the nearest spot");
     assert!(pose.pos.distance(spots.ladder_deck.xz()) > reach);
+}
+
+#[test]
+fn safehouse_edge_stands_in_reach_of_the_coil_beside_the_body() {
+    let metro = test_metro_world();
+    let layout = safe_house_layout().expect("layout");
+    let spots = safe_house_spots(&metro, layout, &|_, _| 0.0).expect("spots");
+    let pose = metro_pose(MetroSpot::SafeHouseEdge, &metro, None, 25.0, 1.6).expect("pose");
+    // Inside the E reach (useRadiusM 2.0) so a press from here lowers or pulls the ladder
+    let d = pose.pos.distance(spots.ladder_deck.xz());
+    assert!(d > 1.0 && d <= 2.0, "edge pose {d} m from the coil");
+    assert!(pose.top.is_some_and(|t| t.pitch < 0.0), "edge camera looks down");
+}
+
+#[test]
+fn safehouse_street_looks_up_the_back_face_from_off_the_rope() {
+    let metro = test_metro_world();
+    let layout = safe_house_layout().expect("layout");
+    let spots = safe_house_spots(&metro, layout, &|_, _| 0.0).expect("spots");
+    let pose = metro_pose(MetroSpot::SafeHouseStreet, &metro, None, 25.0, 1.6).expect("pose");
+    // Stands 2.5 m out from the rope foot, not on the rope
+    assert!((pose.pos.distance(spots.ladder_foot.xz()) - 2.5).abs() < 0.05);
+    assert!(pose.top.is_some_and(|t| t.pitch > 0.0), "street camera looks up");
 }

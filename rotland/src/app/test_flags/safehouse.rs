@@ -17,6 +17,8 @@ pub(super) fn apply_safehouse_flags(play: &mut PlaySide, ui: &mut UiState, sessi
         spot,
         MetroSpot::SafeHouse
             | MetroSpot::SafeHouseClaimed
+            | MetroSpot::SafeHouseStreet
+            | MetroSpot::SafeHouseEdge
             | MetroSpot::SafeHouseBed
             | MetroSpot::RooftopCamp
             | MetroSpot::RooftopTrader
@@ -30,7 +32,7 @@ pub(super) fn apply_safehouse_flags(play: &mut PlaySide, ui: &mut UiState, sessi
         play.clock.set_time(R44_TEST_HOUR);
         play.clock_frozen = true;
     }
-    if matches!(spot, MetroSpot::SafeHouseClaimed | MetroSpot::SafeHouseBed | MetroSpot::RooftopTrader) {
+    if matches!(spot, MetroSpot::SafeHouseClaimed | MetroSpot::SafeHouseStreet | MetroSpot::SafeHouseEdge | MetroSpot::SafeHouseBed | MetroSpot::RooftopTrader) {
         play.safe_house.state.claim();
     }
     if spot == MetroSpot::RooftopTrader {

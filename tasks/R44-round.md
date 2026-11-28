@@ -70,5 +70,21 @@ Built `target/play/rotland` (R44-06 worktree, `--save-dir=/tmp/r44-saves-r06`). 
 - **Changes the lead must know:** `data/safe_house.json` shack sign moved to `[-2.6, -3.6]`; a sixth flag `safehouse_bed`; rooftop people are now animated camp figures (`camp_npcs.rs`), not props.
 - **Open for the next round:** (1) the shack-sign prompt does not show from the travel point; check the reach/collider in game with a real key press; (2) hold-E repeats actions each frame, so the ladder and the bed cannot be proven by flags; a one-press flag would fix the proof; (3) a camp-to-roof travel test needs `--at` to work after `--load`.
 
+### Fix pass (worker, 2026-11-28)
+Gate: `tools/gate.sh --task tasks/R44-round.md` PASS (1579 tests). Debug build, `--save-dir=/tmp/r44fix-saves`, stats in `/tmp/r44fix/*.json`, pictures in `/tmp/r44fix/`.
+1. **Fast travel (both ways) works.** New dev flag `--travel=safehouse|camp` (one travel, 1 s into the run, skips the sign reach). Roof to camp (`travCamp.json`): gameHour 10.0 to 13.0 (travelHours 3), position 5781.89, 55.13, -3270.47 to 96.00, 0.78, -34.60 (camp). Camp to roof (`travRoof.json`, `--load=1 --travel=safehouse`): position to 5788.65, 55.12, -3279.33 (roof), hour 10.0 to 13.16 (same-length load without travel, `ladE.json`, reads 10.12). Blocked: unit test `travel_needs_a_claim_and_no_chasers` (1 chaser = Blocked, no time). Prompt cause: `play_state.interact_tick` overwrote the prompt every frame, so the sign and ladder prompts were wiped; the safe house prompt is now set after it (`frame_world.rs`). Picture of a safe house prompt: `/tmp/r44fix/prompt_claimed.png` ("[E] Pull the rope ladder up"). No picture of the sign prompt itself (no pose stands at the sign in a run).
+2. **Rope toggle is one press.** `--hold-e` now presses once per run (1 s in), not every frame. Sequence (`safeHouseLadderDown` / `safeHouseRails`): claim + press `ladA.json` false / 0 (down to up); `--load=1 --hold-e` `ladB.json` true / 1 (up to down); `--load=1` `ladC.json` true / 1 (stays down); `--load=1 --hold-e` `ladD.json` false / 0 (down to up); `--load=1` `ladE.json` false / 0 (stays up).
+3. **Rope visible.** New poses: `--metro=safehouse_street` (2.5 m out from the rope foot, camera looks up): `/tmp/r44fix/street_down.png`, the rope runs up the back face to the roof edge. `--metro=safehouse_edge --hold-e` (beside the deck, faces the parapet, ladder up): `/tmp/r44fix/coil_edge.png`, the tan coil sits at the roof edge. Placement in `world/src/metro/safehouse.rs` left unchanged (the pictures show it on the back face, attached at the roof edge).
+4. **Map label.** `draw_map.rs` skips the "Stairs" label for the rooftop camp tower: `/tmp/r44fix/map_label.png` shows "Rooftop Camp" with no "Stairs" on top of it.
+5. **Banner.** `army_camp.py` stenciled "EVACUATION" on both end faces; the open flap end showed the second copy through the tent. Now once, on the closed back end. Rebuilt `evac_tent` (and `evac_tent_lod1`, no stencil) with `/tmp/rotland-blender.lock`; preview `/tmp/r44fix/evac_tent_preview.png`, banner zoom `/tmp/r44fix/evac_tent_banner_zoom.png`. Re-baked `assets/models.pack` (not committed).
+Known: `--travel` and the two new poses are dev flags only; `docs/` not updated (lead to add to `tools/README_TOOLS.md`).
+
 ## Gate report
-(filled by the gate)
+- date: 2026-11-28
+- base: main
+- files changed (11): assets/models/props/evac_tent.glb, rotland/src/app/frame_world.rs, rotland/src/app/metro_flags_r44.rs, rotland/src/app/metro_flags_r44_tests.rs, rotland/src/app/metro_flags.rs, rotland/src/app/stats.rs, rotland/src/app/test_flags/mod.rs, rotland/src/app/test_flags/safehouse.rs, rotland/src/safe_house_play.rs, rotland_ui/src/metro_ui/draw_map.rs, tools/blender/places/army_camp.py
+- tests passed: 1579
+- clippy: PASS
+- test: PASS
+- checks: PASS
+- gate: PASS
