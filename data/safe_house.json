@@ -1,0 +1,39 @@
+{
+  "_why": "R44: rooftop safe house on one fire-escape tower; fast travel; rooftop camp. Claude defaults 2026-11-28.",
+  "travelHours": 3.0,
+  "restHour": 7.0,
+  "chaseRadiusM": 40.0,
+  "useRadiusM": 2.0,
+  "mapLabel": "Safe House",
+  "prompts": {
+    "claim": "[E] Claim safe house",
+    "bed": "[E] Rest and save",
+    "chest": "[E] Open storage",
+    "ladderUp": "[E] Pull the rope ladder up",
+    "ladderDown": "[E] Lower the rope ladder",
+    "travelToSafeHouse": "[E] Travel to safe house",
+    "travelToCamp": "[E] Travel to camp",
+    "travelBlocked": "Zombies are chasing you",
+    "notClaimed": "Find the safe house first",
+    "claimedToast": "Safe house claimed. The ladder is down.",
+    "rested": "Saved. Morning."
+  },
+  "shack": { "centreLocal": [-4.0, -5.0], "bedLocal": [-4.6, -5.6], "chestLocal": [-3.2, -5.9], "signLocal": [-2.2, -4.0], "travelPointLocal": [-4.0, -3.0] },
+  "ladder": { "footOutM": 4.0, "deckInsetM": 0.6, "centreX": 0.0, "segmentM": 1.0 },
+  "rooftopCamp": {
+    "mapLabel": "Rooftop Camp",
+    "props": [
+      { "model": "evac_tent", "local": [-5.0, 3.0], "yaw": 0.4 },
+      { "model": "evac_tent", "local": [-5.0, -1.0], "yaw": -0.3 },
+      { "model": "green_smoke_barrel", "local": [0.0, 2.0], "yaw": 0.0 },
+      { "model": "rooftop_trader_stall", "local": [4.0, 0.0], "yaw": -1.5708 },
+      { "model": "fire_barrel", "local": [0.5, -1.0], "yaw": 0.0 }
+    ],
+    "npcs": [
+      { "id": "rooftop_survivor_1", "model": "npc_survivor", "local": [-3.0, 2.5], "yaw": 0.6, "sitting": true },
+      { "id": "rooftop_survivor_2", "model": "npc_survivor", "local": [-1.0, -2.5], "yaw": 1.2, "sitting": false },
+      { "id": "rooftop_survivor_3", "model": "npc_survivor", "local": [2.0, 3.0], "yaw": 3.0, "sitting": true },
+      { "id": "rooftop_trader", "model": "npc_trader", "local": [2.8, 0.0], "yaw": -1.5708, "sitting": false, "role": "trader" }
+    ]
+  }
+}
