@@ -6,6 +6,7 @@ given in SPECS, so the origin is the spot the task table names.
 """
 import math
 import os
+import random
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -161,25 +162,35 @@ def build_bed(model):
 
 
 def build_chest(model):
-    """Metal storage chest 0.9 x 0.6 x 0.6 m: lid, ribs, hasp and padlock, rust patches."""
-    for x in (-0.38, 0.38):
-        for y in (-0.24, 0.24):
-            model.add(common.make_box((0.08, 0.08, 0.04), loc=(x, y, 0.02), color="gun_black"))
-    model.add(common.make_box((0.9, 0.6, 0.36), loc=(0.0, 0.0, 0.22), color="metal"))
-    model.add(common.make_box((0.92, 0.62, 0.14), loc=(0.0, 0.0, 0.47), color="metal"))
-    model.add(common.make_box((0.88, 0.58, 0.06), loc=(0.0, 0.0, 0.57), color="rock_dark"))
-    for x in (-0.3, 0.0, 0.3):
-        model.add(common.make_box((0.04, 0.03, 0.36), loc=(x, 0.30, 0.22), color="rock_dark"))
-    for sx in (-0.45, 0.45):
-        model.add(common.make_box((0.02, 0.14, 0.18), loc=(sx, 0.0, 0.22), color="rust"))
-        model.add(common.make_box((0.02, 0.07, 0.10), loc=(sx, 0.12, 0.32), color="rust_dark"))
-    model.add(common.make_box((0.10, 0.03, 0.16), loc=(0.0, 0.325, 0.36), color="metal"))
-    model.add(common.make_box((0.07, 0.04, 0.08), loc=(0.0, 0.335, 0.27), color="brass"))
-    model.add(common.make_box((0.12, 0.05, 0.04), loc=(0.0, 0.33, 0.56), color="gun_black"))
+    """Dented olive footlocker 0.9 x 0.6 x 0.6 m: skids, body, lid, metal corners, hasp and padlock, rope wrap, tarp corner."""
+    for y in (-0.22, 0.22):  # skids on the floor
+        model.add(common.make_box((0.9, 0.05, 0.06), loc=(0.0, y, 0.03), color="gun_black"))
+    model.add(common.make_box((0.84, 0.54, 0.38), loc=(0.0, 0.0, 0.25), color="cloth_olive"))
+    model.add(common.make_box((0.88, 0.58, 0.16), loc=(0.0, 0.0, 0.52), color="cloth_olive"))
+    for sx in (-0.43, 0.43):  # metal corner strips
+        for sy in (-0.29, 0.29):
+            model.add(common.make_box((0.04, 0.04, 0.54), loc=(sx, sy, 0.33), color="metal"))
+    for sx in (-1.0, 1.0):  # side handles: two stands and a grip bar
+        for y in (-0.1, 0.1):
+            model.add(common.make_box((0.03, 0.03, 0.05), loc=(sx * 0.44, y, 0.47), color="metal"))
+        model.add(common.make_box((0.03, 0.26, 0.03), loc=(sx * 0.46, 0.0, 0.51), color="metal"))
+        model.add(common.make_box((0.01, 0.12, 0.08), loc=(sx * 0.44, -0.15, 0.36), color="rust"))  # side rust patch
     for x in (-0.36, -0.12, 0.12, 0.36):  # lid rivets on the front
-        model.add(common.make_box((0.03, 0.02, 0.03), loc=(x, 0.32, 0.52), color="rock_light"))
-    for sx in (-0.46, 0.46):  # side dents
-        model.add(common.make_box((0.02, 0.10, 0.08), loc=(sx, -0.12, 0.42), color="rock_dark"))
+        model.add(common.make_box((0.03, 0.02, 0.03), loc=(x, 0.32, 0.50), color="rock_light"))
+    model.add(common.make_box((0.14, 0.02, 0.12), loc=(0.0, 0.30, 0.36), color="metal"))  # hasp plate
+    model.add(common.make_box((0.07, 0.05, 0.09), loc=(0.0, 0.335, 0.30), color="brass"))  # padlock body
+    for x in (-0.025, 0.025):
+        model.add(stick((x, 0.335, 0.345), (x, 0.335, 0.39), 0.012, "metal"))
+    model.add(stick((-0.025, 0.335, 0.39), (0.025, 0.335, 0.39), 0.012, "metal"))
+    model.add(common.make_box((0.2, 0.01, 0.02), loc=(-0.25, 0.30, 0.16), color="white"))  # stencil marks
+    model.add(common.make_box((0.14, 0.01, 0.06), loc=(0.18, 0.30, 0.32), color="white"))
+    model.add(common.make_box((0.04, 0.01, 0.04), loc=(0.30, 0.30, 0.16), color="white"))
+    for p0, p1 in (((0.45, -0.30, 0.2), (0.45, 0.30, 0.2)), ((0.45, 0.30, 0.2), (-0.45, 0.30, 0.2)),
+                   ((-0.45, 0.30, 0.2), (-0.45, -0.30, 0.2)), ((-0.45, -0.30, 0.2), (0.45, -0.30, 0.2))):
+        model.add(stick(p0, p1, 0.03, "canvas_khaki"))  # rope wrap around the body
+    model.add(common.make_box((0.06, 0.06, 0.06), loc=(0.45, 0.30, 0.2), color="canvas_khaki"))  # knot
+    model.add(common.make_box((0.24, 0.2, 0.01), loc=(-0.32, -0.19, 0.625), color="tarp_blue"))  # tarp corner
+    model.add(common.make_box((0.12, 0.1, 0.01), loc=(0.15, 0.05, 0.625), color="rust"))  # lid rust
     model.add_collider("body", common.make_box((0.9, 0.6, 0.6), loc=(0.0, 0.0, 0.3), color="white"))
 
 
@@ -213,30 +224,52 @@ def build_rope_ladder_seg(model):
     model.add(common.make_box((0.06, 0.06, 0.04), loc=(0.0, 0.0, 0.94), color="metal"))
 
 
+def _unit(x, y, z):
+    n = math.sqrt(x * x + y * y + z * z) or 1.0
+    return (x / n, y / n, z / n)
+
+
+def _cross(a, b):
+    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
 def build_rope_ladder_coil(model):
-    """Rope ladder pulled up and rolled: rope rings around a Y axis, rungs on top. 0.7 x 0.4 x 0.7 m."""
-    segments = 16
-    for r, col in ((0.18, "canvas_khaki"), (0.24, "bark_light"), (0.30, "canvas_khaki")):
-        for i in range(segments):
-            a = 2.0 * math.pi * i / segments
-            px, pz = r * math.cos(a), 0.35 + r * math.sin(a)
-            bm = common.make_box((0.12, 0.34, 0.07), color=col)
-            # Rotate about Y so the box's long side follows the ring tangent
-            common.transform(bm, rot=(0.0, math.atan2(-math.cos(a), -math.sin(a)), 0.0), loc=(px, 0.0, pz))
-            model.add(bm)
-    for y in (-0.12, 0.12):
-        model.add(common.make_box((0.5, 0.03, 0.03), loc=(0.0, y, 0.66), color="bark_dark"))
-    model.add(common.make_box((0.08, 0.06, 0.06), loc=(0.0, 0.0, 0.03), color="metal"))
+    """Rope ladder pulled up and rolled: loose rope loops, short rungs sticking out, a hook clamp on the
+    parapet with a tie rope. 0.7 x 0.4 x 0.7 m, origin at the base centre, no collider."""
+    rng = random.Random(4421)  # fixed seed: the same bundle every build
+    for _ in range(12):
+        u = _unit(rng.uniform(-1, 1), rng.uniform(-0.3, 0.3), rng.uniform(-1, 1))
+        v = _unit(*_cross(_unit(rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-1, 1)), u))
+        r = rng.uniform(0.08, 0.2)
+        cx, cy, cz = rng.uniform(-0.1, 0.1), rng.uniform(-0.12, 0.12), 0.3 + rng.uniform(-0.12, 0.12)
+        pts = []
+        for k in range(7):
+            t = 2.0 * math.pi * k / 7
+            x = cx + r * (math.cos(t) * u[0] + math.sin(t) * v[0])
+            y = cy + r * (math.cos(t) * u[1] + math.sin(t) * v[1])
+            z = cz + r * (math.cos(t) * u[2] + math.sin(t) * v[2])
+            pts.append((min(0.3, max(-0.3, x)), min(0.16, max(-0.16, y)), min(0.6, max(0.04, z))))
+        for k in range(7):
+            model.add(stick(pts[k], pts[(k + 1) % 7], 0.04, "canvas_khaki"))
+    for _ in range(6):  # wooden rungs poking out of the bundle
+        d = _unit(rng.uniform(-1, 1), rng.uniform(-0.3, 0.3), rng.uniform(-0.5, 0.5))
+        a = (0.14 * d[0], 0.14 * d[1], 0.3 + 0.14 * d[2])
+        b = (0.34 * d[0], 0.34 * d[1], 0.3 + 0.34 * d[2])
+        model.add(stick(a, b, 0.03, "bark_light"))
+    model.add(common.make_box((0.05, 0.14, 0.08), loc=(0.33, 0.0, 0.6), color="metal"))  # parapet clamp
+    model.add(stick((0.33, 0.0, 0.64), (0.33, 0.0, 0.68), 0.02, "metal"))  # hook
+    model.add(stick((0.33, 0.0, 0.68), (0.26, 0.0, 0.68), 0.02, "metal"))
+    model.add(stick((0.22, 0.0, 0.6), (0.3, 0.0, 0.6), 0.025, "canvas_khaki"))  # tie rope to the hook
 
 
 # name, budget, build function, grip (origin), preview view (None = default)
 SPECS = (
     ("safehouse_shack", 2500, build_shack, (0.0, 0.0, 0.0), (1.0, 1.0, 0.7)),
     ("safehouse_bed", 500, build_bed, (0.0, 0.0, 0.0), None),
-    ("safehouse_chest", 500, build_chest, (0.0, 0.0, 0.0), None),
+    ("safehouse_chest", 500, build_chest, (0.0, 0.0, 0.0), (-1.0, 1.0, 0.6)),
     ("travel_sign", 700, build_travel_sign, (0.0, 0.0, 0.0), (0.5, 1.0, 0.35)),
     ("rope_ladder_seg", 400, build_rope_ladder_seg, (0.0, 0.0, 1.0), (0.8, 1.0, 0.4)),
-    ("rope_ladder_coil", 800, build_rope_ladder_coil, (0.0, 0.0, 0.0), None),
+    ("rope_ladder_coil", 1500, build_rope_ladder_coil, (0.0, 0.0, 0.0), None),
 )
 
 
