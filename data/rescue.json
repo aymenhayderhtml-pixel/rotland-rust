@@ -5,5 +5,7 @@
   "clearRadius": 12.0,
   "talkRange": 2.5,
   "minZombiesNear": 3,
-  "perTown": [1, 2]
+  "perTown": [1, 2],
+  "floorSurvivors": 3,
+  "_floorWhy": "R44: survivors on climb-tower stop floors"
 }

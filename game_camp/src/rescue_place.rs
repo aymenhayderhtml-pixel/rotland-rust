@@ -9,6 +9,7 @@ use world::{DotnetRandom, PoiConfigData, PoiInstance, PoiPlacer, TownLot, TownSi
 use crate::guild::{GuildRecruit, RecruitDef, RecruitOrder, RecruitRole};
 use game_core::loot::crate_seed;
 use crate::rescue::RescueConfig;
+use crate::rescue_floor::is_climb_floor_poi;
 
 /// POI building IDs eligible to hold a trapped survivor.
 pub const RESCUE_BUILDINGS: &[&str] = &["house_small", "cabin", "shop", "apartment", "fish_shack"];
@@ -329,7 +330,11 @@ pub fn place_survivors_in_world(
     cfg: &RescueConfig,
     recruits: &[RecruitDef],
 ) -> Vec<RescueSpot> {
-    let pois = collect_candidate_pois(world_gen);
+    // Climb-floor POIs get their own survivors (rescue_floor.rs), so the random pass skips them.
+    let pois: Vec<PoiInstance> = collect_candidate_pois(world_gen)
+        .into_iter()
+        .filter(|p| !is_climb_floor_poi(&p.id))
+        .collect();
     let camp_centers: Vec<Vec3> = world_gen.settlements().iter().map(|s| s.center).collect();
     let mut spots = place_survivors(
         world_gen.seed(),

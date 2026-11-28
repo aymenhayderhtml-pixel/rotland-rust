@@ -1,0 +1,17 @@
+{
+  "_why": "R44: the rooftop trader sells city-only gear and basic supplies. Prices come from economy.json (buyRate, sellRate). Claude defaults 2026-11-28.",
+  "mapLabel": "Rooftop Camp",
+  "stock": [
+    { "id": "bandage", "qty": 6 },
+    { "id": "medkit", "qty": 2 },
+    { "id": "water_bottle", "qty": 6 },
+    { "id": "canned_beans", "qty": 6 },
+    { "id": "pistol_ammo", "qty": 30 },
+    { "id": "shells_12g", "qty": 8 },
+    { "id": "rifle_rounds", "qty": 6 },
+    { "id": "antibiotics", "qty": 2 },
+    { "id": "surgery_kit", "qty": 1 },
+    { "id": "adrenaline_shot", "qty": 2 },
+    { "id": "night_vision", "qty": 1 }
+  ]
+}
