@@ -56,6 +56,9 @@ pub fn render_frame(
         super::anim_shot::apply_pending_pose(&mut session.anim_shot, pv, pack);
     }
     // Chunk uploads need the GPU, so streaming runs here rather than in update
+    if let Some(streamer) = world.streamer.as_mut() {
+        play.safe_house.sync_rope(streamer); // R44-05: rope rail and roof chunks follow the ladder
+    }
     if let (Some(streamer), Some(pack)) = (world.streamer.as_mut(), render.pack.as_ref()) {
         streamer.update(
             &gpu.device,
@@ -64,6 +67,22 @@ pub fn render_frame(
             &mut world.physics,
             actors.player,
         );
+        // R44-05 fast travel: stream to the target, then stand the player on the ground there
+        if let Some(target) = play.safe_house.pending_travel.take() {
+            let pos = crate::safe_house_travel::stream_to(
+                &gpu.device,
+                pack,
+                &mut render.library,
+                streamer,
+                &mut world.physics,
+                target,
+            );
+            actors.player = pos;
+            if let Some(p) = actors.player_ctrl.as_mut() {
+                p.position = pos;
+                p.velocity = Vec3::ZERO;
+            }
+        }
     }
     // Camp upgrades: walls, gates, towers, workshop, doctor, mechanic
     let camp_site = world

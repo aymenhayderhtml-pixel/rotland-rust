@@ -397,6 +397,71 @@ pub fn update_world_interactions(
         }
         let free_world = free_world && radio_interact.is_none();
 
+        // R44-05 safe house: claim, bed, storage, rope ladder, fast travel signs
+        let home_sign = world.world_gen.as_deref().and_then(|wg| wg.home_sign_pos());
+        let safe_interact = if free_world {
+            let at = p.position;
+            let chase_r = play.safe_house.chase_radius_m();
+            let zombies = actors.zombies.as_ref();
+            let chasing = || {
+                zombies.map_or(0, |z| {
+                    game::chasing::count_chasing_near(z.active().iter().map(|a| (a.position, a.is_chasing)), at, chase_r)
+                })
+            };
+            play.safe_house.interact_tick(at, pressed, home_sign, &chasing)
+        } else {
+            None
+        };
+        if safe_interact.as_ref().is_some_and(|r| r.consumed_press) {
+            ui.e_used = true;
+        }
+        if let Some(effect) = safe_interact.as_ref().and_then(|r| r.effect) {
+            use crate::safe_house_play::SafeHouseEffect;
+            match effect {
+                SafeHouseEffect::Rested { hour } => {
+                    play.clock.set_time(hour);
+                    play.hour = play.clock.hour;
+                }
+                SafeHouseEffect::OpenBank => {
+                    ui.camp_ui = Some(camp_ui::CampUiState::new(camp_ui::CampScreen::Bank));
+                }
+                SafeHouseEffect::Travel { hours, .. } => {
+                    let _ = play.clock.advance_hours(hours);
+                    play.hour = play.clock.hour;
+                }
+                SafeHouseEffect::Claimed | SafeHouseEffect::ToggleLadder { .. } | SafeHouseEffect::TravelBlocked => {}
+            }
+            if let Some(text) = play.safe_house.toast(effect) {
+                play_state.show_toast(text);
+            }
+        }
+        if let Some(r) = &safe_interact
+            && let Some(text) = &r.prompt
+        {
+            play_state.set_prompt(text.clone());
+            other_dist = other_dist.min(r.distance);
+        }
+        let free_world = free_world && safe_interact.is_none();
+
+        // The rooftop trader (R44-05): E opens the rooftop shop with its own stock
+        let roof_trader = if free_world && npc.is_none() {
+            world
+                .world_gen
+                .as_deref()
+                .and_then(|wg| crate::rooftop_npcs::trader_position(wg, p.position))
+                .filter(|tp| tp.distance(p.position) <= interact_range)
+        } else {
+            None
+        };
+        if let Some(tp) = roof_trader {
+            play_state.set_prompt("[E] Rooftop trader".into());
+            other_dist = other_dist.min(tp.distance(p.position));
+            if pressed {
+                play.safe_house.shop_on_roof = true;
+                ui.camp_ui = Some(camp_ui::CampUiState::new(camp_ui::CampScreen::Shop));
+            }
+        }
+
         // A bed in front comes before crates; tilling with a hoe only when nothing else is offered
         let bed = free_world && play_state.camp.bed_in_front(p.position, facing).is_some();
         play_state.interact_tick(dt, pressed && free_world && !bed, p.position, facing, &world.near_crates_scratch);
@@ -544,6 +609,7 @@ pub fn update_world_interactions(
                 other_dist = other_dist.min(npc_d);
                 if let (true, Some(s)) = (pressed, screen) {
                     ui.camp_ui = Some(camp_ui::CampUiState::new(s));
+                    play.safe_house.shop_on_roof = false; // the camp's own trader (R44-05)
                 }
             }
         } else if let Some((town_key, keeper_pos, keeper_dist)) = shopkeeper {

@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use glam::{IVec2, Vec2, Vec3};
 
 use crate::generator::WorldGenerator;
+use crate::metro::safehouse::{RooftopNpc, safe_house_layout};
 use crate::metro::{ClimbBox, ClimbLadder, FloorCrateEntry};
 use crate::poi::{PoiGeometry, PoiInstance, PoiPlacer};
 use crate::roads::RoadKind;
@@ -22,6 +24,10 @@ const TRAIL_HALF_WIDTH_M: f32 = 2.0;
 // new: DECISIONS 2026-11-25
 const ROAD_PROP_CLEAR_M: f32 = 4.0;
 
+/// Whether the safe house rope ladder is lowered (R44). Chunks built after the call use it;
+/// the play side reloads the chunks around the roof when it changes.
+static SAFEHOUSE_LADDER_DOWN: AtomicBool = AtomicBool::new(false);
+
 #[inline]
 fn in_chunk(p: Vec2, coord: IVec2) -> bool {
     let cx = (p.x / WorldGenerator::CHUNK_SIZE).floor() as i32;
@@ -30,6 +36,11 @@ fn in_chunk(p: Vec2, coord: IVec2) -> bool {
 }
 
 impl WorldGenerator {
+    /// Sets the safe house rope ladder state for chunks built from now on (R44).
+    pub fn set_safehouse_ladder_down(down: bool) {
+        SAFEHOUSE_LADDER_DOWN.store(down, Ordering::Relaxed);
+    }
+
     /// POIs and props for one chunk, following BuildChunk rules.
     pub fn chunk_contents(&self, coord: IVec2) -> (Vec<PoiInstance>, Vec<PropInstance>) {
         let placed_pois = PoiPlacer::place(self, &self.poi_config, coord);
@@ -142,9 +153,38 @@ impl WorldGenerator {
             let rooftops = crate::metro::rooftops_in_chunk(metro, chunk);
             pois.extend(rooftops.pois);
             props.extend(rooftops.props);
+            props.extend(self.metro_safehouse_extras(coord).0); // R44-05
         }
 
         (pois, props)
+    }
+
+    /// The safe house props (shack, bed, chest, sign, rope) and the rooftop camp props and people
+    /// for one chunk (R44). The people are also returned, for the trader's [E] prompt.
+    pub fn metro_safehouse_extras(&self, coord: IVec2) -> (Vec<PropInstance>, Vec<RooftopNpc>) {
+        let Some(metro) = self.metro_world() else {
+            return (Vec::new(), Vec::new());
+        };
+        let Some(layout) = safe_house_layout() else {
+            return (Vec::new(), Vec::new());
+        };
+        let chunk = (coord.x, coord.y);
+        let hfn = &|x: f32, z: f32| self.height(x, z);
+        let down = SAFEHOUSE_LADDER_DOWN.load(Ordering::Relaxed);
+        let mut props = crate::metro::safehouse::safehouse_in_chunk(metro, layout, chunk, hfn, down).props;
+        let (camp, npcs) = crate::metro::safehouse::rooftop_camp_in_chunk(metro, layout, chunk);
+        props.extend(camp.props);
+        for n in &npcs {
+            props.push(PropInstance::new(n.model.clone(), n.position, n.yaw, 1.0));
+        }
+        (props, npcs)
+    }
+
+    /// The home camp's travel point (R44-05): the camp's respawn point. No prop is placed here
+    /// (a sign would change the camp chunk that the city tests compare).
+    pub fn home_sign_pos(&self) -> Option<Vec3> {
+        let site = self.settlements().first()?;
+        Some(site.respawn_point(self.config()))
     }
 
     /// Extra ladders and box colliders for New Halden's climbable towers and rooftop bridges.
